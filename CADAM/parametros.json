@@ -1,0 +1,33 @@
+{
+  "marcas_propias": [
+    { "marca_cadam": "HAVAL", "grupo": "GWM", "submarca": "Haval" },
+    { "marca_cadam": "GREAT WALL", "grupo": "GWM", "submarca": "Tank / Poer / Ora (agrupadas por CADAM bajo 'GREAT WALL', no aparecen como marcas propias)" },
+    { "marca_cadam": "JAC", "grupo": "JAC Motors", "submarca": null },
+    { "marca_cadam": "JETOUR", "grupo": "Jetour", "submarca": null },
+    { "marca_cadam": "DONGFENG", "grupo": "Dongfeng", "submarca": null },
+    { "marca_cadam": "SOUEAST", "grupo": "Soueast", "submarca": null },
+    { "marca_cadam": "RENAULT", "grupo": "Renault", "submarca": null },
+    { "marca_cadam": "MITSUBISHI", "grupo": "Mitsubishi", "submarca": null },
+    { "marca_cadam": "LEAPMOTOR", "grupo": "Leapmotor", "submarca": null },
+    { "marca_cadam": "ZEEKR", "grupo": "Zeekr", "submarca": null },
+    { "marca_cadam": "JMEV", "grupo": "JMEV", "submarca": null }
+  ],
+  "segmento_seguimiento": "livianos",
+  "competidores_clave": [
+    "TOYOTA",
+    "CHEVROLET",
+    "KIA",
+    "HYUNDAI",
+    "CHERY",
+    "MG",
+    "GEELY",
+    "BYD",
+    "CHANGAN"
+  ],
+  "metas": {
+    "participacion_mercado_2026_pct": null,
+    "ranking_objetivo_2026": null,
+    "unidades_objetivo_mensual": null
+  },
+  "notas": "Actualizado 2026-07-19 al portafolio completo de Santa Rosa (CLAUDE.md sec. 4): GWM (Haval, Tank, Poer, Ora), JAC, Jetour, Dongfeng, Soueast, Renault, Mitsubishi. Se cruzaron los nombres contra las 74 marcas reales de matriculacion_marca en cadam.db (jun-2026): HAVAL y GREAT WALL existen como filas propias; Tank/Poer/Ora NO aparecen como marcas separadas, CADAM las reporta agregadas bajo 'GREAT WALL' a este nivel de cuadro. 'Vehiculos usados' (unidad adicional de Santa Rosa) no tiene equivalente en este cuadro (es 0km); se revisa cuando se ingesten los cuadros de usados. Ampliado el mismo dia (mas tarde) con LEAPMOTOR, ZEEKR y JMEV a pedido directo del usuario (no estaban en CLAUDE.md sec. 4) -- confirmado que las tres existen tal cual como marcas separadas en matriculacion_marca. Completar metas con el equipo comercial."
+}
