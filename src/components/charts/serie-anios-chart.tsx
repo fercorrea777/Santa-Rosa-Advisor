@@ -1,6 +1,6 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
+import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 import { MESES_CORTOS } from "@/lib/periodo";
@@ -77,5 +77,5 @@ export function SerieAniosChart({
     })),
   };
 
-  return <ReactECharts option={option} style={{ height: altura, width: "100%" }} notMerge />;
+  return <EchartsAuto option={option} style={{ height: altura, width: "100%" }} notMerge />;
 }

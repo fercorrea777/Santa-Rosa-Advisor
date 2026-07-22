@@ -1,6 +1,6 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
+import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
@@ -96,7 +96,7 @@ export function BarrasFiltroChart({
   }
 
   return (
-    <ReactECharts
+    <EchartsAuto
       option={option}
       style={{ height: altura, width: "100%" }}
       notMerge

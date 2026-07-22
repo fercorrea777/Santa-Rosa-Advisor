@@ -52,7 +52,7 @@ export function KpiCard({
     : value;
   if (!disponible) {
     return (
-      <Card className="gap-2 py-4">
+      <Card className="w-full gap-2 py-4">
         <CardHeader className="flex flex-row items-center justify-between gap-2 px-4">
           <span className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
             {label}
@@ -71,7 +71,7 @@ export function KpiCard({
   const isDown = (variacion ?? 0) < 0;
 
   return (
-    <Card className="group/kpi gap-2 py-4">
+    <Card className="group/kpi w-full gap-2 py-4">
       <CardHeader className="flex flex-row items-center justify-between gap-2 px-4">
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
           {label}
