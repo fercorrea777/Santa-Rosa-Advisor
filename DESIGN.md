@@ -33,14 +33,14 @@ Todo en OKLCH, en `src/app/globals.css`.
 Contraste medido sobre el panel oscuro: principal **16,1:1**, secundario
 **7,9:1**, acento **9,2:1**, destructivo **5,5:1**. Todos por encima de 4,5:1.
 
-## El panel HUD
+## El panel HUD (Telemetría 2.0)
 
 `[data-slot="card"]` en `globals.css`:
 
 - Borde luminoso cian a 1px (`box-shadow`, no `border`, para no alterar el
   layout) más un `inset` superior que simula el bisel.
-- **Muesca en la esquina inferior derecha** vía `clip-path`, con una diagonal
-  en `::after` para que se lea como bisel y no como error de render.
+- **Radio suave** (`0.875rem`) en las 4 esquinas — reemplaza la muesca
+  recortada de la v1 (era `clip-path` en la esquina inferior derecha).
 - Glow radial suave desde la esquina superior izquierda, solo en oscuro.
 - Título en versalitas espaciadas, como etiqueta de instrumento.
 
@@ -95,9 +95,24 @@ porque el resultado depende de la superficie sobre la que se dibuja.
 - Sin glassmorphism decorativo (el glow del panel es tenue y con propósito).
 - Sin "eyebrow" en versalitas encima de cada sección: las versalitas se usan
   solo en títulos de panel y etiquetas de campo, que es su función real.
+- **Sin librería de íconos.** `lucide-react` se removió (Telemetría 2.0): la
+  interfaz comunica estado con tipografía, glifos Unicode (▲ ▼ ⚠ ✓ ✕ · i ?) y
+  texto — nunca con SVGs decorativos.
 
 ## Motion
 
-150–250 ms, solo para estado y feedback. Sin secuencias de entrada al cargar la
-página: el usuario viene con una pregunta, no a ver una animación.
-`prefers-reduced-motion` está cubierto globalmente en `globals.css`.
+Dos capas:
+
+- **Estado y feedback** (hover, focus, selección de filtro): 150–250 ms, sin
+  cambios respecto a la v1.
+- **Entrada** (Telemetría 2.0, desvío intencional de la v1): paneles con
+  aparición escalonada (`.reveal` + `.reveal-d1`..`.reveal-d6`, 420 ms,
+  `cubic-bezier(0.16, 0.84, 0.44, 1)`), cifras de KPI con count-up
+  (`useCountUp`, 900 ms), y los 4 gráficos de ECharts con animación de
+  entrada nativa (`animationDuration`/`animationEasing` en el `option`, sin
+  librería nueva).
+
+`prefers-reduced-motion` está cubierto globalmente en `globals.css` para toda
+animación CSS (incluida `.reveal`); `useCountUp` lo respeta explícitamente
+(salta directo al valor final). Los gráficos de ECharts no leen el media
+query automáticamente — limitación conocida, no bloqueante.
