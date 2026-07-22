@@ -54,7 +54,8 @@ export function KpiCard({
         {tooltip && <InfoTip text={tooltip} />}
       </CardHeader>
       <CardContent className="px-4">
-        <p className="metric text-[1.75rem] font-semibold text-foreground">{value}</p>
+        {/* El peso lo fija .metric (700); no agregar font-* aca o lo pisa. */}
+        <p className="metric text-[1.75rem] text-foreground">{value}</p>
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
           {variacion !== undefined && variacion !== null ? (
             <span

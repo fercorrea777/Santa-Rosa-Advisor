@@ -30,7 +30,7 @@ export default function CargasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-2 text-sm">
+          <CardTitle className="inline-flex items-center gap-2">
             <FolderOpen className="size-4" />
             Cómo cargar un mes nuevo
           </CardTitle>
@@ -73,7 +73,7 @@ export default function CargasPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Snapshots cargados</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Snapshots cargados</CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-5">
           {[...porSnapshot.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([snap, arch]) => (
             <div key={snap} className="flex flex-col gap-2">
@@ -125,7 +125,7 @@ export default function CargasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-2 text-sm">
+          <CardTitle className="inline-flex items-center gap-2">
             <Terminal className="size-4" />
             Pendiente: carga desde la interfaz
           </CardTitle>

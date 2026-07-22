@@ -169,7 +169,7 @@ export default async function InicioPage({
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Evolución mensual — matriculaciones</CardTitle>
+            <CardTitle>Evolución mensual — matriculaciones</CardTitle>
           </CardHeader>
           <CardContent>
             <SerieAniosChart series={serieMat} />
@@ -184,7 +184,7 @@ export default async function InicioPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Evolución mensual — importaciones</CardTitle>
+            <CardTitle>Evolución mensual — importaciones</CardTitle>
           </CardHeader>
           <CardContent>
             {serieImp.length ? (
@@ -199,7 +199,7 @@ export default async function InicioPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Matriculaciones por segmento</CardTitle>
+            <CardTitle>Matriculaciones por segmento</CardTitle>
           </CardHeader>
           <CardContent>
             <BarrasFiltroChart
@@ -215,7 +215,7 @@ export default async function InicioPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Importaciones por segmento</CardTitle>
+            <CardTitle>Importaciones por segmento</CardTitle>
           </CardHeader>
           <CardContent>
             <BarrasFiltroChart
@@ -239,7 +239,7 @@ export default async function InicioPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Ranking de marcas</CardTitle>
+          <CardTitle>Ranking de marcas</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="mat">

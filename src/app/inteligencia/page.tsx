@@ -61,7 +61,7 @@ export default async function InteligenciaPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-2 text-sm">
+          <CardTitle className="inline-flex items-center gap-2">
             <TrendingUp className="size-4" />
             Resumen ejecutivo
           </CardTitle>
@@ -80,7 +80,7 @@ export default async function InteligenciaPage({
         return (
           <Card key={tipo}>
             <CardHeader>
-              <CardTitle className="inline-flex items-center gap-2 text-sm">
+              <CardTitle className="inline-flex items-center gap-2">
                 <Icono className="size-4" />
                 {titulo}
                 <span className="font-normal text-muted-foreground">({items.length})</span>

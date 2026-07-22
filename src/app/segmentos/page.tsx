@@ -81,7 +81,7 @@ export default async function SegmentosPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">
+          <CardTitle>
             Ranking de segmentos — matriculaciones
           </CardTitle>
         </CardHeader>
@@ -144,7 +144,7 @@ export default async function SegmentosPage({
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">
+              <CardTitle>
                 Evolución mensual — {seleccionado}, matriculaciones
               </CardTitle>
             </CardHeader>
@@ -154,7 +154,7 @@ export default async function SegmentosPage({
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Marcas líderes en {seleccionado}</CardTitle>
+                <CardTitle>Marcas líderes en {seleccionado}</CardTitle>
               </CardHeader>
               <CardContent>
                 <TablaRanking filas={marcasSeg} nombreArchivo={`segmento-${seleccionado}-marcas`} />
@@ -162,7 +162,7 @@ export default async function SegmentosPage({
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Modelos líderes en {seleccionado}</CardTitle>
+                <CardTitle>Modelos líderes en {seleccionado}</CardTitle>
               </CardHeader>
               <CardContent>
                 <TablaRanking filas={modelosSeg} mostrarModelo

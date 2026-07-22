@@ -1,18 +1,29 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Nunito_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
 
-const geistSans = Geist({
+// Nunito Sans: geometrica de terminaciones redondeadas y x-height alta, la
+// referencia que pidio el usuario. Se carga en el rango de pesos que usa la
+// app (400 texto, 600 etiquetas, 700/800 titulos y cifras).
+const sans = Nunito_Sans({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+// JetBrains Mono para las cifras: el par sans + mono es un contraste real
+// (geometrica vs. monoespaciada), no dos sans parecidas. Ademas sus digitos
+// son inconfundibles entre si a distancia, que es lo que se necesita en la
+// pantalla de la reunion.
+const mono = JetBrains_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +41,7 @@ export default function RootLayout({
     <html
       lang="es"
       data-scroll-behavior="smooth"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

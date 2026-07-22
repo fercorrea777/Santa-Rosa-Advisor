@@ -117,7 +117,7 @@ export default async function MarketSharePage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">
+          <CardTitle>
             Participación por {DIMENSIONES[dimEfectiva].label.toLowerCase()} —{" "}
             {etiquetaFuente} ({filas.length})
           </CardTitle>
@@ -134,7 +134,7 @@ export default async function MarketSharePage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">
+          <CardTitle>
             Evolución de la participación — top 5 en {etiquetaFuente}, {f.anio}{" "}
             (% del mes)
           </CardTitle>

@@ -140,7 +140,7 @@ export default async function MercadoPage({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-sm">Evolución mensual — matriculaciones</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Evolución mensual — matriculaciones</CardTitle></CardHeader>
           <CardContent>
             <SerieAniosChart series={serieMat} />
             {cobertura.mesesFaltantes.matriculacion.length > 0 && (
@@ -154,7 +154,7 @@ export default async function MercadoPage({
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-sm">Evolución mensual — importaciones</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Evolución mensual — importaciones</CardTitle></CardHeader>
           <CardContent>
             {serieImp.length ? (
               <SerieAniosChart series={serieImp} />
@@ -168,7 +168,7 @@ export default async function MercadoPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">
+            <CardTitle>
               Participación por segmento — {etiquetaFuente}
             </CardTitle>
           </CardHeader>
@@ -192,7 +192,7 @@ export default async function MercadoPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">
+            <CardTitle>
               {/* La tecnologia solo existe en matriculacion, asi que el
                   titulo la nombra siempre: aclara de donde sale el dato
                   aunque arriba este elegida la otra fuente. */}
@@ -247,7 +247,7 @@ export default async function MercadoPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Rankings — {etiquetaFuente}</CardTitle>
+          <CardTitle>Rankings — {etiquetaFuente}</CardTitle>
           <p className="text-xs text-muted-foreground">
             Hacé clic en una marca, modelo o versión para filtrar toda la
             página; otro clic lo quita. Los filtros se acumulan entre sí y con
@@ -331,7 +331,7 @@ function MoviminetoCard({
 }) {
   return (
     <Card>
-      <CardHeader><CardTitle className="text-sm">{titulo}</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{titulo}</CardTitle></CardHeader>
       <CardContent>
         {!disponible ? (
           <p className="py-8 text-center text-sm text-muted-foreground">

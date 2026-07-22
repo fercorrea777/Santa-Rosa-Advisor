@@ -47,10 +47,32 @@ Contraste medido sobre el panel oscuro: principal **16,1:1**, secundario
 > El componente `Card` **no** lleva `ring-*` ni `rounded-*`: las utilidades de
 > Tailwind pisan el `box-shadow` del panel. El estilo lo dueña el CSS.
 
-## Retícula de fondo
+## Tipografía
 
-Dos gradientes de 1px cada 44px sobre el `body`, a 7% de opacidad. Se percibe
-como textura, no como cuadrícula, y no compite con el dato.
+| Rol | Familia | Uso |
+|---|---|---|
+| Interfaz | **Nunito Sans** (400/600/700/800) | Todo el texto, títulos y etiquetas |
+| Cifras | **JetBrains Mono** (700) | Métricas, columnas numéricas |
+
+Nunito Sans es geométrica de terminaciones redondeadas y x-height alta — la
+referencia que eligió el usuario. El par sans + mono es un contraste real
+(geométrica vs. monoespaciada), no dos sans parecidas; y los dígitos de
+JetBrains Mono se distinguen entre sí a distancia, que es lo que hace falta
+cuando esto se proyecta.
+
+> Los tokens `--font-sans` / `--font-mono` en `@theme inline` deben apuntar a
+> `var(--font-geist-sans)` / `var(--font-geist-mono)`, que es lo que inyecta
+> `next/font` en `<html>`. Si se dejan auto-referenciados (`--font-sans:
+> var(--font-sans)`) el token queda inválido y **todo cae a Times New Roman**.
+
+## Fondo
+
+**Sin cuadrícula.** Se descartó la retícula tipo papel milimetrado: dibujaba
+celdas que competían con las tablas y los gráficos, que ya son celdas.
+
+En su lugar, atmósfera: dos resplandores fríos muy abiertos (cian arriba a la
+izquierda, azul profundo abajo a la derecha) que dan profundidad, y encima una
+trama diagonal de 3px al 3,5% que se lee como textura de señal.
 
 ## Gráficos
 

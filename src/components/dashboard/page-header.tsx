@@ -11,7 +11,7 @@ export function PageHeader({
 }) {
   return (
     <header className="flex flex-col gap-1.5 border-b pb-4">
-      <h1 className="text-lg font-semibold uppercase tracking-[0.06em] text-balance">
+      <h1 className="text-xl font-extrabold uppercase tracking-[0.04em] text-balance">
         {titulo}
       </h1>
       {descripcion && (

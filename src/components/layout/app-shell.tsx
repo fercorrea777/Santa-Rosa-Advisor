@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col">
         <div className="flex h-14 items-center gap-2.5 border-b px-4">
           <Gauge className="size-5 shrink-0 text-primary" />
-          <span className="text-[0.8rem] font-semibold uppercase leading-tight tracking-[0.08em]">
+          <span className="text-[0.82rem] font-extrabold uppercase leading-tight tracking-[0.06em]">
             Mercado Automotor <span className="text-primary">PY</span>
           </span>
         </div>

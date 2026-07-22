@@ -69,7 +69,7 @@ export default async function EvolucionPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">
+          <CardTitle>
             {fuente === "matriculacion" ? "Matriculaciones" : "Importaciones"} por mes
             {!anioCompleto && ` — ${etiquetaRango}`}
           </CardTitle>
@@ -88,7 +88,7 @@ export default async function EvolucionPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">
+          <CardTitle>
             Indicadores por año — {etiquetaFuente}, {etiquetaRango}
           </CardTitle>
           <p className="text-xs text-muted-foreground">

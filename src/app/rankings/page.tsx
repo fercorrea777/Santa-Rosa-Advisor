@@ -106,7 +106,7 @@ export default async function RankingsPage({
 function Panel({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <Card className="mt-3">
-      <CardHeader><CardTitle className="text-sm">{titulo}</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{titulo}</CardTitle></CardHeader>
       <CardContent className="flex flex-col gap-3">{children}</CardContent>
     </Card>
   );

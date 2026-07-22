@@ -41,10 +41,10 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn(
-        "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
-        className
-      )}
+      // El tamano, el peso y las versalitas los define globals.css sobre
+      // [data-slot="card-title"]: aca no van `text-*` ni `font-*` porque las
+      // utilidades de Tailwind los pisarian.
+      className={cn("font-heading leading-snug", className)}
       {...props}
     />
   )

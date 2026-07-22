@@ -84,7 +84,7 @@ export default async function CombustiblesPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">
+          <CardTitle>
             Ranking por tecnología — matriculaciones
           </CardTitle>
         </CardHeader>
@@ -143,7 +143,7 @@ export default async function CombustiblesPage({
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">
+              <CardTitle>
                 Evolución histórica — {seleccionada} en matriculaciones (
                 {anios[0]}–{anios[anios.length - 1]})
               </CardTitle>
@@ -153,13 +153,13 @@ export default async function CombustiblesPage({
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle className="text-sm">Marcas líderes en {seleccionada}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Marcas líderes en {seleccionada}</CardTitle></CardHeader>
               <CardContent>
                 <TablaRanking filas={marcasTec} nombreArchivo={`tecnologia-${seleccionada}-marcas`} />
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle className="text-sm">Modelos líderes en {seleccionada}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Modelos líderes en {seleccionada}</CardTitle></CardHeader>
               <CardContent>
                 <TablaRanking filas={modelosTec} mostrarModelo mostrarSegmento
                   nombreArchivo={`tecnologia-${seleccionada}-modelos`} />

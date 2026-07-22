@@ -112,7 +112,7 @@ export default async function BrechaPage({
       </section>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Evolución de la brecha — {f.anio}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Evolución de la brecha — {f.anio}</CardTitle></CardHeader>
         <CardContent>
           <BrechaChart
             meses={serie.map((p) => mesCorto(p.mes))}
@@ -124,7 +124,7 @@ export default async function BrechaPage({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Detalle mensual</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Detalle mensual</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -195,7 +195,7 @@ function TablaBrechaMarcas({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">{titulo}</CardTitle>
+        <CardTitle>{titulo}</CardTitle>
         <p className="text-xs text-muted-foreground">{subtitulo}</p>
       </CardHeader>
       <CardContent className="overflow-x-auto">

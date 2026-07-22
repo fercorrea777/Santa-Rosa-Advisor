@@ -39,7 +39,7 @@ export default function CalidadDatosPage() {
       {controles.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Validación contra el informe oficial de CADAM</CardTitle>
+            <CardTitle>Validación contra el informe oficial de CADAM</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {controles.map((c, i) => (
@@ -59,7 +59,7 @@ export default function CalidadDatosPage() {
 
       {(errores.length > 0 || avisos.length > 0) && (
         <Card>
-          <CardHeader><CardTitle className="text-sm">Hallazgos</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Hallazgos</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-3">
             {[...errores, ...avisos].map((l, i) => (
               <div key={i} className="flex items-start gap-2">
@@ -83,7 +83,7 @@ export default function CalidadDatosPage() {
       )}
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Archivos cargados</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Archivos cargados</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -137,7 +137,7 @@ export default function CalidadDatosPage() {
 
       {resto.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="text-sm">Detalle del procesamiento</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Detalle del procesamiento</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-2">
             {resto.map((l, i) => (
               <p key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
