@@ -115,7 +115,7 @@ export default async function InteligenciaPage({
 
 function ItemCard({ item }: { item: Item }) {
   return (
-    <li className="flex flex-col gap-1.5 border-l-2 border-l-border pl-3">
+    <li className="flex flex-col gap-1.5 rounded-md bg-muted/35 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-medium">{item.titulo}</span>
         <PrioridadBadge prioridad={item.prioridad} />

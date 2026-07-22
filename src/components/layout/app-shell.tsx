@@ -17,10 +17,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           estira a la altura del contenido (align-items: stretch) y
           `sticky` no tiene margen para pegarse. */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col">
-        <div className="flex h-14 items-center gap-2 border-b px-4">
-          <Gauge className="size-5 text-primary" />
-          <span className="text-sm font-semibold tracking-tight">
-            Mercado Automotor PY
+        <div className="flex h-14 items-center gap-2.5 border-b px-4">
+          <Gauge className="size-5 shrink-0 text-primary" />
+          <span className="text-[0.8rem] font-semibold uppercase leading-tight tracking-[0.08em]">
+            Mercado Automotor <span className="text-primary">PY</span>
           </span>
         </div>
         <div className="flex-1 overflow-y-auto py-3">
@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
-        <main className="flex-1 bg-muted/30">{children}</main>
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

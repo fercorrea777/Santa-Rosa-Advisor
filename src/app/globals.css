@@ -47,99 +47,129 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-3xl: calc(var(--radius) * 2.6);
 }
 
+/* ---------------------------------------------------------------------------
+   TEMA: telemetria.
+
+   La referencia es un tablero de instrumentos, no una web de SaaS: superficie
+   azul-negra, retícula tenue de fondo, paneles con el borde luminoso y una
+   esquina recortada, y el número como protagonista.
+
+   Se usa en dos situaciones a la vez (PRODUCT.md): notebook a un metro y
+   proyector a cinco. Por eso el contraste de los números es alto y la
+   decoración vive en los bordes, nunca encima del dato.
+
+   El modo claro NO es el mismo tema invertido: es una variante técnica fría
+   (nada de crema), pensada para oficina con ventana. El oscuro es el
+   principal.
+--------------------------------------------------------------------------- */
+
 :root {
-  /* Los <select> nativos dibujan su menu desplegable con los colores del
-     sistema operativo. Sin declarar color-scheme, en modo oscuro el menu
-     sale BLANCO con texto claro (ilegible). Con esto el navegador pinta
-     el desplegable acorde al tema. */
+  /* Los <select> nativos dibujan su desplegable con los colores del sistema
+     operativo; sin color-scheme salen ilegibles al invertir el tema. */
   color-scheme: light;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+
+  --background: oklch(0.975 0.004 240);
+  --foreground: oklch(0.19 0.02 250);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.19 0.02 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.546 0.245 262.881);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.623 0.214 259.815);
-  /* Paleta categorica de graficos. Los valores por defecto de shadcn son
-     una escala de grises (chroma 0): servian para una serie, no para
-     comparar marcas/segmentos/tecnologias.
-     Orden fijo, nunca ciclado: el orden ES el mecanismo de seguridad para
-     daltonismo, no una decision estetica. Validada contra las superficies
-     reales de esta app (#ffffff / #171717): banda de luminosidad, piso de
-     croma, separacion CVD y piso de vision normal, en ambos modos. */
-  --chart-1: #2a78d6; /* azul */
-  --chart-2: #008300; /* verde */
-  --chart-3: #e87ba4; /* magenta */
-  --chart-4: #eda100; /* amarillo */
-  --chart-5: #1baf7a; /* aqua */
-  --chart-6: #eb6834; /* naranja */
-  --chart-7: #4a3aa7; /* violeta */
-  --chart-8: #e34948; /* rojo */
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --popover-foreground: oklch(0.19 0.02 250);
+
+  /* Cian técnico: el acento marca acción, selección y estado. Nunca decora. */
+  --primary: oklch(0.55 0.13 220);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0.006 240);
+  --secondary-foreground: oklch(0.25 0.02 250);
+  --muted: oklch(0.955 0.006 240);
+  --muted-foreground: oklch(0.46 0.02 250);
+  --accent: oklch(0.94 0.012 220);
+  --accent-foreground: oklch(0.25 0.02 250);
+  --destructive: oklch(0.55 0.2 22);
+  --border: oklch(0.89 0.01 240);
+  --input: oklch(0.89 0.01 240);
+  --ring: oklch(0.55 0.13 220);
+
+  /* Superficie de la retícula de fondo y del glow de panel. En claro casi no
+     se ve: la textura es un recurso del modo oscuro. */
+  --grid-line: oklch(0.55 0.05 240 / 8%);
+  --panel-glow: transparent;
+  --panel-edge: oklch(0.55 0.13 220 / 22%);
+
+  /* Paleta categórica de gráficos. Los --chart de shadcn son una escala de
+     grises: inservibles para comparar marcas o segmentos. Este orden fijo
+     (nunca ciclado) es el mecanismo de seguridad para daltonismo, no una
+     decisión estética: se valida con el script del skill de dataviz contra la
+     superficie real de la app. */
+  --chart-1: #2a78d6;
+  --chart-2: #008300;
+  --chart-3: #e87ba4;
+  --chart-4: #eda100;
+  --chart-5: #1baf7a;
+  --chart-6: #eb6834;
+  --chart-7: #4a3aa7;
+  --chart-8: #e34948;
+
+  --radius: 0.5rem;
+  --sidebar: oklch(0.965 0.006 240);
+  --sidebar-foreground: oklch(0.19 0.02 250);
+  --sidebar-primary: oklch(0.55 0.13 220);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.93 0.014 220);
+  --sidebar-accent-foreground: oklch(0.22 0.02 250);
+  --sidebar-border: oklch(0.89 0.01 240);
+  --sidebar-ring: oklch(0.55 0.13 220);
 }
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.623 0.214 259.815);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.623 0.214 259.815);
-  /* Mismos ocho tonos, re-escalonados para la superficie oscura (#171717).
-     No es un flip automatico del modo claro: cada paso se eligio para la
-     banda oscura y se valido como conjunto. */
+
+  --background: oklch(0.16 0.021 252);
+  --foreground: oklch(0.97 0.006 240);
+  --card: oklch(0.215 0.024 252);
+  --card-foreground: oklch(0.97 0.006 240);
+  --popover: oklch(0.225 0.024 252);
+  --popover-foreground: oklch(0.97 0.006 240);
+
+  --primary: oklch(0.78 0.135 205);
+  --primary-foreground: oklch(0.16 0.03 250);
+  --secondary: oklch(0.27 0.028 252);
+  --secondary-foreground: oklch(0.97 0.006 240);
+  --muted: oklch(0.26 0.026 252);
+  --muted-foreground: oklch(0.75 0.025 235);
+  --accent: oklch(0.31 0.04 235);
+  --accent-foreground: oklch(0.97 0.006 240);
+  --destructive: oklch(0.68 0.2 22);
+  --border: oklch(0.72 0.06 215 / 20%);
+  --input: oklch(0.72 0.06 215 / 28%);
+  --ring: oklch(0.78 0.135 205);
+
+  --grid-line: oklch(0.72 0.07 215 / 7%);
+  --panel-glow: oklch(0.78 0.135 205 / 6%);
+  --panel-edge: oklch(0.78 0.135 205 / 34%);
+
+  /* Los mismos ocho tonos, re-escalonados para la superficie oscura. No es un
+     flip automático del modo claro: cada paso se eligió para la banda oscura y
+     se validó como conjunto. */
   --chart-1: #3987e5;
-  --chart-2: #008300;
+  --chart-2: #1a9e1a;
   --chart-3: #d55181;
   --chart-4: #c98500;
   --chart-5: #199e70;
   --chart-6: #d95926;
   --chart-7: #9085e9;
   --chart-8: #e66767;
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+
+  --sidebar: oklch(0.185 0.023 252);
+  --sidebar-foreground: oklch(0.97 0.006 240);
+  --sidebar-primary: oklch(0.78 0.135 205);
+  --sidebar-primary-foreground: oklch(0.16 0.03 250);
+  --sidebar-accent: oklch(0.29 0.045 232);
+  --sidebar-accent-foreground: oklch(0.99 0.005 220);
+  --sidebar-border: oklch(0.72 0.06 215 / 18%);
+  --sidebar-ring: oklch(0.78 0.135 205);
 }
 
 @layer base {
@@ -148,8 +178,96 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Retícula de instrumental. Dos gradientes de 1px sobre el fondo: se
+       percibe como textura, no como cuadrícula, y no compite con el dato. */
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 44px 44px;
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
+  }
+  /* Los números se leen a cinco metros en la reunión del lunes: mono y
+     tabulares para que las columnas no bailen entre filas. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* ---- Panel HUD ----------------------------------------------------------
+     La esquina inferior derecha recortada y el borde luminoso son lo que da
+     el carácter de instrumento. Deliberadamente NO se usa una franja de color
+     al costado de la tarjeta: es el tic visual más gastado y además compite
+     con el contenido.
+  ------------------------------------------------------------------------ */
+  [data-slot="card"] {
+    position: relative;
+    border-radius: 0.5rem;
+    background-color: color-mix(in oklab, var(--card) 92%, transparent);
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--panel-edge) 55%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--panel-edge) 60%, transparent),
+      0 18px 40px -28px oklch(0 0 0 / 60%);
+    /* Muesca en la esquina inferior derecha. */
+    clip-path: polygon(
+      0 0, 100% 0, 100% calc(100% - 14px),
+      calc(100% - 14px) 100%, 0 100%
+    );
+  }
+  .dark [data-slot="card"] {
+    background-image: radial-gradient(
+      120% 90% at 0% 0%,
+      var(--panel-glow) 0%,
+      transparent 60%
+    );
+  }
+  /* Diagonal que cierra la muesca, para que el recorte se lea como bisel y no
+     como un error de render. */
+  [data-slot="card"]::after {
+    content: "";
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(
+      135deg,
+      transparent 0 49%,
+      color-mix(in oklab, var(--panel-edge) 90%, transparent) 49% 52%,
+      transparent 52%
+    );
+    pointer-events: none;
+  }
+
+  /* Título de panel: versalitas espaciadas, como una etiqueta de instrumento.
+     Se aplica solo a los títulos de panel, no a cada sección de la página. */
+  [data-slot="card-title"] {
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+  }
+
+  /* Cifra de telemetría. */
+  .metric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

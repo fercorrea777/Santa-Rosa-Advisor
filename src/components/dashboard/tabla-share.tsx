@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import type { FilaDimension } from "@/lib/cadam/mercado";
-import { ArrowDown, ArrowUp, Download, Minus } from "lucide-react";
+import { ArrowDown, ArrowUp, Download, Minus, TriangleAlert } from "lucide-react";
 
 export interface FilaShare extends FilaDimension {
   esPropia?: boolean;
@@ -115,12 +115,20 @@ export function TablaShare({
                   key={f.valor}
                   className={cn(
                     f.esPropia && "bg-primary/5 hover:bg-primary/10",
-                    divergente(f) && "border-l-2 border-l-amber-500"
+                    // La divergencia se marca con un tinte de fondo y un icono
+                    // junto al nombre, no con una franja lateral de color.
+                    divergente(f) && "bg-amber-500/8"
                   )}
                 >
                   <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="font-medium">
                     <span className="inline-flex items-center gap-2">
+                      {divergente(f) && (
+                        <TriangleAlert
+                          className="size-3.5 shrink-0 text-amber-600 dark:text-amber-500"
+                          aria-label="Unidades y participación van en sentido contrario"
+                        />
+                      )}
                       {f.valor}
                       {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
                     </span>
@@ -152,8 +160,9 @@ export function TablaShare({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Las filas marcadas en ámbar crecen en unidades pero pierden
-        participación (o al revés): el mercado se movió más rápido que ellas.
+        Las filas con <TriangleAlert className="inline size-3 text-amber-600 dark:text-amber-500" />{" "}
+        crecen en unidades pero pierden participación (o al revés): el mercado
+        se movió más rápido que ellas.
       </p>
     </div>
   );

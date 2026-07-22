@@ -10,13 +10,19 @@ export function PageHeader({
   fuente?: string;
 }) {
   return (
-    <header className="flex flex-col gap-1">
-      <h1 className="text-xl font-semibold tracking-tight">{titulo}</h1>
+    <header className="flex flex-col gap-1.5 border-b pb-4">
+      <h1 className="text-lg font-semibold uppercase tracking-[0.06em] text-balance">
+        {titulo}
+      </h1>
       {descripcion && (
-        <p className="text-sm text-muted-foreground">{descripcion}</p>
+        <p className="max-w-[75ch] text-sm text-muted-foreground text-pretty">
+          {descripcion}
+        </p>
       )}
       {fuente && (
-        <p className="text-xs text-muted-foreground/80">{fuente}</p>
+        <p className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground/75">
+          {fuente}
+        </p>
       )}
     </header>
   );

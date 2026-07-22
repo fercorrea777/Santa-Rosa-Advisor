@@ -29,7 +29,9 @@ export function KpiCard({
     return (
       <Card className="gap-2 py-4">
         <CardHeader className="flex flex-row items-center justify-between gap-2 px-4">
-          <span className="text-xs font-medium text-muted-foreground">{label}</span>
+          <span className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+            {label}
+          </span>
           {tooltip && <InfoTip text={tooltip} />}
         </CardHeader>
         <CardContent className="px-4">
@@ -44,21 +46,25 @@ export function KpiCard({
   const isDown = (variacion ?? 0) < 0;
 
   return (
-    <Card className="gap-2 py-4">
+    <Card className="group/kpi gap-2 py-4">
       <CardHeader className="flex flex-row items-center justify-between gap-2 px-4">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+          {label}
+        </span>
         {tooltip && <InfoTip text={tooltip} />}
       </CardHeader>
       <CardContent className="px-4">
-        <p className="text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-        <div className="mt-1 flex items-center gap-2">
+        <p className="metric text-[1.75rem] font-semibold text-foreground">{value}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
           {variacion !== undefined && variacion !== null ? (
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
-                isUp && "text-emerald-600 dark:text-emerald-400",
-                isDown && "text-rose-600 dark:text-rose-400",
-                !isUp && !isDown && "text-muted-foreground"
+                // Fondo tenue del propio color: la variacion se lee de lejos
+                // sin que el numero principal pierda protagonismo.
+                "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                isUp && "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+                isDown && "bg-rose-500/12 text-rose-600 dark:text-rose-400",
+                !isUp && !isDown && "bg-muted text-muted-foreground"
               )}
             >
               {isUp && <ArrowUpRight className="size-3.5" />}
@@ -69,7 +75,7 @@ export function KpiCard({
           ) : variacion === null ? (
             <span className="text-xs text-muted-foreground">Sin base comparativa</span>
           ) : null}
-          {periodo && <span className="text-xs text-muted-foreground">· {periodo}</span>}
+          {periodo && <span className="text-xs text-muted-foreground">{periodo}</span>}
         </div>
       </CardContent>
     </Card>
