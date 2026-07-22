@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { Bot, Loader2, Send, User } from "lucide-react";
 
 interface Turno {
   role: "user" | "assistant";
@@ -61,7 +60,9 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
       <div className="flex-1 overflow-y-auto rounded-lg border bg-card p-4">
         {turnos.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-4 py-10">
-            <Bot className="size-8 text-muted-foreground/50" />
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground/50">
+              Copiloto
+            </span>
             <p className="max-w-md text-center text-sm text-muted-foreground">
               Preguntá lo que quieras sobre el mercado: marcas, modelos,
               segmentos, tecnologías, importadores, evolución. Respondo solo
@@ -88,8 +89,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
           ))}
           {cargando && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Consultando la base…
+              <span className="animate-pulse">Consultando…</span>
             </div>
           )}
           <div ref={finRef} />
@@ -119,9 +119,8 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
         <button
           type="submit"
           disabled={cargando || !texto.trim()}
-          className="inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
-          <Send className="size-4" />
           Enviar
         </button>
       </form>
@@ -135,11 +134,11 @@ function Mensaje({ turno }: { turno: Turno }) {
     <div className={cn("flex gap-2.5", esUsuario && "flex-row-reverse")}>
       <div
         className={cn(
-          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
-          esUsuario ? "bg-primary text-primary-foreground" : "border bg-muted"
+          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wide",
+          esUsuario ? "bg-primary text-primary-foreground" : "border bg-muted text-muted-foreground"
         )}
       >
-        {esUsuario ? <User className="size-4" /> : <Bot className="size-4" />}
+        {esUsuario ? "Vos" : "IA"}
       </div>
       <div
         className={cn(
