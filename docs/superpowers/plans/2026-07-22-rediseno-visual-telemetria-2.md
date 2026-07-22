@@ -791,17 +791,29 @@ function InfoTip({ text }: { text: string }) {
 }
 ```
 
-- [ ] **Step 3: Verificar que ya no queda el import de lucide-react en este archivo**
+- [ ] **Step 3: Quitar la línea de import de lucide-react**
+
+**Corrección post-Task 3:** la review de Task 3 confirmó que ese task deliberadamente NO quitó este import (los íconos seguían en uso hasta ahora) — este step es el que realmente lo elimina, no es redundante con nada anterior.
+
+Cambiar:
+
+```typescript
+import { ArrowDownRight, ArrowUpRight, Minus, HelpCircle } from "lucide-react";
+```
+
+Por (eliminar la línea completa).
+
+- [ ] **Step 4: Verificar que ya no queda el import de lucide-react en este archivo**
 
 Run: `grep -n "lucide-react" src/components/dashboard/kpi-card.tsx`
-Expected: sin resultados (el import ya se había quitado en el Task 3, Step 4).
+Expected: sin resultados (recién quitado en el Step 3 de este mismo task).
 
-- [ ] **Step 4: Verificar manualmente**
+- [ ] **Step 5: Verificar manualmente**
 
 Run: `npm run dev`, abrir Inicio.
 Expected: los KPIs con variación muestran ▲/▼/– en vez de flechas SVG; el tooltip de ayuda muestra un círculo con "?" en vez de un ícono, y sigue mostrando el texto de ayuda al pasar el mouse.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/components/dashboard/kpi-card.tsx
