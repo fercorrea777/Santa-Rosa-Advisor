@@ -11,10 +11,9 @@ function Card({
     <div
       data-slot="card"
       data-size={size}
-      // El borde luminoso, el radio y la muesca de esquina los define
-      // globals.css sobre [data-slot="card"]: aca no van `ring-*` ni
-      // `rounded-*` porque las utilidades de Tailwind pisarian el
-      // box-shadow del panel HUD.
+      // El borde luminoso y el radio los define globals.css sobre
+      // [data-slot="card"]: aca no van `ring-*` ni `rounded-*` porque las
+      // utilidades de Tailwind pisarian el box-shadow del panel HUD.
       className={cn(
         "group/card flex flex-col gap-(--card-spacing) overflow-hidden bg-card py-(--card-spacing) text-sm text-card-foreground [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0",
         className
