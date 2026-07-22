@@ -4,11 +4,11 @@
 
 **Goal:** Ampliar el Copiloto existente con `web_search`/`web_fetch`/`code_execution` (herramientas server-side nativas de Claude) y agregar un job semanal que genera informes de competencia/mercado, guardados en una base Postgres nueva y separada de la SQLite de solo lectura actual.
 
-**Architecture:** El chat (`/api/copiloto`) suma 3 tools server-side + 1 tool custom de lectura de informes al `toolRunner` ya existente, sin tocar la tool SQL. El job semanal es una ruta orquestadora protegida por secreto, disparada por Vercel Cron, que reparte el trabajo en 4 llamadas en paralelo (una por dimensión) para no correr un solo loop largo. Todo dato de competencia vive en una tabla Postgres nueva (`informes_competencia`), leíble desde el chat y desde un panel dentro de la pantalla Copiloto.
+**Architecture:** El chat (`/api/copiloto`) suma 3 tools server-side + 1 tool custom de lectura de informes al `toolRunner` ya existente, sin tocar la tool SQL — sigue 100% en Claude (`claude-opus-4-8`). El job semanal es una ruta orquestadora protegida por secreto, disparada por Vercel Cron, que reparte el trabajo en 4 llamadas en paralelo (una por dimensión) para no correr un solo loop largo — **estas 4 llamadas corren en GLM-5.2 (Z.ai)**, no en Claude (decisión del usuario, ver Task 7), con la síntesis final de vuelta en Claude. Todo dato de competencia vive en una tabla Postgres nueva (`informes_competencia`), leíble desde el chat y desde un panel dentro de la pantalla Copiloto.
 
-**Tech Stack:** `@anthropic-ai/sdk` ^0.112.4 (ya instalado — tools `web_search_20260318`/`web_fetch_20260318`/`code_execution_20260521` confirmadas en el paquete), `@vercel/postgres` (nueva dependencia), Next.js 16 App Router (Route Handlers), Vercel Cron.
+**Tech Stack:** `@anthropic-ai/sdk` ^0.112.4 (ya instalado — tools `web_search_20260318`/`web_fetch_20260318`/`code_execution_20260521` confirmadas en el paquete, usadas en el chat y en la síntesis final), API de Z.ai/GLM-5.2 vía `fetch` directo (sin SDK — confirmado contra `docs.z.ai/api-reference/llm/chat-completion`, usada solo en el job semanal), `@vercel/postgres` (nueva dependencia), Next.js 16 App Router (Route Handlers), Vercel Cron.
 
-**Nota sobre verificación:** este repo no tiene test runner. Las herramientas server-side de Claude (`web_search`, `web_fetch`) requieren red + `ANTHROPIC_API_KEY` real para probarse — no son mockeables sin reescribir la integración, así que no se agrega un framework de test para esto. La verificación es manual: invocaciones directas con `curl`/`fetch` y revisión de las filas escritas en Postgres.
+**Nota sobre verificación:** este repo no tiene test runner. Las herramientas server-side de Claude (`web_search`, `web_fetch`) y la API de Z.ai requieren red + credenciales reales (`ANTHROPIC_API_KEY`, `ZAI_API_KEY`) para probarse — no son mockeables sin reescribir la integración, así que no se agrega un framework de test para esto. La verificación es manual: invocaciones directas con `curl`/`fetch` y revisión de las filas escritas en Postgres.
 
 **Prerrequisito de infraestructura (fuera de este plan, hacer antes de la Task 4):** aprovisionar una base Postgres en el dashboard de Vercel (Storage → Postgres, o la integración de Neon) para el proyecto, y traer la variable `POSTGRES_URL` a `.env.local` con `vercel env pull .env.local` (o pegarla a mano). Sin esto, las Tasks 4 en adelante no tienen contra qué conectar.
 
@@ -48,8 +48,13 @@ Reemplazar por (agrega la sección del Copiloto y de informes, que hoy no están
 # CADAM_DB_PATH=../SANTA ROSA COMERCIAL ADVISOR/CADAM/data/cadam.db
 # CADAM_PARAMETROS_PATH=../SANTA ROSA COMERCIAL ADVISOR/CADAM/parametros.json
 
-# Requerido para el Copiloto (chat + job semanal de informes).
+# Requerido para el Copiloto (chat interactivo + síntesis final del
+# informe semanal).
 ANTHROPIC_API_KEY=sk-ant-...
+
+# Requerido para las 4 búsquedas por dimensión del job semanal (no lo usa
+# el chat). Cuenta en https://z.ai — modelo glm-5.2.
+ZAI_API_KEY=...
 
 # Requerido para los informes de competencia (tabla Postgres nueva,
 # separada de la base SQLite de solo lectura). Traer con
@@ -679,25 +684,147 @@ Expected: el copiloto aclara que el segmento no existe antes de 2024 (regla 5), 
 
 ---
 
-### Task 7: Ruta orquestadora del job semanal
+### Task 7: Ruta orquestadora del job semanal (GLM-5.2 para las 4 dimensiones, Claude para el resumen)
+
+**Decisión (2026-07-22, ver spec Parte 2 "Job semanal"):** las 4 llamadas de
+búsqueda por dimensión corren en **GLM-5.2 (Z.ai)**, no en Claude — más
+barato para este volumen, sin necesitar `code_execution` (que este caso no
+usa) y aceptando no tener `web_fetch` (Z.ai no tiene tool equivalente; las
+dimensiones quedan con búsqueda, no con lectura profunda de una página). El
+paso de síntesis final se queda en Claude (una llamada corta sin tools).
 
 **Files:**
+- Create: `src/lib/informes/glm-client.ts`
 - Create: `src/app/api/informes-competencia/generar/route.ts`
 
-- [ ] **Step 1: Crear el archivo**
+- [ ] **Step 1: Crear el cliente de Z.ai**
+
+API confirmada contra `docs.z.ai/api-reference/llm/chat-completion`
+(2026-07-22): base URL, auth, esquema de `tools` y el tipo nativo
+`web_search`. **No confirmado** por la documentación pública: si
+`function.arguments` en `tool_calls` viene como string JSON o como objeto ya
+parseado — este cliente tolera ambos casos. Tampoco hay un campo de citación
+estructurado documentado, por eso las fuentes se piden por instrucción en el
+prompt (Step 2) y se parsean del texto, no de un campo de la respuesta.
+
+```typescript
+const ZAI_URL = "https://api.z.ai/api/paas/v4/chat/completions";
+
+export interface ZaiMensaje {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+interface ZaiToolCallFuncion {
+  name: string;
+  arguments: string | Record<string, unknown>;
+}
+
+interface ZaiToolCall {
+  id: string;
+  type: "function";
+  function: ZaiToolCallFuncion;
+}
+
+interface ZaiChoice {
+  message: {
+    content: string | null;
+    tool_calls?: ZaiToolCall[];
+  };
+}
+
+interface ZaiRespuesta {
+  choices: ZaiChoice[];
+}
+
+/**
+ * Llama a GLM-5.2 con la tool nativa web_search habilitada. No se declara
+ * ningun tool de tipo "function" (esta ruta no necesita ejecutar codigo del
+ * lado del cliente), asi que no se espera un loop de tool-use manual: la
+ * busqueda la ejecuta Z.ai del lado del servidor y el texto final ya viene
+ * con el resultado incorporado, igual que las tools nativas de Claude.
+ */
+export async function llamarGlmConBusqueda(
+  mensajes: ZaiMensaje[],
+  maxTokens: number
+): Promise<string> {
+  const apiKey = process.env.ZAI_API_KEY;
+  if (!apiKey) throw new Error("Falta ZAI_API_KEY");
+
+  const res = await fetch(ZAI_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "glm-5.2",
+      messages: mensajes,
+      max_tokens: maxTokens,
+      tool_choice: "auto",
+      tools: [
+        {
+          type: "web_search",
+          web_search: {
+            enable: true,
+            search_engine: "search_pro_jina",
+            count: 10,
+            search_recency_filter: "noLimit",
+          },
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Z.ai API error ${res.status}: ${await res.text()}`);
+  }
+
+  const data: ZaiRespuesta = await res.json();
+  const mensaje = data.choices[0]?.message;
+  if (!mensaje) throw new Error("Respuesta de Z.ai sin choices");
+
+  // No se le da ningun tool "function", asi que no debería pedir ejecutar
+  // ninguno — si igual lo hace, no hay como resolverlo (no hay handler) y
+  // se trata como error explicito en vez de devolver un texto vacio.
+  if (mensaje.tool_calls && mensaje.tool_calls.length > 0) {
+    throw new Error(
+      `Z.ai devolvió tool_calls inesperados (${mensaje.tool_calls.map((t) => t.function.name).join(", ")}) sin tools tipo function declaradas`
+    );
+  }
+
+  return (mensaje.content ?? "").trim();
+}
+```
+
+- [ ] **Step 2: Verificar que compila**
+
+Run: `npx tsc --noEmit`
+Expected: sin errores.
+
+- [ ] **Step 3: Commit el cliente**
+
+```bash
+git add src/lib/informes/glm-client.ts
+git commit -m "Agregar cliente GLM-5.2 (Z.ai) para el job semanal"
+```
+
+- [ ] **Step 4: Crear la ruta orquestadora**
 
 ```typescript
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getParametros } from "@/lib/cadam/config";
+import { llamarGlmConBusqueda } from "@/lib/informes/glm-client";
 import { guardarInforme, type DimensionInforme, type FuenteCitada } from "@/lib/informes/db";
 
 /**
  * Genera el informe semanal de competencia/mercado. Disparado por Vercel
  * Cron (ver vercel.json), protegido con CRON_SECRET: sin el header
  * correcto, 401. Reparte el trabajo en 4 llamadas en paralelo (una por
- * dimension) para no correr un solo loop largo que arriesgue el limite de
- * duracion de la funcion serverless.
+ * dimension, en GLM-5.2) para no correr un solo loop largo que arriesgue el
+ * limite de duracion de la funcion serverless. La sintesis final queda en
+ * Claude (una llamada corta, sin tools).
  */
 
 export const runtime = "nodejs";
@@ -710,21 +837,21 @@ const DIMENSIONES: { id: DimensionInforme; prompt: string }[] = [
     prompt:
       "Buscá precios y listas de modelos publicados por concesionarios/" +
       "marcas en Paraguay para las marcas de competencia y compará contra " +
-      "las marcas propias del grupo. Para cada hallazgo relevante, citá " +
-      "la fuente (URL) y la fecha. Cerrá con un resumen de 3-5 puntos.",
+      "las marcas propias del grupo. Para cada hallazgo relevante, mencioná " +
+      "la fuente y la fecha. Cerrá con un resumen de 3-5 puntos.",
   },
   {
     id: "noticias",
     prompt:
       "Buscá noticias y lanzamientos recientes del sector automotor " +
-      "paraguayo y regional relevantes para estas marcas. Citá fuente y " +
+      "paraguayo y regional relevantes para estas marcas. Mencioná fuente y " +
       "fecha de cada nota. Cerrá con un resumen de 3-5 puntos.",
   },
   {
     id: "redes",
     prompt:
       "Buscá menciones y actividad reciente en redes sociales sobre estas " +
-      "marcas de competencia. Citá fuente y fecha. Si la búsqueda no " +
+      "marcas de competencia. Mencioná fuente y fecha. Si la búsqueda no " +
       "encuentra señal útil, decilo explícitamente en vez de forzar una " +
       "conclusión. Cerrá con un resumen de 3-5 puntos.",
   },
@@ -733,12 +860,19 @@ const DIMENSIONES: { id: DimensionInforme; prompt: string }[] = [
     prompt:
       "Buscá tendencias globales del sector automotor relevantes para " +
       "este mercado: vehículos eléctricos/híbridos, cadena de suministro, " +
-      "expansión de marcas chinas en Latinoamérica. Citá fuente y fecha. " +
-      "Cerrá con un resumen de 3-5 puntos.",
+      "expansión de marcas chinas en Latinoamérica. Mencioná fuente y " +
+      "fecha. Cerrá con un resumen de 3-5 puntos.",
   },
 ];
 
-const MAX_ITERACIONES_DIMENSION = 6;
+// Instrucción de formato para poder parsear las fuentes del texto: Z.ai no
+// documenta un campo de citación estructurado, así que se pide como bloque
+// al final de la respuesta.
+const INSTRUCCION_FUENTES =
+  "\n\nAl terminar tu respuesta, agregá un bloque de código ```json con un " +
+  'array de las fuentes que usaste, formato exacto: [{"url":"...",' +
+  '"titulo":"...","fecha":"YYYY-MM-DD o vacío si no la sabés"}]. Si no ' +
+  "usaste ninguna fuente, poné un array vacío [].";
 
 function lunesDeEstaSemana(): string {
   const hoy = new Date();
@@ -760,35 +894,48 @@ function contextoMarcas(): string {
   );
 }
 
+/** Separa el bloque ```json de fuentes del final del texto y lo parsea.
+ *  Si no aparece o no parsea, devuelve fuentes vacías y deja el texto
+ *  entero como contenido (no se pierde el informe por un bloque mal
+ *  formado). */
+function extraerFuentes(textoCompleto: string): { contenido: string; fuentes: FuenteCitada[] } {
+  const match = textoCompleto.match(/```json\s*([\s\S]*?)\s*```\s*$/);
+  if (!match) return { contenido: textoCompleto, fuentes: [] };
+
+  const contenido = textoCompleto.slice(0, match.index).trim();
+  try {
+    const parsed = JSON.parse(match[1]);
+    if (!Array.isArray(parsed)) return { contenido, fuentes: [] };
+    const fuentes: FuenteCitada[] = parsed
+      .filter((f): f is Record<string, unknown> => typeof f === "object" && f !== null)
+      .map((f) => ({
+        url: typeof f.url === "string" ? f.url : "",
+        titulo: typeof f.titulo === "string" ? f.titulo : "",
+        fecha: typeof f.fecha === "string" ? f.fecha : "",
+      }))
+      .filter((f) => f.url !== "");
+    return { contenido, fuentes };
+  } catch {
+    return { contenido, fuentes: [] };
+  }
+}
+
 async function correrDimension(
-  client: Anthropic,
   dimension: { id: DimensionInforme; prompt: string }
 ): Promise<{ id: DimensionInforme; contenido: string; fuentes: FuenteCitada[] }> {
-  const final = await client.beta.messages.toolRunner({
-    model: "claude-opus-4-8",
-    max_tokens: 4000,
-    max_iterations: MAX_ITERACIONES_DIMENSION,
-    thinking: { type: "adaptive" },
-    system: `Sos un analista de inteligencia comercial para Santa Rosa Paraguay S.A. ${contextoMarcas()} Respondé en español, con evidencia citada (fuente + fecha) para cada afirmación.`,
-    tools: [
-      { type: "web_search_20260318", name: "web_search" },
-      { type: "web_fetch_20260318", name: "web_fetch" },
+  const textoCompleto = await llamarGlmConBusqueda(
+    [
+      {
+        role: "system",
+        content: `Sos un analista de inteligencia comercial para Santa Rosa Paraguay S.A. ${contextoMarcas()} Respondé en español, con evidencia (fuente + fecha) para cada afirmación.`,
+      },
+      { role: "user", content: dimension.prompt + INSTRUCCION_FUENTES },
     ],
-    messages: [{ role: "user", content: dimension.prompt }],
-  });
+    4000
+  );
 
-  const texto = final.content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n")
-    .trim();
-
-  const fuentes: FuenteCitada[] = final.content
-    .filter((b): b is Anthropic.Beta.BetaWebSearchToolResultBlock => b.type === "web_search_tool_result")
-    .flatMap((b) => (Array.isArray(b.content) ? b.content : []))
-    .map((r) => ({ url: r.url, titulo: r.title, fecha: r.page_age ?? "" }));
-
-  return { id: dimension.id, contenido: texto, fuentes };
+  const { contenido, fuentes } = extraerFuentes(textoCompleto);
+  return { id: dimension.id, contenido, fuentes };
 }
 
 export async function POST(request: Request) {
@@ -797,15 +944,17 @@ export async function POST(request: Request) {
   if (!secreto || auth !== `Bearer ${secreto}`) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  if (!process.env.ZAI_API_KEY) {
+    return NextResponse.json({ error: "Falta ZAI_API_KEY" }, { status: 500 });
+  }
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: "Falta ANTHROPIC_API_KEY" }, { status: 500 });
   }
 
-  const client = new Anthropic();
   const semana = lunesDeEstaSemana();
 
   const resultados = await Promise.allSettled(
-    DIMENSIONES.map((d) => correrDimension(client, d))
+    DIMENSIONES.map((d) => correrDimension(d))
   );
 
   const ok: { id: DimensionInforme; contenido: string; fuentes: FuenteCitada[] }[] = [];
@@ -827,6 +976,7 @@ export async function POST(request: Request) {
 
   if (ok.length > 0) {
     const cuerpoResumen = ok.map((r) => `### ${r.id}\n${r.contenido}`).join("\n\n");
+    const client = new Anthropic();
     const resumenFinal = await client.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 2000,
@@ -858,16 +1008,16 @@ export async function POST(request: Request) {
 }
 ```
 
-- [ ] **Step 2: Verificar que compila**
+- [ ] **Step 5: Verificar que compila**
 
 Run: `npx tsc --noEmit`
 Expected: sin errores.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/app/api/informes-competencia/generar/route.ts
-git commit -m "Agregar ruta orquestadora del informe semanal (fan-out por dimensión)"
+git commit -m "Agregar ruta orquestadora del informe semanal (GLM-5.2 por dimensión + síntesis en Claude)"
 ```
 
 ---
@@ -1170,7 +1320,15 @@ git commit -m "Copiloto: agregar pestaña de informes semanales"
 
 ### Task 11: Verificación end-to-end del job semanal
 
-**Files:** ninguno (solo verificación, requiere `ANTHROPIC_API_KEY`, `POSTGRES_URL` y `CRON_SECRET` reales en `.env.local`)
+**Files:** ninguno (solo verificación, requiere `ANTHROPIC_API_KEY`, `ZAI_API_KEY`, `POSTGRES_URL` y `CRON_SECRET` reales en `.env.local`)
+
+**Nota sobre `ZAI_API_KEY`:** esta es la primera corrida real contra GLM-5.2
+— además de confirmar que las 4 dimensiones se guardan, prestar atención a
+si el bloque \`\`\`json de fuentes al final de cada respuesta parsea bien
+(ver `extraerFuentes` en la Task 7). Si el modelo no sigue el formato pedido
+de forma consistente, `fuentes` va a quedar vacío para esa dimensión — no es
+un error fatal (el informe se guarda igual, solo sin links), pero es la
+señal de que el prompt de instrucción de fuentes necesita ajuste.
 
 - [ ] **Step 1: Confirmar que la ruta rechaza sin secreto**
 
