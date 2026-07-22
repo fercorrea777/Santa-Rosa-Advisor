@@ -1,17 +1,28 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
-/** Selector de fuente + multiples anios para la evolucion mensual. */
+/**
+ * Selector de fuente, anios y rango de meses para la evolucion mensual.
+ *
+ * El rango se aplica a TODOS los anios elegidos: es lo que permite
+ * comparar acumulados equivalentes (ej. Ene-Jun de cada ano) en vez de un
+ * ano parcial contra otros completos.
+ */
 export function SelectorAnios({
   aniosDisponibles,
   aniosSeleccionados,
   fuente,
+  mesDesde,
+  mesHasta,
 }: {
   aniosDisponibles: number[];
   aniosSeleccionados: number[];
   fuente: "matriculacion" | "importacion";
+  mesDesde: number;
+  mesHasta: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -87,6 +98,52 @@ export function SelectorAnios({
           })}
         </div>
       </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Meses
+        </span>
+        <div className="flex items-center gap-1">
+          <select
+            className={selectCls}
+            value={mesDesde}
+            aria-label="Mes desde"
+            onChange={(e) => {
+              const d = Number(e.target.value);
+              set({ desde: String(d), hasta: String(Math.max(d, mesHasta)) });
+            }}
+          >
+            {MESES_CORTOS.map((m, i) => (
+              <option key={m} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <span className="text-xs text-muted-foreground">a</span>
+          <select
+            className={selectCls}
+            value={mesHasta}
+            aria-label="Mes hasta"
+            onChange={(e) => set({ hasta: e.target.value })}
+          >
+            {MESES_CORTOS.map((m, i) => (
+              <option key={m} value={i + 1} disabled={i + 1 < mesDesde}>{m}</option>
+            ))}
+          </select>
+          {(mesDesde !== 1 || mesHasta !== 12) && (
+            <button
+              type="button"
+              onClick={() => set({ desde: null, hasta: null })}
+              className="ml-1 text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              año completo
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
+
+const selectCls = cn(
+  "h-8 rounded-md border bg-background px-2 text-sm",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+);

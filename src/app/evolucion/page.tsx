@@ -25,13 +25,36 @@ export default async function EvolucionPage({
   // Por defecto los ultimos 3 anios con datos.
   const anios = pedidos.length ? pedidos.sort((a, b) => a - b) : disponibles.slice(-3);
 
-  const series = serieAAnios(getSerieMensual(fuente, anios), anios);
+  // Rango de meses: se aplica a TODOS los anios elegidos. Es lo que
+  // permite comparar acumulados equivalentes (Ene-Jun de cada ano) en vez
+  // de un ano parcial contra otros completos.
+  const nMes = (v: string | string[] | undefined, def: number) => {
+    const s = Array.isArray(v) ? v[0] : v;
+    const n = Number(s);
+    return Number.isFinite(n) && n >= 1 && n <= 12 ? n : def;
+  };
+  const mesDesde = nMes(sp.desde, 1);
+  const mesHasta = Math.max(mesDesde, nMes(sp.hasta, 12));
+  const anioCompleto = mesDesde === 1 && mesHasta === 12;
+  const etiquetaRango = anioCompleto
+    ? "año completo"
+    : `${mesCorto(mesDesde)}–${mesCorto(mesHasta)}`;
+
+  // Se recorta despues de armar las 12 posiciones: asi los meses fuera
+  // del rango quedan en null (hueco), no desplazan el eje.
+  const seriesCompletas = serieAAnios(getSerieMensual(fuente, anios), anios);
+  const series = seriesCompletas.map((s) => ({
+    ...s,
+    valores: s.valores.map((v, i) =>
+      i + 1 >= mesDesde && i + 1 <= mesHasta ? v : null
+    ),
+  }));
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Evolución mensual"
-        descripcion="Comparación mes a mes entre años, con acumulado, promedio, máximo, mínimo y proyección de cierre."
+        descripcion={`Comparación mes a mes entre años · ${etiquetaRango}. Acumulado, promedio, máximo, mínimo y proyección de cierre.`}
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
@@ -39,12 +62,15 @@ export default async function EvolucionPage({
         aniosDisponibles={disponibles}
         aniosSeleccionados={anios}
         fuente={fuente}
+        mesDesde={mesDesde}
+        mesHasta={mesHasta}
       />
 
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
             {fuente === "matriculacion" ? "Matriculaciones" : "Importaciones"} por mes
+            {!anioCompleto && ` — ${etiquetaRango}`}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -60,7 +86,16 @@ export default async function EvolucionPage({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Indicadores por año</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-sm">
+            Indicadores por año — {etiquetaRango}
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {anioCompleto
+              ? "Acumulado y promedios sobre los 12 meses de cada año."
+              : `Acumulado, promedio, máximo y mínimo calculados solo sobre ${etiquetaRango} de cada año, para que la comparación sea equivalente.`}
+          </p>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -94,7 +129,13 @@ export default async function EvolucionPage({
                   }
                   varYtd = b ? (a - b) / b : null;
                 }
-                const proy = proyeccionCierre(s.valores);
+                // La proyeccion se calcula SIEMPRE sobre el ano entero, no
+                // sobre el rango: proyectar el cierre de ano a partir de un
+                // recorte de meses no significa nada. Con un rango parcial
+                // activo directamente no se muestra.
+                const proy = anioCompleto
+                  ? proyeccionCierre(seriesCompletas[i].valores)
+                  : null;
                 return (
                   <TableRow key={s.anio}>
                     <TableCell className="font-medium">{s.anio}</TableCell>
@@ -133,6 +174,10 @@ export default async function EvolucionPage({
               <strong>no modela estacionalidad</strong>. El mercado paraguayo la
               tiene y es fuerte: mayo 2026 cerró en 8.219 matriculaciones y junio en
               3.812. No usarla para comprometer objetivos.
+              {!anioCompleto && (
+                <> Con un rango de meses aplicado no se muestra: proyectar el
+                cierre del año a partir de un recorte no significa nada.</>
+              )}
             </NotaDato>
           </div>
         </CardContent>
