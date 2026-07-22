@@ -31,6 +31,8 @@ export function BrechaChart({
     // El orden sigue al de `series`: barra de diferencia, importaciones,
     // matriculaciones.
     color: [theme.series[3], theme.series[0], theme.series[1]],
+    animationDuration: 700,
+    animationEasing: "cubicOut" as const,
     grid: { left: 8, right: 8, top: 36, bottom: 24, containLabel: true },
     tooltip: {
       trigger: "axis",

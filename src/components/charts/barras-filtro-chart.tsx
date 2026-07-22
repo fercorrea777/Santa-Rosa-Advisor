@@ -44,6 +44,8 @@ export function BarrasFiltroChart({
   };
 
   const option = {
+    animationDuration: 600,
+    animationEasing: "cubicOut" as const,
     grid: { left: 8, right: 48, top: 8, bottom: 8, containLabel: true },
     tooltip: {
       trigger: "item",

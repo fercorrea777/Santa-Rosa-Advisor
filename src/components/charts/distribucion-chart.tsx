@@ -66,6 +66,8 @@ export function DistribucionChart({
 
   const option = {
     color: [...theme.series, theme.axis],
+    animationDuration: 700,
+    animationEasing: "cubicOut" as const,
     tooltip: {
       trigger: "item",
       formatter: (p: { name: string; value: number; percent: number }) =>

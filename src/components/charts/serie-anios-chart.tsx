@@ -37,6 +37,8 @@ export function SerieAniosChart({
 
   const option = {
     color: theme.series,
+    animationDuration: 700,
+    animationEasing: "cubicOut" as const,
     grid: { left: 8, right: 8, top: 36, bottom: 24, containLabel: true },
     tooltip: {
       trigger: "axis",
