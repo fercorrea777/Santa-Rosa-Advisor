@@ -6,20 +6,17 @@ import { getCobertura, getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { generarInforme, type Item, type Prioridad, type Tipo } from "@/lib/cadam/inteligencia";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
-import {
-  AlertTriangle, History, Lightbulb, Search, ShieldAlert, TrendingUp,
-} from "lucide-react";
 
-const SECCIONES: { tipo: Tipo; titulo: string; icono: React.ElementType; descripcion: string }[] = [
-  { tipo: "alerta", titulo: "Alertas", icono: AlertTriangle,
+const SECCIONES: { tipo: Tipo; titulo: string; descripcion: string }[] = [
+  { tipo: "alerta", titulo: "Alertas",
     descripcion: "Movimientos que requieren atención inmediata." },
-  { tipo: "oportunidad", titulo: "Oportunidades", icono: Lightbulb,
+  { tipo: "oportunidad", titulo: "Oportunidades",
     descripcion: "Espacios donde hay lugar para crecer." },
-  { tipo: "riesgo", titulo: "Riesgos", icono: ShieldAlert,
+  { tipo: "riesgo", titulo: "Riesgos",
     descripcion: "Amenazas a la posición actual." },
-  { tipo: "hallazgo", titulo: "Hallazgos relevantes", icono: Search,
+  { tipo: "hallazgo", titulo: "Hallazgos relevantes",
     descripcion: "Lo que muestran los datos del período." },
-  { tipo: "historico", titulo: "Lectura histórica", icono: History,
+  { tipo: "historico", titulo: "Lectura histórica",
     descripcion:
       "Sobre toda la serie cargada, no solo el período: estacionalidad, " +
       "tendencia de fondo, meses atípicos y proyección de cierre." },
@@ -61,10 +58,7 @@ export default async function InteligenciaPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-2">
-            <TrendingUp className="size-4" />
-            Resumen ejecutivo
-          </CardTitle>
+          <CardTitle>Resumen ejecutivo</CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="flex flex-col gap-2">
@@ -75,14 +69,13 @@ export default async function InteligenciaPage({
         </CardContent>
       </Card>
 
-      {SECCIONES.map(({ tipo, titulo, icono: Icono, descripcion }) => {
+      {SECCIONES.map(({ tipo, titulo, descripcion }) => {
         const items = informe.items.filter((i) => i.tipo === tipo);
         return (
           <Card key={tipo}>
             <CardHeader>
-              <CardTitle className="inline-flex items-center gap-2">
-                <Icono className="size-4" />
-                {titulo}
+              <CardTitle>
+                {titulo}{" "}
                 <span className="font-normal text-muted-foreground">({items.length})</span>
               </CardTitle>
               <p className="text-xs text-muted-foreground">{descripcion}</p>

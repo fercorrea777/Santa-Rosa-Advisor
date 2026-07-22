@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/table";
 import { getArchivos, getCargaLog, getCobertura } from "@/lib/cadam/mercado";
 import { formatUnidades } from "@/lib/format";
-import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function CalidadDatosPage() {
   const cobertura = getCobertura();
@@ -44,7 +44,12 @@ export default function CalidadDatosPage() {
           <CardContent className="flex flex-col gap-2">
             {controles.map((c, i) => (
               <p key={i} className="flex items-start gap-2 text-sm">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span
+                  aria-hidden="true"
+                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                >
+                  ✓
+                </span>
                 <span>{c.mensaje}</span>
               </p>
             ))}
@@ -63,11 +68,17 @@ export default function CalidadDatosPage() {
           <CardContent className="flex flex-col gap-3">
             {[...errores, ...avisos].map((l, i) => (
               <div key={i} className="flex items-start gap-2">
-                {l.nivel === "error" ? (
-                  <XCircle className="mt-0.5 size-4 shrink-0 text-rose-600 dark:text-rose-400" />
-                ) : (
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-500" />
-                )}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                    l.nivel === "error"
+                      ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                      : "bg-amber-500/15 text-amber-600 dark:text-amber-500"
+                  )}
+                >
+                  {l.nivel === "error" ? "✕" : "!"}
+                </span>
                 <div className="flex flex-col gap-0.5">
                   <p className="text-sm">{l.mensaje}</p>
                   <p className="text-xs text-muted-foreground">
@@ -141,7 +152,7 @@ export default function CalidadDatosPage() {
           <CardContent className="flex flex-col gap-2">
             {resto.map((l, i) => (
               <p key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                <Info className="mt-0.5 size-3.5 shrink-0" />
+                <span aria-hidden="true" className="mt-0.5 shrink-0">·</span>
                 <span>
                   {l.mensaje}
                   {l.n > 1 && <> — {formatUnidades(l.n)}</>}

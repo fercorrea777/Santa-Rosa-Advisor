@@ -6,7 +6,6 @@ import {
 } from "@/components/ui/table";
 import { getArchivos, getCobertura } from "@/lib/cadam/mercado";
 import { formatUnidades } from "@/lib/format";
-import { FolderOpen, Terminal } from "lucide-react";
 
 export default function CargasPage() {
   const cobertura = getCobertura();
@@ -30,10 +29,7 @@ export default function CargasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-2">
-            <FolderOpen className="size-4" />
-            Cómo cargar un mes nuevo
-          </CardTitle>
+          <CardTitle>Cómo cargar un mes nuevo</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 text-sm">
           <ol className="flex list-decimal flex-col gap-3 pl-5">
@@ -125,10 +121,7 @@ export default function CargasPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="inline-flex items-center gap-2">
-            <Terminal className="size-4" />
-            Pendiente: carga desde la interfaz
-          </CardTitle>
+          <CardTitle>Pendiente: carga desde la interfaz</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           Hoy la carga se hace por línea de comandos. Subir el archivo desde el
