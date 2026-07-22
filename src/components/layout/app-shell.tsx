@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Menu, X, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -18,7 +17,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           `sticky` no tiene margen para pegarse. */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col">
         <div className="flex h-14 items-center gap-2.5 border-b px-4">
-          <Gauge className="size-5 shrink-0 text-primary" />
           <span className="text-[0.82rem] font-extrabold uppercase leading-tight tracking-[0.06em]">
             Mercado Automotor <span className="text-primary">PY</span>
           </span>
@@ -44,7 +42,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <aside className="relative flex w-72 flex-col bg-sidebar text-sidebar-foreground shadow-xl">
             <div className="flex h-14 items-center justify-between border-b px-4">
               <div className="flex items-center gap-2">
-                <Gauge className="size-5 text-primary" />
                 <span className="text-sm font-semibold tracking-tight">
                   Mercado Automotor PY
                 </span>
@@ -52,11 +49,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                className="size-8 text-base leading-none"
                 aria-label="Cerrar menú"
                 onClick={() => setMobileOpen(false)}
               >
-                <X className="size-4" />
+                ✕
               </Button>
             </div>
             <div className="flex-1 overflow-y-auto py-3">
@@ -72,14 +69,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 md:hidden"
+            className="size-8 text-base leading-none md:hidden"
             aria-label="Abrir menú"
             onClick={() => setMobileOpen(true)}
           >
-            <Menu className="size-4" />
+            ≡
           </Button>
           <Link href="/" className="flex items-center gap-2 md:hidden">
-            <Gauge className="size-5 text-primary" />
             <span className="text-sm font-semibold">Mercado Automotor PY</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
