@@ -74,34 +74,41 @@
      operativo; sin color-scheme salen ilegibles al invertir el tema. */
   color-scheme: light;
 
-  --background: oklch(0.975 0.004 240);
-  --foreground: oklch(0.19 0.02 250);
+  /* MODO CLARO = TEMA PRINCIPAL (upgrade 2026-07): lienzo casi blanco y
+     frío, tarjetas blancas puras con sombra difusa corta (elevación SaaS
+     premium, no borde duro), azul eléctrico como único acento. El oscuro
+     pasa a ser la variante para sala de reuniones. */
+  --background: oklch(0.988 0.002 247);
+  --foreground: oklch(0.21 0.03 257);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.02 250);
+  --card-foreground: oklch(0.21 0.03 257);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.19 0.02 250);
+  --popover-foreground: oklch(0.21 0.03 257);
 
-  /* Cian técnico: el acento marca acción, selección y estado. Nunca decora. */
-  --primary: oklch(0.55 0.13 220);
+  /* Azul eléctrico: el acento marca acción, selección y estado. Nunca decora. */
+  --primary: oklch(0.55 0.21 262);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.006 240);
-  --secondary-foreground: oklch(0.25 0.02 250);
-  --muted: oklch(0.955 0.006 240);
-  --muted-foreground: oklch(0.46 0.02 250);
-  --accent: oklch(0.94 0.012 220);
-  --accent-foreground: oklch(0.25 0.02 250);
+  --secondary: oklch(0.966 0.004 247);
+  --secondary-foreground: oklch(0.25 0.03 257);
+  --muted: oklch(0.966 0.004 247);
+  --muted-foreground: oklch(0.51 0.022 257);
+  --accent: oklch(0.945 0.012 258);
+  --accent-foreground: oklch(0.25 0.03 257);
   --destructive: oklch(0.55 0.2 22);
-  --border: oklch(0.89 0.01 240);
-  --input: oklch(0.89 0.01 240);
-  --ring: oklch(0.55 0.13 220);
+  --border: oklch(0.928 0.006 247);
+  --input: oklch(0.9 0.008 247);
+  --ring: oklch(0.55 0.21 262);
 
-  /* Atmósfera de fondo. En claro es casi imperceptible: la textura es un
-     recurso del modo oscuro, donde hay lugar para que respire. */
-  --glow-1: oklch(0.72 0.09 215 / 7%);
-  --glow-2: oklch(0.62 0.11 265 / 5%);
-  --trace-line: oklch(0.55 0.05 240 / 3%);
+  /* Atmósfera: en claro NO hay textura ni glows — el lienzo limpio ES el
+     recurso. La sombra de tarjeta hace todo el trabajo de profundidad. */
+  --glow-1: transparent;
+  --glow-2: transparent;
+  --trace-line: transparent;
   --panel-glow: transparent;
-  --panel-edge: oklch(0.55 0.13 220 / 22%);
+  --panel-edge: oklch(0.928 0.006 247);
+  --card-shadow:
+    0 1px 2px oklch(0.2 0.03 257 / 5%),
+    0 12px 32px -16px oklch(0.2 0.05 260 / 14%);
 
   /* Paleta categórica de gráficos. Los --chart de shadcn son una escala de
      grises: inservibles para comparar marcas o segmentos. Este orden fijo
@@ -118,14 +125,14 @@
   --chart-8: #e34948;
 
   --radius: 0.5rem;
-  --sidebar: oklch(0.965 0.006 240);
-  --sidebar-foreground: oklch(0.19 0.02 250);
-  --sidebar-primary: oklch(0.55 0.13 220);
+  --sidebar: oklch(0.976 0.003 247);
+  --sidebar-foreground: oklch(0.21 0.03 257);
+  --sidebar-primary: oklch(0.55 0.21 262);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.93 0.014 220);
-  --sidebar-accent-foreground: oklch(0.22 0.02 250);
-  --sidebar-border: oklch(0.89 0.01 240);
-  --sidebar-ring: oklch(0.55 0.13 220);
+  --sidebar-accent: oklch(0.94 0.01 255);
+  --sidebar-accent-foreground: oklch(0.22 0.03 257);
+  --sidebar-border: oklch(0.928 0.006 247);
+  --sidebar-ring: oklch(0.55 0.21 262);
 }
 
 .dark {
@@ -156,6 +163,7 @@
   --trace-line: oklch(0.8 0.06 210 / 4.5%);
   --panel-glow: oklch(0.78 0.135 205 / 10%);
   --panel-edge: oklch(0.78 0.135 205 / 42%);
+  --card-shadow: 0 18px 40px -28px oklch(0 0 0 / 60%);
 
   /* Los mismos ocho tonos, re-escalonados para la superficie oscura. No es un
      flip automático del modo claro: cada paso se eligió para la banda oscura y
@@ -229,7 +237,7 @@
     box-shadow:
       inset 0 1px 0 0 color-mix(in oklab, var(--panel-edge) 55%, transparent),
       0 0 0 1px color-mix(in oklab, var(--panel-edge) 60%, transparent),
-      0 18px 40px -28px oklch(0 0 0 / 60%);
+      var(--card-shadow);
     transition: box-shadow 200ms, transform 200ms;
   }
   /* Hairline superior: la firma del panel de instrumentos. Un filo cian que
@@ -244,18 +252,26 @@
     width: 100%;
     background: linear-gradient(
       90deg,
+      color-mix(in oklab, var(--primary) 55%, transparent),
+      color-mix(in oklab, var(--primary) 16%, transparent) 45%,
+      transparent 80%
+    );
+    pointer-events: none;
+  }
+  .dark [data-slot="card"]::before {
+    background: linear-gradient(
+      90deg,
       color-mix(in oklab, var(--primary) 85%, transparent),
       color-mix(in oklab, var(--primary) 25%, transparent) 45%,
       transparent 80%
     );
-    pointer-events: none;
   }
   [data-slot="card"]:hover {
     box-shadow:
       inset 0 1px 0 0 color-mix(in oklab, var(--panel-edge) 75%, transparent),
       0 0 0 1px color-mix(in oklab, var(--panel-edge) 90%, transparent),
-      0 0 24px -6px color-mix(in oklab, var(--primary) 25%, transparent),
-      0 18px 40px -28px oklch(0 0 0 / 60%);
+      0 0 24px -6px color-mix(in oklab, var(--primary) 18%, transparent),
+      var(--card-shadow);
   }
   .dark [data-slot="card"] {
     background-image: radial-gradient(

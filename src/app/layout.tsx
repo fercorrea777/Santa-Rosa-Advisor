@@ -45,7 +45,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        {/* defaultTheme="light" sin enableSystem: el claro es el tema
+            principal del producto — abre en blanco para todos, y el oscuro
+            queda como elección explícita del toggle. */}
+        <ThemeProvider attribute="class" defaultTheme="light">
           <TooltipProvider>
             <AppShell>{children}</AppShell>
           </TooltipProvider>
