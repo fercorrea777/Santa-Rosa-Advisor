@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowDownRight, ArrowUpRight, Minus, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Tooltip,
@@ -85,9 +84,7 @@ export function KpiCard({
                 !isUp && !isDown && "bg-muted text-muted-foreground"
               )}
             >
-              {isUp && <ArrowUpRight className="size-3.5" />}
-              {isDown && <ArrowDownRight className="size-3.5" />}
-              {!isUp && !isDown && <Minus className="size-3.5" />}
+              <span aria-hidden="true">{isUp ? "▲" : isDown ? "▼" : "–"}</span>
               {formatPct(variacion, { signed: true })}
             </span>
           ) : variacion === null ? (
@@ -103,8 +100,8 @@ export function KpiCard({
 function InfoTip({ text }: { text: string }) {
   return (
     <Tooltip>
-      <TooltipTrigger className="rounded-full bg-transparent p-0">
-        <HelpCircle className="size-3.5 shrink-0 text-muted-foreground/70" />
+      <TooltipTrigger className="flex size-3.5 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 bg-transparent p-0 text-[9px] font-bold leading-none text-muted-foreground/70">
+        ?
       </TooltipTrigger>
       <TooltipContent className="max-w-64 text-xs">{text}</TooltipContent>
     </Tooltip>
