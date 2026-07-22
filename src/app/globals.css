@@ -78,7 +78,9 @@
      frío, tarjetas blancas puras con sombra difusa corta (elevación SaaS
      premium, no borde duro), azul eléctrico como único acento. El oscuro
      pasa a ser la variante para sala de reuniones. */
-  --background: oklch(0.988 0.002 247);
+  /* Lienzo un punto más gris que la tarjeta blanca pura: esa diferencia es
+     lo que hace "flotar" los paneles (Stripe-style). */
+  --background: oklch(0.972 0.0035 247);
   --foreground: oklch(0.21 0.03 257);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.03 257);
@@ -330,6 +332,34 @@
     outline: none;
     border-color: var(--ring);
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  /* Zebra sutil + hover marcado en todas las tablas de datos: con 80 filas
+     de ranking el ojo necesita guía horizontal. Tan tenue que no compite
+     con los chips de variación. */
+  [data-slot="table"] tbody tr:nth-child(even) {
+    background-color: color-mix(in oklab, var(--muted) 45%, transparent);
+  }
+  [data-slot="table"] tbody tr:hover {
+    background-color: color-mix(in oklab, var(--primary) 6%, transparent);
+  }
+
+  /* Scrollbar fino y neutro: el scrollbar del sistema rompe el pulido en
+     paneles con scroll interno. Firefox usa scrollbar-width/color. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   /* ---- Motion de entrada (Telemetría 2.0) ----------------------------------

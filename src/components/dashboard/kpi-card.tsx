@@ -83,10 +83,13 @@ export function KpiCard({
         </span>
         {tooltip && <InfoTip text={tooltip} />}
       </CardHeader>
-      <CardContent className="px-4">
+      {/* flex-1 + mt-auto en la fila secundaria: en una grilla con tarjetas
+          de distinta altura (con y sin sparkline) la línea de contexto queda
+          anclada al fondo en todas — sin vacíos asimétricos. */}
+      <CardContent className="flex flex-1 flex-col px-4">
         {/* El peso lo fija .metric (700); no agregar font-* aca o lo pisa. */}
         <p className="metric text-[2rem] text-foreground">{valorMostrado}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2">
           {variacion !== undefined && variacion !== null ? (
             <span
               className={cn(
