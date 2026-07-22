@@ -42,6 +42,7 @@ export default async function MarketSharePage({
   const dimDisponible = fuente === "matriculacion" ||
     dim === "marca" || dim === "segmento";
   const dimEfectiva: Dim = dimDisponible ? dim : "marca";
+  const etiquetaFuente = fuente === "importacion" ? "importaciones" : "matriculaciones";
 
   const filas = getPorDimension(fuente, DIMENSIONES[dimEfectiva].col, f)
     .map((r) => ({ ...r, esPropia: dimEfectiva === "marca" && propias.has(r.valor) }));
@@ -79,7 +80,7 @@ export default async function MarketSharePage({
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Market Share"
-        descripcion={`Participación de mercado por ${DIMENSIONES[dimEfectiva].label.toLowerCase()} · ${periodo} vs. ${f.anio - 1}.`}
+        descripcion={`Participación por ${DIMENSIONES[dimEfectiva].label.toLowerCase()} sobre ${etiquetaFuente} · ${periodo} vs. ${f.anio - 1}.`}
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
@@ -117,7 +118,8 @@ export default async function MarketSharePage({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            Participación por {DIMENSIONES[dimEfectiva].label.toLowerCase()} ({filas.length})
+            Participación por {DIMENSIONES[dimEfectiva].label.toLowerCase()} —{" "}
+            {etiquetaFuente} ({filas.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -133,7 +135,8 @@ export default async function MarketSharePage({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            Evolución de la participación — top 5, {f.anio} (% del mes)
+            Evolución de la participación — top 5 en {etiquetaFuente}, {f.anio}{" "}
+            (% del mes)
           </CardTitle>
         </CardHeader>
         <CardContent>

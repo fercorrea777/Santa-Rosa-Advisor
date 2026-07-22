@@ -36,6 +36,7 @@ export default async function EvolucionPage({
   const mesDesde = nMes(sp.desde, 1);
   const mesHasta = Math.max(mesDesde, nMes(sp.hasta, 12));
   const anioCompleto = mesDesde === 1 && mesHasta === 12;
+  const etiquetaFuente = fuente === "importacion" ? "importaciones" : "matriculaciones";
   const etiquetaRango = anioCompleto
     ? "año completo"
     : `${mesCorto(mesDesde)}–${mesCorto(mesHasta)}`;
@@ -54,7 +55,7 @@ export default async function EvolucionPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Evolución mensual"
-        descripcion={`Comparación mes a mes entre años · ${etiquetaRango}. Acumulado, promedio, máximo, mínimo y proyección de cierre.`}
+        descripcion={`${etiquetaFuente[0].toUpperCase()}${etiquetaFuente.slice(1)} mes a mes entre años · ${etiquetaRango}. Acumulado, promedio, máximo, mínimo y proyección de cierre.`}
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
@@ -88,7 +89,7 @@ export default async function EvolucionPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">
-            Indicadores por año — {etiquetaRango}
+            Indicadores por año — {etiquetaFuente}, {etiquetaRango}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             {anioCompleto

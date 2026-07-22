@@ -85,7 +85,7 @@ export default async function MercadoPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Resumen del mercado"
-        descripcion={`Mercado automotor paraguayo · ${periodo} vs. mismo período ${f.anio - 1}.`}
+        descripcion={`Analizando ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
@@ -191,7 +191,14 @@ export default async function MercadoPage({
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-sm">Participación por tecnología</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm">
+              {/* La tecnologia solo existe en matriculacion, asi que el
+                  titulo la nombra siempre: aclara de donde sale el dato
+                  aunque arriba este elegida la otra fuente. */}
+              Participación por tecnología — matriculaciones
+            </CardTitle>
+          </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {esImportacion ? (
               <>
@@ -240,7 +247,7 @@ export default async function MercadoPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Rankings</CardTitle>
+          <CardTitle className="text-sm">Rankings — {etiquetaFuente}</CardTitle>
           <p className="text-xs text-muted-foreground">
             Hacé clic en una marca, modelo o versión para filtrar toda la
             página; otro clic lo quita. Los filtros se acumulan entre sí y con

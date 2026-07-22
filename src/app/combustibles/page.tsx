@@ -64,7 +64,7 @@ export default async function CombustiblesPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Combustibles y tecnologías"
-        descripcion={`Adopción por tecnología de propulsión · ${periodo}.`}
+        descripcion={`Adopción por tecnología de propulsión sobre matriculaciones · ${periodo}.`}
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
@@ -83,7 +83,11 @@ export default async function CombustiblesPage({
       </NotaDato>
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Ranking por tecnología</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-sm">
+            Ranking por tecnología — matriculaciones
+          </CardTitle>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -140,7 +144,8 @@ export default async function CombustiblesPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">
-                Evolución histórica — {seleccionada} ({anios[0]}–{anios[anios.length - 1]})
+                Evolución histórica — {seleccionada} en matriculaciones (
+                {anios[0]}–{anios[anios.length - 1]})
               </CardTitle>
             </CardHeader>
             <CardContent><SerieAniosChart series={serie} altura={320} /></CardContent>

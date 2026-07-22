@@ -57,7 +57,7 @@ export default async function SegmentosPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Segmentos"
-        descripcion={`Participación, evolución y liderazgo por segmento · ${periodo}.`}
+        descripcion={`Participación, evolución y liderazgo por segmento sobre matriculaciones · ${periodo}.`}
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
@@ -80,7 +80,11 @@ export default async function SegmentosPage({
       )}
 
       <Card>
-        <CardHeader><CardTitle className="text-sm">Ranking de segmentos</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-sm">
+            Ranking de segmentos — matriculaciones
+          </CardTitle>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -140,7 +144,9 @@ export default async function SegmentosPage({
         <>
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Evolución mensual — {seleccionado}</CardTitle>
+              <CardTitle className="text-sm">
+                Evolución mensual — {seleccionado}, matriculaciones
+              </CardTitle>
             </CardHeader>
             <CardContent><SerieAniosChart series={serie} /></CardContent>
           </Card>
