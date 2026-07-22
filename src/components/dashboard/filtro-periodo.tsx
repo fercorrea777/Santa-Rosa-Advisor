@@ -3,6 +3,7 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
+import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -138,15 +139,7 @@ export function FiltroPeriodo({
         );
       })}
 
-      {[...sp.keys()].length > 0 && (
-        <button
-          type="button"
-          onClick={() => router.replace(pathname, { scroll: false })}
-          className="ml-auto self-end text-xs text-muted-foreground underline-offset-2 hover:underline"
-        >
-          Limpiar filtros
-        </button>
-      )}
+      <QuitarFiltros className="ml-auto self-end" />
     </div>
   );
 }

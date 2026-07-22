@@ -44,6 +44,8 @@ export function SelectorDimension({
           </Boton>
         ))}
       </Grupo>
+      {/* El boton de quitar filtros lo pone FiltroPeriodo, que en esta
+          pantalla va justo debajo: ponerlo aca tambien lo duplicaria. */}
     </div>
   );
 }

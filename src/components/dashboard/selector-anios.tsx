@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -139,6 +140,8 @@ export function SelectorAnios({
           )}
         </div>
       </div>
+
+      <QuitarFiltros className="ml-auto self-end" />
     </div>
   );
 }
