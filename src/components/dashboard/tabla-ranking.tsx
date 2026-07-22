@@ -157,7 +157,7 @@ export function TablaRanking({
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar marca o modelo…"
-          className="h-8 w-56 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="input-base w-56"
         />
         <div className="flex items-center gap-1">
           {TOPES.map((t) => (

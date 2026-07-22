@@ -261,6 +261,28 @@
     line-height: 1;
   }
 
+  /* ---- Input base (Telemetría 2.0) -----------------------------------------
+     Unifica el estilo de los <input>/<select> sueltos del repo (antes cada
+     uno repetia la misma cadena de clases). Mismo foco que los botones.
+  ------------------------------------------------------------------------ */
+  .input-base {
+    height: 2rem;
+    border-radius: 0.5rem;
+    border-width: 1px;
+    background-color: var(--background);
+    padding-inline: 0.5rem;
+    font-size: 0.875rem;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  .input-base:hover {
+    border-color: color-mix(in oklab, var(--ring) 40%, var(--border));
+  }
+  .input-base:focus-visible {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
   /* ---- Motion de entrada (Telemetría 2.0) ----------------------------------
      Desvío intencional de la v1 (que decía "sin secuencias de entrada al
      cargar la página"): paneles y cifras aparecen con una entrada corta y

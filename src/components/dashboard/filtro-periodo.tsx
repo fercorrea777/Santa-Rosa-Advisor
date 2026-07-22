@@ -143,10 +143,7 @@ export function FiltroPeriodo({
   );
 }
 
-const selectCls = cn(
-  "h-8 rounded-md border bg-background px-2 text-sm",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-);
+const selectCls = "input-base";
 
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
