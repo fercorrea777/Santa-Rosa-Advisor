@@ -151,11 +151,11 @@
   --input: oklch(0.72 0.06 215 / 28%);
   --ring: oklch(0.78 0.135 205);
 
-  --glow-1: oklch(0.72 0.13 205 / 13%);
-  --glow-2: oklch(0.58 0.16 268 / 12%);
-  --trace-line: oklch(0.8 0.06 210 / 3.5%);
-  --panel-glow: oklch(0.78 0.135 205 / 6%);
-  --panel-edge: oklch(0.78 0.135 205 / 34%);
+  --glow-1: oklch(0.72 0.13 205 / 20%);
+  --glow-2: oklch(0.58 0.16 268 / 17%);
+  --trace-line: oklch(0.8 0.06 210 / 4.5%);
+  --panel-glow: oklch(0.78 0.135 205 / 10%);
+  --panel-edge: oklch(0.78 0.135 205 / 42%);
 
   /* Los mismos ocho tonos, re-escalonados para la superficie oscura. No es un
      flip automático del modo claro: cada paso se eligió para la banda oscura y
@@ -223,11 +223,38 @@
   ------------------------------------------------------------------------ */
   [data-slot="card"] {
     position: relative;
+    overflow: hidden;
     border-radius: 0.875rem;
     background-color: color-mix(in oklab, var(--card) 92%, transparent);
     box-shadow:
       inset 0 1px 0 0 color-mix(in oklab, var(--panel-edge) 55%, transparent),
       0 0 0 1px color-mix(in oklab, var(--panel-edge) 60%, transparent),
+      0 18px 40px -28px oklch(0 0 0 / 60%);
+    transition: box-shadow 200ms, transform 200ms;
+  }
+  /* Hairline superior: la firma del panel de instrumentos. Un filo cian que
+     nace a la izquierda y se apaga hacia la derecha — decoración en el borde,
+     nunca encima del dato. (La franja LATERAL sigue prohibida; esto es el
+     canto superior del panel, no una etiqueta de categoría.) */
+  [data-slot="card"]::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--primary) 85%, transparent),
+      color-mix(in oklab, var(--primary) 25%, transparent) 45%,
+      transparent 80%
+    );
+    pointer-events: none;
+  }
+  [data-slot="card"]:hover {
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, var(--panel-edge) 75%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--panel-edge) 90%, transparent),
+      0 0 24px -6px color-mix(in oklab, var(--primary) 25%, transparent),
       0 18px 40px -28px oklch(0 0 0 / 60%);
   }
   .dark [data-slot="card"] {
@@ -259,6 +286,12 @@
     font-weight: 700;
     letter-spacing: -0.03em;
     line-height: 1;
+  }
+  /* En oscuro la cifra emite un halo tenue del propio acento: es lo que
+     convierte "texto grande" en "lectura de instrumento". Solo dark: en
+     claro un glow ensucia. */
+  .dark .metric {
+    text-shadow: 0 0 18px color-mix(in oklab, var(--primary) 30%, transparent);
   }
 
   /* ---- Input base (Telemetría 2.0) -----------------------------------------

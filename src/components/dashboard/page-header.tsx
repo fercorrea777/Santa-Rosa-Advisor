@@ -9,7 +9,9 @@ export function PageHeader({
 }) {
   return (
     <header className="flex flex-col gap-1.5 border-b pb-4">
-      <h1 className="text-xl font-extrabold uppercase tracking-[0.04em] text-balance">
+      {/* Tick de acento sobre el título: ancla visual de cada pantalla. */}
+      <span aria-hidden="true" className="h-1 w-10 rounded-full bg-primary shadow-[0_0_10px_var(--primary)]" />
+      <h1 className="text-2xl font-extrabold uppercase tracking-[0.04em] text-balance">
         {titulo}
       </h1>
       {descripcion && (
@@ -18,7 +20,7 @@ export function PageHeader({
         </p>
       )}
       {fuente && (
-        <p className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground/75">
+        <p className="w-fit rounded border border-primary/25 bg-primary/8 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
           {fuente}
         </p>
       )}

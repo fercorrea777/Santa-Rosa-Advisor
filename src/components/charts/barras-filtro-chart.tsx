@@ -71,8 +71,19 @@ export function BarrasFiltroChart({
         cursor: "pointer",
         itemStyle: {
           borderRadius: [0, 4, 4, 0],
+          // Degradado horizontal en las barras vivas: cuerpo pleno que se
+          // enciende hacia la punta. Las filtradas-fuera quedan en gris plano.
           color: (p: { name: string }) =>
-            !activo || p.name === activo ? theme.series[0] : theme.grid,
+            !activo || p.name === activo
+              ? {
+                  type: "linear" as const,
+                  x: 0, y: 0, x2: 1, y2: 0,
+                  colorStops: [
+                    { offset: 0, color: `${theme.series[0]}99` },
+                    { offset: 1, color: theme.series[0] },
+                  ],
+                }
+              : theme.grid,
         },
         emphasis: { itemStyle: { color: theme.series[1] } },
         label: {

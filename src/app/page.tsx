@@ -119,6 +119,7 @@ export default async function InicioPage({
             valorAnimado={matric.valor}
             formato="unidades"
             variacion={matric.variacion}
+            serie={serieMat.find((s) => String(s.anio) === String(f.anio))?.valores}
             periodo={periodo}
             tooltip={`Contra el mismo período de ${f.anio - 1}: ${formatUnidades(matric.baseValor)} u.`}
           />
@@ -130,6 +131,7 @@ export default async function InicioPage({
             valorAnimado={importa.valor}
             formato="unidades"
             variacion={importa.variacion}
+            serie={serieImp.find((s) => String(s.anio) === String(f.anio))?.valores}
             periodo={`${periodo} · livianos`}
             tooltip="La base de importación de CADAM cubre vehículos livianos; camiones y ómnibus se reportan en un archivo aparte."
           />

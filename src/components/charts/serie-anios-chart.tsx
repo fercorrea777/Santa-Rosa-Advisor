@@ -65,7 +65,7 @@ export function SerieAniosChart({
         formatter: (v: number) => formatUnidades(v),
       },
     },
-    series: series.map((s) => ({
+    series: series.map((s, i) => ({
       name: String(s.anio),
       type: tipo,
       smooth: tipo === "line",
@@ -73,6 +73,24 @@ export function SerieAniosChart({
       // Ver comentario del componente: los huecos NO se conectan.
       connectNulls: false,
       lineStyle: s.punteada ? { width: 2, type: "dashed" } : { width: 3 },
+      emphasis: { focus: "series" as const },
+      // Relleno degradado bajo la serie principal (las punteadas son
+      // referencia histórica: solo línea, para no apilar veladuras).
+      ...(tipo === "line" && !s.punteada
+        ? {
+            areaStyle: {
+              opacity: 1,
+              color: {
+                type: "linear" as const,
+                x: 0, y: 0, x2: 0, y2: 1,
+                colorStops: [
+                  { offset: 0, color: `${theme.series[i % theme.series.length]}38` },
+                  { offset: 1, color: `${theme.series[i % theme.series.length]}00` },
+                ],
+              },
+            },
+          }
+        : {}),
       data: s.valores,
     })),
   };

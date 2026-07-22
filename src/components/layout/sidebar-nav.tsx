@@ -19,21 +19,17 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              "flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+              "relative flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
               active
-                ? "bg-primary text-primary-foreground font-medium"
+                ? // Barra de acento + fondo tintado: se lee "instrumento
+                  // seleccionado", no un botón lleno que pesa más que el dato.
+                  "bg-primary/12 font-semibold text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary before:shadow-[0_0_8px_var(--primary)]"
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
           >
             <span>{item.label}</span>
             {!item.implementado && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "ml-2 shrink-0 text-[10px] font-normal",
-                  active && "border-primary-foreground/40 text-primary-foreground"
-                )}
-              >
+              <Badge variant="outline" className="ml-2 shrink-0 text-[10px] font-normal">
                 pronto
               </Badge>
             )}
