@@ -116,6 +116,8 @@ export default async function InicioPage({
           <KpiCard
             label="Matriculaciones acumuladas"
             value={formatUnidades(matric.valor)}
+            valorAnimado={matric.valor}
+            formatearAnimado={formatUnidades}
             variacion={matric.variacion}
             periodo={periodo}
             tooltip={`Contra el mismo período de ${f.anio - 1}: ${formatUnidades(matric.baseValor)} u.`}
@@ -125,6 +127,8 @@ export default async function InicioPage({
           <KpiCard
             label="Importaciones acumuladas"
             value={formatUnidades(importa.valor)}
+            valorAnimado={importa.valor}
+            formatearAnimado={formatUnidades}
             variacion={importa.variacion}
             periodo={`${periodo} · livianos`}
             tooltip="La base de importación de CADAM cubre vehículos livianos; camiones y ómnibus se reportan en un archivo aparte."
@@ -159,6 +163,8 @@ export default async function InicioPage({
           <KpiCard
             label={varMesAnterior ? `Variación ${varMesAnterior.mes} vs. mes anterior` : "Variación vs. mes anterior"}
             value={varMesAnterior ? formatUnidades(varMesAnterior.valor) : "—"}
+            valorAnimado={varMesAnterior ? varMesAnterior.valor : undefined}
+            formatearAnimado={formatUnidades}
             variacion={varMesAnterior?.variacion}
             periodo={varMesAnterior ? `último mes del rango` : undefined}
             tooltip="Matriculaciones del último mes del rango contra el mes inmediatamente anterior."
@@ -168,6 +174,8 @@ export default async function InicioPage({
           <KpiCard
             label="Participación marcas propias"
             value={formatPct(propiasU / totalU)}
+            valorAnimado={propiasU / totalU}
+            formatearAnimado={(n) => formatPct(n)}
             periodo={`${formatUnidades(propiasU)} u.`}
             tooltip="JETOUR, GWM/GREAT WALL, JAC, Dongfeng, Soueast, Renault, Mitsubishi, Leapmotor, Zeekr y JMEV, sobre el total del período filtrado."
           />
@@ -176,6 +184,8 @@ export default async function InicioPage({
           <KpiCard
             label="Diferencia import. − matric."
             value={formatUnidades(Math.abs(diferencia))}
+            valorAnimado={Math.abs(diferencia)}
+            formatearAnimado={formatUnidades}
             periodo={diferencia >= 0 ? "importación por encima" : "matriculación por encima"}
             tooltip="Señal orientativa, no stock real. El detalle está en la sección Import. vs matric."
           />
