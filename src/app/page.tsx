@@ -112,7 +112,7 @@ export default async function InicioPage({
       />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="reveal reveal-d1">
+        <div className="reveal reveal-d1 flex">
           <KpiCard
             label="Matriculaciones acumuladas"
             value={formatUnidades(matric.valor)}
@@ -121,7 +121,7 @@ export default async function InicioPage({
             tooltip={`Contra el mismo período de ${f.anio - 1}: ${formatUnidades(matric.baseValor)} u.`}
           />
         </div>
-        <div className="reveal reveal-d2">
+        <div className="reveal reveal-d2 flex">
           <KpiCard
             label="Importaciones acumuladas"
             value={formatUnidades(importa.valor)}
@@ -130,7 +130,7 @@ export default async function InicioPage({
             tooltip="La base de importación de CADAM cubre vehículos livianos; camiones y ómnibus se reportan en un archivo aparte."
           />
         </div>
-        <div className="reveal reveal-d3">
+        <div className="reveal reveal-d3 flex">
           <KpiCard
             label="Marca líder"
             value={lider?.marca ?? "—"}
@@ -138,7 +138,7 @@ export default async function InicioPage({
             tooltip="Marca con más matriculaciones en el período filtrado."
           />
         </div>
-        <div className="reveal reveal-d4">
+        <div className="reveal reveal-d4 flex">
           <KpiCard
             label="Segmento líder"
             value={segLider?.valor ?? "—"}
@@ -146,7 +146,7 @@ export default async function InicioPage({
             tooltip="Segmento con más matriculaciones. CADAM no clasifica el segmento antes de 2024."
           />
         </div>
-        <div className="reveal reveal-d5">
+        <div className="reveal reveal-d5 flex">
           <KpiCard
             label="Tecnología con mayor crecimiento"
             value={tecGanadora?.valor ?? "—"}
@@ -155,7 +155,7 @@ export default async function InicioPage({
             tooltip="La tecnología (fuera de ICE) que más creció contra el año anterior, sobre una base mínima de 30 unidades."
           />
         </div>
-        <div className="reveal reveal-d6">
+        <div className="reveal reveal-d6 flex">
           <KpiCard
             label={varMesAnterior ? `Variación ${varMesAnterior.mes} vs. mes anterior` : "Variación vs. mes anterior"}
             value={varMesAnterior ? formatUnidades(varMesAnterior.valor) : "—"}
@@ -164,7 +164,7 @@ export default async function InicioPage({
             tooltip="Matriculaciones del último mes del rango contra el mes inmediatamente anterior."
           />
         </div>
-        <div className="reveal reveal-d6">
+        <div className="reveal reveal-d6 flex">
           <KpiCard
             label="Participación marcas propias"
             value={formatPct(propiasU / totalU)}
@@ -172,7 +172,7 @@ export default async function InicioPage({
             tooltip="JETOUR, GWM/GREAT WALL, JAC, Dongfeng, Soueast, Renault, Mitsubishi, Leapmotor, Zeekr y JMEV, sobre el total del período filtrado."
           />
         </div>
-        <div className="reveal reveal-d6">
+        <div className="reveal reveal-d6 flex">
           <KpiCard
             label="Diferencia import. − matric."
             value={formatUnidades(Math.abs(diferencia))}
