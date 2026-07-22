@@ -20,6 +20,15 @@ superficie (el Copiloto) pero son independientes en lo técnico:
    mercado y competencia en internet, ejecutar código de análisis, y generar
    un informe semanal automático de competencia.
 
+**Actualización 2026-07-22 (post-aprobación, antes de implementar Parte 2):**
+el chat interactivo sigue con Claude (`claude-opus-4-8`), pero el job semanal
+de informes de competencia pasa a usar **GLM-5.2** (Zhipu AI / Z.ai) en vez
+de Claude para las 4 llamadas de búsqueda por dimensión — decisión explícita
+del usuario, alcance acotado a esa única superficie. Motivo: costo (GLM-5.2
+$1.40/$4.40 por 1M tokens vs. Opus 4.8 $5/$25) sobre un volumen de llamadas
+que no necesita la latencia/calidad de una conversación interactiva. El
+detalle técnico está en la sección "Job semanal" de la Parte 2, más abajo.
+
 ## Objetivo
 
 Que el director comercial y su equipo tengan un dashboard que se sienta
@@ -118,16 +127,27 @@ Dos superficies, un solo Copiloto:
 │  Chat (bajo demanda)         │        │  Job semanal (programado)    │
 │  /api/copiloto               │        │  Vercel Cron → orquestador   │
 │                              │        │                              │
-│  Claude + tools:             │        │  4 llamadas en paralelo,     │
-│   - consultar_base (SQL)     │        │  una por dimensión, cada una │
-│   - web_search               │        │  Claude + web_search +       │
-│   - web_fetch                │        │  web_fetch acotado           │
-│   - code_execution           │        │                              │
-│   - leer_informe_competencia │◄───────┤  Escriben a Postgres         │
-└─────────────────────────────┘        │  (informes_competencia)      │
-                                        │  + síntesis final            │
+│  Claude (claude-opus-4-8)    │        │  4 llamadas en paralelo,     │
+│  + tools:                    │        │  una por dimensión, cada una │
+│   - consultar_base (SQL)     │        │  GLM-5.2 (Z.ai) + su tool    │
+│   - web_search               │        │  nativa web_search           │
+│   - web_fetch                │        │                              │
+│   - code_execution           │        │  (sin web_fetch: Z.ai no     │
+│   - leer_informe_competencia │◄───────┤  tiene tool equivalente)     │
+└─────────────────────────────┘        │  Escriben a Postgres         │
+                                        │  (informes_competencia)      │
+                                        │  + síntesis final (Claude)   │
                                         └──────────────────────────────┘
 ```
+
+Dos proveedores de modelo distintos, cada uno donde rinde mejor: Claude para
+el chat (tools nativas ricas — SQL + web + código en un solo `toolRunner`,
+calidad conversacional) y GLM-5.2 para el job semanal (mismo patrón de
+búsqueda×4 en paralelo, mucho más barato, sin necesitar `code_execution` ni
+la profundidad de `web_fetch` que ese caso de uso no requiere). El paso de
+síntesis final del informe semanal (Parte 2, Job semanal, paso 4) se queda en
+Claude — es una sola llamada corta sin tools, y mantenerla en un solo
+proveedor simplifica el manejo de errores/reintentos de esa función.
 
 La base SQLite (`data/cadam.db`) sigue siendo de **solo lectura** en runtime
 (viaja empaquetada con el deploy). Los informes de competencia necesitan
@@ -193,34 +213,74 @@ El job semanal y el system prompt reutilizan esta config **tal cual existe**
 — no se crea una lista nueva. Si el equipo comercial la actualiza, el bot
 sigue el cambio automáticamente.
 
-### Job semanal (fan-out)
+### Job semanal (fan-out) — corre en GLM-5.2, no en Claude
 
 **Disparo:** Vercel Cron (`vercel.json` → `crons`), domingo a la noche
 (horario Paraguay), para que el informe esté fresco en la reunión del lunes
 (alineado con el uso real descrito en `PRODUCT.md`).
 
+**Proveedor:** [Z.ai](https://z.ai) (Zhipu AI), modelo `glm-5.2`. API propia,
+**compatible con el formato OpenAI, no con el de Anthropic** — no se reutiliza
+`@anthropic-ai/sdk` para esta parte. Confirmado contra la documentación
+oficial (`docs.z.ai/api-reference/llm/chat-completion`, 2026-07-22):
+
+- Base URL: `https://api.z.ai/api/paas/v4/chat/completions`
+- Auth: header `Authorization: Bearer $ZAI_API_KEY`
+- Tools van en un array `tools` de nivel superior, con `type` ∈
+  `"function" | "web_search" | "retrieval"`. La búsqueda web es una tool
+  **nativa del lado de Z.ai** (no hay que ejecutarla nosotros), declarada así:
+  ```json
+  { "type": "web_search",
+    "web_search": { "enable": true, "search_engine": "search_pro_jina",
+                     "count": 10, "search_recency_filter": "noLimit" } }
+  ```
+- **No existe un tipo `code_execution`** en la API de Z.ai (solo los tres de
+  arriba) — no es un problema para este caso: el job semanal nunca necesitó
+  `code_execution` (esa tool es exclusiva del chat interactivo, que sigue en
+  Claude).
+- **No existe un tipo equivalente a `web_fetch`** (traer el contenido
+  completo de una URL puntual) — gap real y aceptado: las 4 dimensiones
+  quedan con búsqueda (snippets + URLs), sin la profundidad de leer una
+  página completa. Si más adelante hace falta, es una mejora incremental
+  aislada a esta ruta, no bloquea el resto del bot.
+- Sin helper tipo `toolRunner`: hay que escribir el loop de tool-use a mano
+  (una request, si vuelve con `tool_calls` resolverlos y reenviar, si no,
+  tomar el texto final). Dado que `web_search` es una tool servidor-a-servidor
+  (Z.ai la ejecuta y devuelve el resultado ya incorporado a la respuesta,
+  igual que las tools nativas de Claude), en la práctica alcanza con **una
+  sola request** por dimensión — no hace falta el loop multi-turno completo,
+  pero el código debe tolerar que sí aparezca un `tool_calls` de tipo
+  `function` si el modelo decide usar alguno (no debería, ya que no se le da
+  ningún tool `function` en este caso, solo `web_search`).
+- Las fuentes citadas (para la columna `fuentes` de Postgres) se piden **por
+  instrucción en el prompt** (pedirle al modelo que cierre su respuesta con
+  un bloque ` ```json ` con `[{url, titulo, fecha}]`) y se parsean del texto,
+  en vez de depender de un campo de citación estructurado de la API que no
+  está confirmado en la documentación disponible. Ver "Riesgos y supuestos
+  abiertos" — esto necesita una corrida real (con `ZAI_API_KEY` válida) para
+  confirmar que el modelo sigue el formato pedido de manera confiable.
+
 **Ruta orquestadora** (nueva, ej. `src/app/api/informes-competencia/generar/route.ts`):
 1. Valida el header que Vercel Cron manda automáticamente (`Authorization:
    Bearer $CRON_SECRET`, variable de entorno) — sin esto, 401. La ruta no es
    invocable públicamente.
-2. Lanza en paralelo 4 llamadas a Claude, una por dimensión:
-   - **Precios y listas de modelos** — `web_search` + `web_fetch` sobre
-     sitios de concesionarios/marcas en Paraguay, comparando contra
-     `marcas_propias`.
+2. Lanza en paralelo 4 llamadas a GLM-5.2, una por dimensión:
+   - **Precios y listas de modelos** — `web_search` sobre sitios de
+     concesionarios/marcas en Paraguay, comparando contra `marcas_propias`.
    - **Noticias y lanzamientos del sector** — `web_search` sobre medios
      especializados (Paraguay y regional).
    - **Redes sociales / reputación** — `web_search` sobre menciones y
      actividad de las marcas de `competidores_clave`. Dimensión más costosa
-     y frágil (rate limits de plataformas); si en la práctica da resultados
-     pobres, se puede acotar o quitar sin tocar las otras 3.
+     y frágil (cobertura de redes sociales vía búsqueda web es limitada); si
+     en la práctica da resultados pobres, se puede acotar o quitar sin tocar
+     las otras 3.
    - **Tendencias globales del sector automotor** — `web_search` sobre EVs,
      cadena de suministro, expansión de marcas chinas en LatAm.
-
-   Cada llamada es un `toolRunner` acotado (`max_iterations` bajo, ~4-6) —
-   no el mismo loop abierto que el chat interactivo.
 3. Cada resultado se guarda como una fila en `informes_competencia`.
-4. Un paso final (llamada corta, sin tools) lee las 4 filas de la semana y
-   redacta un resumen ejecutivo, guardado con `dimension = 'resumen'`.
+4. Un paso final (llamada corta, sin tools, **en Claude** —
+   `client.messages.create` con `claude-opus-4-8`, sin tools) lee las 4 filas
+   de la semana y redacta un resumen ejecutivo, guardado con
+   `dimension = 'resumen'`.
 
 **Restricción de tiempo (Vercel):** las funciones de Vercel tienen límite de
 duración por invocación (varía según plan). Correr las 4 dimensiones en
@@ -280,6 +340,9 @@ cuando se le pregunta puntualmente ("¿qué pasó esta semana con Toyota?").
 - **`code_execution`:** corre en el sandbox aislado de Anthropic (sin acceso
   a red ni a la base de datos interna) — no hay superficie de exfiltración
   de datos internos a través de esta tool.
+- **`ZAI_API_KEY`:** secreto nuevo (además de `ANTHROPIC_API_KEY`,
+  `POSTGRES_URL`, `CRON_SECRET`), solo usado por la ruta orquestadora del
+  job semanal — nunca llega al cliente ni al chat interactivo.
 
 ## Parte 4 — Testing / verificación
 
@@ -317,9 +380,20 @@ cuando se le pregunta puntualmente ("¿qué pasó esta semana con Toyota?").
   función para las 4 llamadas en paralelo del job semanal; si no, se ajusta
   a fire-and-forget (ver Parte 2) durante la implementación.
 - La dimensión "redes sociales / reputación" es la más costosa y frágil
-  (rate limits de plataformas sociales al scraping vía `web_search`); se
-  implementa igual que las otras 3, pero puede necesitar ajuste de alcance
-  después de la primera corrida real.
+  (cobertura de redes sociales vía búsqueda web es limitada); se implementa
+  igual que las otras 3, pero puede necesitar ajuste de alcance después de la
+  primera corrida real.
 - No hay techo de gasto de API definido por el usuario; se implementan
   límites de iteración por ingeniería (no por costo) como guardrail contra
   loops descontrolados, no como control de presupuesto.
+- **GLM-5.2 (Z.ai):** la documentación pública confirma la forma del request
+  (base URL, auth, esquema de `tools`, tipo `web_search`), pero NO confirma
+  con certeza el formato exacto de citación de fuentes en la respuesta ni si
+  el campo `function.arguments` en `tool_calls` viene como string JSON (como
+  en OpenAI) o como objeto ya parseado (como se ve en un ejemplo de la
+  documentación). El diseño pide las fuentes por instrucción en el prompt
+  (bloque \`\`\`json al final) para no depender de eso, y el parseo de
+  `arguments` debe tolerar ambos casos. **Esto se termina de confirmar recién
+  en la primera corrida real** con una `ZAI_API_KEY` válida — no hay forma de
+  verificarlo sin credenciales reales, igual que ya pasa con
+  `ANTHROPIC_API_KEY`/`POSTGRES_URL` en el resto de este documento.
