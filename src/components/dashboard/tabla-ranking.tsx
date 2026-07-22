@@ -9,10 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, formatUnidades } from "@/lib/format";
 import type { FilaRanking } from "@/lib/cadam/mercado";
-import {
-  ArrowDown, ArrowDownRight, ArrowUp, ArrowUpRight, ChevronsUpDown,
-  Download, Minus, Search,
-} from "lucide-react";
 
 type Campo = "posicion" | "marca" | "modelo" | "segmento" | "unidades"
   | "participacion" | "variacion" | "cambioPosicion";
@@ -139,13 +135,9 @@ export function TablaRanking({
         )}
       >
         {label}
-        {orden.campo !== campo ? (
-          <ChevronsUpDown className="size-3 opacity-50" />
-        ) : orden.asc ? (
-          <ArrowUp className="size-3" />
-        ) : (
-          <ArrowDown className="size-3" />
-        )}
+        <span aria-hidden="true" className="text-[10px] leading-none opacity-70">
+          {orden.campo !== campo ? "⇅" : orden.asc ? "▲" : "▼"}
+        </span>
       </button>
     </TableHead>
   );
@@ -161,15 +153,12 @@ export function TablaRanking({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar marca o modelo…"
-            className="h-8 w-56 rounded-md border bg-background pl-7 pr-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </div>
+        <input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar marca o modelo…"
+          className="h-8 w-56 rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
         <div className="flex items-center gap-1">
           {TOPES.map((t) => (
             <button
@@ -188,9 +177,8 @@ export function TablaRanking({
         <button
           type="button"
           onClick={exportar}
-          className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium hover:bg-muted"
+          className="ml-auto inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium hover:bg-muted"
         >
-          <Download className="size-3.5" />
           Exportar CSV
         </button>
       </div>
@@ -310,9 +298,7 @@ function Variacion({ v, entrante }: { v: number | null; entrante: boolean }) {
         down && "text-rose-600 dark:text-rose-400"
       )}
     >
-      {up && <ArrowUpRight className="size-3.5" />}
-      {down && <ArrowDownRight className="size-3.5" />}
-      {!up && !down && <Minus className="size-3.5" />}
+      <span aria-hidden="true">{up ? "▲" : down ? "▼" : "–"}</span>
       {formatPct(v, { signed: true })}
     </span>
   );
@@ -336,7 +322,7 @@ function CambioPosicion({
       )}
       title={`Posición anterior: ${anterior}`}
     >
-      {sube ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />}
+      <span aria-hidden="true">{sube ? "▲" : "▼"}</span>
       {Math.abs(cambio)}
     </span>
   );
