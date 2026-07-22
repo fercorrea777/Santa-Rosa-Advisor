@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { formatPct } from "@/lib/format";
+import { formatPct, formatUnidades } from "@/lib/format";
 import { useCountUp } from "@/lib/use-count-up";
 
 interface KpiCardProps {
@@ -17,13 +17,22 @@ interface KpiCardProps {
   variacion?: number | null;
   tooltip?: string;
   disponible?: boolean;
-  /** Si se pasa, el valor se anima con count-up desde 0 hasta este numero
-   *  y `formatearAnimado` decide como se muestra en cada frame. Si no se
-   *  pasa, se usa `value` tal cual sin animar — para KPIs de texto (marca,
-   *  segmento) que no son un conteo. */
+  /** Si se pasa, el valor se anima con count-up desde 0 hasta este numero,
+   *  formateado segun `formato`. Si no se pasa, se usa `value` tal cual sin
+   *  animar — para KPIs de texto (marca, segmento) que no son un conteo.
+   *
+   *  Es un enum (no una funcion) a proposito: este componente es
+   *  "use client" y `value`/`valorAnimado`/etc. suelen venir de un Server
+   *  Component (paginas como Inicio) — una funcion no se puede pasar como
+   *  prop a traves de ese limite (React no la puede serializar). */
   valorAnimado?: number;
-  formatearAnimado?: (n: number) => string;
+  formato?: "unidades" | "porcentaje";
 }
+
+const FORMATEADORES: Record<NonNullable<KpiCardProps["formato"]>, (n: number) => string> = {
+  unidades: formatUnidades,
+  porcentaje: (n) => formatPct(n),
+};
 
 export function KpiCard({
   label,
@@ -33,13 +42,13 @@ export function KpiCard({
   tooltip,
   disponible = true,
   valorAnimado,
-  formatearAnimado,
+  formato,
 }: KpiCardProps) {
   // Se llama siempre (regla de hooks), aunque no se use el resultado: sin
   // valorAnimado, contado queda en 0 y no se muestra en ningun lado.
   const contado = useCountUp(valorAnimado ?? 0);
   const valorMostrado = valorAnimado !== undefined
-    ? (formatearAnimado ? formatearAnimado(contado) : String(contado))
+    ? (formato ? FORMATEADORES[formato](contado) : String(contado))
     : value;
   if (!disponible) {
     return (
