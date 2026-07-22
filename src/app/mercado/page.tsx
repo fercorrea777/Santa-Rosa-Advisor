@@ -5,9 +5,10 @@ import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
+import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import {
   getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
-  getSerieMensual,
+  getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 import { formatPct, formatUnidades } from "@/lib/format";
@@ -39,10 +40,18 @@ export default async function MercadoPage({
   const serieMat = serieAAnios(getSerieMensual("matriculacion", aniosMat, cortes), aniosMat);
   const serieImp = serieAAnios(getSerieMensual("importacion", aniosImp, cortes), aniosImp);
 
+  // Fuente activa: manda sobre los cortes por dimension y el ranking.
+  // Los KPIs de arriba siguen mostrando las dos, porque son el titular.
+  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
+  const esImportacion = fuente === "importacion";
+  const etiquetaFuente = esImportacion ? "importaciones" : "matriculaciones";
+
   const opciones = getOpcionesFiltro();
-  const segmentos = getPorDimension("matriculacion", "segmento", f);
-  const tecnologias = getPorDimension("matriculacion", "tecnologia", f);
-  const marcas = getRankingMarcas("matriculacion", f);
+  const segmentos = getPorDimension(fuente, "segmento", f);
+  // La base de importacion no trae columna de tecnologia: ese corte solo
+  // existe del lado de matriculacion (ver CADAM/DATOS.md).
+  const tecnologias = esImportacion ? [] : getPorDimension("matriculacion", "tecnologia", f);
+  const marcas = getRankingMarcas(fuente, f);
 
   // Ganadores y perdedores por variacion absoluta de unidades: es lo que
   // mueve el mercado. El % solo puede ser enorme sobre bases minimas.
@@ -69,14 +78,25 @@ export default async function MercadoPage({
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
-      <FiltroPeriodo
-        anios={cobertura.matriculacion.anios}
-        mesMaximoPorAnio={mesMax}
-        opciones={[
-          { param: "segmento", label: "Segmento", valores: opciones.segmentos },
-          { param: "tecnologia", label: "Tecnología", valores: ["ICE", "MHEV", "HEV", "PHEV", "REEV", "EV"] },
-        ]}
-      />
+      <div className="flex flex-wrap items-end gap-3">
+        <SelectorFuente fuente={fuente} />
+        <div className="min-w-0 flex-1">
+          <FiltroPeriodo
+            anios={cobertura.matriculacion.anios}
+            mesMaximoPorAnio={mesMax}
+            opciones={[
+              { param: "segmento", label: "Segmento", valores: opciones.segmentos },
+              ...(esImportacion
+                ? []
+                : [{
+                    param: "tecnologia",
+                    label: "Tecnología",
+                    valores: ["ICE", "MHEV", "HEV", "PHEV", "REEV", "EV"],
+                  }]),
+            ]}
+          />
+        </div>
+      </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
@@ -100,10 +120,10 @@ export default async function MercadoPage({
           tooltip="Señal orientativa, NO stock real: hay desfasajes temporales, unidades importadas en períodos anteriores, reexportaciones y registros tardíos."
         />
         <KpiCard
-          label="Marca líder"
+          label={`Marca líder — ${etiquetaFuente}`}
           value={marcas[0]?.marca ?? "—"}
           periodo={marcas[0] ? `${formatUnidades(marcas[0].unidades)} u. · ${formatPct(marcas[0].participacion)}` : undefined}
-          tooltip="Marca con más matriculaciones en el período filtrado."
+          tooltip={`Marca con más ${etiquetaFuente} en el período filtrado.`}
         />
       </section>
 
@@ -136,11 +156,20 @@ export default async function MercadoPage({
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-sm">Participación por segmento</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-sm">
+              Participación por segmento — {etiquetaFuente}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <DistribucionChart
               datos={segmentos.map((s) => ({ nombre: s.valor, valor: s.unidades }))}
+              param="segmento"
             />
+            <p className="text-xs text-muted-foreground">
+              Hacé clic en una porción para filtrar toda la página por ese
+              segmento; otro clic lo quita.
+            </p>
             {segmentos.some((s) => s.valor === "Sin clasificar") && (
               <NotaDato>
                 CADAM no clasifica el segmento antes de 2024. Las unidades sin
@@ -153,42 +182,63 @@ export default async function MercadoPage({
         <Card>
           <CardHeader><CardTitle className="text-sm">Participación por tecnología</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <DistribucionChart
-              datos={tecnologias.map((t) => ({ nombre: t.valor, valor: t.unidades }))}
-            />
-            <NotaDato>
-              Cada tecnología se muestra por separado: MHEV no es HEV, PHEV no es
-              HEV y REEV no es EV.
-            </NotaDato>
+            {esImportacion ? (
+              <>
+                <p className="py-16 text-center text-sm text-muted-foreground">
+                  Sin corte por tecnología para importaciones.
+                </p>
+                <NotaDato>
+                  La base de importación de CADAM no trae columna de tecnología.
+                  El detalle ICE/MHEV/HEV/PHEV/REEV/EV solo existe del lado de
+                  matriculación.
+                </NotaDato>
+              </>
+            ) : (
+              <>
+                <DistribucionChart
+                  datos={tecnologias.map((t) => ({ nombre: t.valor, valor: t.unidades }))}
+                  param="tecnologia"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Hacé clic en una porción para filtrar por esa tecnología.
+                </p>
+                <NotaDato>
+                  Cada tecnología se muestra por separado: MHEV no es HEV, PHEV no es
+                  HEV y REEV no es EV.
+                </NotaDato>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <MoviminetoCard
-          titulo="Principales ganadores"
+          titulo={`Principales ganadores — ${etiquetaFuente}`}
           filas={ganadores}
           positivo
-          disponible={matric.baseDisponible}
+          disponible={(esImportacion ? import_ : matric).baseDisponible}
         />
         <MoviminetoCard
-          titulo="Principales perdedores"
+          titulo={`Principales perdedores — ${etiquetaFuente}`}
           filas={perdedores}
           positivo={false}
-          disponible={matric.baseDisponible}
+          disponible={(esImportacion ? import_ : matric).baseDisponible}
         />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Ranking de marcas — matriculaciones ({marcas.length})</CardTitle>
+          <CardTitle className="text-sm">
+            Ranking de marcas — {etiquetaFuente} ({marcas.length})
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <TablaRanking
             filas={marcas}
-            nombreArchivo={`ranking-marcas-matriculacion-${f.anio}`}
+            nombreArchivo={`ranking-marcas-${fuente}-${f.anio}`}
             notaVariacion={
-              (matric.baseDisponible
+              ((esImportacion ? import_ : matric).baseDisponible
                 ? `Variación contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`
                 : `Sin datos de ${f.anio - 1} para comparar.`) +
               (f.segmento
