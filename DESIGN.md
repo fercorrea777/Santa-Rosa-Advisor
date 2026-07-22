@@ -89,8 +89,8 @@ porque el resultado depende de la superficie sobre la que se dibuja.
 ## Prohibiciones que este proyecto respeta
 
 - **Nada de franjas de color al costado** de tarjetas, filas o avisos. La
-  divergencia en Market Share se marca con tinte de fondo + ícono; los ítems
-  del Centro de Inteligencia con un bloque tenue.
+  divergencia en Market Share se marca con tinte de fondo + glifo de texto;
+  los ítems del Centro de Inteligencia con un bloque tenue.
 - Sin texto con degradado.
 - Sin glassmorphism decorativo (el glow del panel es tenue y con propósito).
 - Sin "eyebrow" en versalitas encima de cada sección: las versalitas se usan
