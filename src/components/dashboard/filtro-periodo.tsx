@@ -4,7 +4,6 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { MESES_CORTOS } from "@/lib/periodo";
-import { cn } from "@/lib/utils";
 
 /** Filtros que se aplican con un clic (grafico o fila de ranking) y no
  *  tienen desplegable: se muestran como chip para poder sacarlos. */
