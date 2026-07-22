@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync-datos": "node scripts/sync-datos.mjs"
+    "sync-datos": "node scripts/sync-datos.mjs",
+    "setup-informes-db": "node scripts/setup-informes-db.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.4",
