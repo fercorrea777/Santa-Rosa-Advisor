@@ -1,3 +1,5 @@
+"use client";
+
 import { ArrowDownRight, ArrowUpRight, Minus, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -7,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatPct } from "@/lib/format";
+import { useCountUp } from "@/lib/use-count-up";
 
 interface KpiCardProps {
   label: string;
@@ -15,6 +18,12 @@ interface KpiCardProps {
   variacion?: number | null;
   tooltip?: string;
   disponible?: boolean;
+  /** Si se pasa, el valor se anima con count-up desde 0 hasta este numero
+   *  y `formatearAnimado` decide como se muestra en cada frame. Si no se
+   *  pasa, se usa `value` tal cual sin animar — para KPIs de texto (marca,
+   *  segmento) que no son un conteo. */
+  valorAnimado?: number;
+  formatearAnimado?: (n: number) => string;
 }
 
 export function KpiCard({
@@ -24,7 +33,15 @@ export function KpiCard({
   variacion,
   tooltip,
   disponible = true,
+  valorAnimado,
+  formatearAnimado,
 }: KpiCardProps) {
+  // Se llama siempre (regla de hooks), aunque no se use el resultado: sin
+  // valorAnimado, contado queda en 0 y no se muestra en ningun lado.
+  const contado = useCountUp(valorAnimado ?? 0);
+  const valorMostrado = valorAnimado !== undefined
+    ? (formatearAnimado ? formatearAnimado(contado) : String(contado))
+    : value;
   if (!disponible) {
     return (
       <Card className="gap-2 py-4">
@@ -55,7 +72,7 @@ export function KpiCard({
       </CardHeader>
       <CardContent className="px-4">
         {/* El peso lo fija .metric (700); no agregar font-* aca o lo pisa. */}
-        <p className="metric text-[1.75rem] text-foreground">{value}</p>
+        <p className="metric text-[1.75rem] text-foreground">{valorMostrado}</p>
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
           {variacion !== undefined && variacion !== null ? (
             <span
