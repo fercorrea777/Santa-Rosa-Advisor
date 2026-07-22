@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import type { FilaDimension } from "@/lib/cadam/mercado";
-import { ArrowDown, ArrowUp, Download, Minus, TriangleAlert } from "lucide-react";
 
 export interface FilaShare extends FilaDimension {
   esPropia?: boolean;
@@ -86,9 +85,8 @@ export function TablaShare({
         <button
           type="button"
           onClick={exportar}
-          className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium hover:bg-muted"
+          className="ml-auto inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium hover:bg-muted"
         >
-          <Download className="size-3.5" />
           Exportar CSV
         </button>
       </div>
@@ -124,10 +122,13 @@ export function TablaShare({
                   <TableCell className="font-medium">
                     <span className="inline-flex items-center gap-2">
                       {divergente(f) && (
-                        <TriangleAlert
-                          className="size-3.5 shrink-0 text-amber-600 dark:text-amber-500"
+                        <span
+                          className="shrink-0 text-amber-600 dark:text-amber-500"
+                          role="img"
                           aria-label="Unidades y participación van en sentido contrario"
-                        />
+                        >
+                          ⚠
+                        </span>
                       )}
                       {f.valor}
                       {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
@@ -160,7 +161,7 @@ export function TablaShare({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Las filas con <TriangleAlert className="inline size-3 text-amber-600 dark:text-amber-500" />{" "}
+        Las filas con <span className="text-amber-600 dark:text-amber-500">⚠</span>{" "}
         crecen en unidades pero pierden participación (o al revés): el mercado
         se movió más rápido que ellas.
       </p>
@@ -177,9 +178,7 @@ function Signo({ v, texto }: { v: number | null; texto: string }) {
       up && "text-emerald-600 dark:text-emerald-400",
       down && "text-rose-600 dark:text-rose-400"
     )}>
-      {up && <ArrowUp className="size-3.5" />}
-      {down && <ArrowDown className="size-3.5" />}
-      {!up && !down && <Minus className="size-3.5" />}
+      <span aria-hidden="true">{up ? "▲" : down ? "▼" : "–"}</span>
       {texto}
     </span>
   );
