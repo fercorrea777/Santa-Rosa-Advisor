@@ -8,7 +8,10 @@ import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const raiz = process.cwd();
-const origen = join(raiz, "..", "CADAM");
+// Dos layouts posibles: en la PC local CADAM/ es hermana de la app
+// (../CADAM); en el repo publico de GitHub vive adentro (./CADAM).
+const candidatos = [join(raiz, "..", "CADAM"), join(raiz, "CADAM")];
+const origen = candidatos.find((p) => existsSync(p)) ?? candidatos[0];
 const destino = join(raiz, "data");
 
 const archivos = [

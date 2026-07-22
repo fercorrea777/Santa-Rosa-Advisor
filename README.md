@@ -5,11 +5,11 @@ datos públicos de **CADAM** (Cámara de Distribuidores de Automotores y
 Maquinarias) / DNRA: importaciones y matriculaciones, por marca, modelo,
 segmento, tecnología de propulsión e importador.
 
-## Qué incluye
+## Estructura
 
 | Carpeta | Qué es |
 |---|---|
-| `mercado-automotor-app/` | La aplicación web (Next.js 16 + TypeScript + Tailwind v4 + ECharts + SQLite) |
+| raíz (`src/`, `data/`, …) | La aplicación web (Next.js 16 + TypeScript + Tailwind v4 + ECharts + SQLite) |
 | `CADAM/` | Pipeline de ingesta en Python (pandas) + diccionario de datos (`DATOS.md`) + correcciones versionadas |
 | `CADAM-DATA/` | Archivos fuente de CADAM, una subcarpeta por mes |
 
@@ -26,20 +26,24 @@ de datos.
 ## Correr localmente
 
 ```bash
-cd mercado-automotor-app
 npm install
 npm run dev
 # → http://localhost:3000
 ```
 
-La app lee la base SQLite incluida en `mercado-automotor-app/data/cadam.db`.
+La app lee la base SQLite incluida en `data/cadam.db`.
 
-Para el Copiloto hace falta una clave de Anthropic en
-`mercado-automotor-app/.env.local`:
+Para el Copiloto hace falta una clave de Anthropic en `.env.local`:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 ```
+
+## Desplegar en Vercel
+
+Se despliega directo desde la raíz del repo: importar el repositorio, agregar
+la variable de entorno `ANTHROPIC_API_KEY` (opcional, solo para el Copiloto) y
+Deploy. La base viaja empaquetada (`data/`) y es de solo lectura en runtime.
 
 ## Cargar un mes nuevo
 
@@ -52,19 +56,13 @@ ANTHROPIC_API_KEY=sk-ant-...
    python ingest.py --correcciones   # cargar
    ```
 3. ```bash
-   cd ../../mercado-automotor-app
+   cd ../..
    npm run sync-datos                # actualiza data/cadam.db
    ```
+4. Commit + push → el sitio se republica con los datos nuevos.
 
 Cada carga se valida automáticamente contra los totales del informe oficial de
 CADAM; los hallazgos quedan en la pantalla *Calidad de datos*.
-
-## Publicar (Vercel)
-
-El proyecto está preparado para desplegarse en Vercel apuntando el proyecto a
-la carpeta `mercado-automotor-app/` (Root Directory). La base viaja empaquetada
-(`data/`), es de solo lectura en runtime, y se actualiza con
-`npm run sync-datos` + push.
 
 ## Principios
 
