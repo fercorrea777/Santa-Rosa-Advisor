@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FilterX } from "lucide-react";
 
 /**
  * Vuelve la pantalla a su estado sin filtros.
@@ -33,7 +32,6 @@ export function QuitarFiltros({ className }: { className?: string }) {
         (className ?? "")
       }
     >
-      <FilterX className="size-3.5" />
       Quitar {n === 1 ? "el filtro" : `los ${n} filtros`}
     </button>
   );

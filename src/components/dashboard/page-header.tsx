@@ -1,4 +1,3 @@
-import { Info } from "lucide-react";
 
 export function PageHeader({
   titulo,
@@ -33,7 +32,12 @@ export function PageHeader({
 export function NotaDato({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
-      <Info className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-500" />
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border border-amber-600/50 text-[9px] font-bold leading-none text-amber-600 dark:border-amber-500/50 dark:text-amber-500"
+      >
+        i
+      </span>
       <span>{children}</span>
     </div>
   );

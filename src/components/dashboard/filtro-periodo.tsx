@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { X } from "lucide-react";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
@@ -134,7 +133,7 @@ export function FiltroPeriodo({
           >
             <span className="text-muted-foreground">{label}:</span>
             <span className="font-medium">{valor}</span>
-            <X className="size-3.5 opacity-70" />
+            <span aria-hidden="true" className="opacity-70">✕</span>
           </button>
         );
       })}

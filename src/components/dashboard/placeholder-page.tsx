@@ -1,4 +1,3 @@
-import { ConstructionIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export function PlaceholderPage({
@@ -19,7 +18,6 @@ export function PlaceholderPage({
         </Badge>
       </div>
       <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed p-6">
-        <ConstructionIcon className="size-6 text-muted-foreground/60" />
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
     </div>
