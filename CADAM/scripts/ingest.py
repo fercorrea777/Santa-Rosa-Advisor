@@ -75,6 +75,67 @@ def cargar_correcciones(con) -> dict:
     return corr
 
 
+def derivar_modelo_base(con, snapshot: str) -> tuple[int, int, int]:
+    """Separa MODELO de VERSION en matriculacion.
+
+    Las dos fuentes de CADAM tienen granularidad distinta y eso se puede
+    aprovechar en vez de sufrirlo:
+
+        base importacion.xlsx  ->  'HILUX'                  (modelo)
+        matriculaciones.xlsx   ->  'HILUX D/C 4X4 SRV AUT'  (version)
+
+    Asi que el catalogo de modelos sale de importacion, y para cada
+    version de matriculacion se busca el modelo mas LARGO de esa marca que
+    sea prefijo. El mas largo importa: 'COROLLA CROSS' tiene que ganarle a
+    'COROLLA'.
+
+    Cuando no hay ningun modelo que matchee (marcas que no importaron este
+    periodo, o unidades importadas en anos anteriores), `modelo_base`
+    repite la version completa. Es deliberado: preferimos mostrar una
+    version en el ranking de modelos antes que adivinar un corte y fusionar
+    dos modelos distintos.
+
+    -> (filas con modelo identificado, filas sin identificar, unidades sin identificar)
+    """
+    catalogo: dict[str, list[str]] = {}
+    for marca, modelo in con.execute(
+            "SELECT DISTINCT marca, modelo FROM importacion WHERE snapshot = ?",
+            (snapshot,)):
+        if modelo:
+            catalogo.setdefault(marca, []).append(modelo.upper())
+    # Del mas largo al mas corto: la primera coincidencia ya es la mejor.
+    for marca in catalogo:
+        catalogo[marca].sort(key=len, reverse=True)
+
+    filas = con.execute(
+        "SELECT rowid, marca, modelo FROM matriculacion WHERE snapshot = ?",
+        (snapshot,)).fetchall()
+
+    updates, con_base, sin_base = [], 0, 0
+    for rowid, marca, version in filas:
+        v = (version or "").upper()
+        base = None
+        for cand in catalogo.get(marca, ()):
+            if v == cand or v.startswith(cand + " "):
+                base = cand
+                break
+        if base:
+            con_base += 1
+        else:
+            base = version
+            sin_base += 1
+        updates.append((base, rowid))
+
+    con.executemany("UPDATE matriculacion SET modelo_base = ? WHERE rowid = ?", updates)
+    unidades_sin = con.execute(
+        "SELECT COALESCE(SUM(unidades), 0) FROM matriculacion "
+        "WHERE snapshot = ? AND modelo_base = modelo AND modelo NOT IN "
+        "(SELECT modelo FROM importacion WHERE snapshot = ?)",
+        (snapshot, snapshot)).fetchone()[0]
+    con.commit()
+    return con_base, sin_base, unidades_sin
+
+
 def archivos_de(carpeta: Path):
     for p in sorted(carpeta.rglob("*")):
         if p.is_file() and p.suffix.lower() in EXT and not p.name.startswith("~$"):
@@ -231,6 +292,29 @@ def main():
         con.executemany(
             "INSERT INTO carga_log (snapshot, archivo, nivel, categoria, mensaje, n) "
             "VALUES (?,?,?,?,?,?)", total_log)
+        con.commit()
+
+        # Separar modelo de version: necesita TODOS los archivos del
+        # snapshot ya cargados (el catalogo sale de importacion), asi que
+        # va aca y no dentro del parser de matriculacion.
+        for periodo in sorted(por_periodo):
+            con_base, sin_base, unid_sin = derivar_modelo_base(con, periodo)
+            if con_base or sin_base:
+                total = con_base + sin_base
+                print(f"\n--- Modelo vs version {periodo}")
+                print(f"  {con_base} de {total} filas con modelo identificado "
+                      f"desde el catalogo de importacion")
+                print(f"  {sin_base} sin identificar ({unid_sin:,} unidades): "
+                      f"se muestran con la version completa")
+                con.execute(
+                    "INSERT INTO carga_log (snapshot, archivo, nivel, categoria, mensaje, n) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (periodo, None, "info", "modelo_derivado",
+                     f"Modelo separado de version usando el catalogo de importacion: "
+                     f"{con_base} de {total} filas identificadas. Las {sin_base} "
+                     f"restantes ({unid_sin:,} unidades) muestran la version completa "
+                     f"en el ranking de modelos, en vez de adivinar el corte.",
+                     sin_base))
         con.commit()
 
         # Controles cruzados entre fuentes (incluye el cruce contra el

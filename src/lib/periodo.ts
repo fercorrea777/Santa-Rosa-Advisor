@@ -60,5 +60,7 @@ export function filtroDesdeUrl(
     tecnologia: txt(sp.tecnologia),
     marca: txt(sp.marca),
     empresa: txt(sp.empresa),
+    modelo: txt(sp.modelo),
+    version: txt(sp.version),
   };
 }

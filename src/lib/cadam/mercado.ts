@@ -31,6 +31,11 @@ export interface Filtro extends RangoMeses {
   tecnologia?: string;
   marca?: string;
   empresa?: string;
+  /** Modelo base ('HILUX'). En importacion es la columna `modelo`. */
+  modelo?: string;
+  /** Version tal como la escribe la DNRA ('HILUX D/C 4X4 SRV AUT').
+   *  Solo existe en matriculacion. */
+  version?: string;
 }
 
 /** Tecnologias en el orden en que se muestran. No se agrupan por defecto:
@@ -143,7 +148,13 @@ function where(fuente: Fuente, f: Filtro, alias = "") {
     cond.push(`${p}marca = ?`);
     args.push(f.marca);
   }
-  // tecnologia y empresa solo existen en matriculacion
+  if (f.modelo) {
+    // En matriculacion el modelo vive en `modelo_base` (derivado); en
+    // importacion la columna `modelo` YA es el modelo.
+    cond.push(fuente === "matriculacion" ? `${p}modelo_base = ?` : `${p}modelo = ?`);
+    args.push(f.modelo);
+  }
+  // tecnologia, empresa y version solo existen en matriculacion
   if (fuente === "matriculacion" && f.tecnologia) {
     cond.push(`${p}tecnologia = ?`);
     args.push(f.tecnologia);
@@ -151,6 +162,10 @@ function where(fuente: Fuente, f: Filtro, alias = "") {
   if (fuente === "matriculacion" && f.empresa) {
     cond.push(`${p}empresa = ?`);
     args.push(f.empresa);
+  }
+  if (fuente === "matriculacion" && f.version) {
+    cond.push(`${p}modelo = ?`);
+    args.push(f.version);
   }
   return { sql: cond.join(" AND "), args };
 }
@@ -326,16 +341,32 @@ export function getRankingMarcas(fuente: Fuente, f: Filtro): FilaRanking[] {
   );
 }
 
-export function getRankingModelos(fuente: Fuente, f: Filtro, limite = 100): FilaRanking[] {
+/**
+ * Ranking por MODELO o por VERSION.
+ *
+ * Las dos fuentes de CADAM tienen granularidad distinta:
+ *   importacion  -> `modelo` ya es el modelo ('HILUX')
+ *   matriculacion-> `modelo` es la VERSION ('HILUX D/C 4X4 SRV AUT') y el
+ *                   modelo derivado vive en `modelo_base` (ver
+ *                   ingest.py::derivar_modelo_base)
+ *
+ * Por eso el ranking de versiones solo existe del lado de matriculacion:
+ * la base de importacion no baja a ese nivel.
+ */
+function rankingPorColumna(
+  fuente: Fuente,
+  columna: string,
+  f: Filtro,
+  limite: number
+): FilaRanking[] {
   const db = getDb();
-  const segCol = "segmento";
   const w = where(fuente, f);
   const actual = db
     .prepare(
-      `SELECT marca || ' ' || modelo clave, marca, modelo,
-              MIN(${segCol}) segmento, SUM(unidades) unidades
+      `SELECT marca || ' ' || ${columna} clave, marca, ${columna} modelo,
+              MIN(segmento) segmento, SUM(unidades) unidades
        FROM ${vista(fuente)} WHERE ${w.sql}
-       GROUP BY marca, modelo HAVING unidades > 0
+       GROUP BY marca, ${columna} HAVING unidades > 0
        ORDER BY unidades DESC LIMIT ?`
     )
     .all(...w.args, limite) as {
@@ -345,9 +376,9 @@ export function getRankingModelos(fuente: Fuente, f: Filtro, limite = 100): Fila
   const wp = where(fuente, { ...f, anio: f.anio - 1 });
   const previo = db
     .prepare(
-      `SELECT marca || ' ' || modelo clave, SUM(unidades) unidades
+      `SELECT marca || ' ' || ${columna} clave, SUM(unidades) unidades
        FROM ${vista(fuente)} WHERE ${wp.sql}
-       GROUP BY marca, modelo HAVING unidades > 0 ORDER BY unidades DESC`
+       GROUP BY marca, ${columna} HAVING unidades > 0 ORDER BY unidades DESC`
     )
     .all(...wp.args) as { clave: string; unidades: number }[];
 
@@ -357,6 +388,21 @@ export function getRankingModelos(fuente: Fuente, f: Filtro, limite = 100): Fila
     new Map(previo.map((r, i) => [r.clave, i + 1])),
     hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta)
   );
+}
+
+export function getRankingModelos(fuente: Fuente, f: Filtro, limite = 300): FilaRanking[] {
+  return rankingPorColumna(
+    fuente,
+    fuente === "matriculacion" ? "modelo_base" : "modelo",
+    f,
+    limite
+  );
+}
+
+/** Ranking de versiones. Solo matriculacion: la base de importacion no
+ *  tiene ese nivel de detalle. */
+export function getRankingVersiones(f: Filtro, limite = 300): FilaRanking[] {
+  return rankingPorColumna("matriculacion", "modelo", f, limite);
 }
 
 // -------------------------------------------------------- cortes por dimension

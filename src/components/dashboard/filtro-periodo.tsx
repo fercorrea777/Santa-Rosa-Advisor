@@ -2,8 +2,17 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { X } from "lucide-react";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
+
+/** Filtros que se aplican con un clic (grafico o fila de ranking) y no
+ *  tienen desplegable: se muestran como chip para poder sacarlos. */
+const CHIPS = [
+  { param: "marca", label: "Marca" },
+  { param: "modelo", label: "Modelo" },
+  { param: "version", label: "Versión" },
+] as const;
 
 export interface OpcionFiltro {
   /** Clave del parametro en la URL, ej. 'segmento'. */
@@ -108,11 +117,32 @@ export function FiltroPeriodo({
         </Campo>
       ))}
 
+      {/* Filtros aplicados haciendo clic en un grafico o en una fila del
+          ranking: no tienen desplegable propio, asi que se muestran aca
+          como chips para que se vean y se puedan quitar. */}
+      {CHIPS.map(({ param, label }) => {
+        const valor = sp.get(param);
+        if (!valor) return null;
+        return (
+          <button
+            key={param}
+            type="button"
+            onClick={() => setParams({ [param]: null })}
+            title="Quitar este filtro"
+            className="inline-flex h-8 items-center gap-1.5 self-end rounded-md border border-primary/40 bg-primary/10 px-2.5 text-xs"
+          >
+            <span className="text-muted-foreground">{label}:</span>
+            <span className="font-medium">{valor}</span>
+            <X className="size-3.5 opacity-70" />
+          </button>
+        );
+      })}
+
       {[...sp.keys()].length > 0 && (
         <button
           type="button"
           onClick={() => router.replace(pathname, { scroll: false })}
-          className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:underline"
+          className="ml-auto self-end text-xs text-muted-foreground underline-offset-2 hover:underline"
         >
           Limpiar filtros
         </button>

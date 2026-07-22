@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -33,6 +34,8 @@ export function TablaRanking({
   mostrarSegmento = false,
   nombreArchivo = "ranking",
   notaVariacion,
+  filtrarPor,
+  etiquetaModelo = "Modelo",
 }: {
   filas: FilaRanking[];
   columnaClave?: string;
@@ -40,12 +43,31 @@ export function TablaRanking({
   mostrarSegmento?: boolean;
   nombreArchivo?: string;
   notaVariacion?: string;
+  /**
+   * Si se pasa, cada fila filtra la pagina al hacerle clic. `marca` es el
+   * parametro que recibe la columna de marca; `detalle` el de la columna
+   * de modelo/version (cuando se muestra).
+   */
+  filtrarPor?: { marca?: string; detalle?: string };
+  etiquetaModelo?: string;
 }) {
   const [orden, setOrden] = React.useState<{ campo: Campo; asc: boolean }>({
     campo: "posicion", asc: true,
   });
   const [busqueda, setBusqueda] = React.useState("");
   const [tope, setTope] = React.useState<number>(20);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const sp = useSearchParams();
+
+  /** Clic en una celda: pone (o quita) ese valor como filtro en la URL. */
+  const alternarFiltro = (param: string, valor: string) => {
+    const q = new URLSearchParams(sp.toString());
+    if (q.get(param) === valor) q.delete(param);
+    else q.set(param, valor);
+    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+  };
 
   const filtradas = React.useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -179,7 +201,7 @@ export function TablaRanking({
             <TableRow>
               {th("posicion", "#")}
               {th("marca", columnaClave)}
-              {mostrarModelo && th("modelo", "Modelo")}
+              {mostrarModelo && th("modelo", etiquetaModelo)}
               {mostrarSegmento && th("segmento", "Segmento")}
               {th("unidades", "Unidades", true)}
               {th("participacion", "Part.", true)}
@@ -196,12 +218,26 @@ export function TablaRanking({
                 <TableCell className="tabular-nums text-muted-foreground">{f.posicion}</TableCell>
                 <TableCell className="font-medium">
                   <span className="inline-flex items-center gap-2">
-                    {f.marca}
+                    <Filtrable
+                      param={filtrarPor?.marca}
+                      valor={f.marca}
+                      activo={filtrarPor?.marca ? sp.get(filtrarPor.marca) === f.marca : false}
+                      onToggle={alternarFiltro}
+                    />
                     {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
                   </span>
                 </TableCell>
                 {mostrarModelo && (
-                  <TableCell className="text-muted-foreground">{f.modelo}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    <Filtrable
+                      param={filtrarPor?.detalle}
+                      valor={f.modelo ?? ""}
+                      activo={
+                        filtrarPor?.detalle ? sp.get(filtrarPor.detalle) === f.modelo : false
+                      }
+                      onToggle={alternarFiltro}
+                    />
+                  </TableCell>
                 )}
                 {mostrarSegmento && (
                   <TableCell className="text-muted-foreground">{f.segmento}</TableCell>
@@ -227,6 +263,33 @@ export function TablaRanking({
         {notaVariacion ? ` ${notaVariacion}` : ""}
       </p>
     </div>
+  );
+}
+
+/** Celda que filtra al hacerle clic. Si no hay `param`, es texto plano:
+ *  asi la misma tabla sirve en pantallas donde el filtro no aplica. */
+function Filtrable({
+  param, valor, activo, onToggle,
+}: {
+  param?: string;
+  valor: string;
+  activo: boolean;
+  onToggle: (param: string, valor: string) => void;
+}) {
+  if (!param) return <>{valor}</>;
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(param, valor)}
+      aria-pressed={activo}
+      title={activo ? "Quitar filtro" : `Filtrar por ${valor}`}
+      className={cn(
+        "rounded px-1 -mx-1 text-left underline-offset-4 hover:underline",
+        activo && "bg-primary/15 font-medium text-foreground underline"
+      )}
+    >
+      {valor}
+    </button>
   );
 }
 

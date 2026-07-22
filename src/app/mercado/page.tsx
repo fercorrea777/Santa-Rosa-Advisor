@@ -3,12 +3,13 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import {
   getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
-  getSerieMensual, type Fuente,
+  getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 import { formatPct, formatUnidades } from "@/lib/format";
@@ -52,6 +53,16 @@ export default async function MercadoPage({
   // existe del lado de matriculacion (ver CADAM/DATOS.md).
   const tecnologias = esImportacion ? [] : getPorDimension("matriculacion", "tecnologia", f);
   const marcas = getRankingMarcas(fuente, f);
+  const modelos = getRankingModelos(fuente, f);
+  // Version solo existe en matriculacion: la base de importacion llega
+  // hasta el modelo.
+  const versiones = esImportacion ? [] : getRankingVersiones(f);
+
+  const notaVar =
+    ((esImportacion ? import_ : matric).baseDisponible
+      ? `Variación contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`
+      : `Sin datos de ${f.anio - 1} para comparar.`) +
+    (f.segmento ? "" : " Incluye livianos y pesados: filtrá por segmento para separarlos.");
 
   // Ganadores y perdedores por variacion absoluta de unidades: es lo que
   // mueve el mercado. El % solo puede ser enorme sobre bases minimas.
@@ -229,23 +240,74 @@ export default async function MercadoPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">
-            Ranking de marcas — {etiquetaFuente} ({marcas.length})
-          </CardTitle>
+          <CardTitle className="text-sm">Rankings</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Hacé clic en una marca, modelo o versión para filtrar toda la
+            página; otro clic lo quita. Los filtros se acumulan entre sí y con
+            los de arriba.
+          </p>
         </CardHeader>
         <CardContent>
-          <TablaRanking
-            filas={marcas}
-            nombreArchivo={`ranking-marcas-${fuente}-${f.anio}`}
-            notaVariacion={
-              ((esImportacion ? import_ : matric).baseDisponible
-                ? `Variación contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`
-                : `Sin datos de ${f.anio - 1} para comparar.`) +
-              (f.segmento
-                ? ""
-                : " Incluye livianos y pesados: filtrá por segmento para separarlos.")
-            }
-          />
+          <Tabs defaultValue="marcas">
+            <TabsList className="flex-wrap">
+              <TabsTrigger value="marcas">Marcas ({marcas.length})</TabsTrigger>
+              <TabsTrigger value="modelos">Modelos ({modelos.length})</TabsTrigger>
+              <TabsTrigger value="versiones">
+                Versiones {esImportacion ? "" : `(${versiones.length})`}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="marcas" className="mt-3">
+              <TablaRanking
+                filas={marcas}
+                filtrarPor={{ marca: "marca" }}
+                nombreArchivo={`ranking-marcas-${fuente}-${f.anio}`}
+                notaVariacion={notaVar}
+              />
+            </TabsContent>
+
+            <TabsContent value="modelos" className="mt-3">
+              <TablaRanking
+                filas={modelos}
+                mostrarModelo
+                mostrarSegmento
+                etiquetaModelo="Modelo"
+                filtrarPor={{ marca: "marca", detalle: "modelo" }}
+                nombreArchivo={`ranking-modelos-${fuente}-${f.anio}`}
+                notaVariacion={notaVar}
+              />
+            </TabsContent>
+
+            <TabsContent value="versiones" className="mt-3">
+              {esImportacion ? (
+                <NotaDato>
+                  La base de importación de CADAM llega hasta el modelo
+                  (<code>HILUX</code>), no hasta la versión. El detalle por
+                  versión solo existe del lado de matriculación.
+                </NotaDato>
+              ) : (
+                <>
+                  <TablaRanking
+                    filas={versiones}
+                    mostrarModelo
+                    mostrarSegmento
+                    etiquetaModelo="Versión"
+                    filtrarPor={{ marca: "marca", detalle: "version" }}
+                    nombreArchivo={`ranking-versiones-${f.anio}`}
+                    notaVariacion={notaVar}
+                  />
+                  <div className="mt-3">
+                    <NotaDato>
+                      CADAM no publica un campo de versión: esto es el nombre tal
+                      como lo carga la DNRA, que en la práctica incluye el
+                      acabado y a veces el motor (<code>HILUX D/C 4X4 SRV AUT</code>).
+                      No hay motor, transmisión ni tracción como campos aparte.
+                    </NotaDato>
+                  </div>
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

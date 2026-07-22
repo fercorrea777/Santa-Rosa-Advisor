@@ -79,6 +79,12 @@ CREATE TABLE IF NOT EXISTS matriculacion (
     segmento_raw TEXT NOT NULL,           -- 'Grupo' tal cual vino
     tecnologia   TEXT NOT NULL,           -- ICE|MHEV|HEV|PHEV|REEV|EV
     empresa      TEXT NOT NULL,           -- importador/representante
+    -- Modelo base derivado del catalogo de importacion (ver ingest.py::
+    -- derivar_modelo_base). `modelo` es en realidad la VERSION tal como la
+    -- escribe la DNRA ('HILUX D/C 4X4 SRV AUT'); esta columna guarda el
+    -- modelo ('HILUX') para poder agrupar. Cuando no se identifica, repite
+    -- la version completa en vez de adivinar.
+    modelo_base  TEXT,
     unidades     INTEGER NOT NULL,
     PRIMARY KEY (snapshot, anio, mes, marca, modelo, segmento, tecnologia, empresa)
 );
@@ -224,7 +230,22 @@ CREATE VIEW v_importacion_camion AS
 """
 
 
+# Columnas agregadas despues de la version inicial del esquema. SQLite no
+# tiene "ADD COLUMN IF NOT EXISTS", asi que se consulta el PRAGMA antes.
+MIGRACIONES = [
+    ("matriculacion", "modelo_base", "TEXT"),
+]
+
+
+def _migrar(con):
+    for tabla, columna, tipo in MIGRACIONES:
+        existentes = {r[1] for r in con.execute(f"PRAGMA table_info({tabla})")}
+        if existentes and columna not in existentes:
+            con.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo}")
+
+
 def crear(con):
     con.executescript(SCHEMA)
+    _migrar(con)
     con.executescript(VIEWS)
     con.commit()
