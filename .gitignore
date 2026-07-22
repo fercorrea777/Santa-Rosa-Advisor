@@ -44,3 +44,4 @@ next-env.d.ts
 # Python (pipeline CADAM)
 __pycache__/
 *.py[cod]
+.superpowers/
