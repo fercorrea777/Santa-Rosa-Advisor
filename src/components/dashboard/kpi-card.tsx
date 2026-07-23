@@ -31,6 +31,10 @@ interface KpiCardProps {
    *  una sparkline al pie de la tarjeta. Contexto de tendencia de un
    *  vistazo, sin ejes ni tooltip: para el detalle está el gráfico grande. */
   serie?: (number | null)[];
+  /** Tinte bento por familia de dato (ver globals.css): azul matriculación,
+   *  verde importación, ámbar tecnología, tinta para el destacado. Sin tono
+   *  la tile queda blanca/neutra. */
+  tono?: "azul" | "verde" | "ambar" | "tinta";
 }
 
 const FORMATEADORES: Record<NonNullable<KpiCardProps["formato"]>, (n: number) => string> = {
@@ -48,6 +52,7 @@ export function KpiCard({
   valorAnimado,
   formato,
   serie,
+  tono,
 }: KpiCardProps) {
   // Se llama siempre (regla de hooks), aunque no se use el resultado: sin
   // valorAnimado, contado queda en 0 y no se muestra en ningun lado.
@@ -76,7 +81,7 @@ export function KpiCard({
   const isDown = (variacion ?? 0) < 0;
 
   return (
-    <Card className="group/kpi w-full gap-2 py-4">
+    <Card className={cn("group/kpi w-full gap-2 py-4", tono && `tile-${tono}`)}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 px-4">
         <span className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
           {label}
@@ -143,9 +148,9 @@ function Sparkline({ serie }: { serie: (number | null)[] }) {
       aria-hidden="true"
       className="mt-3 h-7 w-full opacity-90"
     >
-      <path d={area} fill="var(--primary)" opacity="0.13" />
-      <path d={linea} fill="none" stroke="var(--primary)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      <circle cx={x(ultimo.i)} cy={y(ultimo.v)} r="2.4" fill="var(--primary)" vectorEffect="non-scaling-stroke" />
+      <path d={area} fill="var(--sparkline-color, var(--primary))" opacity="0.13" />
+      <path d={linea} fill="none" stroke="var(--sparkline-color, var(--primary))" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      <circle cx={x(ultimo.i)} cy={y(ultimo.v)} r="2.4" fill="var(--sparkline-color, var(--primary))" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

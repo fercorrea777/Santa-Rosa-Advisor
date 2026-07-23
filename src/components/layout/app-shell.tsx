@@ -15,7 +15,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           `self-start` es lo que lo hace posible: sin eso el aside se
           estira a la altura del contenido (align-items: stretch) y
           `sticky` no tiene margen para pegarse. */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 self-start border-r bg-sidebar text-sidebar-foreground md:flex md:flex-col">
+      {/* Rail bento: tarjeta flotante redondeada separada del lienzo, no
+          columna pegada al borde. Mantiene labels (13 secciones con ícono
+          solo sería adivinanza). */}
+      <aside className="sticky top-3 ml-3 hidden h-[calc(100vh-1.5rem)] w-60 shrink-0 self-start overflow-hidden rounded-3xl border bg-card text-sidebar-foreground shadow-[var(--card-shadow)] md:flex md:flex-col">
         <div className="flex h-14 items-center gap-2.5 border-b px-4">
           <span className="text-[0.82rem] font-extrabold uppercase leading-tight tracking-[0.06em]">
             Mercado Automotor <span className="text-primary">PY</span>

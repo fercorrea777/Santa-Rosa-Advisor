@@ -111,21 +111,46 @@ export default async function InicioPage({
         ]}
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="reveal reveal-d1 flex">
-          <KpiCard
-            label="Matriculaciones acumuladas"
-            value={formatUnidades(matric.valor)}
-            valorAnimado={matric.valor}
-            formato="unidades"
-            variacion={matric.variacion}
-            serie={serieMat.find((s) => String(s.anio) === String(f.anio))?.valores}
-            periodo={periodo}
-            tooltip={`Contra el mismo período de ${f.anio - 1}: ${formatUnidades(matric.baseValor)} u.`}
-          />
+      {/* Grilla bento: el tamaño de cada tile lo decide la jerarquía del
+          dato. Matriculaciones es LA métrica del negocio → tile 2×2 con su
+          evolución integrada (la card de evolución separada desaparece:
+          vive acá). El resto escala hacia abajo. */}
+      <section className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="reveal reveal-d1 flex sm:col-span-2 xl:row-span-2">
+          <Card className="tile-azul flex w-full flex-col gap-2 py-4">
+            <CardHeader className="px-5">
+              <CardTitle>Matriculaciones acumuladas · {periodo}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col px-5">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <p className="metric text-[3.4rem] leading-none text-foreground">
+                  {formatUnidades(matric.valor)}
+                </p>
+                {matric.variacion !== null && matric.variacion !== undefined && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                    <span aria-hidden="true">{matric.variacion >= 0 ? "▲" : "▼"}</span>
+                    {formatPct(matric.variacion, { signed: true })}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                vs. {f.anio - 1}: {formatUnidades(matric.baseValor)} u.
+              </p>
+              <div className="mt-auto pt-3">
+                <SerieAniosChart series={serieMat} altura={230} />
+                {cobertura.mesesFaltantes.matriculacion.length > 0 && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Meses sin dato quedan como hueco, no como cero
+                    {" "}(faltante en el origen: {cobertura.mesesFaltantes.matriculacion.join(", ")}).
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        <div className="reveal reveal-d2 flex">
+        <div className="reveal reveal-d2 flex sm:col-span-2">
           <KpiCard
+            tono="verde"
             label="Importaciones acumuladas"
             value={formatUnidades(importa.valor)}
             valorAnimado={importa.valor}
@@ -138,6 +163,7 @@ export default async function InicioPage({
         </div>
         <div className="reveal reveal-d3 flex">
           <KpiCard
+            tono="tinta"
             label="Marca líder"
             value={lider?.marca ?? "—"}
             periodo={lider ? `${formatUnidades(lider.unidades)} u. · ${formatPct(lider.participacion)}` : undefined}
@@ -146,14 +172,7 @@ export default async function InicioPage({
         </div>
         <div className="reveal reveal-d4 flex">
           <KpiCard
-            label="Segmento líder"
-            value={segLider?.valor ?? "—"}
-            periodo={segLider ? `${formatUnidades(segLider.unidades)} u. · ${formatPct(segLider.participacion)}` : undefined}
-            tooltip="Segmento con más matriculaciones. CADAM no clasifica el segmento antes de 2024."
-          />
-        </div>
-        <div className="reveal reveal-d5 flex">
-          <KpiCard
+            tono="ambar"
             label="Tecnología con mayor crecimiento"
             value={tecGanadora?.valor ?? "—"}
             variacion={tecGanadora?.variacion}
@@ -161,7 +180,15 @@ export default async function InicioPage({
             tooltip="La tecnología (fuera de ICE) que más creció contra el año anterior, sobre una base mínima de 30 unidades."
           />
         </div>
-        <div className="reveal reveal-d6 flex">
+        <div className="reveal reveal-d5 flex">
+          <KpiCard
+            label="Segmento líder"
+            value={segLider?.valor ?? "—"}
+            periodo={segLider ? `${formatUnidades(segLider.unidades)} u. · ${formatPct(segLider.participacion)}` : undefined}
+            tooltip="Segmento con más matriculaciones. CADAM no clasifica el segmento antes de 2024."
+          />
+        </div>
+        <div className="reveal reveal-d5 flex">
           <KpiCard
             label={varMesAnterior ? `Variación ${varMesAnterior.mes} vs. mes anterior` : "Variación vs. mes anterior"}
             value={varMesAnterior ? formatUnidades(varMesAnterior.valor) : "—"}
@@ -195,21 +222,6 @@ export default async function InicioPage({
       </section>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Evolución mensual — matriculaciones</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SerieAniosChart series={serieMat} />
-            {cobertura.mesesFaltantes.matriculacion.length > 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Meses sin dato quedan como hueco, no como cero
-                {" "}(faltante en el origen: {cobertura.mesesFaltantes.matriculacion.join(", ")}).
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <CardTitle>Evolución mensual — importaciones</CardTitle>

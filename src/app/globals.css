@@ -78,9 +78,9 @@
      frío, tarjetas blancas puras con sombra difusa corta (elevación SaaS
      premium, no borde duro), azul eléctrico como único acento. El oscuro
      pasa a ser la variante para sala de reuniones. */
-  /* Lienzo un punto más gris que la tarjeta blanca pura: esa diferencia es
-     lo que hace "flotar" los paneles (Stripe-style). */
-  --background: oklch(0.972 0.0035 247);
+  /* Lienzo gris frío del sistema bento: las tiles blancas y las tintadas
+     flotan sobre él. Un punto más presente que un blanco roto. */
+  --background: oklch(0.968 0.004 250);
   --foreground: oklch(0.21 0.03 257);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.03 257);
@@ -109,8 +109,18 @@
   --panel-glow: transparent;
   --panel-edge: oklch(0.928 0.006 247);
   --card-shadow:
-    0 1px 2px oklch(0.2 0.03 257 / 5%),
-    0 12px 32px -16px oklch(0.2 0.05 260 / 14%);
+    0 1px 2px oklch(0.2 0.03 257 / 4%),
+    0 10px 28px -18px oklch(0.2 0.05 260 / 10%);
+
+  /* Tintes bento por familia de dato (rediseño 2026-07, mockup B elegido
+     por el usuario): cada familia lleva su tile de color pálido con texto
+     oscuro de alto contraste. El tamaño de la tile lo decide la jerarquía
+     del dato, no una grilla uniforme. */
+  --tile-azul: oklch(0.925 0.045 243);
+  --tile-verde: oklch(0.935 0.05 155);
+  --tile-ambar: oklch(0.93 0.07 85);
+  --tile-tinta: oklch(0.27 0.045 262);
+  --tile-tinta-fg: oklch(0.965 0.008 250);
 
   /* Paleta categórica de gráficos. Los --chart de shadcn son una escala de
      grises: inservibles para comparar marcas o segmentos. Este orden fijo
@@ -166,6 +176,15 @@
   --panel-glow: oklch(0.78 0.135 205 / 10%);
   --panel-edge: oklch(0.78 0.135 205 / 42%);
   --card-shadow: 0 18px 40px -28px oklch(0 0 0 / 60%);
+
+  /* Tintes bento en oscuro: tonos profundos de la misma familia, texto
+     claro. La tinta se invierte (clara sobre fondo oscuro no existe: pasa
+     a ser una tile apenas más luminosa que el resto). */
+  --tile-azul: oklch(0.3 0.055 245);
+  --tile-verde: oklch(0.3 0.05 160);
+  --tile-ambar: oklch(0.32 0.055 85);
+  --tile-tinta: oklch(0.38 0.06 262);
+  --tile-tinta-fg: oklch(0.97 0.006 240);
 
   /* Los mismos ocho tonos, re-escalonados para la superficie oscura. No es un
      flip automático del modo claro: cada paso se eligió para la banda oscura y
@@ -231,57 +250,30 @@
      usa una franja de color al costado de la tarjeta: sigue siendo el tic
      visual más gastado y compite con el contenido.
   ------------------------------------------------------------------------ */
+  /* ---- Tile bento (rediseño 2026-07) ---------------------------------------
+     Radios generosos y color pleno de tile; nada de hairlines ni glows de
+     borde: la identidad de cada tile la da su tinte de fondo, y la
+     jerarquía la da su tamaño en la grilla. Reemplaza el panel HUD anterior
+     (decisión del usuario sobre 3 mockups estructurales).
+  ------------------------------------------------------------------------ */
   [data-slot="card"] {
     position: relative;
     overflow: hidden;
-    border-radius: 0.875rem;
-    background-color: color-mix(in oklab, var(--card) 92%, transparent);
-    box-shadow:
-      inset 0 1px 0 0 color-mix(in oklab, var(--panel-edge) 55%, transparent),
-      0 0 0 1px color-mix(in oklab, var(--panel-edge) 60%, transparent),
-      var(--card-shadow);
+    border-radius: 1.375rem;
+    background-color: var(--card);
+    border: 1px solid color-mix(in oklab, var(--panel-edge) 70%, transparent);
+    box-shadow: var(--card-shadow);
     transition: box-shadow 200ms, transform 200ms;
-  }
-  /* Hairline superior: la firma del panel de instrumentos. Un filo cian que
-     nace a la izquierda y se apaga hacia la derecha — decoración en el borde,
-     nunca encima del dato. (La franja LATERAL sigue prohibida; esto es el
-     canto superior del panel, no una etiqueta de categoría.) */
-  [data-slot="card"]::before {
-    content: "";
-    position: absolute;
-    inset: 0 auto auto 0;
-    height: 2px;
-    width: 100%;
-    background: linear-gradient(
-      90deg,
-      color-mix(in oklab, var(--primary) 55%, transparent),
-      color-mix(in oklab, var(--primary) 16%, transparent) 45%,
-      transparent 80%
-    );
-    pointer-events: none;
-  }
-  .dark [data-slot="card"]::before {
-    background: linear-gradient(
-      90deg,
-      color-mix(in oklab, var(--primary) 85%, transparent),
-      color-mix(in oklab, var(--primary) 25%, transparent) 45%,
-      transparent 80%
-    );
   }
   [data-slot="card"]:hover {
     box-shadow:
-      inset 0 1px 0 0 color-mix(in oklab, var(--panel-edge) 75%, transparent),
-      0 0 0 1px color-mix(in oklab, var(--panel-edge) 90%, transparent),
-      0 0 24px -6px color-mix(in oklab, var(--primary) 18%, transparent),
-      var(--card-shadow);
+      0 2px 4px oklch(0.2 0.03 257 / 5%),
+      0 16px 36px -18px oklch(0.2 0.05 260 / 16%);
   }
   .dark [data-slot="card"] {
-    background-image: radial-gradient(
-      120% 90% at 0% 0%,
-      var(--panel-glow) 0%,
-      transparent 60%
-    );
+    border-color: color-mix(in oklab, var(--panel-edge) 45%, transparent);
   }
+
 
   /* Título de panel: versalitas espaciadas, como una etiqueta de instrumento.
      Se aplica solo a los títulos de panel, no a cada sección de la página.
@@ -388,6 +380,33 @@
   .reveal-d5 { animation-delay: 260ms; }
   .reveal-d6 { animation-delay: 330ms; }
 }
+
+/* Tintes bento por familia de dato — FUERA de @layer a propósito: la base
+   de Card trae la utility `bg-card` y en Tailwind v4 la capa utilities le
+   gana a components por orden de capa, sin importar especificidad. El CSS
+   sin capa le gana a todas las capas. */
+.tile-azul[data-slot="card"] { background-color: var(--tile-azul); border-color: transparent; }
+.tile-verde[data-slot="card"] { background-color: var(--tile-verde); border-color: transparent; }
+.tile-ambar[data-slot="card"] { background-color: var(--tile-ambar); border-color: transparent; }
+.tile-tinta[data-slot="card"] {
+  background-color: var(--tile-tinta);
+  border-color: transparent;
+  color: var(--tile-tinta-fg);
+}
+.tile-tinta [data-slot="card-title"],
+.tile-tinta .text-muted-foreground {
+  color: color-mix(in oklab, var(--tile-tinta-fg) 72%, transparent);
+}
+.tile-tinta .text-foreground,
+.tile-tinta .metric {
+  color: var(--tile-tinta-fg);
+}
+.dark .tile-tinta .metric {
+  text-shadow: none;
+}
+/* La sparkline toma el color de la familia de su tile. */
+.tile-verde { --sparkline-color: oklch(0.55 0.12 155); }
+.dark .tile-verde { --sparkline-color: oklch(0.75 0.11 155); }
 
 @media (prefers-reduced-motion: reduce) {
   *,
