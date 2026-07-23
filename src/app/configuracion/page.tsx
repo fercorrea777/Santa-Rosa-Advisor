@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { getParametros } from "@/lib/cadam/config";
 import { getPeriodoInfo } from "@/lib/cadam/queries";
 
@@ -8,22 +9,16 @@ export default function ConfiguracionPage() {
   const info = getPeriodoInfo();
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4 md:p-6">
-      <div className="flex items-center gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Configuración</h1>
-        <Badge variant="outline" className="font-normal">
-          Solo lectura por ahora
-        </Badge>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Esto es exactamente lo que hay hoy en{" "}
-        <code className="rounded bg-muted px-1 py-0.5 text-xs">
-          SANTA ROSA COMERCIAL ADVISOR/CADAM/parametros.json
-        </code>{" "}
-        — la app lo lee de ahí, no lo duplica. Editarlo desde acá (en vez de a mano en el archivo)
-        queda para cuando haya persistencia real (Fase 2).
-      </p>
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        titulo="Configuración"
+        descripcion="Esto es exactamente lo que hay hoy en SANTA ROSA COMERCIAL ADVISOR/CADAM/parametros.json — la app lo lee de ahí, no lo duplica. Editarlo desde acá (en vez de a mano en el archivo) queda para cuando haya persistencia real (Fase 2)."
+      />
+      <Badge variant="outline" className="w-fit font-normal">
+        Solo lectura por ahora
+      </Badge>
 
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Marcas propias</CardTitle>
@@ -92,6 +87,7 @@ export default function ConfiguracionPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
