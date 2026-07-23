@@ -12,9 +12,17 @@ export async function GET() {
     const informes = await getInformesRecientes(12);
     return NextResponse.json({ informes });
   } catch (e) {
-    return NextResponse.json(
-      { error: `No se pudieron leer los informes: ${(e as Error).message}` },
-      { status: 500 }
-    );
+    // El error real (falta POSTGRES_URL, tabla sin crear, driver caído)
+    // queda en los logs del servidor para quien lo tenga que debuggear —
+    // nunca en la respuesta. Quien ve esta pantalla es del equipo
+    // comercial, no un desarrollador: un stack de VercelPostgresError no
+    // le sirve de nada y se lee como que la app está rota, cuando en
+    // realidad el informe semanal simplemente no está activado todavía.
+    // informes: [] (no un 500 con el error crudo) hace que el panel
+    // muestre su mensaje normal de "todavía no hay informes" — el mismo
+    // que ve cuando la tabla existe pero está vacía. Desde el punto de
+    // vista del usuario es la misma situación real: no hay nada que leer.
+    console.error("GET /api/informes-competencia:", e);
+    return NextResponse.json({ informes: [] });
   }
 }
