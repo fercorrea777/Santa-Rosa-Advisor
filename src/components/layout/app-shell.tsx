@@ -69,10 +69,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Material translúcido (apple-design §12): el contenido pasa por
-            debajo, no una barra opaca fija. El borde inferior es un degradé
-            suave (scroll-edge), no una línea dura — solo se nota cuando de
-            verdad hay contenido detrás. */}
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 bg-background/70 px-4 shadow-[0_1px_0_0_var(--border),0_12px_16px_-14px_oklch(0_0_0/10%)] backdrop-blur-xl backdrop-saturate-150 supports-backdrop-filter:bg-background/55">
+            debajo, no una barra opaca fija. Hairline siempre visible (no
+            solo el scroll-shadow): --header y --background quedan casi
+            idénticos en luminosidad en el bento claro, así que un borde
+            que dependiera únicamente del scroll para notarse desaparecía
+            del todo en reposo — el header se leía fundido con la página. */}
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/70 px-4 shadow-[0_12px_16px_-14px_oklch(0_0_0/10%)] backdrop-blur-xl backdrop-saturate-150 supports-backdrop-filter:bg-background/55">
           <Button
             variant="ghost"
             size="icon"
@@ -89,7 +91,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </div>
         </header>
-        <main className="flex-1">{children}</main>
+        {/* Único punto de padding de todo el contenido: ningún page.tsx
+            trae el suyo (confirmado: 0px de gap real entre el header y el
+            H1, medido en vivo — no era percepción). Vive acá para que las
+            13 pantallas lo hereden parejo en vez de repetirlo 13 veces. */}
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
     </div>
   );
