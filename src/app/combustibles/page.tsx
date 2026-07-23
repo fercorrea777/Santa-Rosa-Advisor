@@ -3,6 +3,7 @@ import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
+import { DonutChart } from "@/components/charts/donut-chart";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -53,7 +54,6 @@ export default async function CombustiblesPage({
     const g = GRUPO_TECNOLOGIA[t.valor] ?? "Otras";
     grupos.set(g, (grupos.get(g) ?? 0) + t.unidades);
   }
-  const totalTec = tecnologias.reduce((s, t) => s + t.unidades, 0) || 1;
 
   const mesMax: Record<number, number> = {};
   for (const a of anios) {
@@ -81,6 +81,21 @@ export default async function CombustiblesPage({
         agrupación de abajo es solo una vista opcional; el detalle original no se
         pierde.
       </NotaDato>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Por grupo — matriculaciones</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Combustión, híbridos y eléctricos, sin perder el detalle de cada
+            tecnología (tabla de abajo).
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DonutChart
+            datos={[...grupos.entries()].map(([nombre, valor]) => ({ nombre, valor }))}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -125,17 +140,6 @@ export default async function CombustiblesPage({
               ))}
             </TableBody>
           </Table>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {[...grupos.entries()].map(([g, u]) => (
-              <span key={g} className="rounded-md border px-2.5 py-1 text-xs">
-                <span className="font-medium">{g}</span>{" "}
-                <span className="tabular-nums text-muted-foreground">
-                  {formatUnidades(u)} u. · {formatPct(u / totalTec)}
-                </span>
-              </span>
-            ))}
-          </div>
         </CardContent>
       </Card>
 

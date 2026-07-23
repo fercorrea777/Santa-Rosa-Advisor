@@ -49,22 +49,30 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                 className={cn(
                   // apple-design §1 (Response): feedback de press instantáneo
                   // (active:scale a 75ms) sobre la transición de color de 200ms.
-                  "relative flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors duration-200 active:scale-[0.98] active:duration-75",
+                  "relative flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors duration-200 active:scale-[0.98] active:duration-75",
                   active
-                    ? // Barra de acento + fondo tintado: "instrumento
-                      // seleccionado", no un botón lleno que pesa más que el dato.
-                      "bg-primary/12 font-semibold text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary before:shadow-[0_0_8px_var(--primary)]"
+                    ? // Píldora sólida (referencia 2026-07): reemplaza el
+                      // fondo tintado + barra lateral por el color pleno
+                      // que pide la referencia — más audaz, mismo principio
+                      // de "instrumento seleccionado".
+                      "bg-primary font-semibold text-primary-foreground shadow-[0_4px_10px_-4px_var(--primary)]"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   {/* El ícono acompaña, no protagoniza: hereda el gris del
                       label y solo toma el acento en el item activo. */}
-                  <Icono size={16} className={cn("shrink-0", active ? "text-primary" : "text-muted-foreground/80")} />
+                  <Icono size={16} className={cn("shrink-0", active ? "text-primary-foreground" : "text-muted-foreground/80")} />
                   <span className="truncate">{item.label}</span>
                 </span>
                 {!item.implementado && (
-                  <Badge variant="outline" className="ml-2 shrink-0 text-[10px] font-normal">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "ml-2 shrink-0 text-[10px] font-normal",
+                      active && "border-primary-foreground/40 text-primary-foreground"
+                    )}
+                  >
                     pronto
                   </Badge>
                 )}

@@ -9,6 +9,20 @@ import {
 import { cn } from "@/lib/utils";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { useCountUp } from "@/lib/use-count-up";
+import { IconBrecha, IconEvolucion, IconMarketShare, IconSegmentos } from "@/components/icons";
+
+// Mapa de key serializable -> componente, resuelto DENTRO de este Client
+// Component. KpiCard vive en páginas Server (Inicio) — pasarle el
+// componente de ícono directamente como prop rompe con "Functions cannot
+// be passed directly to Client Components" (ya nos pasó una vez con
+// formatearAnimado; el mismo límite aplica a cualquier función/componente).
+const CHIP_ICONOS = {
+  segmentos: IconSegmentos,
+  evolucion: IconEvolucion,
+  "market-share": IconMarketShare,
+  brecha: IconBrecha,
+} as const;
+type ChipIconoKey = keyof typeof CHIP_ICONOS;
 
 interface KpiCardProps {
   label: string;
@@ -35,6 +49,11 @@ interface KpiCardProps {
    *  verde importación, ámbar tecnología, tinta para el destacado. Sin tono
    *  la tile queda blanca/neutra. */
   tono?: "azul" | "verde" | "ambar" | "tinta";
+  /** Chip de ícono (referencia 2026-07): cuadrado de color pastel con un
+   *  ícono del set propio, para las tiles que NO llevan `tono` (tile
+   *  blanca) — un tile ya teñido no necesita chip encima. */
+  chipIcono?: ChipIconoKey;
+  chipTono?: "violet" | "mint" | "amber" | "pink";
 }
 
 const FORMATEADORES: Record<NonNullable<KpiCardProps["formato"]>, (n: number) => string> = {
@@ -53,7 +72,10 @@ export function KpiCard({
   formato,
   serie,
   tono,
+  chipIcono,
+  chipTono,
 }: KpiCardProps) {
+  const ChipIcono = chipIcono ? CHIP_ICONOS[chipIcono] : undefined;
   // Se llama siempre (regla de hooks), aunque no se use el resultado: sin
   // valorAnimado, contado queda en 0 y no se muestra en ningun lado.
   const contado = useCountUp(valorAnimado ?? 0);
@@ -83,9 +105,16 @@ export function KpiCard({
   return (
     <Card className={cn("group/kpi w-full gap-2 py-4", tono && `tile-${tono}`)}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 px-4">
-        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
-          {label}
-        </span>
+        <div className="flex min-w-0 items-center gap-3">
+          {ChipIcono && (
+            <span className={`chip-${chipTono ?? "violet"}`}>
+              <ChipIcono size={18} />
+            </span>
+          )}
+          <span className="min-w-0 text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+            {label}
+          </span>
+        </div>
         {tooltip && <InfoTip text={tooltip} />}
       </CardHeader>
       {/* flex-1 + mt-auto en la fila secundaria: en una grilla con tarjetas

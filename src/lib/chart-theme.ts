@@ -11,6 +11,10 @@ export interface ChartTheme {
   axis: string; // color de ejes/lineas
   text: string; // color de texto de labels
   grid: string; // lineas de grilla suaves
+  /** --card resuelto: para bordes/separadores dibujados en canvas (ej.
+   *  el hueco entre porciones de un donut), donde un var() crudo no
+   *  se resuelve — a diferencia del tooltip, que es HTML real. */
+  card: string;
 }
 
 const FALLBACK: ChartTheme = {
@@ -23,6 +27,7 @@ const FALLBACK: ChartTheme = {
   axis: "#94a3b8",
   text: "#64748b",
   grid: "#e2e8f0",
+  card: "#ffffff",
 };
 
 function readVar(name: string, fallback: string): string {
@@ -67,6 +72,7 @@ export function useChartTheme(): ChartTheme {
       axis: readVar("--border", FALLBACK.axis),
       text: readVar("--muted-foreground", FALLBACK.text),
       grid: readVar("--border", FALLBACK.grid),
+      card: readVar("--card", FALLBACK.card),
     });
   }, [resolvedTheme]);
 

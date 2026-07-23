@@ -56,6 +56,9 @@ export function SerieAniosChart({
       data: MESES_CORTOS,
       axisLine: { lineStyle: { color: theme.grid } },
       axisLabel: { color: theme.text, fontSize: 11 },
+      // Línea guía punteada al pasar el mouse (referencia 2026-07): conecta
+      // el punto con el eje, como el conector de la burbuja de tooltip.
+      axisPointer: { type: "line", lineStyle: { color: theme.primary, type: "dashed", width: 1.5 } },
     },
     yAxis: {
       type: "value",

@@ -87,19 +87,36 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.03 257);
 
-  /* Azul eléctrico: el acento marca acción, selección y estado. Nunca decora. */
-  --primary: oklch(0.55 0.21 262);
+  /* Índigo-violeta (rediseño 2026-07, referencia del usuario): el acento
+     marca acción, selección y estado. Nunca decora. Reemplaza al azul
+     eléctrico anterior — mismo rol, otra familia de color. */
+  --primary: oklch(0.585 0.225 285);
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.966 0.004 247);
   --secondary-foreground: oklch(0.25 0.03 257);
   --muted: oklch(0.966 0.004 247);
   --muted-foreground: oklch(0.51 0.022 257);
-  --accent: oklch(0.945 0.012 258);
+  --accent: oklch(0.945 0.014 285);
   --accent-foreground: oklch(0.25 0.03 257);
   --destructive: oklch(0.55 0.2 22);
   --border: oklch(0.928 0.006 247);
   --input: oklch(0.9 0.008 247);
-  --ring: oklch(0.55 0.21 262);
+  --ring: oklch(0.585 0.225 285);
+
+  /* Chips de ícono por KPI (referencia: tarjetas de stat con cuadrado de
+     color pastel detrás del ícono). Distintos de --tile-*: los tiles
+     tiñen la tarjeta entera para el dato destacado; los chips son un
+     acento chico y conviven con tarjetas blancas. Cuatro familias, cada
+     una con su propio hue — "paleta completa" a propósito, como la
+     referencia (violeta/menta/ámbar/rosa, no una escala mono-hue). */
+  --chip-violet: oklch(0.93 0.045 285);
+  --chip-violet-fg: oklch(0.5 0.2 285);
+  --chip-mint: oklch(0.9 0.07 168);
+  --chip-mint-fg: oklch(0.5 0.13 168);
+  --chip-amber: oklch(0.91 0.08 80);
+  --chip-amber-fg: oklch(0.55 0.15 65);
+  --chip-pink: oklch(0.91 0.05 8);
+  --chip-pink-fg: oklch(0.55 0.18 8);
 
   /* Atmósfera: en claro NO hay textura ni glows — el lienzo limpio ES el
      recurso. La sombra de tarjeta hace todo el trabajo de profundidad. */
@@ -139,12 +156,12 @@
   --radius: 0.5rem;
   --sidebar: oklch(0.976 0.003 247);
   --sidebar-foreground: oklch(0.21 0.03 257);
-  --sidebar-primary: oklch(0.55 0.21 262);
+  --sidebar-primary: oklch(0.585 0.225 285);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.01 255);
+  --sidebar-accent: oklch(0.94 0.014 285);
   --sidebar-accent-foreground: oklch(0.22 0.03 257);
   --sidebar-border: oklch(0.928 0.006 247);
-  --sidebar-ring: oklch(0.55 0.21 262);
+  --sidebar-ring: oklch(0.585 0.225 285);
 }
 
 .dark {
@@ -157,18 +174,27 @@
   --popover: oklch(0.225 0.024 252);
   --popover-foreground: oklch(0.97 0.006 240);
 
-  --primary: oklch(0.78 0.135 205);
+  --primary: oklch(0.72 0.17 285);
   --primary-foreground: oklch(0.16 0.03 250);
   --secondary: oklch(0.27 0.028 252);
   --secondary-foreground: oklch(0.97 0.006 240);
   --muted: oklch(0.26 0.026 252);
   --muted-foreground: oklch(0.75 0.025 235);
-  --accent: oklch(0.31 0.04 235);
+  --accent: oklch(0.31 0.045 285);
   --accent-foreground: oklch(0.97 0.006 240);
   --destructive: oklch(0.68 0.2 22);
   --border: oklch(0.72 0.06 215 / 20%);
   --input: oklch(0.72 0.06 215 / 28%);
-  --ring: oklch(0.78 0.135 205);
+  --ring: oklch(0.72 0.17 285);
+
+  --chip-violet: oklch(0.32 0.075 285);
+  --chip-violet-fg: oklch(0.82 0.11 285);
+  --chip-mint: oklch(0.32 0.065 168);
+  --chip-mint-fg: oklch(0.8 0.11 168);
+  --chip-amber: oklch(0.34 0.075 75);
+  --chip-amber-fg: oklch(0.82 0.12 75);
+  --chip-pink: oklch(0.32 0.06 8);
+  --chip-pink-fg: oklch(0.8 0.1 8);
 
   --glow-1: oklch(0.72 0.13 205 / 20%);
   --glow-2: oklch(0.58 0.16 268 / 17%);
@@ -200,12 +226,12 @@
 
   --sidebar: oklch(0.185 0.023 252);
   --sidebar-foreground: oklch(0.97 0.006 240);
-  --sidebar-primary: oklch(0.78 0.135 205);
+  --sidebar-primary: oklch(0.72 0.17 285);
   --sidebar-primary-foreground: oklch(0.16 0.03 250);
-  --sidebar-accent: oklch(0.29 0.045 232);
+  --sidebar-accent: oklch(0.3 0.05 285);
   --sidebar-accent-foreground: oklch(0.99 0.005 220);
   --sidebar-border: oklch(0.72 0.06 215 / 18%);
-  --sidebar-ring: oklch(0.78 0.135 205);
+  --sidebar-ring: oklch(0.72 0.17 285);
 }
 
 @layer base {
@@ -407,6 +433,25 @@
 /* La sparkline toma el color de la familia de su tile. */
 .tile-verde { --sparkline-color: oklch(0.55 0.12 155); }
 .dark .tile-verde { --sparkline-color: oklch(0.75 0.11 155); }
+
+/* ---- Chip de ícono (rediseño 2026-07, referencia del usuario) ------------
+   Cuadrado redondeado de color pastel detrás del ícono de un KPI, chico y
+   modesto — a diferencia de .tile-*, que tiñe la tarjeta entera, el chip
+   convive con tarjetas blancas. Cada color trae su propio --sparkline-color
+   para que la mini-tendencia de esa tarjeta haga juego con su ícono. */
+.chip-violet, .chip-mint, .chip-amber, .chip-pink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  flex-shrink: 0;
+}
+.chip-violet { background-color: var(--chip-violet); color: var(--chip-violet-fg); --sparkline-color: var(--chip-violet-fg); }
+.chip-mint { background-color: var(--chip-mint); color: var(--chip-mint-fg); --sparkline-color: var(--chip-mint-fg); }
+.chip-amber { background-color: var(--chip-amber); color: var(--chip-amber-fg); --sparkline-color: var(--chip-amber-fg); }
+.chip-pink { background-color: var(--chip-pink); color: var(--chip-pink-fg); --sparkline-color: var(--chip-pink-fg); }
 
 @media (prefers-reduced-motion: reduce) {
   *,

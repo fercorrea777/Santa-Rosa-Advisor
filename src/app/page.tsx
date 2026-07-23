@@ -182,6 +182,8 @@ export default async function InicioPage({
         </div>
         <div className="reveal reveal-d5 flex">
           <KpiCard
+            chipIcono="segmentos"
+            chipTono="violet"
             label="Segmento líder"
             value={segLider?.valor ?? "—"}
             periodo={segLider ? `${formatUnidades(segLider.unidades)} u. · ${formatPct(segLider.participacion)}` : undefined}
@@ -190,6 +192,8 @@ export default async function InicioPage({
         </div>
         <div className="reveal reveal-d5 flex">
           <KpiCard
+            chipIcono="evolucion"
+            chipTono="mint"
             label={varMesAnterior ? `Variación ${varMesAnterior.mes} vs. mes anterior` : "Variación vs. mes anterior"}
             value={varMesAnterior ? formatUnidades(varMesAnterior.valor) : "—"}
             valorAnimado={varMesAnterior ? varMesAnterior.valor : undefined}
@@ -201,6 +205,8 @@ export default async function InicioPage({
         </div>
         <div className="reveal reveal-d6 flex">
           <KpiCard
+            chipIcono="market-share"
+            chipTono="amber"
             label="Participación marcas propias"
             value={formatPct(propiasU / totalU)}
             valorAnimado={propiasU / totalU}
@@ -211,6 +217,8 @@ export default async function InicioPage({
         </div>
         <div className="reveal reveal-d6 flex">
           <KpiCard
+            chipIcono="brecha"
+            chipTono="pink"
             label="Diferencia import. − matric."
             value={formatUnidades(Math.abs(diferencia))}
             valorAnimado={Math.abs(diferencia)}
