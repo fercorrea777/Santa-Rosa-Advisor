@@ -1,7 +1,7 @@
 "use client";
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
-import { useChartTheme } from "@/lib/chart-theme";
+import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 import { MESES_CORTOS } from "@/lib/periodo";
 
@@ -41,6 +41,7 @@ export function SerieAniosChart({
     animationEasing: "cubicOut" as const,
     grid: { left: 8, right: 8, top: 36, bottom: 24, containLabel: true },
     tooltip: {
+      ...TOOLTIP_BASE,
       trigger: "axis",
       valueFormatter: (v: number | null) => {
         if (v === null || v === undefined) return "Sin datos";
@@ -62,6 +63,7 @@ export function SerieAniosChart({
       axisLabel: {
         color: theme.text,
         fontSize: 11,
+        fontFamily: FUENTE_MONO_EJES,
         formatter: (v: number) => formatUnidades(v),
       },
     },

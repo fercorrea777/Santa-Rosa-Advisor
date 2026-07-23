@@ -1,7 +1,7 @@
 "use client";
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
-import { useChartTheme } from "@/lib/chart-theme";
+import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 
 /**
@@ -35,6 +35,7 @@ export function BrechaChart({
     animationEasing: "cubicOut" as const,
     grid: { left: 8, right: 8, top: 36, bottom: 24, containLabel: true },
     tooltip: {
+      ...TOOLTIP_BASE,
       trigger: "axis",
       valueFormatter: (v: number | null) =>
         v === null || v === undefined ? "Sin datos" : formatUnidades(v),
@@ -51,6 +52,7 @@ export function BrechaChart({
       splitLine: { lineStyle: { color: theme.grid } },
       axisLabel: {
         color: theme.text, fontSize: 11,
+        fontFamily: FUENTE_MONO_EJES,
         formatter: (v: number) => formatUnidades(v),
       },
     },

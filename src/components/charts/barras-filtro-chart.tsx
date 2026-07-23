@@ -2,7 +2,7 @@
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useChartTheme } from "@/lib/chart-theme";
+import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 
 export interface Barra {
@@ -48,6 +48,7 @@ export function BarrasFiltroChart({
     animationEasing: "cubicOut" as const,
     grid: { left: 8, right: 48, top: 8, bottom: 8, containLabel: true },
     tooltip: {
+      ...TOOLTIP_BASE,
       trigger: "item",
       formatter: (p: { name: string; value: number }) =>
         `${p.name}<br/><b>${formatUnidades(p.value)}</b> u.<br/>` +
@@ -56,7 +57,7 @@ export function BarrasFiltroChart({
     xAxis: {
       type: "value",
       splitLine: { lineStyle: { color: theme.grid } },
-      axisLabel: { color: theme.text, fontSize: 11, formatter: (v: number) => formatUnidades(v) },
+      axisLabel: { color: theme.text, fontSize: 11, fontFamily: FUENTE_MONO_EJES, formatter: (v: number) => formatUnidades(v) },
     },
     yAxis: {
       type: "category",

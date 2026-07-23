@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Nunito_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
 
-// Nunito Sans: geometrica de terminaciones redondeadas y x-height alta, la
-// referencia que pidio el usuario. Se carga en el rango de pesos que usa la
-// app (400 texto, 600 etiquetas, 700/800 titulos y cifras).
-const sans = Nunito_Sans({
+// Inter reemplaza a Nunito Sans (pedido del usuario 2026-07-23: "mejorar
+// las fuentes", con una referencia de grotesca nítida). Nunito es redonda y
+// amable pero a cuerpo chico pierde filo; Inter mantiene la x-height alta
+// que exige la doble distancia (PRODUCT.md) con terminaciones rectas que
+// leen más precisas en labels y tablas.
+const sans = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 

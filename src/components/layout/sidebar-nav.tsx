@@ -3,8 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_GROUPS } from "@/lib/nav";
+import { NAV_GROUPS, type IconoNav } from "@/lib/nav";
 import { Badge } from "@/components/ui/badge";
+import {
+  IconInicio, IconMercado, IconEvolucion, IconRankings, IconSegmentos,
+  IconCombustibles, IconMarketShare, IconBrecha, IconInteligencia,
+  IconCopiloto, IconCargas, IconCalidad, IconConfiguracion,
+} from "@/components/icons";
+
+const ICONOS: Record<IconoNav, React.ComponentType<{ size?: number; className?: string }>> = {
+  inicio: IconInicio,
+  mercado: IconMercado,
+  evolucion: IconEvolucion,
+  rankings: IconRankings,
+  segmentos: IconSegmentos,
+  combustibles: IconCombustibles,
+  "market-share": IconMarketShare,
+  brecha: IconBrecha,
+  inteligencia: IconInteligencia,
+  copiloto: IconCopiloto,
+  cargas: IconCargas,
+  calidad: IconCalidad,
+  configuracion: IconConfiguracion,
+};
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -18,11 +39,13 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           </span>
           {grupo.items.map((item) => {
             const active = pathname === item.href;
+            const Icono = ICONOS[item.icono];
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
+                title={item.label}
                 className={cn(
                   // apple-design §1 (Response): feedback de press instantáneo
                   // (active:scale a 75ms) sobre la transición de color de 200ms.
@@ -34,7 +57,12 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
-                <span>{item.label}</span>
+                <span className="flex min-w-0 items-center gap-2.5">
+                  {/* El ícono acompaña, no protagoniza: hereda el gris del
+                      label y solo toma el acento en el item activo. */}
+                  <Icono size={16} className={cn("shrink-0", active ? "text-primary" : "text-muted-foreground/80")} />
+                  <span className="truncate">{item.label}</span>
+                </span>
                 {!item.implementado && (
                   <Badge variant="outline" className="ml-2 shrink-0 text-[10px] font-normal">
                     pronto

@@ -2,7 +2,7 @@
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useChartTheme } from "@/lib/chart-theme";
+import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 
 export interface Porcion {
@@ -69,6 +69,7 @@ export function DistribucionChart({
     animationDuration: 700,
     animationEasing: "cubicOut" as const,
     tooltip: {
+      ...TOOLTIP_BASE,
       trigger: "item",
       formatter: (p: { name: string; value: number; percent: number }) =>
         `${p.name}<br/><b>${formatUnidades(p.value)}</b> u. · <b>${p.percent}%</b>` +

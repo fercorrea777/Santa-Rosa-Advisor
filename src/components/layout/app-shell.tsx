@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { LogoMark } from "@/components/icons";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -19,9 +20,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           columna pegada al borde. Mantiene labels (13 secciones con ícono
           solo sería adivinanza). */}
       <aside className="sticky top-3 ml-3 hidden h-[calc(100vh-1.5rem)] w-60 shrink-0 self-start overflow-hidden rounded-3xl border bg-card text-sidebar-foreground shadow-[var(--card-shadow)] md:flex md:flex-col">
-        <div className="flex h-14 items-center gap-2.5 border-b px-4">
-          <span className="text-[0.82rem] font-extrabold uppercase leading-tight tracking-[0.06em]">
-            Mercado Automotor <span className="text-primary">PY</span>
+        {/* Bloque de marca (referencia del usuario): logomark en tile +
+            nombre + tagline. Caja alta/baja, no versalitas: lee más
+            producto y menos etiqueta. */}
+        <div className="flex h-16 items-center gap-2.5 border-b px-4">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+            <LogoMark size={20} />
+          </span>
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-[0.84rem] font-extrabold tracking-tight">
+              Mercado Automotor <span className="text-primary">PY</span>
+            </span>
+            <span className="truncate text-[10.5px] font-medium text-muted-foreground">
+              Inteligencia comercial
+            </span>
           </span>
         </div>
         <div className="flex-1 overflow-y-auto py-3">

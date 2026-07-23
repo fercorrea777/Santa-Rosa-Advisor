@@ -31,6 +31,25 @@ function readVar(name: string, fallback: string): string {
   return v || fallback;
 }
 
+/**
+ * Tooltip base compartido por todos los charts. El tooltip de ECharts es un
+ * div HTML real, así que acá SÍ funcionan las variables CSS (a diferencia
+ * del canvas): sigue el tema claro/oscuro solo, sin re-leer tokens.
+ */
+export const TOOLTIP_BASE = {
+  backgroundColor: "var(--popover)",
+  borderColor: "var(--border)",
+  borderWidth: 1,
+  padding: [8, 12] as [number, number],
+  textStyle: { color: "var(--popover-foreground)", fontSize: 12 },
+  extraCssText:
+    "border-radius:10px;box-shadow:0 8px 24px -12px oklch(0.2 0.05 260 / 35%);",
+};
+
+/** Los números de ejes van en la mono del sistema (tabular, como las cifras
+ *  de las tarjetas) — la sans propor­cional hace bailar los ticks. */
+export const FUENTE_MONO_EJES = "var(--font-geist-mono), monospace";
+
 /** Lee la paleta de tokens CSS (shadcn) resuelta, y se recalcula al cambiar de tema. */
 export function useChartTheme(): ChartTheme {
   const { resolvedTheme } = useTheme();
