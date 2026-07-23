@@ -65,7 +65,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60">
+        {/* Material translúcido (apple-design §12): el contenido pasa por
+            debajo, no una barra opaca fija. El borde inferior es un degradé
+            suave (scroll-edge), no una línea dura — solo se nota cuando de
+            verdad hay contenido detrás. */}
+        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 bg-background/70 px-4 shadow-[0_1px_0_0_var(--border),0_12px_16px_-14px_oklch(0_0_0/10%)] backdrop-blur-xl backdrop-saturate-150 supports-backdrop-filter:bg-background/55">
           <Button
             variant="ghost"
             size="icon"

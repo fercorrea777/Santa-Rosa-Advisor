@@ -19,7 +19,11 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             href={item.href}
             onClick={onNavigate}
             className={cn(
-              "relative flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors",
+              // apple-design §1 (Response): el feedback de press es
+              // instantáneo (100ms, no la transición de 200ms del resto) y
+              // ocurre en pointer-down vía :active — no hay que esperar a
+              // soltar para que el link se sienta "tocado".
+              "relative flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors duration-200 active:scale-[0.98] active:duration-75",
               active
                 ? // Barra de acento + fondo tintado: se lee "instrumento
                   // seleccionado", no un botón lleno que pesa más que el dato.
