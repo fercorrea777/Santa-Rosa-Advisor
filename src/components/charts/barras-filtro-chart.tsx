@@ -108,10 +108,11 @@ export function BarrasFiltroChart({
   }
 
   return (
+    // Sin notMerge: 1 sola serie siempre, el merge por defecto tween-ea
+    // el largo de cada barra en vez de replayear la entrada en cada clic.
     <EchartsAuto
       option={option}
       style={{ height: altura, width: "100%" }}
-      notMerge
       onEvents={{ click: onClick }}
     />
   );

@@ -106,7 +106,13 @@ function TabsList({
       {variant !== "line" && rect && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-0 top-0 z-0 rounded-md bg-card shadow-[0_1px_2px_oklch(0.2_0.03_257/6%),0_2px_6px_-2px_oklch(0.2_0.05_260/12%)] transition-[transform,width,height] duration-200 ease-out dark:border dark:border-input dark:bg-input/40 dark:shadow-none"
+          // Solo `transform` en transition-property: animar width/height
+          // dispara layout+paint por frame (regla GPU-only). El tamaño se
+          // fija al toque (mismo costo que cualquier re-render), solo la
+          // posición desliza — evita además que el radius/shadow se
+          // distorsionen, que es lo que pasaría si se "fingiera" el resize
+          // escalando una caja base con transform: scale no-uniforme.
+          className="pointer-events-none absolute left-0 top-0 z-0 rounded-md bg-card shadow-[0_1px_2px_oklch(0.2_0.03_257/6%),0_2px_6px_-2px_oklch(0.2_0.05_260/12%)] transition-transform duration-200 ease-in-out dark:border dark:border-input dark:bg-input/40 dark:shadow-none"
           style={{
             transform: `translate(${rect.left}px, ${rect.top}px)`,
             width: rect.width,

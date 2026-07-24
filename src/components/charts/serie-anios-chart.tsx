@@ -71,6 +71,12 @@ export function SerieAniosChart({
       },
     },
     series: series.map((s, i) => ({
+      // id estable (no solo `name`): con `replaceMerge` de abajo, ECharts
+      // usa el id para reconocer una serie que sigue existiendo entre
+      // updates (y la anima desde su valor previo) en vez de recrearla
+      // desde cero — y para sacar del todo la que ya no viene en el
+      // filtro nuevo, sin dejar una serie fantasma con datos viejos.
+      id: String(s.anio),
       name: String(s.anio),
       type: tipo,
       smooth: tipo === "line",
@@ -100,5 +106,11 @@ export function SerieAniosChart({
     })),
   };
 
-  return <EchartsAuto option={option} style={{ height: altura, width: "100%" }} notMerge />;
+  return (
+    <EchartsAuto
+      option={option}
+      style={{ height: altura, width: "100%" }}
+      replaceMerge={["series"]}
+    />
+  );
 }

@@ -74,7 +74,10 @@ export function StackedBarChart({
 
   return (
     <div className="flex flex-col gap-4">
-      <EchartsAuto option={option} style={{ height: altura, width: "100%" }} notMerge />
+      {/* Sin notMerge: la serie es fija (3 grupos siempre), asi que el
+          merge por defecto tween-ea de valor viejo a nuevo en vez de
+          replayear el "crecer desde cero" en cada cambio de filtro. */}
+      <EchartsAuto option={option} style={{ height: altura, width: "100%" }} />
       <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
         {series.map((s, i) => (
           <li key={s.nombre} className="flex items-center gap-2 text-xs text-muted-foreground">

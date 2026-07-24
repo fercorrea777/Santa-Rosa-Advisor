@@ -85,5 +85,7 @@ export function BrechaChart({
     ],
   };
 
-  return <EchartsAuto option={option} style={{ height: altura, width: "100%" }} notMerge />;
+  // Sin notMerge: las 3 series son fijas, el merge por defecto tween-ea
+  // valor viejo -> nuevo en vez de replayear la entrada en cada filtro.
+  return <EchartsAuto option={option} style={{ height: altura, width: "100%" }} />;
 }

@@ -92,7 +92,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
               key={s}
               type="button"
               onClick={() => enviar(s)}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground shadow-[var(--card-shadow)] transition-colors hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground shadow-[var(--card-shadow)] transition-[color,border-color,scale] duration-150 hover:border-primary/40 hover:text-foreground active:scale-[0.98]"
             >
               <IconCopiloto size={13} className="shrink-0 text-primary/70" />
               {s}

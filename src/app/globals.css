@@ -291,10 +291,14 @@
     box-shadow: var(--card-shadow);
     transition: box-shadow 200ms, transform 200ms;
   }
-  [data-slot="card"]:hover {
-    box-shadow:
-      0 2px 4px oklch(0.2 0.03 257 / 5%),
-      0 16px 36px -18px oklch(0.2 0.05 260 / 16%);
+  /* Gateado a hover real (mouse fino): sin esto, el tap en touch dispara
+     :hover y lo deja "pegado" hasta el proximo tap en otro lado. */
+  @media (hover: hover) and (pointer: fine) {
+    [data-slot="card"]:hover {
+      box-shadow:
+        0 2px 4px oklch(0.2 0.03 257 / 5%),
+        0 16px 36px -18px oklch(0.2 0.05 260 / 16%);
+    }
   }
   .dark [data-slot="card"] {
     border-color: color-mix(in oklab, var(--panel-edge) 45%, transparent);
@@ -343,8 +347,10 @@
     font-size: 0.875rem;
     transition: border-color 150ms, box-shadow 150ms;
   }
-  .input-base:hover {
-    border-color: color-mix(in oklab, var(--ring) 40%, var(--border));
+  @media (hover: hover) and (pointer: fine) {
+    .input-base:hover {
+      border-color: color-mix(in oklab, var(--ring) 40%, var(--border));
+    }
   }
   .input-base:focus-visible {
     outline: none;
@@ -358,8 +364,10 @@
   [data-slot="table"] tbody tr:nth-child(even) {
     background-color: color-mix(in oklab, var(--muted) 45%, transparent);
   }
-  [data-slot="table"] tbody tr:hover {
-    background-color: color-mix(in oklab, var(--primary) 6%, transparent);
+  @media (hover: hover) and (pointer: fine) {
+    [data-slot="table"] tbody tr:hover {
+      background-color: color-mix(in oklab, var(--primary) 6%, transparent);
+    }
   }
 
   /* Scrollbar fino y neutro: el scrollbar del sistema rompe el pulido en

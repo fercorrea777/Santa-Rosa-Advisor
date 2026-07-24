@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { LogoMark } from "@/components/icons";
+import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -46,37 +47,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Sidebar mobile (overlay) */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={() => setMobileOpen(false)}
-            aria-hidden="true"
-          />
-          <aside className="relative flex w-72 flex-col bg-sidebar text-sidebar-foreground shadow-xl">
-            <div className="flex h-14 items-center justify-between border-b px-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold tracking-tight">
-                  Mercado Automotor PY
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-base leading-none"
-                aria-label="Cerrar menú"
-                onClick={() => setMobileOpen(false)}
-              >
-                ✕
-              </Button>
+      {/* Sidebar mobile (overlay). Siempre montado (no `{mobileOpen && ...}`):
+          la entrada sola con clases condicionales no alcanza para animar
+          tambien la SALIDA, porque al desmontar React corta la transicion
+          a mitad de camino. `inert` saca el drawer cerrado del tab order y
+          del hit-testing sin pelear con el foco como haría `aria-hidden`. */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 flex md:hidden",
+          !mobileOpen && "pointer-events-none"
+        )}
+        inert={!mobileOpen}
+      >
+        <div
+          className="fixed inset-0 bg-black/50 transition-opacity duration-200 ease-out"
+          style={{ opacity: mobileOpen ? 1 : 0 }}
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+        <aside
+          className="relative flex w-72 flex-col bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+          style={{ translate: mobileOpen ? "0" : "-100%" }}
+        >
+          <div className="flex h-14 items-center justify-between border-b px-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold tracking-tight">
+                Mercado Automotor PY
+              </span>
             </div>
-            <div className="flex-1 overflow-y-auto py-3">
-              <SidebarNav onNavigate={() => setMobileOpen(false)} />
-            </div>
-          </aside>
-        </div>
-      )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-base leading-none"
+              aria-label="Cerrar menú"
+              onClick={() => setMobileOpen(false)}
+            >
+              ✕
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto py-3">
+            <SidebarNav onNavigate={() => setMobileOpen(false)} />
+          </div>
+        </aside>
+      </div>
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">

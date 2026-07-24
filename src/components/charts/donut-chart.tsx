@@ -60,7 +60,10 @@ export function DonutChart({
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
       <div className="relative shrink-0" style={{ width: altura, height: altura }}>
-        <EchartsAuto option={option} style={{ height: altura, width: altura }} notMerge />
+        {/* Sin notMerge: 1 sola serie siempre, el merge por defecto
+            recalcula el anillo entero desde el array de datos nuevo sin
+            dejar porciones fantasma, y tween-ea el tamaño de cada porcion. */}
+        <EchartsAuto option={option} style={{ height: altura, width: altura }} />
         {/* Total al centro: overlay HTML, no texto de ECharts — así hereda
             tipografía/tabular-nums del resto de la app sin pelear con el
             canvas. pointer-events-none para no tapar el hover del anillo. */}
