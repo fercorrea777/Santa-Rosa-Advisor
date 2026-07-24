@@ -4,6 +4,7 @@ import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DonutChart } from "@/components/charts/donut-chart";
+import { StackedBarChart } from "@/components/charts/stacked-bar-chart";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -55,6 +56,27 @@ export default async function CombustiblesPage({
     grupos.set(g, (grupos.get(g) ?? 0) + t.unidades);
   }
 
+  // Mix de tecnología por AÑO (año completo): la electrificación en el
+  // tiempo. La columna de tecnología existe para todas las filas de
+  // matriculación (todo lo no-NEV cae en ICE), así que el apilado por año
+  // suma el total real de ese año, no un subconjunto. Antes de 2024
+  // prácticamente todo es Combustión; los híbridos/eléctricos emergen
+  // después — que es justo la historia que cuenta el gráfico.
+  const GRUPOS_ORDEN = ["Combustión", "Híbridos", "Eléctricos"] as const;
+  const mixPorAnio = anios.map((y) => {
+    const techs = getPorDimension("matriculacion", "tecnologia", { anio: y, mesDesde: 1, mesHasta: 12 });
+    const porGrupo: Record<string, number> = {};
+    for (const t of techs) {
+      const g = GRUPO_TECNOLOGIA[t.valor] ?? "Otras";
+      porGrupo[g] = (porGrupo[g] ?? 0) + t.unidades;
+    }
+    return porGrupo;
+  });
+  const capasMix = GRUPOS_ORDEN.map((g) => ({
+    nombre: g,
+    datos: mixPorAnio.map((m) => m[g] ?? 0),
+  }));
+
   const mesMax: Record<number, number> = {};
   for (const a of anios) {
     mesMax[a] = a === cobertura.matriculacion.ultimo?.anio ? cobertura.matriculacion.ultimo.mes : 12;
@@ -82,20 +104,35 @@ export default async function CombustiblesPage({
         pierde.
       </NotaDato>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Por grupo — matriculaciones</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Combustión, híbridos y eléctricos, sin perder el detalle de cada
-            tecnología (tabla de abajo).
-          </p>
-        </CardHeader>
-        <CardContent>
-          <DonutChart
-            datos={[...grupos.entries()].map(([nombre, valor]) => ({ nombre, valor }))}
-          />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Por grupo — {periodo}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Combustión, híbridos y eléctricos del período, sin perder el
+              detalle de cada tecnología (tabla de abajo).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <DonutChart
+              datos={[...grupos.entries()].map(([nombre, valor]) => ({ nombre, valor }))}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Mix por año — matriculaciones</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              La composición de cada año completo: cómo se mueve la
+              electrificación en el tiempo.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <StackedBarChart categorias={anios.map(String)} series={capasMix} altura={260} />
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
