@@ -89,9 +89,9 @@ export default async function MercadoPage({
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <SelectorFuente fuente={fuente} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
             anios={cobertura.matriculacion.anios}
             mesMaximoPorAnio={mesMax}
@@ -109,7 +109,7 @@ export default async function MercadoPage({
         </div>
       </div>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Matriculaciones"
           value={formatUnidades(matric.valor)}
@@ -138,7 +138,7 @@ export default async function MercadoPage({
         />
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Evolución mensual — matriculaciones</CardTitle></CardHeader>
           <CardContent>
@@ -230,7 +230,7 @@ export default async function MercadoPage({
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MoviminetoCard
           titulo={`Principales ganadores — ${etiquetaFuente}`}
           filas={ganadores}

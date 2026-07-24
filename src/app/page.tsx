@@ -115,7 +115,7 @@ export default async function InicioPage({
           dato. Matriculaciones es LA métrica del negocio → tile 2×2 con su
           evolución integrada (la card de evolución separada desaparece:
           vive acá). El resto escala hacia abajo. */}
-      <section className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-1 auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="reveal reveal-d1 flex sm:col-span-2 xl:row-span-2">
           <Card className="tile-azul flex w-full flex-col gap-2 py-4">
             <CardHeader className="px-5">
@@ -229,7 +229,7 @@ export default async function InicioPage({
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Evolución mensual — importaciones</CardTitle>

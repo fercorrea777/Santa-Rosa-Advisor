@@ -112,7 +112,7 @@ export default async function InteligenciaPage({
             </CardHeader>
             <CardContent>
               {items.length ? (
-                <ul className="grid gap-3 lg:grid-cols-2">
+                <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {items.map((it, i) => <ItemCard key={i} item={it} />)}
                 </ul>
               ) : (

@@ -91,7 +91,7 @@ export default async function BrechaPage({
         marcas de camiones con cero importaciones y cientos de matriculaciones.
       </NotaDato>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Importaciones" value={formatUnidades(totImp)} periodo={periodo}
           tooltip="Unidades importadas en el período filtrado." />
         <KpiCard label="Matriculaciones" value={formatUnidades(totMat)} periodo={periodo}
@@ -164,7 +164,7 @@ export default async function BrechaPage({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <TablaBrechaMarcas
           titulo="Importan más de lo que matriculan"
           subtitulo="Podría indicar acumulación de inventario"

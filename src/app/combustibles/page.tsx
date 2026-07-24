@@ -104,7 +104,7 @@ export default async function CombustiblesPage({
         pierde.
       </NotaDato>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Por grupo — {periodo}</CardTitle>
@@ -192,7 +192,7 @@ export default async function CombustiblesPage({
             <CardContent><SerieAniosChart series={serie} altura={320} /></CardContent>
           </Card>
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader><CardTitle>Marcas líderes en {seleccionada}</CardTitle></CardHeader>
               <CardContent>

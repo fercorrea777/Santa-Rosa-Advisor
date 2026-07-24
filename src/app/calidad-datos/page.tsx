@@ -30,7 +30,7 @@ export default function CalidadDatosPage() {
         }
       />
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Contador label="Errores" n={errores.length} tono="error" />
         <Contador label="Avisos" n={avisos.length} tono="aviso" />
         <Contador label="Controles OK" n={controles.length} tono="ok" />
