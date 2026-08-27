@@ -33,6 +33,17 @@ Todo en OKLCH, en `src/app/globals.css`.
 Contraste medido sobre el panel oscuro: principal **16,1:1**, secundario
 **7,9:1**, acento **9,2:1**, destructivo **5,5:1**. Todos por encima de 4,5:1.
 
+> **Deriva corregida el 2026-08-27.** Entre julio y agosto el `--primary` se
+> había ido a violeta (`oklch(0.72 0.17 285)`) mientras el borde y el
+> resplandor del panel seguían en cian: los dos acentos peleaban y el conjunto
+> se leía inconsistente. Se devolvió el acento al cian del spec —
+> `oklch(0.78 0.135 205)`, que es exactamente `#00cfe0` y el mismo valor que ya
+> usaban `--panel-edge` y `--panel-glow`. Medido de nuevo: **9,20:1** sobre el
+> panel (el violeta daba 6,62:1). En claro pasó a `oklch(0.5 0.13 205)`,
+> **5,32:1** (el violeta daba 4,59:1). Los chips de categoría
+> (`--chip-violet`) **se dejan en violeta a propósito**: son una paleta
+> categórica para gráficos, no el acento del sistema.
+
 ## El panel HUD (Telemetría 2.0)
 
 `[data-slot="card"]` en `globals.css`:
@@ -51,14 +62,21 @@ Contraste medido sobre el panel oscuro: principal **16,1:1**, secundario
 
 | Rol | Familia | Uso |
 |---|---|---|
-| Interfaz | **Nunito Sans** (400/600/700/800) | Todo el texto, títulos y etiquetas |
+| Interfaz | **Archivo** (400/500/600/700/800) | Todo el texto, títulos y etiquetas |
 | Cifras | **JetBrains Mono** (700) | Métricas, columnas numéricas |
 
-Nunito Sans es geométrica de terminaciones redondeadas y x-height alta — la
-referencia que eligió el usuario. El par sans + mono es un contraste real
-(geométrica vs. monoespaciada), no dos sans parecidas; y los dígitos de
-JetBrains Mono se distinguen entre sí a distancia, que es lo que hace falta
-cuando esto se proyecta.
+El par sans + mono es un contraste real (grotesca vs. monoespaciada), no dos
+sans parecidas; y los dígitos de JetBrains Mono se distinguen entre sí a
+distancia, que es lo que hace falta cuando esto se proyecta.
+
+Archivo es grotesca americana de x-height alta y remates rectos, dibujada para
+rendir igual en titular y en cuerpo de tabla — los mismos criterios que llevaron
+a descartar Nunito Sans. Se eligió sobre Inter (la familia anterior) porque
+Inter es funcionalmente impecable pero visualmente anónima: es la sans por
+defecto de casi toda interfaz generada, y en un tablero que se proyecta en una
+reunión eso resta carácter sin dar nada a cambio.
+
+> Historial: Nunito Sans → Inter (2026-07-23) → Archivo (2026-08-27).
 
 > Los tokens `--font-sans` / `--font-mono` en `@theme inline` deben apuntar a
 > `var(--font-geist-sans)` / `var(--font-geist-mono)`, que es lo que inyecta

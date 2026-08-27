@@ -1,16 +1,24 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Archivo, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
 
-// Inter reemplaza a Nunito Sans (pedido del usuario 2026-07-23: "mejorar
-// las fuentes", con una referencia de grotesca nítida). Nunito es redonda y
-// amable pero a cuerpo chico pierde filo; Inter mantiene la x-height alta
-// que exige la doble distancia (PRODUCT.md) con terminaciones rectas que
-// leen más precisas en labels y tablas.
-const sans = Inter({
+// Historia: Nunito Sans -> Inter (2026-07-23, "mejorar las fuentes") ->
+// Archivo (2026-08-27, "que sea mas moderno").
+//
+// El criterio de la iteracion anterior se mantiene y es correcto: la doble
+// distancia de PRODUCT.md (notebook a 1 m + proyector a 5 m) exige x-height
+// alta y terminaciones rectas, que es lo que Nunito no daba a cuerpo chico.
+//
+// Archivo cumple lo mismo — grotesca americana de x-height alta y remates
+// rectos, dibujada para rendir igual en titular y en cuerpo de tabla — pero
+// tiene caracter propio. Inter es funcionalmente impecable y visualmente
+// anonima: es la sans por defecto de casi toda interfaz generada, y en un
+// tablero que se proyecta en una reunion eso se nota. Archivo conserva la
+// precision y agrega presencia.
+const sans = Archivo({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
