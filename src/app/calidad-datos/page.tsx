@@ -95,48 +95,71 @@ export default function CalidadDatosPage() {
 
       <Card>
         <CardHeader><CardTitle>Archivos cargados</CardTitle></CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Archivo</TableHead>
-                <TableHead>Tipo detectado</TableHead>
-                <TableHead>Snapshot</TableHead>
-                <TableHead className="text-right">Filas leídas</TableHead>
-                <TableHead className="text-right">Filas cargadas</TableHead>
-                <TableHead className="text-right">Unidades</TableHead>
-                <TableHead>Fecha de carga</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {archivos.map((a) => (
-                <TableRow key={`${a.snapshot}-${a.nombre}`}>
-                  <TableCell className="font-medium">{a.nombre}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-normal">{a.tipo}</Badge>
-                  </TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">{a.snapshot}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatUnidades(a.filas_leidas)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatUnidades(a.filas_cargadas)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatUnidades(a.unidades)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{a.fecha_ingesta}</TableCell>
-                </TableRow>
-              ))}
-              {!archivos.length && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    Sin archivos cargados todavía.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+        <CardContent>
+          {!archivos.length ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Sin archivos cargados todavía.
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-col divide-y sm:hidden">
+                {archivos.map((a) => (
+                  <div key={`${a.snapshot}-${a.nombre}`} className="flex flex-col gap-1 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate font-medium">{a.nombre}</span>
+                      <Badge variant="outline" className="shrink-0 font-normal">{a.tipo}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Snapshot {a.snapshot} · {a.fecha_ingesta}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
+                      <span>{formatUnidades(a.filas_leidas)} leídas</span>
+                      <span>{formatUnidades(a.filas_cargadas)} cargadas</span>
+                      <span className="font-mono font-semibold text-foreground">
+                        {formatUnidades(a.unidades)} u.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Archivo</TableHead>
+                      <TableHead>Tipo detectado</TableHead>
+                      <TableHead>Snapshot</TableHead>
+                      <TableHead className="text-right">Filas leídas</TableHead>
+                      <TableHead className="text-right">Filas cargadas</TableHead>
+                      <TableHead className="text-right">Unidades</TableHead>
+                      <TableHead>Fecha de carga</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {archivos.map((a) => (
+                      <TableRow key={`${a.snapshot}-${a.nombre}`}>
+                        <TableCell className="font-medium">{a.nombre}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-normal">{a.tipo}</Badge>
+                        </TableCell>
+                        <TableCell className="tabular-nums text-muted-foreground">{a.snapshot}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {formatUnidades(a.filas_leidas)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatUnidades(a.filas_cargadas)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatUnidades(a.unidades)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{a.fecha_ingesta}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
           <p className="mt-3 text-xs text-muted-foreground">
             &ldquo;Filas leídas&rdquo; es lo que traía el Excel; &ldquo;filas
             cargadas&rdquo; es lo que quedó después de descartar meses vacíos y

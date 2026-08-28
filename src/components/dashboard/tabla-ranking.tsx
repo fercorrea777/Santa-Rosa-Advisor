@@ -183,7 +183,71 @@ export function TablaRanking({
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Mobile (< sm, ~640px): lista de tarjetas. Reusa las mismas subcomponentes
+          (Filtrable, Variacion, CambioPosicion, badge "propia") que la tabla de
+          abajo — no hay logica duplicada, solo una composicion distinta. Antes
+          de esto, la tabla de 6-8 columnas obligaba a deslizar el dedo para ver
+          "Unidades" y "Marcas propias", que es justo lo que mas importa. */}
+      <div className="flex flex-col divide-y sm:hidden">
+        {filtradas.map((f) => (
+          <div
+            key={f.clave}
+            className={cn(
+              "flex flex-col gap-1.5 py-3",
+              f.esPropia && "-mx-3 rounded-md bg-primary/5 px-3"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {f.posicion}
+                </span>
+                <span className="min-w-0 truncate font-medium">
+                  <Filtrable
+                    param={filtrarPor?.marca}
+                    valor={f.marca}
+                    activo={filtrarPor?.marca ? sp.get(filtrarPor.marca) === f.marca : false}
+                    onToggle={alternarFiltro}
+                  />
+                </span>
+                {f.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propia</Badge>}
+              </span>
+              <span className="shrink-0 text-xs">
+                <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} />
+              </span>
+            </div>
+            {(mostrarModelo || mostrarSegmento) && (
+              <div className="truncate pl-6 text-xs text-muted-foreground">
+                {mostrarModelo && (
+                  <Filtrable
+                    param={filtrarPor?.detalle}
+                    valor={f.modelo ?? ""}
+                    activo={filtrarPor?.detalle ? sp.get(filtrarPor.detalle) === f.modelo : false}
+                    onToggle={alternarFiltro}
+                  />
+                )}
+                {mostrarModelo && mostrarSegmento && " · "}
+                {mostrarSegmento && f.segmento}
+              </div>
+            )}
+            <div className="flex items-baseline justify-between pl-6">
+              {/* Unidades es el numero que se viene a buscar: mono, grande,
+                  tal como pide DESIGN.md para cifras que se leen a distancia. */}
+              <span className="font-mono text-lg font-semibold tabular-nums">
+                {formatUnidades(f.unidades)}
+              </span>
+              <span className="flex items-center gap-3 text-xs">
+                <span className="tabular-nums text-muted-foreground">
+                  {formatPct(f.participacion)}
+                </span>
+                <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0} />
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
         <Table>
           <TableHeader>
             <TableRow>

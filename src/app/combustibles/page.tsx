@@ -16,6 +16,7 @@ import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { cn } from "@/lib/utils";
 
 export default async function CombustiblesPage({
   searchParams,
@@ -140,43 +141,82 @@ export default async function CombustiblesPage({
             Ranking por tecnología — matriculaciones
           </CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tecnología</TableHead>
-                <TableHead>Grupo</TableHead>
-                <TableHead className="text-right">Unidades</TableHead>
-                <TableHead className="text-right">Participación</TableHead>
-                <TableHead className="text-right">Var. vs {f.anio - 1}</TableHead>
-                <TableHead className="text-right">Δ participación</TableHead>
-                <TableHead className="text-right">Marcas propias</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tecnologias.map((t) => (
-                <TableRow key={t.valor} className={t.valor === seleccionada ? "bg-primary/5" : undefined}>
-                  <TableCell className="font-medium">{t.valor}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {GRUPO_TECNOLOGIA[t.valor] ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{formatUnidades(t.unidades)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatPct(t.participacion)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
+        <CardContent>
+          <div className="flex flex-col divide-y sm:hidden">
+            {tecnologias.map((t) => (
+              <div
+                key={t.valor}
+                className={cn(
+                  "flex flex-col gap-1.5 py-3",
+                  t.valor === seleccionada && "-mx-3 rounded-md bg-primary/5 px-3"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="min-w-0 truncate font-medium">{t.valor}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      · {GRUPO_TECNOLOGIA[t.valor] ?? "—"}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums">
                     {t.variacion === null ? "—" : formatPct(t.variacion, { signed: true })}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {t.deltaParticipacion === null ? "—" : formatPuntosPct(t.deltaParticipacion)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatPct(propiasPorTec.get(t.valor) ?? 0)}
-                  </TableCell>
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-lg font-semibold tabular-nums">
+                    {formatUnidades(t.unidades)}
+                  </span>
+                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="tabular-nums">{formatPct(t.participacion)}</span>
+                    <span className="tabular-nums">
+                      Δ {t.deltaParticipacion === null ? "—" : formatPuntosPct(t.deltaParticipacion)}
+                    </span>
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Marcas propias: {formatPct(propiasPorTec.get(t.valor) ?? 0)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tecnología</TableHead>
+                  <TableHead>Grupo</TableHead>
+                  <TableHead className="text-right">Unidades</TableHead>
+                  <TableHead className="text-right">Participación</TableHead>
+                  <TableHead className="text-right">Var. vs {f.anio - 1}</TableHead>
+                  <TableHead className="text-right">Δ participación</TableHead>
+                  <TableHead className="text-right">Marcas propias</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {tecnologias.map((t) => (
+                  <TableRow key={t.valor} className={t.valor === seleccionada ? "bg-primary/5" : undefined}>
+                    <TableCell className="font-medium">{t.valor}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {GRUPO_TECNOLOGIA[t.valor] ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(t.unidades)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatPct(t.participacion)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {t.variacion === null ? "—" : formatPct(t.variacion, { signed: true })}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {t.deltaParticipacion === null ? "—" : formatPuntosPct(t.deltaParticipacion)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatPct(propiasPorTec.get(t.valor) ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

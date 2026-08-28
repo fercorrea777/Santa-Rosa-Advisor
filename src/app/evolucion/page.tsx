@@ -97,73 +97,123 @@ export default async function EvolucionPage({
               : `Acumulado, promedio, máximo y mínimo calculados solo sobre ${etiquetaRango} de cada año, para que la comparación sea equivalente.`}
           </p>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Año</TableHead>
-                <TableHead className="text-right">Meses con dato</TableHead>
-                <TableHead className="text-right">Acumulado</TableHead>
-                <TableHead className="text-right">Promedio mensual</TableHead>
-                <TableHead className="text-right">Máximo</TableHead>
-                <TableHead className="text-right">Mínimo</TableHead>
-                <TableHead className="text-right">Var. vs año previo</TableHead>
-                <TableHead className="text-right">Proyección cierre</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {series.map((s, i) => {
-                const con = s.valores.filter((v): v is number => v !== null);
-                const acum = con.reduce((a, b) => a + b, 0);
-                const prom = promedioMensual(s.valores);
-                const maxIdx = s.valores.indexOf(Math.max(...con));
-                const minIdx = s.valores.indexOf(Math.min(...con));
-                const prev = series[i - 1];
-                // Comparacion YTD honesta: solo los meses que existen en
-                // AMBOS anios, si no un ano parcial parece una caida.
-                let varYtd: number | null = null;
-                if (prev) {
-                  let a = 0, b = 0;
-                  for (let m = 0; m < 12; m++) {
-                    const va = s.valores[m], vb = prev.valores[m];
-                    if (va !== null && vb !== null) { a += va; b += vb; }
-                  }
-                  varYtd = b ? (a - b) / b : null;
+        <CardContent>
+          {(() => {
+            // Se calcula una sola vez por fila y se reusa en las dos vistas
+            // (tarjetas en mobile, tabla en desktop) — nada se duplica.
+            const filas = series.map((s, i) => {
+              const con = s.valores.filter((v): v is number => v !== null);
+              const acum = con.reduce((a, b) => a + b, 0);
+              const prom = promedioMensual(s.valores);
+              const maxIdx = s.valores.indexOf(Math.max(...con));
+              const minIdx = s.valores.indexOf(Math.min(...con));
+              const prev = series[i - 1];
+              // Comparacion YTD honesta: solo los meses que existen en
+              // AMBOS anios, si no un ano parcial parece una caida.
+              let varYtd: number | null = null;
+              if (prev) {
+                let a = 0, b = 0;
+                for (let m = 0; m < 12; m++) {
+                  const va = s.valores[m], vb = prev.valores[m];
+                  if (va !== null && vb !== null) { a += va; b += vb; }
                 }
-                // La proyeccion se calcula SIEMPRE sobre el ano entero, no
-                // sobre el rango: proyectar el cierre de ano a partir de un
-                // recorte de meses no significa nada. Con un rango parcial
-                // activo directamente no se muestra.
-                const proy = anioCompleto
-                  ? proyeccionCierre(seriesCompletas[i].valores)
-                  : null;
-                return (
-                  <TableRow key={s.anio}>
-                    <TableCell className="font-medium">{s.anio}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {con.length}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUnidades(acum)}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {prom === null ? "—" : formatUnidades(Math.round(prom))}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {con.length ? `${formatUnidades(Math.max(...con))} (${mesCorto(maxIdx + 1)})` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {con.length ? `${formatUnidades(Math.min(...con))} (${mesCorto(minIdx + 1)})` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {varYtd === null ? "—" : formatPct(varYtd, { signed: true })}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {proy ? formatUnidades(proy.proyectado) : "—"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                varYtd = b ? (a - b) / b : null;
+              }
+              // La proyeccion se calcula SIEMPRE sobre el ano entero, no
+              // sobre el rango: proyectar el cierre de ano a partir de un
+              // recorte de meses no significa nada. Con un rango parcial
+              // activo directamente no se muestra.
+              const proy = anioCompleto
+                ? proyeccionCierre(seriesCompletas[i].valores)
+                : null;
+              return { anio: s.anio, con, acum, prom, maxIdx, minIdx, varYtd, proy };
+            });
+
+            return (
+              <>
+                <div className="flex flex-col divide-y sm:hidden">
+                  {filas.map((f) => (
+                    <div key={f.anio} className="flex flex-col gap-1.5 py-3">
+                      <div className="flex items-baseline justify-between">
+                        <span className="font-medium">{f.anio}</span>
+                        <span className="font-mono text-lg font-semibold tabular-nums">
+                          {formatUnidades(f.acum)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        <span>{f.con.length} meses con dato</span>
+                        <span>
+                          prom. {f.prom === null ? "—" : formatUnidades(Math.round(f.prom))}
+                        </span>
+                        {f.varYtd !== null && (
+                          <span className={f.varYtd >= 0
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"}>
+                            {formatPct(f.varYtd, { signed: true })} vs. año previo
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                        {f.con.length > 0 && (
+                          <>
+                            <span>
+                              máx. {formatUnidades(Math.max(...f.con))} ({mesCorto(f.maxIdx + 1)})
+                            </span>
+                            <span>
+                              mín. {formatUnidades(Math.min(...f.con))} ({mesCorto(f.minIdx + 1)})
+                            </span>
+                          </>
+                        )}
+                        {f.proy && <span>proy. cierre {formatUnidades(f.proy.proyectado)}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto sm:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Año</TableHead>
+                        <TableHead className="text-right">Meses con dato</TableHead>
+                        <TableHead className="text-right">Acumulado</TableHead>
+                        <TableHead className="text-right">Promedio mensual</TableHead>
+                        <TableHead className="text-right">Máximo</TableHead>
+                        <TableHead className="text-right">Mínimo</TableHead>
+                        <TableHead className="text-right">Var. vs año previo</TableHead>
+                        <TableHead className="text-right">Proyección cierre</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filas.map((f) => (
+                        <TableRow key={f.anio}>
+                          <TableCell className="font-medium">{f.anio}</TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {f.con.length}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">{formatUnidades(f.acum)}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {f.prom === null ? "—" : formatUnidades(Math.round(f.prom))}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {f.con.length ? `${formatUnidades(Math.max(...f.con))} (${mesCorto(f.maxIdx + 1)})` : "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {f.con.length ? `${formatUnidades(Math.min(...f.con))} (${mesCorto(f.minIdx + 1)})` : "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {f.varYtd === null ? "—" : formatPct(f.varYtd, { signed: true })}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {f.proy ? formatUnidades(f.proy.proyectado) : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            );
+          })()}
           <div className="mt-3 flex flex-col gap-2">
             <NotaDato>
               <strong>Var. vs año previo</strong> compara solo los meses presentes en

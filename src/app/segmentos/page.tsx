@@ -8,6 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   getCobertura, getPorDimension, getRankingMarcas, getRankingModelos,
   getSerieMensual, SEGMENTO_SIN_CLASIFICAR,
@@ -85,53 +86,98 @@ export default async function SegmentosPage({
             Ranking de segmentos — matriculaciones
           </CardTitle>
         </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">#</TableHead>
-                <TableHead>Segmento</TableHead>
-                <TableHead className="text-right">Unidades</TableHead>
-                <TableHead className="text-right">Participación</TableHead>
-                <TableHead className="text-right">Var. vs {f.anio - 1}</TableHead>
-                <TableHead className="text-right">Δ participación</TableHead>
-                <TableHead className="text-right">Marcas propias</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {segmentos.map((s, i) => (
-                <TableRow key={s.valor} className={s.valor === seleccionado ? "bg-primary/5" : undefined}>
-                  <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell className="font-medium">
-                    <Link
-                      href={`/segmentos?anio=${f.anio}&desde=${f.mesDesde}&hasta=${f.mesHasta}&segmento=${encodeURIComponent(s.valor)}`}
-                      className="hover:underline"
-                    >
-                      {s.valor}
-                    </Link>
+        <CardContent>
+          <div className="flex flex-col divide-y sm:hidden">
+            {segmentos.map((s, i) => (
+              <Link
+                key={s.valor}
+                href={`/segmentos?anio=${f.anio}&desde=${f.mesDesde}&hasta=${f.mesHasta}&segmento=${encodeURIComponent(s.valor)}`}
+                className={cn(
+                  "flex flex-col gap-1.5 py-3",
+                  s.valor === seleccionado && "-mx-3 rounded-md bg-primary/5 px-3"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {i + 1}
+                    </span>
+                    <span className="min-w-0 truncate font-medium">{s.valor}</span>
                     {s.valor === SEGMENTO_SIN_CLASIFICAR && (
-                      <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] font-normal">
+                      <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px] font-normal">
                         sin dato de origen
                       </Badge>
                     )}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{formatUnidades(s.unidades)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatPct(s.participacion)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums">
                     {s.variacion === null ? "—" : formatPct(s.variacion, { signed: true })}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {s.deltaParticipacion === null ? "—" : formatPuntosPct(s.deltaParticipacion)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatPct(propiasPorSegmento.get(s.valor) ?? 0)}
-                  </TableCell>
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between pl-6">
+                  <span className="font-mono text-lg font-semibold tabular-nums">
+                    {formatUnidades(s.unidades)}
+                  </span>
+                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="tabular-nums">{formatPct(s.participacion)}</span>
+                    <span className="tabular-nums">
+                      Δ {s.deltaParticipacion === null ? "—" : formatPuntosPct(s.deltaParticipacion)}
+                    </span>
+                  </span>
+                </div>
+                <div className="pl-6 text-xs text-muted-foreground">
+                  Marcas propias: {formatPct(propiasPorSegmento.get(s.valor) ?? 0)}
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">#</TableHead>
+                  <TableHead>Segmento</TableHead>
+                  <TableHead className="text-right">Unidades</TableHead>
+                  <TableHead className="text-right">Participación</TableHead>
+                  <TableHead className="text-right">Var. vs {f.anio - 1}</TableHead>
+                  <TableHead className="text-right">Δ participación</TableHead>
+                  <TableHead className="text-right">Marcas propias</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {segmentos.map((s, i) => (
+                  <TableRow key={s.valor} className={s.valor === seleccionado ? "bg-primary/5" : undefined}>
+                    <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={`/segmentos?anio=${f.anio}&desde=${f.mesDesde}&hasta=${f.mesHasta}&segmento=${encodeURIComponent(s.valor)}`}
+                        className="hover:underline"
+                      >
+                        {s.valor}
+                      </Link>
+                      {s.valor === SEGMENTO_SIN_CLASIFICAR && (
+                        <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] font-normal">
+                          sin dato de origen
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(s.unidades)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatPct(s.participacion)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {s.variacion === null ? "—" : formatPct(s.variacion, { signed: true })}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {s.deltaParticipacion === null ? "—" : formatPuntosPct(s.deltaParticipacion)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatPct(propiasPorSegmento.get(s.valor) ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Hacé clic en un segmento para ver su evolución, marcas y modelos.
             <strong> Δ participación</strong> en puntos porcentuales: un segmento

@@ -7,6 +7,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
   getBrecha, getCobertura, getMarcasMatriculacionLivianos, getRankingMarcas,
 } from "@/lib/cadam/mercado";
@@ -125,42 +126,68 @@ export default async function BrechaPage({
 
       <Card>
         <CardHeader><CardTitle>Detalle mensual</CardTitle></CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mes</TableHead>
-                <TableHead className="text-right">Importaciones</TableHead>
-                <TableHead className="text-right">Matriculaciones</TableHead>
-                <TableHead className="text-right">Diferencia</TableHead>
-                <TableHead className="text-right">Matric. / import.</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {serie.map((p) => (
-                <TableRow key={p.mes}>
-                  <TableCell className="font-medium">{mesCorto(p.mes)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {p.importaciones === null
-                      ? <span className="text-muted-foreground">sin dato</span>
-                      : formatUnidades(p.importaciones)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {p.matriculaciones === null
-                      ? <span className="text-muted-foreground">sin dato</span>
-                      : formatUnidades(p.matriculaciones)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {p.diferencia === null ? "—" :
-                      `${p.diferencia > 0 ? "+" : ""}${formatUnidades(p.diferencia)}`}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {p.ratio === null ? "—" : p.ratio.toFixed(2)}
-                  </TableCell>
+        <CardContent>
+          <div className="flex flex-col divide-y sm:hidden">
+            {serie.map((p) => (
+              <div key={p.mes} className="flex flex-col gap-1 py-2.5">
+                <div className="flex items-baseline justify-between">
+                  <span className="font-medium">{mesCorto(p.mes)}</span>
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    ratio {p.ratio === null ? "—" : p.ratio.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="tabular-nums text-muted-foreground">
+                    Import. {p.importaciones === null ? "sin dato" : formatUnidades(p.importaciones)}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    Matric. {p.matriculaciones === null ? "sin dato" : formatUnidades(p.matriculaciones)}
+                  </span>
+                </div>
+                <span className="font-mono text-sm font-semibold tabular-nums">
+                  {p.diferencia === null ? "—" :
+                    `${p.diferencia > 0 ? "+" : ""}${formatUnidades(p.diferencia)} dif.`}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mes</TableHead>
+                  <TableHead className="text-right">Importaciones</TableHead>
+                  <TableHead className="text-right">Matriculaciones</TableHead>
+                  <TableHead className="text-right">Diferencia</TableHead>
+                  <TableHead className="text-right">Matric. / import.</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {serie.map((p) => (
+                  <TableRow key={p.mes}>
+                    <TableCell className="font-medium">{mesCorto(p.mes)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {p.importaciones === null
+                        ? <span className="text-muted-foreground">sin dato</span>
+                        : formatUnidades(p.importaciones)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {p.matriculaciones === null
+                        ? <span className="text-muted-foreground">sin dato</span>
+                        : formatUnidades(p.matriculaciones)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {p.diferencia === null ? "—" :
+                        `${p.diferencia > 0 ? "+" : ""}${formatUnidades(p.diferencia)}`}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {p.ratio === null ? "—" : p.ratio.toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -198,34 +225,58 @@ function TablaBrechaMarcas({
         <CardTitle>{titulo}</CardTitle>
         <p className="text-xs text-muted-foreground">{subtitulo}</p>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Marca</TableHead>
-              <TableHead className="text-right">Import.</TableHead>
-              <TableHead className="text-right">Matric.</TableHead>
-              <TableHead className="text-right">Dif.</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filas.map((r) => (
-              <TableRow key={r.marca} className={r.esPropia ? "bg-primary/5" : undefined}>
-                <TableCell className="font-medium">
-                  <span className="inline-flex items-center gap-2">
-                    {r.marca}
-                    {r.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{formatUnidades(r.importaciones)}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatUnidades(r.matriculaciones)}</TableCell>
-                <TableCell className="text-right tabular-nums font-medium">
+      <CardContent>
+        <div className="flex flex-col divide-y sm:hidden">
+          {filas.map((r) => (
+            <div
+              key={r.marca}
+              className={cn("flex items-center justify-between gap-2 py-2",
+                r.esPropia && "-mx-3 rounded-md bg-primary/5 px-3")}
+            >
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <span className="truncate font-medium">{r.marca}</span>
+                {r.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propia</Badge>}
+              </span>
+              <span className="shrink-0 text-right text-xs">
+                <span className="font-mono font-semibold tabular-nums">
                   {r.diferencia > 0 ? "+" : ""}{formatUnidades(r.diferencia)}
-                </TableCell>
+                </span>
+                <span className="block tabular-nums text-muted-foreground">
+                  {formatUnidades(r.importaciones)} imp. · {formatUnidades(r.matriculaciones)} mat.
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto sm:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Marca</TableHead>
+                <TableHead className="text-right">Import.</TableHead>
+                <TableHead className="text-right">Matric.</TableHead>
+                <TableHead className="text-right">Dif.</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filas.map((r) => (
+                <TableRow key={r.marca} className={r.esPropia ? "bg-primary/5" : undefined}>
+                  <TableCell className="font-medium">
+                    <span className="inline-flex items-center gap-2">
+                      {r.marca}
+                      {r.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{formatUnidades(r.importaciones)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatUnidades(r.matriculaciones)}</TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    {r.diferencia > 0 ? "+" : ""}{formatUnidades(r.diferencia)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

@@ -79,7 +79,24 @@ export default function CargasPage() {
                   <Badge className="h-5 px-1.5 text-[10px]">activo</Badge>
                 )}
               </div>
-              <div className="overflow-x-auto">
+              <div className="flex flex-col divide-y sm:hidden">
+                {arch.map((a) => (
+                  <div key={a.nombre} className="flex flex-col gap-1 py-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate font-medium">{a.nombre}</span>
+                      <Badge variant="outline" className="shrink-0 font-normal">{a.tipo}</Badge>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
+                      <span>{formatUnidades(a.filas_leidas)} leídas</span>
+                      <span>{formatUnidades(a.filas_cargadas)} cargadas</span>
+                      <span className="font-mono font-semibold text-foreground">
+                        {formatUnidades(a.unidades)} u.
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto sm:block">
                 <Table>
                   <TableHeader>
                     <TableRow>

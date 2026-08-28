@@ -91,7 +91,60 @@ export function TablaShare({
         </button>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Mobile: tarjetas. Se conserva el ⚠ de divergencia y el orden Unidades
+          → Participación, porque es lo que explica el aviso de abajo. */}
+      <div className="flex flex-col divide-y sm:hidden">
+        {visibles.map((f, i) => {
+          const partAnterior = f.deltaParticipacion === null
+            ? null : f.participacion - f.deltaParticipacion;
+          return (
+            <div
+              key={f.valor}
+              className={cn(
+                "flex flex-col gap-1.5 py-3",
+                f.esPropia && "-mx-3 rounded-md bg-primary/5 px-3",
+                divergente(f) && "-mx-3 rounded-md bg-amber-500/8 px-3"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {i + 1}
+                </span>
+                {divergente(f) && (
+                  <span
+                    className="shrink-0 text-amber-600 dark:text-amber-500"
+                    role="img"
+                    aria-label="Unidades y participación van en sentido contrario"
+                  >
+                    ⚠
+                  </span>
+                )}
+                <span className="min-w-0 truncate font-medium">{f.valor}</span>
+                {f.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propia</Badge>}
+              </div>
+              <div className="flex items-baseline justify-between pl-6">
+                <span className="font-mono text-lg font-semibold tabular-nums">
+                  {formatUnidades(f.unidades)}
+                </span>
+                <Signo v={f.variacion} texto={formatPct(f.variacion, { signed: true })} />
+              </div>
+              <div className="flex items-center justify-between pl-6 text-xs">
+                <span className="text-muted-foreground">
+                  Participación {formatPct(f.participacion)}
+                  {partAnterior !== null && ` (antes ${formatPct(partAnterior)})`}
+                </span>
+                <Signo
+                  v={f.deltaParticipacion}
+                  texto={f.deltaParticipacion === null
+                    ? "—" : formatPuntosPct(f.deltaParticipacion)}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
         <Table>
           <TableHeader>
             <TableRow>
