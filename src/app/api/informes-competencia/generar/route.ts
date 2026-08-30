@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getParametros } from "@/lib/cadam/config";
-import { guardarInforme, type DimensionInforme, type FuenteCitada } from "@/lib/informes/db";
+import {
+  guardarInforme, lunesDeEstaSemana, type DimensionInforme, type FuenteCitada,
+} from "@/lib/informes/db";
 
 /**
  * Genera el informe semanal de competencia/mercado. Disparado por Vercel
@@ -50,15 +52,6 @@ const DIMENSIONES: { id: DimensionInforme; prompt: string }[] = [
 ];
 
 const MAX_ITERACIONES_DIMENSION = 6;
-
-function lunesDeEstaSemana(): string {
-  const hoy = new Date();
-  const dia = hoy.getUTCDay(); // 0=domingo
-  const offset = dia === 0 ? -6 : 1 - dia; // retrocede al lunes
-  const lunes = new Date(hoy);
-  lunes.setUTCDate(hoy.getUTCDate() + offset);
-  return lunes.toISOString().slice(0, 10);
-}
 
 function contextoMarcas(): string {
   const p = getParametros();
