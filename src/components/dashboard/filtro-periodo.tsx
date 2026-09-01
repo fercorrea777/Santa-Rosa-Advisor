@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { MESES_CORTOS } from "@/lib/periodo";
+import { cn } from "@/lib/utils";
 
 /** Filtros que se aplican con un clic (grafico o fila de ranking) y no
  *  tienen desplegable: se muestran como chip para poder sacarlos. */
@@ -29,11 +30,16 @@ export function FiltroPeriodo({
   anios,
   mesMaximoPorAnio,
   opciones = [],
+  pegajoso = true,
 }: {
   anios: number[];
   /** Ultimo mes con datos, por anio. Evita ofrecer meses vacios. */
   mesMaximoPorAnio: Record<number, number>;
   opciones?: OpcionFiltro[];
+  /** Queda fijo al hacer scroll. Apagarlo solo cuando la barra vive dentro
+   *  de otra fila que ya es pegajosa (mercado, que le suma el selector de
+   *  fuente): dos sticky anidados se pisan. */
+  pegajoso?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -57,7 +63,20 @@ export function FiltroPeriodo({
   );
 
   return (
-    <div className="flex flex-wrap items-end gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-2.5">
+    // top-16 = los 56px del header de la app + 8px de aire. z-30 la deja por
+    // debajo del header (z-40) y del drawer móvil (z-50). La tarjeta es opaca
+    // (bg-card), así que el contenido pasa por detrás sin transparentarse; la
+    // sombra la despega del texto que scrollea abajo.
+    //
+    // Solo desde sm: en 375px la barra mide 242px — el 30% de la pantalla —
+    // porque los campos se apilan. Fijarla ahí dejaría el teléfono con un
+    // tercio muerto todo el tiempo. En móvil scrollea normal.
+    <div
+      className={cn(
+        "flex flex-wrap items-end gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-2.5",
+        pegajoso && "sm:sticky sm:top-16 sm:z-30 sm:shadow-[var(--card-shadow)]"
+      )}
+    >
       <Campo label="Año">
         <select
           className={selectCls}

@@ -112,10 +112,16 @@ export default async function MercadoPage({
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+      {/* El sticky va acá y no en FiltroPeriodo (de ahí el pegajoso={false}):
+          esta página le suma el selector de fuente al lado, y si solo se
+          pegara el filtro, el toggle Matriculaciones/Importaciones se quedaría
+          scrolleando solo. Fondo propio porque la fila tiene gaps entre las
+          dos tarjetas por donde asomaría el contenido de atrás. */}
+      <div className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end sm:bg-background/85 sm:backdrop-blur-md">
         <SelectorFuente fuente={fuente} />
         <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
+            pegajoso={false}
             anios={cobertura.matriculacion.anios}
             mesMaximoPorAnio={mesMax}
             opciones={[
