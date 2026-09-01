@@ -27,9 +27,27 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mercado Automotor PY | Santa Rosa Comercial Advisor",
+  // Dominio canónico de la app. Con esto Next resuelve las URL absolutas
+  // (Open Graph, canonical) contra advisor.santarosa.lat, así el enlace
+  // muestra una vista previa correcta al compartirlo (WhatsApp, etc.).
+  // El .vercel.app sigue funcionando como alias del mismo deploy.
+  metadataBase: new URL("https://advisor.santarosa.lat"),
+  title: {
+    default: "Mercado Automotor PY | Santa Rosa Comercial Advisor",
+    template: "%s · Mercado Automotor PY",
+  },
   description:
     "Inteligencia comercial del mercado automotor paraguayo — matriculaciones e importaciones (CADAM).",
+  applicationName: "Mercado Automotor PY",
+  openGraph: {
+    type: "website",
+    siteName: "Mercado Automotor PY",
+    title: "Mercado Automotor PY | Santa Rosa Comercial Advisor",
+    description:
+      "Matriculaciones e importaciones del mercado automotor paraguayo (CADAM), con rankings, market share y evolución.",
+    url: "/",
+    locale: "es_PY",
+  },
 };
 
 export default function RootLayout({
