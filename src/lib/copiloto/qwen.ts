@@ -30,6 +30,22 @@ import {
 const TIMEOUT_MS = Number(process.env.QWEN_TIMEOUT_MS ?? 300_000);
 const MAX_ITERACIONES = 6;
 
+/**
+ * Cuanto se queda el modelo cargado en la GPU despues de responder.
+ *
+ * El proxy del servidor inyecta keep_alive=30m por default, pensado para
+ * el modelo chico del bot de ventas. Para un modelo de 27B eso es
+ * peligroso: no entra entero en los 12 GB de la placa, asi que mientras
+ * sigue cargado deja sin lugar al bot. El 2026-09-01 eso trabo Ollama y
+ * el bot dejo de responder.
+ *
+ * Mandarlo explicitamente pisa el default del proxy (usa setdefault).
+ * Valor mas corto = el bot sufre menos, pero cada pregunta paga la
+ * recarga del modelo (minutos). Subilo solo si el copiloto local pasa a
+ * tener GPU propia.
+ */
+const KEEP_ALIVE = process.env.QWEN_KEEP_ALIVE ?? "5m";
+
 export function qwenConfigurado(): boolean {
   return Boolean(process.env.QWEN_BASE_URL && process.env.QWEN_MODEL);
 }
@@ -45,6 +61,13 @@ interface LlamadaHerramienta {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
+}
+
+/** Pedazo de tool_call tal como llega en un delta de streaming. */
+interface DeltaLlamada {
+  index?: number;
+  id?: string;
+  function?: { name?: string; arguments?: string };
 }
 
 const HERRAMIENTAS = [
@@ -99,6 +122,19 @@ async function correrHerramienta(llamada: LlamadaHerramienta): Promise<string> {
   return JSON.stringify({ error: `Herramienta desconocida: ${llamada.function.name}` });
 }
 
+/**
+ * Una vuelta contra el modelo, en modo streaming.
+ *
+ * El streaming NO es para mostrar el texto de a poco (la respuesta se
+ * junta entera y se devuelve como JSON): es para que la conexion no se
+ * muera. El fetch de Node (undici) corta a los 300 s si el servidor no
+ * mando todavia los headers, y ese limite no se puede subir desde el
+ * fetch estandar. Con stream:false Ollama no manda nada hasta terminar,
+ * asi que toda respuesta que tarde mas de 5 min fallaba con "fetch
+ * failed" — y en este modelo, con el prompt grande del copiloto, eso
+ * pasa seguido. Con stream:true los headers llegan de inmediato y el
+ * unico limite real pasa a ser QWEN_TIMEOUT_MS.
+ */
 async function pedir(mensajes: MensajeChat[]): Promise<MensajeChat> {
   const base = process.env.QWEN_BASE_URL!.replace(/\/+$/, "");
   const control = new AbortController();
@@ -117,6 +153,8 @@ async function pedir(mensajes: MensajeChat[]): Promise<MensajeChat> {
         messages: mensajes,
         tools: HERRAMIENTAS,
         max_tokens: 4000,
+        stream: true,
+        keep_alive: KEEP_ALIVE,
       }),
       signal: control.signal,
     });
@@ -124,13 +162,78 @@ async function pedir(mensajes: MensajeChat[]): Promise<MensajeChat> {
       const cuerpo = await res.text().catch(() => "");
       throw new Error(`Ollama respondió ${res.status}: ${cuerpo.slice(0, 300)}`);
     }
-    const data = await res.json();
-    const msg = data?.choices?.[0]?.message;
-    if (!msg) throw new Error("Respuesta sin choices[0].message.");
-    return msg as MensajeChat;
+    if (!res.body) throw new Error("Respuesta sin cuerpo.");
+    return await juntarStream(res.body);
   } finally {
     clearTimeout(reloj);
   }
+}
+
+/**
+ * Rearma el mensaje completo a partir de los deltas SSE.
+ *
+ * Las tool_calls llegan partidas: el nombre en un delta y los argumentos
+ * de a pedacitos en los siguientes, todos identificados por "index".
+ * Por eso se acumulan en un mapa por index y recien al final se ordenan.
+ */
+async function juntarStream(cuerpo: ReadableStream<Uint8Array>): Promise<MensajeChat> {
+  const lector = cuerpo.getReader();
+  const decoder = new TextDecoder();
+  let pendiente = "";
+  let texto = "";
+  const porIndice = new Map<number, LlamadaHerramienta>();
+
+  for (;;) {
+    const { done, value } = await lector.read();
+    if (done) break;
+    pendiente += decoder.decode(value, { stream: true });
+
+    // SSE: eventos separados por linea en blanco; nos alcanza con procesar
+    // linea a linea y guardar la ultima si quedo cortada.
+    const lineas = pendiente.split("\n");
+    pendiente = lineas.pop() ?? "";
+
+    for (const linea of lineas) {
+      const limpia = linea.trim();
+      if (!limpia.startsWith("data:")) continue;
+      const carga = limpia.slice(5).trim();
+      if (!carga || carga === "[DONE]") continue;
+
+      let evento: {
+        choices?: { delta?: { content?: string; tool_calls?: DeltaLlamada[] } }[];
+      };
+      try {
+        evento = JSON.parse(carga);
+      } catch {
+        continue; // fragmento incompleto o linea de keep-alive
+      }
+
+      const delta = evento.choices?.[0]?.delta;
+      if (!delta) continue;
+      if (delta.content) texto += delta.content;
+
+      for (const tc of delta.tool_calls ?? []) {
+        const i = tc.index ?? 0;
+        const acumulada = porIndice.get(i) ?? {
+          id: "", type: "function" as const, function: { name: "", arguments: "" },
+        };
+        if (tc.id) acumulada.id = tc.id;
+        if (tc.function?.name) acumulada.function.name = tc.function.name;
+        if (tc.function?.arguments) acumulada.function.arguments += tc.function.arguments;
+        porIndice.set(i, acumulada);
+      }
+    }
+  }
+
+  const llamadas = [...porIndice.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([i, ll]) => ({ ...ll, id: ll.id || `call_${i}` }));
+
+  return {
+    role: "assistant",
+    content: texto || null,
+    ...(llamadas.length ? { tool_calls: llamadas } : {}),
+  };
 }
 
 export async function responderConQwen(
