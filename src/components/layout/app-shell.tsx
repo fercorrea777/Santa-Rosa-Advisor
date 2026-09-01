@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
@@ -99,20 +100,51 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             idénticos en luminosidad en el bento claro, así que un borde
             que dependiera únicamente del scroll para notarse desaparecía
             del todo en reposo — el header se leía fundido con la página. */}
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/70 px-4 shadow-[0_12px_16px_-14px_oklch(0_0_0/10%)] backdrop-blur-xl backdrop-saturate-150 supports-backdrop-filter:bg-background/55">
+        {/* Barra de marca. Opaca y en el navy del logo, no translúcida: es
+            la firma de Santa Rosa y tiene que leerse igual sobre cualquier
+            contenido que pase por debajo. El logo va acá y no en el rail
+            porque en móvil el rail está oculto. */}
+        <header
+          className="sticky top-0 z-40 flex h-14 items-center gap-3 px-4 shadow-[0_10px_20px_-16px_oklch(0_0_0/45%)]"
+          style={{ backgroundColor: "var(--barra)", color: "var(--barra-foreground)" }}
+        >
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-base leading-none md:hidden"
+            className="size-8 text-base leading-none text-[var(--barra-foreground)] hover:bg-white/10 hover:text-[var(--barra-foreground)] md:hidden"
             aria-label="Abrir menú"
             onClick={() => setMobileOpen(true)}
           >
             ≡
           </Button>
-          {/* Es el único "volver al inicio" en móvil: sin min-h el link mide
-              lo que el texto (20px). Entra holgado en el header de 56px. */}
-          <Link href="/" className="flex items-center gap-2 pointer-coarse:min-h-11 md:hidden">
-            <span className="text-sm font-semibold">Mercado Automotor PY</span>
+          <Link
+            href="/"
+            className="flex items-center gap-3 pointer-coarse:min-h-11"
+            aria-label="Mercado Automotor PY — inicio"
+          >
+            {/* El logo es negro sobre transparente; invert lo pasa a blanco
+                para el navy. brightness-0 primero, para aplanar el azul del
+                monograma y que invierta parejo en vez de salir amarillo. */}
+            <Image
+              src="/logo-santa-rosa.png"
+              alt="Santa Rosa"
+              width={311}
+              height={32}
+              priority
+              className="h-4 w-auto shrink-0 brightness-0 invert"
+            />
+            <span className="hidden h-5 w-px bg-white/25 sm:block" />
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate text-[0.7rem] font-bold uppercase tracking-[0.14em]">
+                Mercado Automotor
+              </span>
+              <span
+                className="truncate text-[0.6rem] font-medium uppercase tracking-[0.12em]"
+                style={{ color: "var(--barra-muted)" }}
+              >
+                Inteligencia comercial · Paraguay
+              </span>
+            </span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />

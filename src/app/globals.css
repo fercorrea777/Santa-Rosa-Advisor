@@ -118,6 +118,14 @@
   --chip-pink: oklch(0.91 0.05 8);
   --chip-pink-fg: oklch(0.55 0.18 8);
 
+  /* Barra superior en el azul de MARCA (el navy del monograma SR del logo
+     oficial, ver public/logo-santa-rosa.png), no el cian de acento. Es el
+     único bloque oscuro del tema claro: ancla la app y le pone la firma de
+     Santa Rosa arriba de todo, mientras el lienzo sigue siendo claro. */
+  --barra: oklch(0.26 0.09 277);
+  --barra-foreground: oklch(0.97 0.008 260);
+  --barra-muted: oklch(0.78 0.05 250);
+
   /* Atmósfera: en claro NO hay textura ni glows — el lienzo limpio ES el
      recurso. La sombra de tarjeta hace todo el trabajo de profundidad. */
   --glow-1: transparent;
@@ -195,6 +203,13 @@
   --chip-amber-fg: oklch(0.82 0.12 75);
   --chip-pink: oklch(0.32 0.06 8);
   --chip-pink-fg: oklch(0.8 0.1 8);
+
+  /* En oscuro la barra sigue siendo el navy de marca pero un punto más
+     profundo que el lienzo, para que se despegue del fondo en vez de
+     fundirse con él. */
+  --barra: oklch(0.22 0.075 277);
+  --barra-foreground: oklch(0.97 0.008 260);
+  --barra-muted: oklch(0.72 0.05 250);
 
   --glow-1: oklch(0.72 0.13 205 / 20%);
   --glow-2: oklch(0.58 0.16 268 / 17%);
