@@ -129,7 +129,10 @@ export function TablaRanking({
           setOrden((o) => ({ campo, asc: o.campo === campo ? !o.asc : campo === "posicion" || campo === "marca" }))
         }
         className={cn(
-          "inline-flex items-center gap-1 hover:text-foreground",
+          // La tabla es sm+ (en móvil son tarjetas), pero una tablet entra
+          // acá con dedo: sin min-h el botón de ordenar mide el alto del
+          // texto (~18px).
+          "inline-flex items-center gap-1 pointer-coarse:min-h-11 hover:text-foreground",
           alinearDerecha && "flex-row-reverse",
           orden.campo === campo ? "text-foreground" : "text-muted-foreground"
         )}
@@ -166,7 +169,10 @@ export function TablaRanking({
               type="button"
               onClick={() => setTope(t)}
               className={cn(
-                "h-8 rounded-md px-2.5 text-xs font-medium",
+                // pointer-coarse: mínimo táctil. Van pegados (gap-1), así que
+                // crecen de verdad en vez de expandir área invisible: dos hit
+                // areas superpuestas en un grupo se pifian entre sí.
+                "h-8 rounded-md px-2.5 text-xs font-medium pointer-coarse:h-11",
                 tope === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
@@ -177,7 +183,7 @@ export function TablaRanking({
         <button
           type="button"
           onClick={exportar}
-          className="ml-auto inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium hover:bg-muted"
+          className="ml-auto inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium pointer-coarse:h-11 hover:bg-muted"
         >
           Exportar CSV
         </button>

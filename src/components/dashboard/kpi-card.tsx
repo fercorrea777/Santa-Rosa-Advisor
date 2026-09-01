@@ -187,7 +187,16 @@ function Sparkline({ serie }: { serie: (number | null)[] }) {
 function InfoTip({ text }: { text: string }) {
   return (
     <Tooltip>
-      <TooltipTrigger className="flex size-3.5 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 bg-transparent p-0 text-[9px] font-bold leading-none text-muted-foreground/70">
+      {/* El circulo visible se queda en 14px (asi lee la cabecera de la
+          card, no hay lugar para un botón de 44px sin romper la densidad).
+          El area tocable si tiene que llegar a 44x44 — la agranda un
+          pseudo-elemento invisible, no el circulo. aria-label repite el
+          contenido del tooltip: sin esto un lector de pantalla solo
+          anuncia "botón, signo de interrogación". */}
+      <TooltipTrigger
+        aria-label={text}
+        className="relative flex size-3.5 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 bg-transparent p-0 text-[9px] font-bold leading-none text-muted-foreground/70 before:absolute before:-inset-[15px] before:content-['']"
+      >
         ?
       </TooltipTrigger>
       <TooltipContent className="max-w-64 text-xs">{text}</TooltipContent>

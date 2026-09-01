@@ -109,7 +109,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             ≡
           </Button>
-          <Link href="/" className="flex items-center gap-2 md:hidden">
+          {/* Es el único "volver al inicio" en móvil: sin min-h el link mide
+              lo que el texto (20px). Entra holgado en el header de 56px. */}
+          <Link href="/" className="flex items-center gap-2 pointer-coarse:min-h-11 md:hidden">
             <span className="text-sm font-semibold">Mercado Automotor PY</span>
           </Link>
           <div className="ml-auto flex items-center gap-2">

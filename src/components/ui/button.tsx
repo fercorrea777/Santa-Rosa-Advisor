@@ -29,18 +29,29 @@ const buttonVariants = cva(
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      // `pointer-coarse:` = dedo, no mouse. La escala de arriba (32-36px) es
+      // la densidad que pide el tablero en escritorio, pero queda por debajo
+      // del mínimo táctil (44pt Apple / 48dp Material): en celular esos
+      // mismos botones se pifian. Los altos crecen SOLO cuando el dispositivo
+      // apunta con dedo — el mouse ve exactamente lo de siempre.
+      //
+      // `xs`/`icon-xs` son la excepción deliberada: quedan en 36px porque su
+      // razón de ser es la densidad extrema (chips dentro de una fila). No
+      // usarlos para acciones primarias en móvil; si hace falta, agrandar el
+      // área tocable con un pseudo-elemento (ver InfoTip en kpi-card.tsx) en
+      // vez de estirar el botón.
       size: {
         default:
-          "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        icon: "size-8",
+          "h-8 gap-1.5 px-2.5 pointer-coarse:h-11 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs pointer-coarse:h-9 in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] pointer-coarse:h-11 in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        lg: "h-9 gap-1.5 px-2.5 pointer-coarse:h-11 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        icon: "size-8 pointer-coarse:size-11",
         "icon-xs":
-          "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
+          "size-6 rounded-[min(var(--radius-md),10px)] pointer-coarse:size-9 in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
+          "size-7 rounded-[min(var(--radius-md),12px)] pointer-coarse:size-11 in-data-[slot=button-group]:rounded-lg",
+        "icon-lg": "size-9 pointer-coarse:size-11",
       },
     },
     defaultVariants: {

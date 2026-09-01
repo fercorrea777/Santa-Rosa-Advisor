@@ -352,6 +352,17 @@
       border-color: color-mix(in oklab, var(--ring) 40%, var(--border));
     }
   }
+  /* Táctil: el alto sube al mínimo de 44px, y la tipografía a 16px. Lo
+     segundo no es estético — Safari iOS hace zoom automático al enfocar un
+     campo con font-size < 16px, y de ahí el usuario queda con la página
+     ampliada y desplazada. Afecta al buscador del ranking y a los 5 <select>
+     del filtro de período, que comparten esta clase. */
+  @media (pointer: coarse) {
+    .input-base {
+      height: 2.75rem;
+      font-size: 1rem;
+    }
+  }
   .input-base:focus-visible {
     outline: none;
     border-color: var(--ring);
@@ -460,6 +471,24 @@
 .chip-mint { background-color: var(--chip-mint); color: var(--chip-mint-fg); --sparkline-color: var(--chip-mint-fg); }
 .chip-amber { background-color: var(--chip-amber); color: var(--chip-amber-fg); --sparkline-color: var(--chip-amber-fg); }
 .chip-pink { background-color: var(--chip-pink); color: var(--chip-pink-fg); --sparkline-color: var(--chip-pink-fg); }
+
+/* ---- El anillo de foco aparece al instante -------------------------------
+   El `ring` de Tailwind se dibuja con box-shadow, y box-shadow está en la
+   lista de transición de botones (150ms), .input-base (150ms) y Badge. Sin
+   esta regla el anillo se desvanece hacia adentro: quien navega con teclado
+   se queda sin indicador durante el principio de cada salto, que es
+   justamente cuando lo necesita para saber dónde cayó.
+
+   FUERA de @layer, por el mismo motivo que los tintes bento de arriba: el
+   `transition-[...]` de los botones es una utility, y utilities le gana a
+   base y a components por orden de capa. Solo el CSS sin capa le gana.
+
+   Apaga la transición únicamente mientras el elemento tiene el foco visible;
+   al salir vuelve sola, así el resto de las animaciones de estado quedan
+   intactas. */
+:where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+  transition: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

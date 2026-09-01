@@ -33,7 +33,11 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex flex-col gap-4 px-2">
       {NAV_GROUPS.map((grupo) => (
-        <div key={grupo.titulo} className="flex flex-col gap-0.5">
+        // gap-2 en táctil: con el dedo, dos filas separadas por 2px invitan a
+        // pifiarle al vecino (mínimo recomendado: 8px). Con mouse el puntero
+        // es preciso y la densidad vale más, así que ahí queda en los 2px de
+        // siempre.
+        <div key={grupo.titulo} className="flex flex-col gap-0.5 pointer-coarse:gap-2">
           <span className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.09em] text-muted-foreground/70">
             {grupo.titulo}
           </span>
@@ -49,7 +53,9 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                 className={cn(
                   // apple-design §1 (Response): feedback de press instantáneo
                   // (active:scale a 75ms) sobre la transición de color de 200ms.
-                  "relative flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors duration-200 active:scale-[0.98] active:duration-75",
+                  // min-h-11 en táctil: py-2 deja el ítem en 36px, y en celular
+                  // esta nav vive en un drawer donde se navega con el pulgar.
+                  "relative flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors duration-200 pointer-coarse:min-h-11 active:scale-[0.98] active:duration-75",
                   active
                     ? // Píldora sólida (referencia 2026-07): reemplaza el
                       // fondo tintado + barra lateral por el color pleno

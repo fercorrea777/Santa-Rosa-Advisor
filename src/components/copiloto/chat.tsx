@@ -177,7 +177,11 @@ function InputBar({
             placeholder="Preguntá al copiloto…"
             disabled={cargando}
             autoFocus
-            className="w-full bg-transparent px-4 pt-4 pb-14 text-sm outline-none placeholder:text-muted-foreground disabled:opacity-50"
+            // pointer-coarse:text-base — Safari iOS hace zoom al enfocar un
+            // campo de menos de 16px y deja la página ampliada. Este input no
+            // usa .input-base (fondo transparente, alto propio), así que la
+            // regla global de globals.css no lo alcanza.
+            className="w-full bg-transparent px-4 pt-4 pb-14 text-sm outline-none pointer-coarse:text-base placeholder:text-muted-foreground disabled:opacity-50"
           />
           <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-between">
             <span className="text-[11px] text-muted-foreground">
@@ -202,7 +206,9 @@ function InputBar({
         onChange={(e) => setTexto(e.target.value)}
         placeholder="Ej.: ¿cómo viene GREAT WALL en SUV contra GEELY?"
         disabled={cargando}
-        className="input-base h-10 flex-1"
+        // El h-10 (utilities) le gana al height de .input-base (components),
+        // incluida su regla táctil: hay que repetir el mínimo acá.
+        className="input-base h-10 flex-1 pointer-coarse:h-11"
       />
       <Button type="submit" size="lg" disabled={!enviable}>
         Enviar
