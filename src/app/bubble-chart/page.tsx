@@ -101,6 +101,14 @@ export default async function BubbleChartPage({
 
   const opciones = getOpcionesFiltro();
 
+  // La lista de modelos sale de los datos ya filtrados, no de un catálogo
+  // fijo: al elegir una marca (o un segmento) el desplegable se achica solo
+  // a los modelos que existen en ese corte, en vez de ofrecer 600 sueltos.
+  // Vienen ordenados por volumen porque getRankingModelos ya rankea.
+  const modelosDisponibles = [
+    ...new Set(modelos.map((m) => m.modelo).filter((m): m is string => !!m)),
+  ];
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -117,6 +125,8 @@ export default async function BubbleChartPage({
             anios={anios}
             mesMaximoPorAnio={mesMax}
             opciones={[
+              { param: "marca", label: "Marca", valores: opciones.marcas },
+              { param: "modelo", label: "Modelo", valores: modelosDisponibles },
               { param: "segmento", label: "Segmento", valores: opciones.segmentos },
               ...(fuente === "importacion"
                 ? []
