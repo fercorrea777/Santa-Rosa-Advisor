@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/verificar-datos.mjs",
     "dev": "next dev",
+    "verificar-datos": "node scripts/verificar-datos.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
