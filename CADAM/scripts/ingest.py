@@ -217,7 +217,26 @@ def main():
         sys.exit(1)
 
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB_PATH)
+    if args.dry_run:
+        # El dry-run corre contra una COPIA EN MEMORIA de la base.
+        #
+        # Antes abria la base real y le escribia igual, pese al cartel de
+        # ">>> DRY RUN: no se escribe nada": schema.crear() aplica el esquema
+        # Y LAS MIGRACIONES y commitea, y --correcciones ejecutaba su .sql
+        # con commit propio. Un preview que migra el esquema no es un
+        # preview.
+        #
+        # La copia mantiene la fidelidad -- se aplican las correcciones, se
+        # insertan las filas, se derivan los modelos, todo igual que en una
+        # corrida real -- pero el archivo en disco no se abre nunca en modo
+        # escritura. La base pesa ~9 MB, copiarla es despreciable.
+        con = sqlite3.connect(":memory:")
+        if DB_PATH.exists():
+            origen = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+            origen.backup(con)
+            origen.close()
+    else:
+        con = sqlite3.connect(DB_PATH)
     schema.crear(con)
 
     if args.correcciones:
