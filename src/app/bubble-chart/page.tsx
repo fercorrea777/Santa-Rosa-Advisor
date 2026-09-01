@@ -21,6 +21,15 @@ const BASE_MINIMA = 20;
  *  cada una. Las propias entran SIEMPRE, aunque no lleguen al tope. */
 const TOPE_MARCAS = 15;
 
+/** Techo del eje de variación, en %. Sobre Ene–Jun 2026 la mediana es +36% y
+ *  el percentil 90 es +127%, pero el máximo llega a +555% (CHERY T2): sin
+ *  techo, 91 de las 97 burbujas quedan aplastadas contra la línea del 0%.
+ *  Cortando en 150 se recupera ~4x de alto útil y solo 6 quedan en el borde,
+ *  dibujadas como triángulo y con su valor real en el tooltip.
+ *
+ *  No hace falta piso: una caída no puede pasar de -100%. */
+const TECHO_VARIACION = 150;
+
 export default async function BubbleChartPage({
   searchParams,
 }: {
@@ -88,6 +97,7 @@ export default async function BubbleChartPage({
   const propiasForzadas = [...marcasVisibles].filter(
     (m) => !topMarcas.includes(m)
   );
+  const recortadas = datos.filter((d) => d.variacion * 100 > TECHO_VARIACION);
 
   const opciones = getOpcionesFiltro();
 
@@ -144,10 +154,27 @@ export default async function BubbleChartPage({
         <CardContent>
           <p className="pb-3 text-xs text-muted-foreground">
             Eje Y = variación contra {f.anio - 1} · tamaño = unidades del período ·
-            las marcas propias van primero y en color. Arriba de la línea del 0%
-            crecen, abajo caen; el tamaño dice cuánto pesa ese crecimiento.
+            las marcas propias van primero, con borde y su nombre resaltado en el
+            eje. Arriba de la línea del 0% crecen, abajo caen; el tamaño dice
+            cuánto pesa ese crecimiento.
+            {recortadas.length > 0 && (
+              <>
+                {" "}El eje corta en +{TECHO_VARIACION}%:{" "}
+                <strong>{recortadas.length}</strong>{" "}
+                {recortadas.length === 1 ? "modelo se sale" : "modelos se salen"} y
+                {recortadas.length === 1 ? " queda dibujado" : " quedan dibujados"}{" "}
+                como triángulo en el tope —{" "}
+                {[...recortadas]
+                  .sort((a, b) => b.variacion - a.variacion)
+                  .slice(0, 3)
+                  .map((d) => `${d.marca} ${d.modelo} ${formatPct(d.variacion, { signed: true })}`)
+                  .join(", ")}
+                {recortadas.length > 3 ? " y otros" : ""}. El valor real está en el
+                tooltip de cada uno.
+              </>
+            )}
           </p>
-          <BurbujasMarcaChart datos={datos} />
+          <BurbujasMarcaChart datos={datos} techo={TECHO_VARIACION} />
         </CardContent>
       </Card>
     </div>

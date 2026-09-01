@@ -33,10 +33,18 @@ export interface Burbuja {
 export function BurbujasMarcaChart({
   datos,
   altura = 460,
+  techo,
 }: {
   datos: Burbuja[];
   altura?: number;
+  /** Techo del eje de variación, en %. Llega por prop y no como constante
+   *  exportada de acá: este módulo es "use client", y un Server Component que
+   *  importara la constante recibiría la referencia de cliente en vez del
+   *  número — `x > undefined` es siempre false y el recorte se contaba como
+   *  cero sin fallar en ningún lado. La página es la dueña del valor. */
+  techo: number;
 }) {
+  const TECHO_VARIACION = techo;
   const theme = useChartTheme();
 
   if (!datos.length) {
@@ -84,20 +92,32 @@ export function BurbujasMarcaChart({
   const colorDeMarca = (marca: string) =>
     theme.series[(indice.get(marca) ?? 0) % theme.series.length];
 
-  const puntos = datos.map((d) => ({
-    value: [indice.get(d.marca) ?? 0, d.variacion * 100, d.unidades],
-    name: d.modelo,
-    marca: d.marca,
-    anterior: d.unidadesAnterior,
-    itemStyle: {
-      color: colorDeMarca(d.marca),
-      // Las propias van opacas y con borde marcado; el resto translúcido,
-      // para que se lean como fondo de comparación y no compitan.
-      opacity: d.esPropia ? 0.9 : 0.55,
-      borderColor: d.esPropia ? theme.text : "transparent",
-      borderWidth: d.esPropia ? 1.5 : 0,
-    },
-  }));
+  // Las burbujas que se pasan del techo NO se descartan: se fijan en el borde
+  // y cambian de círculo a TRIÁNGULO, que apunta hacia afuera. Poner un `max`
+  // en el eje sin esto haría que ECharts directamente no las dibuje — el dato
+  // desaparecería sin que nadie se entere, que es peor que el eje estirado.
+  // El tooltip siempre muestra el valor real, no el recortado.
+  const puntos = datos.map((d) => {
+    const real = d.variacion * 100;
+    const recortada = real > TECHO_VARIACION;
+    return {
+      value: [indice.get(d.marca) ?? 0, Math.min(real, TECHO_VARIACION), d.unidades],
+      name: d.modelo,
+      marca: d.marca,
+      anterior: d.unidadesAnterior,
+      real,
+      recortada,
+      symbol: recortada ? ("triangle" as const) : ("circle" as const),
+      itemStyle: {
+        color: colorDeMarca(d.marca),
+        // Las propias van opacas y con borde marcado; el resto translúcido,
+        // para que se lean como fondo de comparación y no compitan.
+        opacity: d.esPropia ? 0.9 : 0.55,
+        borderColor: d.esPropia ? theme.text : "transparent",
+        borderWidth: d.esPropia ? 1.5 : 0,
+      },
+    };
+  });
 
   const option = {
     animationDuration: 700,
@@ -109,12 +129,15 @@ export function BurbujasMarcaChart({
       formatter: (p: {
         name: string;
         value: number[];
-        data: { marca: string; anterior: number };
+        data: { marca: string; anterior: number; real: number; recortada: boolean };
       }) =>
         `<b>${p.data.marca}</b> · ${p.name}<br/>` +
         `${formatUnidades(p.value[2])} u. ` +
         `<span style="opacity:.7">(antes ${formatUnidades(p.data.anterior)})</span><br/>` +
-        `<b>${p.value[1] >= 0 ? "+" : ""}${p.value[1].toFixed(1)}%</b> vs. año anterior`,
+        `<b>${p.data.real >= 0 ? "+" : ""}${p.data.real.toFixed(1)}%</b> vs. año anterior` +
+        (p.data.recortada
+          ? `<br/><span style="font-size:11px;opacity:.75">Se sale del eje: dibujada en el tope de +${TECHO_VARIACION}%</span>`
+          : ""),
     },
     xAxis: {
       type: "category" as const,
@@ -140,10 +163,14 @@ export function BurbujasMarcaChart({
       type: "value" as const,
       name: "% vs. año anterior",
       nameTextStyle: { color: theme.text, fontSize: 11, align: "left" as const },
+      max: TECHO_VARIACION,
       axisLabel: {
         color: theme.text,
         fontSize: 11,
-        formatter: (v: number) => `${v > 0 ? "+" : ""}${v}%`,
+        // El tope se rotula con ≥ para que se lea que ahí hay valores
+        // mayores, no que el máximo del dato sea ese.
+        formatter: (v: number) =>
+          v === TECHO_VARIACION ? `≥ +${v}%` : `${v > 0 ? "+" : ""}${v}%`,
       },
       splitLine: { lineStyle: { color: theme.grid, type: "dashed" as const } },
     },
