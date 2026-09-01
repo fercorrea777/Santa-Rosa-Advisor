@@ -11,6 +11,7 @@ import {
   getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
   getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
+import { getParametros } from "@/lib/cadam/config";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { serieAAnios } from "@/lib/serie";
@@ -67,12 +68,34 @@ export default async function MercadoPage({
   // Ganadores y perdedores por variacion absoluta de unidades: es lo que
   // mueve el mercado. El % solo puede ser enorme sobre bases minimas.
   const conBase = marcas.filter((m) => m.unidadesAnterior > 0);
-  const ganadores = [...conBase]
-    .sort((a, b) => b.unidades - b.unidadesAnterior - (a.unidades - a.unidadesAnterior))
-    .slice(0, 5);
-  const perdedores = [...conBase]
-    .sort((a, b) => a.unidades - a.unidadesAnterior - (b.unidades - b.unidadesAnterior))
-    .slice(0, 5);
+  // Participación de las marcas del grupo sobre el total del período. Sale de
+  // `esPropia`, que ya viene en cada fila del ranking, así que sigue sola el
+  // toggle matriculación/importación y todos los filtros de la página.
+  const totalU = marcas.reduce((s, m) => s + m.unidades, 0);
+  const propiasU = marcas.filter((m) => m.esPropia).reduce((s, m) => s + m.unidades, 0);
+  // Sin datos en el filtro, totalU es 0: la división daría NaN.
+  const participacionPropias = totalU > 0 ? propiasU / totalU : null;
+  // La lista sale de parametros.json, no escrita a mano: el tooltip que había
+  // en la home enumeraba 10 marcas y se había quedado sin HAVAL.
+  const nombresPropias = getParametros()
+    .marcas_propias.map((m) => m.marca_cadam)
+    .join(", ");
+
+  // Hasta 10 por panel, pero filtrando por signo: con tope 5 todas las marcas
+  // listadas eran perdedoras de verdad; al subir a 10 la lista se rellenaba
+  // con las menos-positivas y aparecían marcas EN ALZA bajo el título
+  // "Principales perdedores" (DODGE +66.7%). Si hay menos de 10 con variación
+  // real, el panel muestra menos filas — mejor corto que falso.
+  const TOPE_PANEL = 10;
+  const delta = (m: (typeof conBase)[number]) => m.unidades - m.unidadesAnterior;
+  const ganadores = conBase
+    .filter((m) => delta(m) > 0)
+    .sort((a, b) => delta(b) - delta(a))
+    .slice(0, TOPE_PANEL);
+  const perdedores = conBase
+    .filter((m) => delta(m) < 0)
+    .sort((a, b) => delta(a) - delta(b))
+    .slice(0, TOPE_PANEL);
 
   const mesMax: Record<number, number> = {};
   for (const a of cobertura.matriculacion.anios) {
@@ -109,7 +132,9 @@ export default async function MercadoPage({
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 5 columnas en lg (era 4): con la tarjeta de marcas propias, un
+          grid de 4 dejaba la quinta sola en una segunda fila. */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Matriculaciones"
           value={formatUnidades(matric.valor)}
@@ -135,6 +160,12 @@ export default async function MercadoPage({
           value={marcas[0]?.marca ?? "—"}
           periodo={marcas[0] ? `${formatUnidades(marcas[0].unidades)} u. · ${formatPct(marcas[0].participacion)}` : undefined}
           tooltip={`Marca con más ${etiquetaFuente} en el período filtrado.`}
+        />
+        <KpiCard
+          label="Participación marcas propias"
+          value={participacionPropias === null ? "—" : formatPct(participacionPropias)}
+          periodo={participacionPropias === null ? undefined : `${formatUnidades(propiasU)} u.`}
+          tooltip={`${nombresPropias}, sobre el total de ${etiquetaFuente} del período filtrado.`}
         />
       </section>
 
