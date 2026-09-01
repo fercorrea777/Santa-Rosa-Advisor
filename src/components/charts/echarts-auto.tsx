@@ -9,6 +9,13 @@ import ReactECharts, { type EChartsReactProps } from "echarts-for-react";
  * el layout asiente (hidratación, carga de fuentes, sidebar), queda con un
  * ancho interno incorrecto y se ve estirado/borroso para siempre. El
  * ResizeObserver corrige eso apenas el contenedor toma su tamaño real.
+ *
+ * NO condicionar el montaje del chart a que el ResizeObserver dispare. Se
+ * probó (para silenciar el "Can't get DOM width or height" que ECharts loguea
+ * al iniciarse a 0x0) y es una trampa: hay entornos donde el RO no entrega la
+ * observación inicial — un Chromium headless que no compone frames, por
+ * ejemplo — y ahí el gráfico no aparece nunca. El RO tiene que ser corrección,
+ * no requisito. El warning es cosmético; el chart se autocorrige.
  */
 export function EchartsAuto(props: EChartsReactProps) {
   const divRef = useRef<HTMLDivElement>(null);
@@ -18,7 +25,7 @@ export function EchartsAuto(props: EChartsReactProps) {
     const el = divRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => {
-      chartRef.current?.getEchartsInstance().resize();
+      chartRef.current?.getEchartsInstance()?.resize();
     });
     ro.observe(el);
     return () => ro.disconnect();
