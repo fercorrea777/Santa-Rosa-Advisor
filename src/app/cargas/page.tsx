@@ -58,6 +58,30 @@ export default function CargasPage() {
             <li>Refrescá la app. No hace falta reiniciar el servidor.</li>
           </ol>
 
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+            <p className="font-medium">Desde OneDrive, en un solo paso</p>
+            <p className="text-muted-foreground">
+              Si los informes llegan a una carpeta de OneDrive sincronizada, el
+              script hace el sync, la ingesta y la copia a{" "}
+              <code className="rounded bg-muted px-1 py-0.5">data/</code> de una:
+            </p>
+            <div className="flex flex-col gap-1 rounded-md bg-muted/50 p-2 font-mono text-xs">
+              <span>./actualizar-desde-onedrive.sh --dry-run</span>
+              <span className="text-muted-foreground"># ver qué haría</span>
+              <span className="mt-1">./actualizar-desde-onedrive.sh</span>
+              <span className="text-muted-foreground"># sync + ingesta + copia</span>
+              <span className="mt-1">CADAM_ORIGEN=&quot;/otra/ruta&quot; ./actualizar-desde-onedrive.sh --sin-sync</span>
+              <span className="text-muted-foreground"># carpeta propia, sin bajar nada</span>
+            </div>
+            <p className="text-muted-foreground">
+              Requiere el cliente instalado (<code className="rounded bg-muted px-1 py-0.5">sudo apt install onedrive</code>)
+              y autenticado una vez. La carpeta compartida por otra persona hay
+              que agregarla antes a tu propio OneDrive con &ldquo;Agregar acceso
+              directo a Mis archivos&rdquo;: el cliente entra con tu cuenta y sin
+              eso no la ve.
+            </p>
+          </div>
+
           <NotaDato>
             Reingestar un período <strong>lo reemplaza</strong>, no lo duplica: es
             seguro correrlo de nuevo. Los archivos de CADAM son acumulativos (el de
