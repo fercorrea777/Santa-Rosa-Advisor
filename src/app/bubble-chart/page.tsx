@@ -3,8 +3,10 @@ import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { BurbujasMarcaChart, type Burbuja } from "@/components/charts/burbujas-marca-chart";
+import { TablaVersiones } from "@/components/dashboard/tabla-versiones";
 import {
-  getCobertura, getOpcionesFiltro, getRankingModelos, type Fuente,
+  getCobertura, getOpcionesFiltro, getRankingModelos, getRankingVersiones,
+  type Fuente,
 } from "@/lib/cadam/mercado";
 import { formatPct } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
@@ -99,6 +101,11 @@ export default async function BubbleChartPage({
   );
   const recortadas = datos.filter((d) => d.variacion * 100 > TECHO_VARIACION);
 
+  // Las versiones ('HILUX D/C 4X4 SRV AUT') solo existen en matriculacion:
+  // la base de importacion no las trae. Con fuente=importacion la tabla no
+  // se muestra en vez de inventar un equivalente.
+  const versiones = fuente === "matriculacion" ? getRankingVersiones(f, 400) : [];
+
   const opciones = getOpcionesFiltro();
 
   // La lista de modelos sale de los datos ya filtrados, no de un catálogo
@@ -187,6 +194,24 @@ export default async function BubbleChartPage({
           <BurbujasMarcaChart datos={datos} techo={TECHO_VARIACION} />
         </CardContent>
       </Card>
+
+      {versiones.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ranking de competidores por versión</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="pb-3 text-xs text-muted-foreground">
+              {versiones.length} versiones · el Δ compara <strong>puntos de
+              share</strong>, no unidades: entre {f.anio - 1} y {f.anio} el
+              mercado cambió de tamaño, así que las unidades de los dos períodos
+              no son comparables entre sí — el share sí. Una versión puede vender
+              más y aun así ceder terreno.
+            </p>
+            <TablaVersiones filas={versiones} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
