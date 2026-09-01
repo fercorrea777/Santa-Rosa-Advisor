@@ -1,0 +1,16 @@
+# Dependencias del pipeline de ingesta CADAM.
+#
+#     pip install --user -r requirements.txt
+#
+# En Ubuntu 24.04+ pip rechaza instalar contra el Python del sistema
+# (PEP 668). Si aparece "externally-managed-environment", agregar
+# --break-system-packages, que es como quedaron instaladas las de acá.
+
+pandas>=2.2
+# Lectura de .xlsx (formato en el que llega la mayoría de los informes).
+openpyxl>=3.1
+# Lectura de .xls. CADAM manda varios informes en el formato viejo y pandas
+# necesita este motor aparte: sin él, cada .xls se omite en silencio y la
+# ingesta termina "bien" con cero filas. La 2.0.1 es el mínimo que pandas
+# acepta para .xls.
+xlrd>=2.0.1
