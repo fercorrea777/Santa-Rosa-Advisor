@@ -110,6 +110,16 @@ export function IconMarketShare(props: IconProps) {
   );
 }
 
+/** Etiqueta de precio: la gama propia posicionada por importe. */
+export function IconGama(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 12.5V5.5A1.5 1.5 0 0 1 5.5 4h7l7.5 7.5a1.5 1.5 0 0 1 0 2.1l-5.9 5.9a1.5 1.5 0 0 1-2.1 0L4 12.5z" />
+      <circle cx="8.5" cy="8.5" r="1.2" />
+    </svg>
+  );
+}
+
 /** Burbujas de distinto tamaño: el gráfico de posicionamiento. */
 export function IconBubble(props: IconProps) {
   return (
