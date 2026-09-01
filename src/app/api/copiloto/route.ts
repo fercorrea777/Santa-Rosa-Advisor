@@ -1,12 +1,27 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaTool } from "@anthropic-ai/sdk/helpers/beta/json-schema";
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/cadam/db";
 import { armarSystemPrompt } from "@/lib/cadam/copiloto-contexto";
-import { getInformesPorSemana, getInformesRecientes } from "@/lib/informes/db";
+import {
+  DESC_CONSULTAR_BASE,
+  DESC_LEER_INFORME,
+  DESC_SEMANA_ARG,
+  DESC_SQL_ARG,
+  ejecutarSql,
+  leerInformes,
+} from "@/lib/copiloto/herramientas";
+import { qwenConfigurado, responderConQwen } from "@/lib/copiloto/qwen";
 
 /**
  * Copiloto de inteligencia comercial.
+ *
+ * Tiene DOS motores, elegidos por el campo "motor" del cuerpo:
+ * - "claude" (default): Anthropic, con las 5 herramientas.
+ * - "qwen": el modelo local del servidor por Ollama. Solo las 2
+ *   herramientas locales (sin internet ni ejecucion de codigo) y bastante
+ *   mas lento. Ver src/lib/copiloto/qwen.ts.
+ * Si el cliente no manda "motor", se usa claude: el comportamiento de
+ * produccion no cambia.
  *
  * Claude responde preguntas en lenguaje natural con dos tipos de fuente:
  * - consultar_base: SQL de solo lectura sobre la MISMA base SQLite que
@@ -31,55 +46,20 @@ export const runtime = "nodejs";
 // La respuesta depende de la base y del historial: nunca cachear.
 export const dynamic = "force-dynamic";
 
-const MAX_FILAS = 200;
 const MAX_TURNOS = 40; // historial maximo que aceptamos del cliente
 // Mas alto que antes (era 8): con mas herramientas disponibles (SQL + web +
 // codigo) una pregunta puede necesitar mas pasos de ida y vuelta.
 const MAX_ITERACIONES = 12;
 
-const PROHIBIDAS =
-  /\b(insert|update|delete|drop|alter|create|replace|attach|detach|pragma|vacuum|reindex|begin|commit|rollback)\b/i;
-
-function ejecutarSql(consulta: string): string {
-  const limpia = consulta.trim().replace(/;+\s*$/, "");
-  if (!/^\s*(select|with)\b/i.test(limpia) || PROHIBIDAS.test(limpia) ||
-      limpia.includes(";")) {
-    return JSON.stringify({
-      error: "Solo se permite una única sentencia SELECT (o WITH ... SELECT).",
-    });
-  }
-  try {
-    const filas = getDb().prepare(limpia).all();
-    const truncado = filas.length > MAX_FILAS;
-    return JSON.stringify({
-      filas: truncado ? filas.slice(0, MAX_FILAS) : filas,
-      total_filas: filas.length,
-      truncado_a: truncado ? MAX_FILAS : undefined,
-      nota: truncado
-        ? "Resultado truncado: agregá con GROUP BY en vez de pedir filas sueltas."
-        : undefined,
-    });
-  } catch (e) {
-    return JSON.stringify({ error: `SQL inválido: ${(e as Error).message}` });
-  }
-}
-
 const consultarBase = betaTool({
   name: "consultar_base",
-  description:
-    "Ejecuta una consulta SQL de SOLO LECTURA (SELECT) sobre la base de " +
-    "matriculaciones e importaciones de CADAM. Usala para toda cifra que " +
-    "vayas a afirmar sobre el mercado interno. Preferí agregaciones (GROUP " +
-    "BY) a filas sueltas; el resultado se trunca a 200 filas.",
+  description: DESC_CONSULTAR_BASE,
   inputSchema: {
     type: "object",
     properties: {
       sql: {
         type: "string",
-        description:
-          "Una única sentencia SELECT (o WITH ... SELECT). Consultá las " +
-          "vistas v_matriculacion, v_importacion, v_importacion_camion, " +
-          "v_importacion_nev y carga_log.",
+        description: DESC_SQL_ARG,
       },
     },
     required: ["sql"],
@@ -88,30 +68,15 @@ const consultarBase = betaTool({
   run: (input) => ejecutarSql((input as { sql: string }).sql),
 });
 
-async function leerInformes(input: { semana?: string }): Promise<string> {
-  try {
-    const filas = input.semana
-      ? await getInformesPorSemana(input.semana)
-      : await getInformesRecientes(12);
-    return JSON.stringify({ informes: filas });
-  } catch (e) {
-    return JSON.stringify({ error: `No se pudo leer informes: ${(e as Error).message}` });
-  }
-}
-
 const leerInformeCompetencia = betaTool({
   name: "leer_informe_competencia",
-  description:
-    "Lee los informes semanales de competencia/mercado ya generados " +
-    "(precios, noticias, redes, tendencias globales y resumen ejecutivo). " +
-    "Solo lectura. Si no pasás 'semana', trae los últimos 12 informes " +
-    "guardados (de cualquier semana/dimensión).",
+  description: DESC_LEER_INFORME,
   inputSchema: {
     type: "object",
     properties: {
       semana: {
         type: "string",
-        description: "Fecha del lunes de la semana a consultar, formato YYYY-MM-DD. Opcional.",
+        description: DESC_SEMANA_ARG,
       },
     },
     additionalProperties: false,
@@ -124,21 +89,20 @@ interface TurnoCliente {
   content: string;
 }
 
-export async function POST(request: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      {
-        error:
-          "Falta ANTHROPIC_API_KEY en .env.local de la app. " +
-          "Agregala y reiniciá el servidor.",
-      },
-      { status: 500 }
-    );
-  }
+/**
+ * Motor de lenguaje a usar.
+ * - "claude": Anthropic. Es el DEFAULT y el unico con web/codigo.
+ * - "qwen":   modelo local del servidor (Ollama). Sin internet, mas lento.
+ * Si el cliente no manda nada, se usa claude: la produccion no cambia.
+ */
+type Motor = "claude" | "qwen";
 
+export async function POST(request: Request) {
   let turnos: TurnoCliente[];
+  let motor: Motor = "claude";
   try {
     const body = await request.json();
+    if (body?.motor === "qwen") motor = "qwen";
     turnos = (body?.mensajes ?? []) as TurnoCliente[];
     if (!Array.isArray(turnos) || !turnos.length) throw new Error("vacío");
     if (
@@ -156,6 +120,57 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Cuerpo inválido: se espera { mensajes: [{role, content}] }." },
       { status: 400 }
+    );
+  }
+
+  // ---- Motor local (Qwen por Ollama) --------------------------------
+  if (motor === "qwen") {
+    if (!qwenConfigurado()) {
+      return NextResponse.json(
+        {
+          error:
+            "El motor local no está configurado: faltan QWEN_BASE_URL y/o " +
+            "QWEN_MODEL en las variables de entorno de la app.",
+        },
+        { status: 500 }
+      );
+    }
+    try {
+      const { respuesta, truncada } = await responderConQwen(
+        armarSystemPrompt(),
+        turnos.slice(-MAX_TURNOS)
+      );
+      return NextResponse.json({
+        respuesta: respuesta || "No obtuve respuesta. Probá reformular la pregunta.",
+        truncada,
+        motor: "qwen",
+      });
+    } catch (e) {
+      const msg = (e as Error).message || "";
+      // AbortError = se agoto QWEN_TIMEOUT_MS. Es el caso frecuente: el
+      // modelo local es lento y puede no llegar a tiempo.
+      const porTiempo = (e as Error).name === "AbortError";
+      return NextResponse.json(
+        {
+          error: porTiempo
+            ? "El modelo local tardó demasiado y se cortó la consulta. " +
+              "Probá una pregunta más corta o usá Claude."
+            : `Error del modelo local: ${msg.slice(0, 300)}`,
+        },
+        { status: 504 }
+      );
+    }
+  }
+
+  // ---- Motor Anthropic (default) ------------------------------------
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json(
+      {
+        error:
+          "Falta ANTHROPIC_API_KEY en .env.local de la app. " +
+          "Agregala y reiniciá el servidor.",
+      },
+      { status: 500 }
     );
   }
 
@@ -205,6 +220,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       respuesta: texto || "No obtuve respuesta. Probá reformular la pregunta.",
       truncada: final.stop_reason === "max_tokens",
+      motor: "claude",
     });
   } catch (e) {
     if (e instanceof Anthropic.AuthenticationError) {

@@ -10,6 +10,19 @@ interface Turno {
   content: string;
 }
 
+type Motor = "claude" | "qwen";
+
+/**
+ * Claude es el default. Qwen corre en el servidor propio: no sale a
+ * internet y es MUCHO mas lento (minutos, no segundos), asi que el
+ * selector lo dice en el subtitulo en vez de dejar que el usuario lo
+ * descubra esperando.
+ */
+const MOTORES: { id: Motor; nombre: string; detalle: string }[] = [
+  { id: "claude", nombre: "Claude", detalle: "rápido · con web" },
+  { id: "qwen", nombre: "Qwen local", detalle: "lento · sin web" },
+];
+
 /**
  * Chat del copiloto. El historial vive en el cliente (no se persiste):
  * cada pregunta manda la conversacion completa a /api/copiloto, que
@@ -20,6 +33,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
   const [texto, setTexto] = React.useState("");
   const [cargando, setCargando] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [motor, setMotor] = React.useState<Motor>("claude");
   const finRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -38,7 +52,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
       const res = await fetch("/api/copiloto", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensajes: nuevos }),
+        body: JSON.stringify({ mensajes: nuevos, motor }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -51,7 +65,11 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
         setError("La respuesta se cortó por longitud. Pedí el detalle en partes.");
       }
     } catch {
-      setError("No se pudo contactar al servidor. ¿Sigue corriendo la app?");
+      setError(
+        motor === "qwen"
+          ? "Se cortó la conexión con el modelo local. Suele ser por demora: probá de nuevo o usá Claude."
+          : "No se pudo contactar al servidor. ¿Sigue corriendo la app?"
+      );
     } finally {
       setCargando(false);
     }
@@ -85,6 +103,8 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
           cargando={cargando}
           hero
         />
+
+        <SelectorMotor motor={motor} setMotor={setMotor} cargando={cargando} />
 
         <div className="flex max-w-2xl flex-wrap justify-center gap-2">
           {sugerencias.map((s) => (
@@ -124,7 +144,9 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
                 <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]" />
                 <span className="size-1.5 animate-bounce rounded-full bg-current" />
               </span>
-              Consultando
+              {motor === "qwen"
+                ? "Consultando el modelo local (puede tardar varios minutos)"
+                : "Consultando"}
             </div>
           )}
           <div ref={finRef} />
@@ -136,6 +158,10 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
           {error}
         </p>
       )}
+
+      <div className="flex justify-end">
+        <SelectorMotor motor={motor} setMotor={setMotor} cargando={cargando} />
+      </div>
 
       <InputBar
         texto={texto}
@@ -214,6 +240,46 @@ function InputBar({
         Enviar
       </Button>
     </form>
+  );
+}
+
+/** Selector de motor: dos pastillas, sin dropdown (son solo dos). */
+function SelectorMotor({
+  motor,
+  setMotor,
+  cargando,
+}: {
+  motor: Motor;
+  setMotor: (m: Motor) => void;
+  cargando: boolean;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border bg-card p-1 shadow-[var(--card-shadow)]">
+      {MOTORES.map((m) => {
+        const activo = m.id === motor;
+        return (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setMotor(m.id)}
+            disabled={cargando}
+            aria-pressed={activo}
+            title={`${m.nombre} — ${m.detalle}`}
+            className={cn(
+              "rounded-full px-3 py-1 text-xs transition-colors disabled:opacity-50",
+              activo
+                ? "bg-primary/12 font-semibold text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {m.nombre}
+            <span className="ml-1.5 hidden font-normal opacity-60 sm:inline">
+              {m.detalle}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
