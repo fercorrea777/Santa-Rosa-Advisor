@@ -16,7 +16,12 @@ import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/period
  *  ≥20 el rango cae a ~555% conservando el 87% del volumen. */
 const BASE_MINIMA = 20;
 
-export default async function PosicionamientoPage({
+/** Marcas por volumen que se grafican. Sin tope entraban ~40 columnas en
+ *  860px: etiquetas ilegibles y una cola de marcas con una burbuja suelta
+ *  cada una. Las propias entran SIEMPRE, aunque no lleguen al tope. */
+const TOPE_MARCAS = 15;
+
+export default async function BubbleChartPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
@@ -47,7 +52,26 @@ export default async function PosicionamientoPage({
   const conBase = modelos.filter(
     (m) => m.variacion !== null && m.unidadesAnterior >= BASE_MINIMA
   );
-  const datos: Burbuja[] = conBase.map((m) => ({
+
+  // Top de marcas por volumen dentro de lo comparable, MÁS las propias
+  // siempre. No es un capricho: con los datos de Ene–Jun 2026, MITSUBISHI
+  // queda 17ª y RENAULT más abajo — un top 15 estricto dejaba el tablero de
+  // Santa Rosa sin sus propias marcas.
+  const volPorMarca = new Map<string, number>();
+  for (const m of conBase) {
+    volPorMarca.set(m.marca, (volPorMarca.get(m.marca) ?? 0) + m.unidades);
+  }
+  const topMarcas = [...volPorMarca.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, TOPE_MARCAS)
+    .map(([marca]) => marca);
+  const marcasVisibles = new Set([
+    ...topMarcas,
+    ...conBase.filter((m) => m.esPropia).map((m) => m.marca),
+  ]);
+  const visibles = conBase.filter((m) => marcasVisibles.has(m.marca));
+
+  const datos: Burbuja[] = visibles.map((m) => ({
     marca: m.marca,
     modelo: m.modelo ?? m.marca,
     unidades: m.unidades,
@@ -57,16 +81,20 @@ export default async function PosicionamientoPage({
   }));
 
   const volTotal = modelos.reduce((s, m) => s + m.unidades, 0);
-  const volGraficado = conBase.reduce((s, m) => s + m.unidades, 0);
+  const volGraficado = visibles.reduce((s, m) => s + m.unidades, 0);
   const entrantes = modelos.filter((m) => m.variacion === null).length;
   const bajoBase = modelos.length - conBase.length - entrantes;
+  const fueraDelTope = conBase.length - visibles.length;
+  const propiasForzadas = [...marcasVisibles].filter(
+    (m) => !topMarcas.includes(m)
+  );
 
   const opciones = getOpcionesFiltro();
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        titulo="Posicionamiento"
+        titulo="Bubble chart"
         descripcion={`Cada burbuja es un modelo, agrupado en la columna de su marca · ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
         fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
       />
@@ -96,11 +124,17 @@ export default async function PosicionamientoPage({
         El eje vertical es la <strong>variación %</strong>, no el precio: la base
         de CADAM trae unidades, no importes. Como el porcentaje se dispara sobre
         bases chicas, sólo entran los modelos con al menos{" "}
-        <strong>{BASE_MINIMA} unidades</strong> en {f.anio - 1}. Quedan{" "}
-        <strong>{conBase.length}</strong> de {modelos.length} modelos, que son el{" "}
+        <strong>{BASE_MINIMA} unidades</strong> en {f.anio - 1}, y sólo las{" "}
+        <strong>{TOPE_MARCAS} marcas de mayor volumen</strong>
+        {propiasForzadas.length > 0 && (
+          <> más las propias ({propiasForzadas.join(", ")}), que entran siempre</>
+        )}
+        . Se grafican <strong>{visibles.length}</strong> de {modelos.length}{" "}
+        modelos, el{" "}
         <strong>{volTotal ? formatPct(volGraficado / volTotal) : "—"}</strong> del
         volumen del período. Fuera quedan {entrantes} modelos nuevos (sin año
-        anterior contra qué comparar) y {bajoBase} por debajo de la base mínima.
+        anterior contra qué comparar), {bajoBase} por debajo de la base mínima y{" "}
+        {fueraDelTope} de marcas que no llegan al tope.
       </NotaDato>
 
       <Card>

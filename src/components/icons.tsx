@@ -111,7 +111,7 @@ export function IconMarketShare(props: IconProps) {
 }
 
 /** Burbujas de distinto tamaño: el gráfico de posicionamiento. */
-export function IconPosicionamiento(props: IconProps) {
+export function IconBubble(props: IconProps) {
   return (
     <svg {...base(props)}>
       <circle cx="8" cy="14" r="4" />

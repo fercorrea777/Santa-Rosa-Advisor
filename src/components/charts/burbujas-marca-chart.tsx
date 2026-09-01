@@ -75,16 +75,27 @@ export function BurbujasMarcaChart({
   const radio = (u: number) =>
     MIN_PX + (MAX_PX - MIN_PX) * Math.sqrt(u / maxU);
 
+  // Un color por marca, de la paleta categórica de la app (--chart-1..8, la
+  // que ya está validada para daltonismo). Son más marcas que colores, así
+  // que la paleta cicla: es aceptable porque el color acá NO es el canal de
+  // identidad — cada marca tiene su propia columna y su etiqueta en el eje.
+  // El color sirve para seguir un grupo de burbujas de un vistazo, no para
+  // decir cuál es cuál.
+  const colorDeMarca = (marca: string) =>
+    theme.series[(indice.get(marca) ?? 0) % theme.series.length];
+
   const puntos = datos.map((d) => ({
     value: [indice.get(d.marca) ?? 0, d.variacion * 100, d.unidades],
     name: d.modelo,
     marca: d.marca,
     anterior: d.unidadesAnterior,
     itemStyle: {
-      color: d.esPropia ? theme.primary : theme.axis,
-      opacity: d.esPropia ? 0.75 : 0.4,
-      borderColor: d.esPropia ? theme.primary : theme.axis,
-      borderWidth: 1,
+      color: colorDeMarca(d.marca),
+      // Las propias van opacas y con borde marcado; el resto translúcido,
+      // para que se lean como fondo de comparación y no compitan.
+      opacity: d.esPropia ? 0.9 : 0.55,
+      borderColor: d.esPropia ? theme.text : "transparent",
+      borderWidth: d.esPropia ? 1.5 : 0,
     },
   }));
 
@@ -113,9 +124,13 @@ export function BurbujasMarcaChart({
         fontSize: 10,
         rotate: 55,
         interval: 0,
-        // La marca propia va en el acento, para encontrarla de un vistazo
-        // entre 30 columnas.
-        formatter: (m: string) => m,
+        // Las marcas propias van en negrita y en el acento: con la paleta
+        // ciclando entre las burbujas, la etiqueta es lo que las hace
+        // encontrables de un vistazo.
+        formatter: (m: string) => (propiaPorMarca.get(m) ? `{propia|${m}}` : m),
+        rich: {
+          propia: { color: theme.primary, fontWeight: "bold" as const, fontSize: 10 },
+        },
       },
       axisLine: { lineStyle: { color: theme.grid } },
       axisTick: { show: false },
