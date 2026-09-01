@@ -141,6 +141,29 @@ CREATE TABLE IF NOT EXISTS importacion_camion (
     PRIMARY KEY (snapshot, anio, mes, marca, modelo, tipo)
 );
 
+-- Matriculaciones por COMBUSTIBLE. Otra taxonomia que matriculacion.tecnologia,
+-- que clasifica el tren motriz: un hibrido nafta es 'Nafta' aca y 'HEV' alla.
+CREATE TABLE IF NOT EXISTS matriculacion_movilidad (
+    snapshot  TEXT NOT NULL,
+    anio      INTEGER NOT NULL,
+    mes       INTEGER NOT NULL,
+    marca     TEXT NOT NULL,
+    modelo    TEXT NOT NULL,
+    movilidad TEXT NOT NULL,
+    unidades  INTEGER NOT NULL,
+    PRIMARY KEY (snapshot, anio, mes, marca, modelo, movilidad)
+);
+
+-- Matriculaciones por localidad: el unico corte geografico del pipeline.
+CREATE TABLE IF NOT EXISTS matriculacion_localidad (
+    snapshot  TEXT NOT NULL,
+    anio      INTEGER NOT NULL,
+    mes       INTEGER NOT NULL,
+    localidad TEXT NOT NULL,
+    unidades  INTEGER NOT NULL,
+    PRIMARY KEY (snapshot, anio, mes, localidad)
+);
+
 -- ---------- maestras editables (sobreviven a toda reingesta) ----------
 
 CREATE TABLE IF NOT EXISTS correccion_segmento (

@@ -324,6 +324,60 @@ def parse_camion(df, log, corr) -> list[tuple]:
     return _a_tuplas(out, claves + ["unidades"])
 
 
+def parse_movilidad(df, log, corr) -> list[tuple]:
+    """Matriculaciones por COMBUSTIBLE (nafta/gasoil/flex/hibrido/electrico).
+
+    Es otra taxonomia que la columna `tecnologia` de matriculacion, que
+    clasifica el TREN MOTRIZ (ICE/MHEV/HEV/PHEV/REEV/EV). Un hibrido nafta
+    es 'Nafta' aca y 'HEV' alla: se complementan, no se pisan.
+    """
+    fecha = _fechas(df, log, "Fecha")
+    out = pd.DataFrame({
+        "anio": fecha.dt.year,
+        "mes": fecha.dt.month,
+        "marca": _columna(df, "Marca").map(N.marca),
+        "modelo": _columna(df, "Modelo").map(N.norm_txt),
+        # norm_txt recorta: el origen trae 'Nafta' y 'Nafta          ' como
+        # valores distintos (216 filas del archivo de agosto 2026), y sin
+        # esto quedarian como dos combustibles separados.
+        "movilidad": _columna(df, "Movilidad").map(N.norm_txt),
+        "unidades": _unidades(df, log, "Matriculaciones"),
+    })
+    out = out[fecha.notna()]
+    out["marca"] = _aplicar_correcciones(out["marca"], corr.get("marca", {}))
+    out = out[out["unidades"] != 0]
+    out = _unificar_modelos(out, log, corr)
+    claves = ["anio", "mes", "marca", "modelo", "movilidad"]
+    out = _agrupar(out, claves, log, "movilidad")
+    return _a_tuplas(out, claves + ["unidades"])
+
+
+def parse_localidad(df, log, corr) -> list[tuple]:
+    """Matriculaciones por localidad. La unica fuente con corte geografico."""
+    fecha = _fechas(df, log, "Fecha")
+    out = pd.DataFrame({
+        "anio": fecha.dt.year,
+        "mes": fecha.dt.month,
+        "localidad": _columna(df, "Localidades").map(N.norm_txt),
+        "unidades": _unidades(df, log, "Matriculacion"),
+    })
+    # Sin fecha no hay periodo al que atribuir la unidad. Ademas es lo que
+    # filtra la fila de total que viene pegada en el archivo: una sola,
+    # sin fecha, con 'Localidades' (el nombre de la columna) como valor y
+    # 45.658 unidades — no coincide con el total de ningun año, es basura
+    # de otra planilla. Sumarla inflaria el pais un 30%.
+    antes = len(out)
+    out = out[fecha.notna() & (out["localidad"] != "LOCALIDADES")]
+    if antes - len(out):
+        log.add("aviso", "fila_sin_fecha",
+                "Filas sin fecha o de total descartadas (incluye la fila "
+                "'Localidades' que trae el archivo)", antes - len(out))
+    out = out[out["unidades"] != 0]
+    claves = ["anio", "mes", "localidad"]
+    out = _agrupar(out, claves, log, "localidad")
+    return _a_tuplas(out, claves + ["unidades"])
+
+
 PARSERS = {
     "matriculacion": (parse_matriculacion, "matriculacion",
                       ["anio", "mes", "marca", "modelo", "segmento",
@@ -336,4 +390,8 @@ PARSERS = {
             ["anio", "mes", "marca", "modelo", "tecnologia", "unidades"]),
     "camion": (parse_camion, "importacion_camion",
                ["anio", "mes", "marca", "modelo", "tipo", "unidades"]),
+    "movilidad": (parse_movilidad, "matriculacion_movilidad",
+                  ["anio", "mes", "marca", "modelo", "movilidad", "unidades"]),
+    "localidad": (parse_localidad, "matriculacion_localidad",
+                  ["anio", "mes", "localidad", "unidades"]),
 }

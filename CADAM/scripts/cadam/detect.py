@@ -93,6 +93,20 @@ FIRMAS = [
         "req": {"MARCA", "MODELO", "TIPO", "FECHA", "VALOR"},
         "desc": "importacion de camiones y omnibus",
     },
+    {
+        # Ojo con la firma de 'nev', que comparte FECHA/MOVILIDAD/MARCA/MODELO:
+        # se distinguen por la columna de cantidad (CANTIDAD vs
+        # MATRICULACIONES). Como la deteccion exige la firma COMPLETA y ante
+        # empate gana la mas especifica, no se pisan.
+        "tipo": "movilidad",
+        "req": {"FECHA", "MARCA", "MODELO", "MOVILIDAD", "MATRICULACIONES"},
+        "desc": "matriculaciones por combustible (nafta/gasoil/flex/hibrido/electrico)",
+    },
+    {
+        "tipo": "localidad",
+        "req": {"FECHA", "LOCALIDADES", "MATRICULACION"},
+        "desc": "matriculaciones por localidad",
+    },
 ]
 
 
