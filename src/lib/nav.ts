@@ -23,9 +23,12 @@ export interface NavGroup {
 // (panorama → análisis → inteligencia → operación del dato).
 export const NAV_GROUPS: NavGroup[] = [
   {
+    // "Inicio" salió del menú (2026-09): repetía lo que ya muestra "Resumen
+    // del mercado". La ruta "/" sigue viva — es donde cae quien entra al
+    // dominio pelado y adonde lleva el logo — pero no ocupa un renglón del
+    // menú al lado de su propio duplicado.
     titulo: "Panorama",
     items: [
-      { href: "/", label: "Inicio", icono: "inicio", implementado: true },
       { href: "/mercado", label: "Resumen del mercado", icono: "mercado", implementado: true },
     ],
   },

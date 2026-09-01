@@ -10,6 +10,19 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/**/*": ["./data/**"],
   },
+  // "/" redirige a "/mercado" (2026-09). Las dos eran panoramas del mismo
+  // dato y "Resumen del mercado" es la más completa: trae el toggle
+  // matriculación/importación, las dos evoluciones y los donuts de segmento
+  // y tecnología. Al sacar "Inicio" del menú, "/" quedaba alcanzable solo
+  // por el logo y sin marcar ningún ítem como activo.
+  //
+  // permanent: false (307) a propósito: un 308 se cachea en el navegador y
+  // volver atrás obliga a limpiar caché en cada máquina. src/app/page.tsx
+  // queda en el repo — de ahí salen las 4 tarjetas que todavía no están en
+  // /mercado si se quieren portar.
+  async redirects() {
+    return [{ source: "/", destination: "/mercado", permanent: false }];
+  },
 };
 
 export default nextConfig;
