@@ -265,8 +265,13 @@ function SelectorMotor({
             disabled={cargando}
             aria-pressed={activo}
             title={`${m.nombre} — ${m.detalle}`}
+            // pointer-coarse:min-h-11 — mismo minimo tactil de 44px que el
+            // resto de la app (ver la regla de .input-base en globals.css).
+            // Estas pastillas son chicas a proposito en desktop, pero con el
+            // dedo quedan por debajo del minimo si no se las sube.
             className={cn(
               "rounded-full px-3 py-1 text-xs transition-colors disabled:opacity-50",
+              "pointer-coarse:min-h-11 pointer-coarse:px-4 pointer-coarse:text-sm",
               activo
                 ? "bg-primary/12 font-semibold text-primary"
                 : "text-muted-foreground hover:text-foreground"
