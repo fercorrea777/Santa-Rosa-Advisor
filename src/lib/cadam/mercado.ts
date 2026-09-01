@@ -282,22 +282,55 @@ export interface FilaRanking {
   /** null = la marca no existia en el periodo anterior (entrante). */
   variacion: number | null;
   unidadesAnterior: number;
+  /** Share del periodo anterior, sobre el total de ESE periodo. 0 si no
+   *  habia base. */
+  participacionAnterior: number;
+  /** Diferencia de share en PUNTOS PORCENTUALES (participacion -
+   *  participacionAnterior), no en porcentaje de variacion. Es la unica
+   *  medida comparable entre filas cuando el mercado entero crecio: las
+   *  unidades de dos periodos con mercados de distinto tamaño no se pueden
+   *  comparar, el share si. null si no hay periodo anterior contra que
+   *  medir. */
+  deltaShare: number | null;
   posicionAnterior: number | null;
   cambioPosicion: number | null;
   esPropia: boolean;
+}
+
+/** Unidades totales del período, sin recortes. Es el denominador honesto
+ *  del share: las consultas de ranking traen LIMIT y su suma no es el
+ *  mercado. */
+function totalUnidades(fuente: Fuente, f: Filtro): number {
+  const w = where(fuente, f);
+  const r = getDb()
+    .prepare(`SELECT SUM(unidades) t FROM ${vista(fuente)} WHERE ${w.sql}`)
+    .get(...w.args) as { t: number | null };
+  return r?.t ?? 0;
 }
 
 function armarRanking(
   filasActual: { clave: string; marca: string; modelo?: string; segmento?: string; unidades: number }[],
   filasAnterior: Map<string, number>,
   ordenAnterior: Map<string, number>,
-  baseDisponible: boolean
+  baseDisponible: boolean,
+  /** Totales REALES del período, no la suma de las filas que se devuelven.
+   *  Los rankings por modelo/version vienen con LIMIT: sumar solo el top-N
+   *  daba un denominador chico y todos los shares salian inflados. Peor
+   *  todavia, la consulta del periodo anterior NO lleva limite, asi que el
+   *  share de hoy se calculaba contra un recorte y el de ayer contra el
+   *  total — dos numeros que no se pueden restar. De ahi que los totales
+   *  entren por parametro. */
+  totalActualReal: number,
+  totalAnteriorReal: number
 ): FilaRanking[] {
   const propias = getMarcasPropiasSet();
-  const totalActual = filasActual.reduce((s, r) => s + r.unidades, 0) || 1;
+  const totalActual = totalActualReal || 1;
+  const totalAnterior = totalAnteriorReal || 1;
   return filasActual.map((r, i) => {
     const antes = filasAnterior.get(r.clave) ?? 0;
     const posAnt = ordenAnterior.get(r.clave) ?? null;
+    const partActual = r.unidades / totalActual;
+    const partAnterior = baseDisponible ? antes / totalAnterior : 0;
     return {
       posicion: i + 1,
       clave: r.clave,
@@ -305,9 +338,11 @@ function armarRanking(
       modelo: r.modelo,
       segmento: r.segmento,
       unidades: r.unidades,
-      participacion: r.unidades / totalActual,
+      participacion: partActual,
       variacion: baseDisponible && antes ? variacion(r.unidades, antes) : null,
       unidadesAnterior: antes,
+      participacionAnterior: partAnterior,
+      deltaShare: baseDisponible ? partActual - partAnterior : null,
       posicionAnterior: baseDisponible ? posAnt : null,
       cambioPosicion: baseDisponible && posAnt ? posAnt - (i + 1) : null,
       esPropia: propias.has(r.marca),
@@ -337,7 +372,9 @@ export function getRankingMarcas(fuente: Fuente, f: Filtro): FilaRanking[] {
     actual,
     new Map(previo.map((r) => [r.clave, r.unidades])),
     new Map(previo.map((r, i) => [r.clave, i + 1])),
-    hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta)
+    hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta),
+    totalUnidades(fuente, f),
+    totalUnidades(fuente, { ...f, anio: f.anio - 1 })
   );
 }
 
@@ -386,7 +423,9 @@ function rankingPorColumna(
     actual,
     new Map(previo.map((r) => [r.clave, r.unidades])),
     new Map(previo.map((r, i) => [r.clave, i + 1])),
-    hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta)
+    hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta),
+    totalUnidades(fuente, f),
+    totalUnidades(fuente, { ...f, anio: f.anio - 1 })
   );
 }
 
