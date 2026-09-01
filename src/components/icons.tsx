@@ -110,6 +110,17 @@ export function IconMarketShare(props: IconProps) {
   );
 }
 
+/** Burbujas de distinto tamaño: el gráfico de posicionamiento. */
+export function IconPosicionamiento(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="8" cy="14" r="4" />
+      <circle cx="17" cy="8" r="2.5" />
+      <circle cx="17.5" cy="16.5" r="1.5" />
+    </svg>
+  );
+}
+
 export function IconBrecha(props: IconProps) {
   return (
     <svg {...base(props)}>

@@ -7,8 +7,8 @@ import { NAV_GROUPS, type IconoNav } from "@/lib/nav";
 import { Badge } from "@/components/ui/badge";
 import {
   IconInicio, IconMercado, IconEvolucion, IconRankings, IconSegmentos,
-  IconCombustibles, IconMarketShare, IconBrecha, IconInteligencia,
-  IconCopiloto, IconCargas, IconCalidad, IconConfiguracion,
+  IconCombustibles, IconMarketShare, IconBrecha, IconPosicionamiento,
+  IconInteligencia, IconCopiloto, IconCargas, IconCalidad, IconConfiguracion,
 } from "@/components/icons";
 
 const ICONOS: Record<IconoNav, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -20,6 +20,7 @@ const ICONOS: Record<IconoNav, React.ComponentType<{ size?: number; className?: 
   combustibles: IconCombustibles,
   "market-share": IconMarketShare,
   brecha: IconBrecha,
+  posicionamiento: IconPosicionamiento,
   inteligencia: IconInteligencia,
   copiloto: IconCopiloto,
   cargas: IconCargas,

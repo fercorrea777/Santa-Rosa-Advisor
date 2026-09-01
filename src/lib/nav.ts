@@ -1,8 +1,8 @@
 /** Id del ícono de línea propio (ver src/components/icons.tsx). */
 export type IconoNav =
   | "inicio" | "mercado" | "evolucion" | "rankings" | "segmentos"
-  | "combustibles" | "market-share" | "brecha" | "inteligencia"
-  | "copiloto" | "cargas" | "calidad" | "configuracion";
+  | "combustibles" | "market-share" | "brecha" | "posicionamiento"
+  | "inteligencia" | "copiloto" | "cargas" | "calidad" | "configuracion";
 
 export interface NavItem {
   href: string;
@@ -41,6 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/combustibles", label: "Combustibles y tecnologías", icono: "combustibles", implementado: true },
       { href: "/market-share", label: "Market Share", icono: "market-share", implementado: true },
       { href: "/brecha", label: "Import. vs matric.", icono: "brecha", implementado: true },
+      { href: "/posicionamiento", label: "Posicionamiento", icono: "posicionamiento", implementado: true },
     ],
   },
   {
