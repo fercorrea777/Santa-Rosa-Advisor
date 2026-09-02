@@ -44,13 +44,23 @@ import { getPool } from "./db";
 export interface VentaPropia {
   periodo: string; // YYYY-MM
   marca: string;
+  /** Familia ("X70"). */
   modelo: string;
+  /** Detalle ("X70 GLS - 8AT"). Cars usa los campos Modelo/Version AL REVES
+   *  en sus dos endpoints; el pusher los normaliza para que `modelo` sea
+   *  siempre la familia y `version` siempre el detalle, y las dos tablas se
+   *  puedan cruzar. */
+  version: string;
   unidades: number;
 }
 
 export interface StockPropio {
   marca: string;
+  /** Familia ("X70"). */
   modelo: string;
+  /** Detalle ("X70 GLS - 8AT"). Es el nivel al que Cars pone el precio: un
+   *  X70 GLS y un X70 GLX no valen lo mismo. */
+  version: string;
   estado: string;
   unidades: number;
   reservadas: number;
@@ -70,19 +80,21 @@ export async function crearTablasPropias(): Promise<void> {
       periodo  text not null,
       marca    text not null,
       modelo   text not null,
+      version  text not null default '',
       unidades integer not null,
-      primary key (periodo, marca, modelo)
+      primary key (periodo, marca, modelo, version)
     );
   `);
   await pool.query(`
     create table if not exists stock_propio (
       marca      text not null,
       modelo     text not null,
+      version    text not null default '',
       estado     text not null,
       unidades   integer not null,
       reservadas integer not null,
       precio_usd integer,
-      primary key (marca, modelo, estado)
+      primary key (marca, modelo, version, estado)
     );
   `);
   await pool.query(`
@@ -92,6 +104,40 @@ export async function crearTablasPropias(): Promise<void> {
       detalle        jsonb not null default '{}'::jsonb
     );
   `);
+
+  // Migracion de la primera version, que no tenia `version` y por lo tanto
+  // no podia distinguir un X70 GLS de un X70 GLX — ni cruzar las dos tablas.
+  // `create table if not exists` no agrega columnas a una tabla que ya
+  // existe, asi que hay que decirlo aparte. Es idempotente: en una base
+  // nueva las columnas ya vienen y los ALTER no hacen nada.
+  //
+  // La clave primaria tambien cambia (se le suma `version`): sin eso, dos
+  // versiones del mismo modelo chocan y el insert falla. Se borra y se
+  // recrea en vez de intentar alterarla, que Postgres no permite.
+  for (const [tabla, clave] of [
+    ["venta_propia", "periodo, marca, modelo, version"],
+    ["stock_propio", "marca, modelo, version, estado"],
+  ] as const) {
+    await pool.query(
+      `alter table ${tabla} add column if not exists version text not null default ''`
+    );
+    const { rows } = await pool.query<{ cols: string }>(
+      `select string_agg(a.attname, ', ' order by k.ord) cols
+       from pg_constraint c
+       join lateral unnest(c.conkey) with ordinality k(attnum, ord) on true
+       join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
+       where c.conrelid = $1::regclass and c.contype = 'p'`,
+      [tabla]
+    );
+    if (rows[0]?.cols !== clave) {
+      await pool.query(`alter table ${tabla} drop constraint if exists ${tabla}_pkey`);
+      // El corte se reemplaza entero en cada push, asi que vaciar acá no
+      // pierde nada: lo que si perderia es dejar filas viejas sin `version`
+      // duplicando la clave nueva.
+      await pool.query(`delete from ${tabla}`);
+      await pool.query(`alter table ${tabla} add primary key (${clave})`);
+    }
+  }
 }
 
 /**
@@ -115,18 +161,18 @@ export async function guardarDatosPropios(params: {
     await cliente.query("delete from venta_propia");
     for (const v of params.ventas) {
       await cliente.query(
-        `insert into venta_propia (periodo, marca, modelo, unidades)
-         values ($1, $2, $3, $4)`,
-        [v.periodo, v.marca, v.modelo, v.unidades]
+        `insert into venta_propia (periodo, marca, modelo, version, unidades)
+         values ($1, $2, $3, $4, $5)`,
+        [v.periodo, v.marca, v.modelo, v.version, v.unidades]
       );
     }
 
     await cliente.query("delete from stock_propio");
     for (const s of params.stock) {
       await cliente.query(
-        `insert into stock_propio (marca, modelo, estado, unidades, reservadas, precio_usd)
-         values ($1, $2, $3, $4, $5, $6)`,
-        [s.marca, s.modelo, s.estado, s.unidades, s.reservadas, s.precio_usd]
+        `insert into stock_propio (marca, modelo, version, estado, unidades, reservadas, precio_usd)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [s.marca, s.modelo, s.version, s.estado, s.unidades, s.reservadas, s.precio_usd]
       );
     }
 
@@ -149,7 +195,7 @@ export async function guardarDatosPropios(params: {
 
 export async function getVentasPropias(): Promise<VentaPropia[]> {
   const { rows } = await getPool().query<VentaPropia>(
-    `select periodo, marca, modelo, unidades from venta_propia
+    `select periodo, marca, modelo, version, unidades from venta_propia
      order by periodo desc, unidades desc`
   );
   return rows;
@@ -157,7 +203,7 @@ export async function getVentasPropias(): Promise<VentaPropia[]> {
 
 export async function getStockPropio(): Promise<StockPropio[]> {
   const { rows } = await getPool().query<StockPropio>(
-    `select marca, modelo, estado, unidades, reservadas, precio_usd
+    `select marca, modelo, version, estado, unidades, reservadas, precio_usd
      from stock_propio order by unidades desc`
   );
   return rows;
@@ -180,4 +226,50 @@ export async function hayDatosPropios(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export interface BurbujaVersion {
+  marca: string;
+  version: string;
+  /** Unidades FACTURADAS de esa versión en la ventana pedida. Es lo que da
+   *  el tamaño de la burbuja: el stock dice lo que tenemos, la facturación
+   *  dice lo que el mercado se lleva a ese precio. */
+  unidades: number;
+  precio: number;
+}
+
+/**
+ * Una fila por versión con precio de lista y unidades facturadas, para el
+ * gráfico de posicionamiento.
+ *
+ * El precio sale del stock (es el único lugar donde Cars lo trae) y las
+ * unidades de la facturación. Se cruzan por (marca, version) — que es
+ * exactamente lo que la normalización de campos del pusher hizo posible.
+ *
+ * Solo entran las versiones CON precio: una burbuja sin eje Y no se puede
+ * dibujar, y ponerla en cero mentiría.
+ */
+export async function getBurbujasVersion(
+  desde: string,
+  hasta: string
+): Promise<BurbujaVersion[]> {
+  const { rows } = await getPool().query<BurbujaVersion>(
+    `select s.marca,
+            s.version,
+            coalesce(v.unidades, 0)::int as unidades,
+            max(s.precio_usd)::int as precio
+     from (select marca, version, max(precio_usd) precio_usd
+           from stock_propio
+           where precio_usd is not null
+           group by marca, version) s
+     left join (select marca, version, sum(unidades) unidades
+                from venta_propia
+                where periodo between $1 and $2
+                group by marca, version) v
+       on v.marca = s.marca and v.version = s.version
+     group by s.marca, s.version, v.unidades
+     order by 4 desc`,
+    [desde, hasta]
+  );
+  return rows.filter((r) => r.precio > 0);
 }

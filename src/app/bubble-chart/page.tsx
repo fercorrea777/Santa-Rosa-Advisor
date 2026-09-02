@@ -3,12 +3,15 @@ import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { BurbujasMarcaChart, type Burbuja } from "@/components/charts/burbujas-marca-chart";
+import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
 import { TablaVersiones } from "@/components/dashboard/tabla-versiones";
 import {
   getCobertura, getOpcionesFiltro, getRankingModelos, getRankingVersiones,
   type Fuente,
 } from "@/lib/cadam/mercado";
-import { formatPct } from "@/lib/format";
+import { getBurbujasVersion } from "@/lib/informes/propios";
+import { getMarcasPropiasSet } from "@/lib/cadam/config";
+import { formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 /** Unidades mínimas del período anterior para que un modelo entre al
@@ -116,6 +119,25 @@ export default async function BubbleChartPage({
     ...new Set(modelos.map((m) => m.modelo).filter((m): m is string => !!m)),
   ];
 
+  // Posicionamiento por VERSION contra precio. El precio no existe en CADAM:
+  // sale del API de Cars, que solo tiene la gama propia. Por eso este corte
+  // es de nuestras marcas y no del mercado — no hay precios de competencia a
+  // nivel version en ninguna fuente que tengamos.
+  const dd = (m: number) => String(m).padStart(2, "0");
+  const burbujasPrecio = await getBurbujasVersion(
+    `${f.anio}-${dd(f.mesDesde)}`,
+    `${f.anio}-${dd(f.mesHasta)}`
+  ).catch(() => []);
+  const propiasSet = getMarcasPropiasSet();
+  // Las del grupo primero, como en la referencia: la columna de la izquierda
+  // es donde arranca la lectura, y ahi tienen que estar las nuestras.
+  const ordenPrecio = [...burbujasPrecio].sort((a, b) => {
+    const pa = propiasSet.has(a.marca) ? 0 : 1;
+    const pb = propiasSet.has(b.marca) ? 0 : 1;
+    return pa - pb || b.unidades - a.unidades;
+  });
+  const unidadesBurbujas = ordenPrecio.reduce((s, b) => s + b.unidades, 0);
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -194,6 +216,43 @@ export default async function BubbleChartPage({
           <BurbujasMarcaChart datos={datos} techo={TECHO_VARIACION} />
         </CardContent>
       </Card>
+
+      {ordenPrecio.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bubble chart por marca y versión</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Una burbuja por versión · eje Y = precio de lista · tamaño =
+              unidades · marcas del grupo primero
+            </p>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <BurbujasPrecioChart
+              datos={ordenPrecio.map((b) => ({
+                marca: b.marca,
+                modelo: b.version,
+                unidades: b.unidades,
+                precio: b.precio,
+                moneda: "US$",
+                periodoPrecio: "Cars",
+              }))}
+              altura={520}
+              etiquetas
+            />
+            <NotaDato>
+              El precio sale del <strong>API de Cars</strong>, que solo conoce
+              nuestra gama: por eso acá están nuestras marcas y no el mercado
+              entero. CADAM no trae importes, así que no hay precio de
+              competencia a nivel versión en ninguna fuente que tengamos —
+              lo público de la competencia vive en el benchmark de Hermes, que
+              cubre pocos modelos. {ordenPrecio.length} versiones con precio,{" "}
+              {formatUnidades(unidadesBurbujas)} unidades facturadas en el
+              período; las versiones sin precio en Cars quedan fuera del
+              gráfico porque no tendrían dónde ubicarse en el eje.
+            </NotaDato>
+          </CardContent>
+        </Card>
+      )}
 
       {versiones.length > 0 && (
         <Card>

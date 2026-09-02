@@ -62,6 +62,10 @@ function validar(body: {
     const periodo = texto(v.periodo, 7);
     const marca = texto(v.marca);
     const modelo = texto(v.modelo);
+    // `version` es el detalle ("X70 GLS - 8AT") y `modelo` la familia
+    // ("X70"). Si no viene, se cae al modelo: peor granularidad, pero no
+    // rompe — el gráfico de posicionamiento simplemente muestra menos.
+    const version = texto(v.version) ?? modelo;
     const unidades = entero(v.unidades);
     if (!periodo || !RE_PERIODO.test(periodo)) {
       return { error: `ventas[${i}].periodo debe ser YYYY-MM` };
@@ -69,7 +73,7 @@ function validar(body: {
     if (!marca || !modelo || unidades === null) {
       return { error: `ventas[${i}]: marca, modelo y unidades son obligatorios` };
     }
-    ventas.push({ periodo, marca, modelo, unidades });
+    ventas.push({ periodo, marca, modelo, version: version ?? modelo, unidades });
   }
 
   const stock: StockPropio[] = [];
@@ -77,6 +81,7 @@ function validar(body: {
     const s = r as Record<string, unknown>;
     const marca = texto(s.marca);
     const modelo = texto(s.modelo);
+    const version = texto(s.version) ?? modelo;
     const estado = texto(s.estado);
     const unidades = entero(s.unidades);
     const reservadas = entero(s.reservadas);
@@ -92,7 +97,7 @@ function validar(body: {
     const p = s.precio_usd === null || s.precio_usd === undefined ? null : Number(s.precio_usd);
     const precio_usd =
       p !== null && Number.isFinite(p) && p >= 1_000 && p <= 500_000 ? Math.round(p) : null;
-    stock.push({ marca, modelo, estado, unidades, reservadas, precio_usd });
+    stock.push({ marca, modelo, version: version ?? modelo, estado, unidades, reservadas, precio_usd });
   }
 
   return { ventas, stock };

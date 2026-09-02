@@ -30,12 +30,25 @@ export interface BurbujaPrecio {
  *
  * El área (no el diámetro) es proporcional a las unidades: de ahí el sqrt.
  */
+/** Nombre de version recortado para la etiqueta. Los de Cars llegan a
+ *  "TANK 400 PHEV 4WD PREMIUM": entero tapa a la burbuja vecina, y cortado
+ *  sigue siendo reconocible porque lo que identifica al modelo va al
+ *  principio. El nombre completo queda en el tooltip. */
+function recortar(nombre: string, max = 22): string {
+  return nombre.length <= max ? nombre : `${nombre.slice(0, max - 1).trimEnd()}…`;
+}
+
 export function BurbujasPrecioChart({
   datos,
   altura = 420,
+  etiquetas = false,
 }: {
   datos: BurbujaPrecio[];
   altura?: number;
+  /** Escribe el nombre de cada burbuja al lado. Con pocas burbujas ayuda;
+   *  con muchas, ECharts esconde las que se pisan (`hideOverlap`) y quedan
+   *  rotuladas las que tienen aire. */
+  etiquetas?: boolean;
 }) {
   const theme = useChartTheme();
 
@@ -111,7 +124,18 @@ export function BurbujasPrecioChart({
     xAxis: {
       type: "category" as const,
       data: marcas,
-      axisLabel: { color: theme.text, fontSize: 10, rotate: 45, interval: 0 },
+      axisLabel: {
+        // La marca en el acento y en negrita: en este gráfico la columna ES
+        // la marca, no una etiqueta de escala. Mismo papel que en la
+        // referencia, con nuestro color y no el de ellos.
+        color: theme.primary,
+        fontSize: 10,
+        fontWeight: "bold" as const,
+        // `rotate: 45` fijo dejaba las marcas cortas torcidas sin necesidad.
+        // Con muchas columnas no hay lugar horizontal y ahí sí se rota.
+        rotate: marcas.length > 12 ? 45 : 0,
+        interval: 0,
+      },
       axisLine: { lineStyle: { color: theme.grid } },
       axisTick: { show: false },
     },
@@ -127,6 +151,20 @@ export function BurbujasPrecioChart({
         type: "scatter" as const,
         symbolSize: (val: number[]) => radio(val[2]) * 2,
         data: puntos,
+        label: etiquetas
+          ? {
+              show: true,
+              position: "right" as const,
+              distance: 4,
+              color: theme.text,
+              fontSize: 9,
+              formatter: (p: { name: string }) => recortar(p.name),
+            }
+          : { show: false },
+        // Sin esto, con 130 burbujas las etiquetas se apilan hasta volverse
+        // una mancha. `hideOverlap` deja rotuladas las que tienen aire y
+        // esconde el resto — que igual se leen en el tooltip.
+        labelLayout: { hideOverlap: true },
         emphasis: { focus: "self" as const, itemStyle: { opacity: 1, borderWidth: 2 } },
         markLine: {
           silent: true,
