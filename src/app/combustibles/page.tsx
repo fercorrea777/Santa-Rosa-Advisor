@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
@@ -140,14 +141,21 @@ export default async function CombustiblesPage({
           <CardTitle>
             Ranking por tecnología — matriculaciones
           </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Hacé clic en una tecnología para filtrar toda la página; abajo
+            aparecen su evolución y sus marcas y modelos líderes. Otro clic lo
+            quita.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col divide-y sm:hidden">
             {tecnologias.map((t) => (
-              <div
+              <Link
                 key={t.valor}
+                href={hrefToggleTec(sp, t.valor)}
+                scroll={false}
                 className={cn(
-                  "flex flex-col gap-1.5 py-3",
+                  "flex flex-col gap-1.5 py-3 transition-colors hover:bg-muted/30",
                   t.valor === seleccionada && "-mx-3 rounded-md bg-primary/5 px-3"
                 )}
               >
@@ -176,7 +184,7 @@ export default async function CombustiblesPage({
                 <div className="text-xs text-muted-foreground">
                   Marcas propias: {formatPct(propiasPorTec.get(t.valor) ?? 0)}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
           <div className="hidden overflow-x-auto sm:block">
@@ -194,8 +202,25 @@ export default async function CombustiblesPage({
               </TableHeader>
               <TableBody>
                 {tecnologias.map((t) => (
-                  <TableRow key={t.valor} className={t.valor === seleccionada ? "bg-primary/5" : undefined}>
-                    <TableCell className="font-medium">{t.valor}</TableCell>
+                  <TableRow
+                    key={t.valor}
+                    className={cn(
+                      "transition-colors hover:bg-muted/30",
+                      t.valor === seleccionada && "bg-primary/5"
+                    )}
+                  >
+                    <TableCell className="font-medium">
+                      <Link
+                        href={hrefToggleTec(sp, t.valor)}
+                        scroll={false}
+                        className={cn(
+                          "underline-offset-4 hover:underline",
+                          t.valor === seleccionada ? "text-primary underline" : "text-foreground"
+                        )}
+                      >
+                        {t.valor}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {GRUPO_TECNOLOGIA[t.valor] ?? "—"}
                     </TableCell>
@@ -250,7 +275,7 @@ export default async function CombustiblesPage({
         </>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Elegí una tecnología en el filtro para ver su evolución histórica y sus
+          Hacé clic en una tecnología de la tabla (o usá el filtro de arriba) para ver su evolución histórica y sus
           marcas y modelos líderes.
         </p>
       )}
@@ -264,4 +289,18 @@ export default async function CombustiblesPage({
       </NotaDato>
     </div>
   );
+}
+
+/** URL que activa/desactiva el filtro de tecnología conservando el resto de
+ *  los parámetros. Clic en una tecnología ya elegida = la quita. */
+function hrefToggleTec(sp: SearchParams, valor: string): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    const val = Array.isArray(v) ? v[0] : v;
+    if (val) q.set(k, val);
+  }
+  if (q.get("tecnologia") === valor) q.delete("tecnologia");
+  else q.set("tecnologia", valor);
+  const qs = q.toString();
+  return qs ? `/combustibles?${qs}` : "/combustibles";
 }
