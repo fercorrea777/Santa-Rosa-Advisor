@@ -7,6 +7,9 @@ import { getInformesPorSemana, getInformesRecientes } from "@/lib/informes/db";
 import {
   getDocumentoConocimiento, getIndiceConocimiento,
 } from "@/lib/informes/conocimiento";
+import {
+  getEstadoSyncPropio, getStockPropio, getVentasPropias,
+} from "@/lib/informes/propios";
 
 /**
  * Copiloto de inteligencia comercial.
@@ -184,6 +187,67 @@ const leerConocimientoCompetencia = betaTool({
   run: (input) => leerConocimiento(input as { clave?: string }),
 });
 
+/**
+ * Operacion propia (API de Cars): facturacion y stock de la casa.
+ *
+ * Va como tool y no dentro de consultar_base porque vive en Postgres, no en
+ * la SQLite de CADAM. El modelo tiene que poder cruzar las dos —"facturamos
+ * X, se matricularon Y"— y para eso necesita las dos fuentes por separado,
+ * con la advertencia de que NO miden lo mismo.
+ */
+async function leerOperacionPropia(input: { que?: string }): Promise<string> {
+  try {
+    const [ventas, stock, sync] = await Promise.all([
+      getVentasPropias(),
+      getStockPropio(),
+      getEstadoSyncPropio(),
+    ]);
+    const aviso =
+      "Cars cuenta FACTURAS (cuándo emitimos la factura); CADAM cuenta " +
+      "MATRICULACIONES (cuándo la DNRA registró el vehículo). Son eventos " +
+      "distintos y en distinto momento: no los presentes como el mismo dato " +
+      "ni restes uno del otro como si la diferencia fuera un error. Acá NO " +
+      "hay importes: los que devuelve Cars son inconsistentes y se " +
+      "descartaron a propósito — si te preguntan facturación en dinero, " +
+      "decí que no está disponible en vez de estimarla.";
+    if (input.que === "stock") {
+      return JSON.stringify({ stock, sincronizado: sync?.actualizado_en, aviso });
+    }
+    if (input.que === "ventas") {
+      return JSON.stringify({ ventas, sincronizado: sync?.actualizado_en, aviso });
+    }
+    return JSON.stringify({ ventas, stock, sincronizado: sync?.actualizado_en, aviso });
+  } catch (e) {
+    return JSON.stringify({
+      error: `No se pudo leer la operación propia: ${(e as Error).message}`,
+    });
+  }
+}
+
+const leerOperacion = betaTool({
+  name: "leer_operacion_propia",
+  description:
+    "Datos de la operación de Santa Rosa que salen del API de Cars (el DMS " +
+    "de la casa), no de CADAM: unidades FACTURADAS por mes/marca/modelo, y " +
+    "el STOCK actual por marca/modelo/estado con su precio de lista en " +
+    "dólares. Usala para preguntas sobre cómo vamos NOSOTROS (cuánto " +
+    "vendimos, qué tenemos, cuánto stock queda de un modelo). Ojo: factura " +
+    "no es matriculación, y no hay importes de facturación disponibles.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      que: {
+        type: "string",
+        enum: ["ventas", "stock", "todo"],
+        description:
+          "Acotá a 'ventas' o 'stock' cuando alcance: 'todo' devuelve ~1.000 filas.",
+      },
+    },
+    additionalProperties: false,
+  },
+  run: (input) => leerOperacionPropia(input as { que?: string }),
+});
+
 interface TurnoCliente {
   role: "user" | "assistant";
   content: string;
@@ -245,6 +309,7 @@ export async function POST(request: Request) {
         consultarBase,
         leerInformeCompetencia,
         leerConocimientoCompetencia,
+        leerOperacion,
         { type: "web_search_20260318", name: "web_search" },
         { type: "web_fetch_20260318", name: "web_fetch" },
         { type: "code_execution_20260521", name: "code_execution" },

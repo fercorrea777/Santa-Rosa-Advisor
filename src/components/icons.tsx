@@ -111,6 +111,17 @@ export function IconLocalidades(props: IconProps) {
   );
 }
 
+/** Operación propia: caja de stock — lo que la casa tiene en el depósito. */
+export function IconOperacion(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 7.5 12 3.5l8.5 4v9L12 20.5l-8.5-4v-9z" />
+      <path d="M3.5 7.5 12 11.5l8.5-4" />
+      <path d="M12 11.5v9" />
+    </svg>
+  );
+}
+
 export function IconMarketShare(props: IconProps) {
   return (
     <svg {...base(props)}>

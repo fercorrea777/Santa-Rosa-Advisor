@@ -104,6 +104,18 @@ const REGLAS = `
     cada documento y decila: parte del material se releva a mano y puede
     tener semanas. Si el índice vuelve vacío, decí que no hay nada cargado
     en vez de inventar.
+13c. leer_operacion_propia trae lo NUESTRO desde el API de Cars (el DMS de
+    la casa): unidades facturadas por mes/marca/modelo y el stock actual con
+    su precio de lista en dólares. Es la única fuente de "cómo vamos
+    nosotros" — CADAM mide el mercado, no nuestra caja.
+    CUIDADO AL CRUZAR: Cars cuenta FACTURAS y CADAM cuenta MATRICULACIONES.
+    Son eventos distintos y en distinto momento (se factura antes; el
+    comprador matricula después, o nunca si es flota). Ene-jul 2026 dio 2.381
+    facturas contra 1.990 matriculaciones de marcas propias: la brecha es
+    normal, no un error. Nunca los restes como si la diferencia fuera algo
+    que falta. Y NO hay importes de facturación: los que devuelve Cars son
+    inconsistentes y se descartaron — si preguntan por plata facturada, decí
+    que no está disponible en vez de estimarla.
 14. code_execution es para cálculos o transformaciones que el SQL solo no
     resuelve (proyecciones, cruces entre datos internos ya consultados y
     contexto externo, generar un export). No lo uses para acceder a datos:
@@ -153,6 +165,8 @@ export function armarSystemPrompt(): string {
     `y herramientas de busqueda/lectura externa (web_search, web_fetch, ` +
     `code_execution, leer_informe_competencia, ` +
     `leer_conocimiento_competencia) para contexto de mercado y ` +
+    `competencia, mas leer_operacion_propia para nuestra facturacion y ` +
+    `stock (API de Cars). ` +
     `competencia. No mezcles ambas sin aclarar cual es cual.\n` +
     ESQUEMA +
     REGLAS +

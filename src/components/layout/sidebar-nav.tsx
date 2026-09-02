@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   IconInicio, IconMercado, IconEvolucion, IconRankings, IconSegmentos,
   IconCombustibles, IconLocalidades, IconMarketShare, IconBrecha, IconBubble, IconGama,
+  IconOperacion,
   IconInteligencia, IconCopiloto, IconCargas, IconCalidad, IconConfiguracion,
 } from "@/components/icons";
 
@@ -23,6 +24,7 @@ const ICONOS: Record<IconoNav, React.ComponentType<{ size?: number; className?: 
   brecha: IconBrecha,
   bubble: IconBubble,
   gama: IconGama,
+  operacion: IconOperacion,
   inteligencia: IconInteligencia,
   copiloto: IconCopiloto,
   cargas: IconCargas,

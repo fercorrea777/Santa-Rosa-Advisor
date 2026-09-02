@@ -44,6 +44,38 @@ async function main() {
       );
     `);
     console.log("Tabla conocimiento_competencia lista.");
+
+    // Operacion propia (API de Cars, empujada por Hermes). Ver
+    // src/lib/informes/propios.ts: sin importes y sin datos de clientes, a
+    // proposito — la app no tiene login.
+    await client.query(`
+      create table if not exists venta_propia (
+        periodo  text not null,
+        marca    text not null,
+        modelo   text not null,
+        unidades integer not null,
+        primary key (periodo, marca, modelo)
+      );
+    `);
+    await client.query(`
+      create table if not exists stock_propio (
+        marca      text not null,
+        modelo     text not null,
+        estado     text not null,
+        unidades   integer not null,
+        reservadas integer not null,
+        precio_usd integer,
+        primary key (marca, modelo, estado)
+      );
+    `);
+    await client.query(`
+      create table if not exists sincronizacion_propia (
+        clave          text primary key,
+        actualizado_en timestamptz not null default now(),
+        detalle        jsonb not null default '{}'::jsonb
+      );
+    `);
+    console.log("Tablas de operacion propia listas.");
   } finally {
     await client.end();
   }

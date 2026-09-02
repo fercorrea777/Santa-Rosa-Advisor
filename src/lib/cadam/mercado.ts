@@ -299,8 +299,9 @@ export interface FilaRanking {
 
 /** Unidades totales del período, sin recortes. Es el denominador honesto
  *  del share: las consultas de ranking traen LIMIT y su suma no es el
- *  mercado. */
-function totalUnidades(fuente: Fuente, f: Filtro): number {
+ *  mercado. Exportado tambien para /operacion, que mide nuestras
+ *  matriculaciones sobre el mercado ENTERO, no sobre las marcas propias. */
+export function totalUnidades(fuente: Fuente, f: Filtro): number {
   const w = where(fuente, f);
   const r = getDb()
     .prepare(`SELECT SUM(unidades) t FROM ${vista(fuente)} WHERE ${w.sql}`)

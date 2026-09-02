@@ -2,6 +2,7 @@
 export type IconoNav =
   | "inicio" | "mercado" | "evolucion" | "rankings" | "segmentos"
   | "combustibles" | "localidades" | "market-share" | "brecha" | "bubble" | "gama"
+  | "operacion"
   | "inteligencia" | "copiloto" | "cargas" | "calidad" | "configuracion";
 
 export interface NavItem {
@@ -44,6 +45,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/brecha", label: "Import. vs matric.", icono: "brecha", implementado: true },
       { href: "/bubble-chart", label: "Bubble chart", icono: "bubble", implementado: true },
       { href: "/gama-propia", label: "Gama propia", icono: "gama", implementado: true },
+      { href: "/operacion", label: "Nuestra operación", icono: "operacion", implementado: true },
     ],
   },
   {
