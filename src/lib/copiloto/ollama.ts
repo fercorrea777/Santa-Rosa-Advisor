@@ -84,7 +84,10 @@ async function resolverBase(): Promise<string> {
   if (baseResuelta) return baseResuelta;
   for (const url of CANDIDATOS) {
     try {
-      const r = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(2500) });
+      // 8 s y no 2,5: en un contenedor recien arrancado el primer TCP a una
+      // IP que no responde tarda en dar por perdido el intento, y cortar
+      // antes hacia que el candidato bueno ni se probara.
+      const r = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(8000) });
       if (r.ok) {
         baseResuelta = url;
         return url;
@@ -156,7 +159,7 @@ async function llamar(
       }),
     });
   } catch (e) {
-    const err = e as Error;
+    const err = e as Error & { cause?: { code?: string; message?: string } };
     if (err.name === "TimeoutError" || err.message.includes("HEADERS_TIMEOUT")) {
       return {
         error:
@@ -164,7 +167,16 @@ async function llamar(
           "después de un rato, mientras se carga en la placa. Probá de nuevo.",
       };
     }
-    return { error: `No se pudo contactar al modelo (${MODELO}): ${err.message}` };
+    // `fetch` de Node envuelve TODO en un "fetch failed" que no dice nada; el
+    // motivo real (ECONNREFUSED, ENOTFOUND, UND_ERR_*) vive en `cause`. Sin
+    // esto, un problema de red y uno de payload se ven exactamente igual.
+    const causa = err.cause?.code ?? err.cause?.message ?? "";
+    console.error("Copiloto/Ollama:", base, err.name, err.message, causa);
+    return {
+      error:
+        `No se pudo contactar al modelo (${MODELO}) en ${base}: ` +
+        `${err.message}${causa ? ` (${causa})` : ""}`,
+    };
   }
 
   if (!r.ok) {
