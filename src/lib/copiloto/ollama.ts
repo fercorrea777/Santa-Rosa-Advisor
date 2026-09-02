@@ -55,7 +55,51 @@ export interface ResultadoCopiloto {
   truncada: boolean;
 }
 
-const BASE = process.env.COPILOTO_OLLAMA_URL ?? "http://127.0.0.1:11434";
+/**
+ * Donde vive Ollama visto DESDE ADENTRO del contenedor.
+ *
+ * No es 127.0.0.1: eso es el propio contenedor, y Ollama corre en el host.
+ * Medido el 02/09/2026 desde el contenedor de produccion:
+ *
+ *   127.0.0.1            ECONNREFUSED
+ *   host.docker.internal ENOTFOUND      (Docker en Linux no la crea sola)
+ *   172.17.0.1           timeout        (bridge por defecto, no es la nuestra)
+ *   10.0.1.1             OK, 9 modelos  <- gateway de la red 'coolify'
+ *
+ * Se prueban en orden y se recuerda la que contesta. La lista existe porque
+ * ese 10.0.1.1 lo asigna Docker al crear la red: si algun dia Coolify la
+ * recrea con otro rango, el Copiloto se arregla solo en vez de quedar mudo.
+ * COPILOTO_OLLAMA_URL saltea todo el mecanismo.
+ */
+const CANDIDATOS = [
+  "http://10.0.1.1:11434",
+  "http://172.17.0.1:11434",
+  "http://host.docker.internal:11434",
+  "http://127.0.0.1:11434",
+];
+
+let baseResuelta: string | null = process.env.COPILOTO_OLLAMA_URL ?? null;
+
+async function resolverBase(): Promise<string> {
+  if (baseResuelta) return baseResuelta;
+  for (const url of CANDIDATOS) {
+    try {
+      const r = await fetch(`${url}/api/tags`, { signal: AbortSignal.timeout(2500) });
+      if (r.ok) {
+        baseResuelta = url;
+        return url;
+      }
+    } catch {
+      // Siguiente candidato. El error de cada intento no aporta nada: lo que
+      // importa es si alguno contesta, y si no contesta ninguno el mensaje
+      // final ya nombra la lista completa.
+    }
+  }
+  throw new Error(
+    `No se encontró Ollama en ninguna de estas direcciones: ${CANDIDATOS.join(", ")}. ` +
+      `Definí COPILOTO_OLLAMA_URL si está en otra.`
+  );
+}
 const MODELO = process.env.COPILOTO_MODELO ?? "gemma4-hermes:latest";
 /** Contexto pedido a Ollama. NO es el que declara el modelo: es el que entra
  *  en la placa. El KV cache crece con esto, asi que subirlo sin medir tira el
@@ -81,8 +125,14 @@ async function llamar(
   herramientas: HerramientaLocal[]
 ): Promise<{ mensaje: MensajeChat } | { error: string }> {
   let r: Response;
+  let base: string;
   try {
-    r = await fetch(`${BASE}/v1/chat/completions`, {
+    base = await resolverBase();
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  try {
+    r = await fetch(`${base}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: AbortSignal.timeout(TIMEOUT_MS),
