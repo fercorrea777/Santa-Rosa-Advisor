@@ -142,7 +142,7 @@ export default async function MarketSharePage({
         <CardContent>
           {seriesShare.length ? (
             <>
-              <SerieAniosChart series={seriesShare} altura={300} />
+              <SerieAniosChart series={seriesShare} altura={300} ordenTooltip="seriesAsc" />
               <p className="mt-2 text-xs text-muted-foreground">
                 Cada línea es el % que representó esa {DIMENSIONES[dimEfectiva].label.toLowerCase()} sobre
                 el total del mes. Los meses sin dato quedan como hueco.

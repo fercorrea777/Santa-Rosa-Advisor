@@ -28,10 +28,15 @@ export function SerieAniosChart({
   series,
   tipo = "line",
   altura = 300,
+  // El cuadro que aparece al pasar el mouse lista los años de más
+  // reciente a más viejo (2026 arriba). La leyenda, en cambio, queda en
+  // orden natural. Market Share pasa "seriesAsc" para respetar el ranking.
+  ordenTooltip = "seriesDesc",
 }: {
   series: SerieAnio[];
   tipo?: "line" | "bar";
   altura?: number;
+  ordenTooltip?: "seriesAsc" | "seriesDesc";
 }) {
   const theme = useChartTheme();
 
@@ -43,6 +48,9 @@ export function SerieAniosChart({
     tooltip: {
       ...TOOLTIP_BASE,
       trigger: "axis",
+      // seriesDesc invierte el orden de declaración de las series; como
+      // vienen ascendentes por año, el tooltip queda 2026→2023.
+      order: ordenTooltip,
       valueFormatter: (v: number | null) => {
         if (v === null || v === undefined) return "Sin datos";
         return series[0]?.unidad === "porcentaje"
