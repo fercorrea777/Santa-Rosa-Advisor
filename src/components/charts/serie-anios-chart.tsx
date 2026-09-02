@@ -59,11 +59,26 @@ export function SerieAniosChart({
           seriesIndex: number; seriesName: string; marker: string;
           value: number | null; axisValueLabel?: string;
         }[];
-        const filas = [...params].sort((a, b) =>
-          ordenTooltip === "seriesDesc"
-            ? b.seriesIndex - a.seriesIndex
-            : a.seriesIndex - b.seriesIndex
-        );
+        // Ordenar por el AÑO (nombre numérico), no por seriesIndex: con
+        // `replaceMerge` el índice refleja el orden en que se AGREGARON las
+        // series, no el cronológico. Cuando los nombres no son números
+        // (Market Share = marcas), se respeta el orden que da ECharts.
+        const nombreNum = (p: { seriesName: string }) => Number(p.seriesName);
+        const todosAnios = params.every((p) => Number.isFinite(nombreNum(p)));
+        const filas = [...params];
+        if (todosAnios) {
+          filas.sort((a, b) =>
+            ordenTooltip === "seriesDesc"
+              ? nombreNum(b) - nombreNum(a)
+              : nombreNum(a) - nombreNum(b)
+          );
+        } else {
+          filas.sort((a, b) =>
+            ordenTooltip === "seriesDesc"
+              ? b.seriesIndex - a.seriesIndex
+              : a.seriesIndex - b.seriesIndex
+          );
+        }
         const fmt = (v: number | null) =>
           v === null || v === undefined
             ? "Sin datos"
