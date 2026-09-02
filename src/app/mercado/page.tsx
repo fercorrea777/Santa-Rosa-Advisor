@@ -59,6 +59,9 @@ export default async function MercadoPage({
   // hasta el modelo.
   const versiones = esImportacion ? [] : getRankingVersiones(f);
 
+  // Etiqueta del período contra el que se compara: 'Ene–Jun 2026' -> 'Ene–Jun 2025'.
+  const periodoPrevio = periodo.replace(String(f.anio), String(f.anio - 1));
+
   const notaVar =
     ((esImportacion ? import_ : matric).baseDisponible
       ? `Variación contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`
@@ -270,12 +273,14 @@ export default async function MercadoPage({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MoviminetoCard
           titulo={`Principales ganadores — ${etiquetaFuente}`}
+          subtitulo={`Unidades ganadas frente a ${periodoPrevio} (mismo período del año anterior). El % es solo referencia.`}
           filas={ganadores}
           positivo
           disponible={(esImportacion ? import_ : matric).baseDisponible}
         />
         <MoviminetoCard
           titulo={`Principales perdedores — ${etiquetaFuente}`}
+          subtitulo={`Unidades perdidas frente a ${periodoPrevio} (mismo período del año anterior). El % es solo referencia.`}
           filas={perdedores}
           positivo={false}
           disponible={(esImportacion ? import_ : matric).baseDisponible}
@@ -359,16 +364,24 @@ export default async function MercadoPage({
 }
 
 function MoviminetoCard({
-  titulo, filas, positivo, disponible,
+  titulo, subtitulo, filas, positivo, disponible,
 }: {
   titulo: string;
+  subtitulo?: string;
   filas: { marca: string; unidades: number; unidadesAnterior: number; variacion: number | null; participacion: number }[];
   positivo: boolean;
   disponible: boolean;
 }) {
   return (
     <Card>
-      <CardHeader><CardTitle>{titulo}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>{titulo}</CardTitle>
+        {subtitulo && (
+          <p className="text-xs font-normal normal-case tracking-normal text-muted-foreground">
+            {subtitulo}
+          </p>
+        )}
+      </CardHeader>
       <CardContent>
         {!disponible ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
