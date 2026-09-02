@@ -195,13 +195,28 @@ export default async function OperacionPage({
         mal</strong>: miden momentos distintos del mismo auto.
         {crecFacturas !== null && crecMatric !== null && (
           <>
-            {" "}Que no coincidan no las hace sospechosas: en este período
-            nuestra facturación creció{" "}
+            {" "}En este período nuestra facturación creció{" "}
             <strong>{formatPct(crecFacturas, { signed: true })}</strong> y las
             matriculaciones de nuestras marcas en CADAM —una fuente que no es
             nuestra—{" "}
-            <strong>{formatPct(crecMatric, { signed: true })}</strong>. Las dos
-            cuentan la misma historia por caminos separados.
+            <strong>{formatPct(crecMatric, { signed: true })}</strong>.{" "}
+            {/* No afirmar que "coinciden" cuando no coinciden. Con la ventana
+                hasta julio dan +122,7% y +79,0%: la matriculación va atrás
+                porque el comprador registra semanas después de la factura, así
+                que cuanto más cerca del último mes cerrado, más se abre la
+                brecha. Decirlo es más útil que redondear a "las dos dicen lo
+                mismo". */}
+            {Math.abs(crecFacturas - crecMatric) <= 0.2 ? (
+              <>Dos caminos separados, la misma historia.</>
+            ) : (
+              <>
+                La diferencia entre esos dos números es esperable y no es un
+                error: la matriculación va atrás de la factura, así que cuanto
+                más cerca esté el período del último mes cerrado, más se abre la
+                brecha. Achicá el rango de meses para compararlos con la cola ya
+                registrada.
+              </>
+            )}
           </>
         )}
       </NotaDato>
