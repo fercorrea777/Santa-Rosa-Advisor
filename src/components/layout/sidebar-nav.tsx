@@ -62,18 +62,20 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   // esta nav vive en un drawer donde se navega con el pulgar.
                   "relative flex items-center justify-between rounded-xl px-3 py-2 text-sm transition-colors duration-200 pointer-coarse:min-h-11 active:scale-[0.98] active:duration-75",
                   active
-                    ? // Píldora sólida (referencia 2026-07): reemplaza el
-                      // fondo tintado + barra lateral por el color pleno
-                      // que pide la referencia — más audaz, mismo principio
-                      // de "instrumento seleccionado".
-                      "bg-primary font-semibold text-primary-foreground shadow-[0_4px_10px_-4px_var(--primary)]"
+                    ? // Activo por TRES canales, no color solo (consenso de
+                      // las guías de sidebar 2026: tinte + peso + barra
+                      // indicadora). Reemplaza la píldora sólida con sombra,
+                      // que era el patrón admin de hace una década y además
+                      // gritaba más que el contenido. El patrón tintado es
+                      // el de Linear/Stripe: señala sin competir.
+                      "bg-primary/10 font-semibold text-primary before:absolute before:left-0 before:top-1/2 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 )}
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   {/* El ícono acompaña, no protagoniza: hereda el gris del
                       label y solo toma el acento en el item activo. */}
-                  <Icono size={16} className={cn("shrink-0", active ? "text-primary-foreground" : "text-muted-foreground/80")} />
+                  <Icono size={16} className={cn("shrink-0", active ? "text-primary" : "text-muted-foreground/80")} />
                   <span className="truncate">{item.label}</span>
                 </span>
                 {!item.implementado && (
@@ -81,7 +83,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                     variant="outline"
                     className={cn(
                       "ml-2 shrink-0 text-[10px] font-normal",
-                      active && "border-primary-foreground/40 text-primary-foreground"
+                      active && "border-primary/40 text-primary"
                     )}
                   >
                     pronto

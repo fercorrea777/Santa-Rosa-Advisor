@@ -47,7 +47,7 @@ export function AppShell({
             columna pegada al borde. Mantiene labels (13 secciones con ícono
             solo sería adivinanza). El bloque de marca salió de acá: ahora
             vive en la barra superior, que se ve también en móvil. */}
-        <aside className="sticky top-20 ml-6 hidden h-[calc(100vh-6.5rem)] w-60 shrink-0 self-start overflow-hidden rounded-3xl border bg-card text-sidebar-foreground shadow-[var(--card-shadow)] md:flex md:flex-col">
+        <aside className="sticky top-20 ml-6 hidden h-[calc(100vh-6.5rem)] w-60 shrink-0 self-start overflow-hidden rounded-[0.8125rem] border bg-card text-sidebar-foreground shadow-[var(--card-shadow)] md:flex md:flex-col">
           <div className="flex-1 overflow-y-auto py-3">
             <SidebarNav />
           </div>
