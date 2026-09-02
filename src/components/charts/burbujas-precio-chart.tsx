@@ -82,7 +82,10 @@ export function BurbujasPrecioChart({
 
   // Piso del eje anclado al dato, techo redondeado hacia arriba.
   const precios = datos.map((d) => d.precio);
-  const pisoY = Math.max(0, Math.floor(Math.min(...precios) / 5000) * 5000 - 5000);
+  // Redondear hacia abajo YA deja hasta 5k de aire; restar otra banda era
+  // pasarse — con el mas barato en ~10k el piso volvia a caer a 0, que es
+  // exactamente lo que se queria evitar.
+  const pisoY = Math.floor(Math.min(...precios) / 5000) * 5000;
   const techoY = Math.ceil(Math.max(...precios) / 5000) * 5000;
 
   // --- etiquetas selectivas: la más vendida de cada marca + extremos ---
