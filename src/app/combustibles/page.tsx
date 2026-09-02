@@ -6,6 +6,7 @@ import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import { StackedBarChart } from "@/components/charts/stacked-bar-chart";
+import { Seccion } from "@/components/dashboard/seccion";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -147,7 +148,7 @@ export default async function CombustiblesPage({
           tecnologías. Son ejes distintos: lo que el auto QUEMA vs. su tren
           motriz. Un híbrido nafta es 'HIBRIDO' acá y 'HEV' abajo. */}
       {combDisponible ? (
-        <>
+        <Seccion titulo="Por combustible">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
@@ -314,7 +315,7 @@ export default async function CombustiblesPage({
             ) : null}{" "}
             Cobertura del corte: {cobComb.anios[0]}–{cobComb.anios.at(-1)}.
           </NotaDato>
-        </>
+        </Seccion>
       ) : (
         <NotaDato>
           El corte por combustible sólo está cargado para{" "}
@@ -327,6 +328,7 @@ export default async function CombustiblesPage({
         </NotaDato>
       )}
 
+      <Seccion titulo="Por tecnología">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
@@ -514,6 +516,7 @@ export default async function CombustiblesPage({
         <strong>subconjunto</strong> de ella (no se suma) y solo cubre EV/HEV/PHEV
         desde 2024. Tampoco se puede separar nafta de diésel: ambas van como ICE.
       </NotaDato>
+      </Seccion>
     </div>
   );
 }

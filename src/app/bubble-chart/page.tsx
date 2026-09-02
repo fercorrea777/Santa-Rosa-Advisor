@@ -5,6 +5,7 @@ import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { BurbujasMarcaChart, type Burbuja } from "@/components/charts/burbujas-marca-chart";
 import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
 import { TablaVersiones } from "@/components/dashboard/tabla-versiones";
+import { Seccion } from "@/components/dashboard/seccion";
 import {
   getCobertura, getOpcionesFiltro, getRankingModelos, getRankingVersiones,
   type Fuente,
@@ -186,6 +187,7 @@ export default async function BubbleChartPage({
         {fueraDelTope} de marcas que no llegan al tope.
       </NotaDato>
 
+      <Seccion titulo="Posicionamiento por variación">
       <Card>
         <CardHeader>
           <CardTitle>Crecimiento por modelo — {etiquetaFuente}</CardTitle>
@@ -217,7 +219,10 @@ export default async function BubbleChartPage({
         </CardContent>
       </Card>
 
+      </Seccion>
+
       {ordenPrecio.length > 0 && (
+        <Seccion titulo="Posicionamiento por versión">
         <Card>
           <CardHeader>
             <CardTitle>Bubble chart por marca y versión</CardTitle>
@@ -252,9 +257,11 @@ export default async function BubbleChartPage({
             </NotaDato>
           </CardContent>
         </Card>
+        </Seccion>
       )}
 
       {versiones.length > 0 && (
+        <Seccion titulo="Ranking por versión">
         <Card>
           <CardHeader>
             <CardTitle>Ranking de competidores por versión</CardTitle>
@@ -270,6 +277,7 @@ export default async function BubbleChartPage({
             <TablaVersiones filas={versiones} />
           </CardContent>
         </Card>
+        </Seccion>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Seccion } from "@/components/dashboard/seccion";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
@@ -112,6 +113,7 @@ export default async function BrechaPage({
         />
       </section>
 
+      <Seccion titulo="Evolución de la brecha">
       <Card>
         <CardHeader><CardTitle>Evolución de la brecha — {f.anio}</CardTitle></CardHeader>
         <CardContent>
@@ -191,6 +193,9 @@ export default async function BrechaPage({
         </CardContent>
       </Card>
 
+      </Seccion>
+
+      <Seccion titulo="Marcas que más se apartan">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <TablaBrechaMarcas
           titulo="Importan más de lo que matriculan"
@@ -203,6 +208,8 @@ export default async function BrechaPage({
           filas={masMatricula}
         />
       </div>
+
+      </Seccion>
 
       <p className="text-xs text-muted-foreground">
         Se excluyen las marcas con menos de 20 unidades sumando ambas fuentes:

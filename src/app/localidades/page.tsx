@@ -3,6 +3,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { Seccion } from "@/components/dashboard/seccion";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { StackedBarChart } from "@/components/charts/stacked-bar-chart";
@@ -155,6 +156,7 @@ export default async function LocalidadesPage({
         />
       </div>
 
+      <Seccion titulo="Dónde se matricula">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
@@ -205,6 +207,8 @@ export default async function LocalidadesPage({
         </Card>
       </div>
 
+      </Seccion>
+
       {concentracion.length > 1 && (
         <Card>
           <CardHeader>
@@ -244,6 +248,7 @@ export default async function LocalidadesPage({
         </Card>
       )}
 
+      <Seccion titulo="Detalle">
       <Card>
         <CardHeader>
           <CardTitle>Detalle por localidad — {periodo}</CardTitle>
@@ -327,6 +332,8 @@ export default async function LocalidadesPage({
           </Table>
         </CardContent>
       </Card>
+
+      </Seccion>
 
       <NotaDato>
         Este corte llega en un archivo propio de CADAM y <strong>no se suma</strong>{" "}

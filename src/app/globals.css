@@ -300,7 +300,10 @@
   [data-slot="card"] {
     position: relative;
     overflow: hidden;
-    border-radius: 1.375rem;
+    /* 13px, como la referencia. Los 22px de antes venían del lenguaje
+       "bento" y a este cuerpo de tarjeta —muchas, chicas y con tablas
+       adentro— redondean tanto que la esquina se come la primera celda. */
+    border-radius: 0.8125rem;
     background-color: var(--card);
     border: 1px solid color-mix(in oklab, var(--panel-edge) 70%, transparent);
     box-shadow: var(--card-shadow);
@@ -320,16 +323,48 @@
   }
 
 
-  /* Título de panel: versalitas espaciadas, como una etiqueta de instrumento.
-     Se aplica solo a los títulos de panel, no a cada sección de la página.
-     Peso 700: Nunito Sans es redonda y en versalitas chicas el 600 se
-     desarma. */
+  /* Título de panel: CAJA BAJA, oscuro y con cuerpo (2026-09).
+     Antes eran versalitas espaciadas y tenues. El problema no era que se
+     vieran mal: es que llevaban puesta la ropa del encabezado de SECCIÓN.
+     En el tablero de referencia la jerarquía es al revés — "SEGMENTOS" es la
+     sección (versalitas tenues) y "Ventas totales por segmento" es la
+     tarjeta (caja baja, negrita, oscura). Con las dos cosas en versalitas
+     tenues la página se lee como una lista plana de etiquetas, sin decir
+     dónde empieza un tema y dónde termina otro.
+     El encabezado de sección vive ahora en <Seccion>. */
   [data-slot="card-title"] {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.72rem;
+    font-size: 0.9375rem;
     font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+
+  /* Encabezado de SECCIÓN: acá sí van las versalitas espaciadas. Es la
+     etiqueta que agrupa varias tarjetas bajo un tema, y el filete que la
+     sigue es lo que hace que se lea como una división de la página y no
+     como un título suelto. Copia el `h2.sechd` de la referencia
+     (12px / .14em / peso 700 / tenue). */
+  .seccion-hd {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    /* Aire ARRIBA del encabezado, no entre tarjetas. Sin esto la separación
+       entre dos secciones era la misma que entre dos tarjetas de la misma
+       sección (20px) y el agrupamiento no se leía: todo quedaba a la misma
+       distancia de todo. Con 12px acá la separación entre secciones sube a
+       32px, los ~30 de la referencia. */
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     color: var(--muted-foreground);
+  }
+  .seccion-hd::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
   }
 
   /* Cifra de telemetría: mono a peso alto. Los dígitos de JetBrains Mono se

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
+import { Seccion } from "@/components/dashboard/seccion";
 import {
   getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
   getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
@@ -178,6 +179,7 @@ export default async function MercadoPage({
         />
       </section>
 
+      <Seccion titulo="Evolución del mercado">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Evolución mensual — matriculaciones</CardTitle></CardHeader>
@@ -206,6 +208,11 @@ export default async function MercadoPage({
           </CardContent>
         </Card>
 
+      </div>
+      </Seccion>
+
+      <Seccion titulo="Segmentos y tecnología">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>
@@ -269,7 +276,9 @@ export default async function MercadoPage({
           </CardContent>
         </Card>
       </div>
+      </Seccion>
 
+      <Seccion titulo="Quién gana y quién pierde">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MoviminetoCard
           titulo={`Principales ganadores — ${etiquetaFuente}`}
@@ -287,6 +296,9 @@ export default async function MercadoPage({
         />
       </div>
 
+      </Seccion>
+
+      <Seccion titulo="Rankings">
       <Card>
         <CardHeader>
           <CardTitle>Rankings — {etiquetaFuente}</CardTitle>
@@ -359,6 +371,7 @@ export default async function MercadoPage({
           </Tabs>
         </CardContent>
       </Card>
+      </Seccion>
     </div>
   );
 }

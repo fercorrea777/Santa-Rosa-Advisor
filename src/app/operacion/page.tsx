@@ -3,6 +3,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { Seccion } from "@/components/dashboard/seccion";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import {
@@ -262,6 +263,7 @@ export default async function OperacionPage({
         />
       </div>
 
+      <Seccion titulo="Cómo venimos">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
@@ -300,6 +302,9 @@ export default async function OperacionPage({
         </Card>
       </div>
 
+      </Seccion>
+
+      <Seccion titulo="Marca por marca">
       <Card>
         <CardHeader>
           <CardTitle>Marca por marca — {periodo}</CardTitle>
@@ -387,6 +392,9 @@ export default async function OperacionPage({
         </CardContent>
       </Card>
 
+      </Seccion>
+
+      <Seccion titulo="Stock">
       <Card>
         <CardHeader>
           <CardTitle>Stock por modelo — hoy</CardTitle>
@@ -442,6 +450,8 @@ export default async function OperacionPage({
           </Table>
         </CardContent>
       </Card>
+
+      </Seccion>
 
       <NotaDato>
         <strong>Acá no hay facturación en guaraníes ni dólares, a propósito.</strong>{" "}

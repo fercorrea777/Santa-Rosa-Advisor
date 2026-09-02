@@ -4,6 +4,7 @@ import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { Badge } from "@/components/ui/badge";
 import { InformesPanel } from "@/components/copiloto/informes-panel";
 import { ConocimientoPanel } from "@/components/copiloto/conocimiento-panel";
+import { Seccion } from "@/components/dashboard/seccion";
 import { getCobertura, getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { generarInforme, type Item, type Prioridad, type Tipo } from "@/lib/cadam/inteligencia";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
@@ -86,6 +87,7 @@ export default async function InteligenciaPage({
         })}
       </section>
 
+      <Seccion titulo="Lectura del período">
       <Card>
         <CardHeader>
           <CardTitle>Resumen ejecutivo</CardTitle>
@@ -126,6 +128,8 @@ export default async function InteligenciaPage({
         );
       })}
 
+      </Seccion>
+
       <NotaDato>
         Estas {informe.items.length} lecturas salen de <strong>reglas y cálculos</strong>{" "}
         sobre la base interna, sin inteligencia artificial externa. Cada punto muestra
@@ -139,6 +143,7 @@ export default async function InteligenciaPage({
           competencia, noticias, redes, tendencias globales. Mismo panel
           que la pestaña "Informes semanales" del Copiloto: una sola fuente
           de verdad para ese dato, no una segunda lectura de Postgres acá. */}
+      <Seccion titulo="Fuentes externas">
       <Card>
         <CardHeader>
           <CardTitle>Mercado y competencia (fuentes externas)</CardTitle>
@@ -173,6 +178,7 @@ export default async function InteligenciaPage({
           <ConocimientoPanel />
         </CardContent>
       </Card>
+      </Seccion>
     </div>
   );
 }
