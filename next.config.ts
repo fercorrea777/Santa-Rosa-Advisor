@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   },
   // "/" redirige a "/mercado" (2026-09). Las dos eran panoramas del mismo
   // dato y "Resumen del mercado" es la más completa: trae el toggle
-  // matriculación/importación, las dos evoluciones y los donuts de segmento
+  // matriculación/importación, las dos evoluciones y los cortes de segmento
   // y tecnología. Al sacar "Inicio" del menú, "/" quedaba alcanzable solo
   // por el logo y sin marcar ningún ítem como activo.
   //

@@ -4,7 +4,7 @@ import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
-import { DonutChart } from "@/components/charts/donut-chart";
+import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import { StackedBarChart } from "@/components/charts/stacked-bar-chart";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -116,8 +116,14 @@ export default async function CombustiblesPage({
             </p>
           </CardHeader>
           <CardContent>
-            <DonutChart
+            {/* `paleta`: los tres grupos se repiten en el apilado por año de
+                al lado, asi que cada uno conserva SU color. `grupos` se
+                arma recorriendo TECNOLOGIAS (ICE -> MHEV -> ... -> EV), asi
+                que el orden de insercion ya es Combustion/Hibridos/
+                Electricos, el mismo GRUPOS_ORDEN que usa el apilado. */}
+            <DistribucionChart
               datos={[...grupos.entries()].map(([nombre, valor]) => ({ nombre, valor }))}
+              paleta
             />
           </CardContent>
         </Card>

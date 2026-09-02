@@ -218,7 +218,7 @@ export default async function MercadoPage({
               param="segmento"
             />
             <p className="text-xs text-muted-foreground">
-              Hacé clic en una porción para filtrar toda la página por ese
+              Hacé clic en una barra para filtrar toda la página por ese
               segmento; otro clic lo quita.
             </p>
             {segmentos.some((s) => s.valor === "Sin clasificar") && (
@@ -258,7 +258,7 @@ export default async function MercadoPage({
                   param="tecnologia"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Hacé clic en una porción para filtrar por esa tecnología.
+                  Hacé clic en una barra para filtrar por esa tecnología.
                 </p>
                 <NotaDato>
                   Cada tecnología se muestra por separado: MHEV no es HEV, PHEV no es

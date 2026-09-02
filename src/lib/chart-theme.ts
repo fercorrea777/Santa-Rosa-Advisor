@@ -11,9 +11,11 @@ export interface ChartTheme {
   axis: string; // color de ejes/lineas
   text: string; // color de texto de labels
   grid: string; // lineas de grilla suaves
-  /** --card resuelto: para bordes/separadores dibujados en canvas (ej.
-   *  el hueco entre porciones de un donut), donde un var() crudo no
-   *  se resuelve — a diferencia del tooltip, que es HTML real. */
+  /** --card resuelto: para bordes/separadores dibujados en CANVAS, donde
+   *  un var() crudo no se resuelve — a diferencia del tooltip, que es HTML
+   *  real. Sin uso hoy (lo usaba el donut, reemplazado por barras en
+   *  2026-09); se conserva porque cualquier chart que dibuje un separador
+   *  sobre la tarjeta lo necesita y no hay otra forma de leer el token. */
   card: string;
 }
 
