@@ -16,7 +16,10 @@ import { Pool } from "pg";
 // agotar las conexiones de la base.
 const globalParaPool = globalThis as unknown as { poolInformes?: Pool };
 
-function getPool(): Pool {
+/** Exportado para conocimiento.ts: es el MISMO Postgres y el mismo pool.
+ *  Abrir un segundo pool desde el otro modulo duplicaria las conexiones
+ *  contra la misma base sin ninguna ganancia. */
+export function getPool(): Pool {
   if (!globalParaPool.poolInformes) {
     const connectionString = process.env.POSTGRES_URL;
     if (!connectionString) {

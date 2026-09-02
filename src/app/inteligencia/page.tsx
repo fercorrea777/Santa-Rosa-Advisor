@@ -3,6 +3,7 @@ import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { Badge } from "@/components/ui/badge";
 import { InformesPanel } from "@/components/copiloto/informes-panel";
+import { ConocimientoPanel } from "@/components/copiloto/conocimiento-panel";
 import { getCobertura, getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { generarInforme, type Item, type Prioridad, type Tipo } from "@/lib/cadam/inteligencia";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
@@ -148,6 +149,28 @@ export default async function InteligenciaPage({
         </CardHeader>
         <CardContent>
           <InformesPanel />
+        </CardContent>
+      </Card>
+
+      {/* Lo que Hermes (agente propio, corre local) empuja por cron: el
+          benchmark de precios de competencia, las battle cards, el scan
+          diario de promociones. Es lo unico que el Copiloto tiene sobre
+          PRECIOS de la competencia — CADAM no los trae.
+
+          Se muestra el inventario y su edad, no el contenido: sirve para
+          saber si confiar en una respuesta del Copiloto sobre competencia. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Qué sabe el Copiloto de la competencia</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Base de conocimiento que mantiene Hermes y refresca todos los días:
+            precios públicos de la competencia, battle cards modelo a modelo,
+            scan de promociones y playbook de pauta. Acá va el inventario y su
+            antigüedad; el contenido lo lee el Copiloto cuando lo necesita.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ConocimientoPanel />
         </CardContent>
       </Card>
     </div>

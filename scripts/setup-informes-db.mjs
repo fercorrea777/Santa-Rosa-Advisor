@@ -29,6 +29,21 @@ async function main() {
         on informes_competencia (semana, dimension);
     `);
     console.log("Tabla informes_competencia lista.");
+
+    // Base de conocimiento que empuja Hermes. Tabla aparte y no otra
+    // dimension de informes_competencia: aquello es una serie semanal, esto
+    // es estado actual que se pisa (ver src/lib/informes/conocimiento.ts).
+    await client.query(`
+      create table if not exists conocimiento_competencia (
+        clave          text primary key,
+        titulo         text not null,
+        contenido      text not null,
+        origen         text not null,
+        fechado_en     date,
+        actualizado_en timestamptz not null default now()
+      );
+    `);
+    console.log("Tabla conocimiento_competencia lista.");
   } finally {
     await client.end();
   }

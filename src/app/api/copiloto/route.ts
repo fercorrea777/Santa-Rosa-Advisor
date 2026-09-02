@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/cadam/db";
 import { armarSystemPrompt } from "@/lib/cadam/copiloto-contexto";
 import { getInformesPorSemana, getInformesRecientes } from "@/lib/informes/db";
+import {
+  getDocumentoConocimiento, getIndiceConocimiento,
+} from "@/lib/informes/conocimiento";
 
 /**
  * Copiloto de inteligencia comercial.
@@ -119,6 +122,68 @@ const leerInformeCompetencia = betaTool({
   run: (input) => leerInformes(input as { semana?: string }),
 });
 
+/**
+ * Base de conocimiento que empuja Hermes (benchmark de precios de
+ * competencia, battle cards, scan diario de promociones, playbook de pauta).
+ *
+ * Dos pasos a proposito — indice primero, documento despues. El vault entero
+ * son ~60 KB de markdown: meterlo en el system prompt lo pagaria CADA
+ * pregunta, incluidas las que no hablan de competencia. Asi el modelo ve un
+ * indice de una linea por documento y abre solo el que necesita.
+ */
+async function leerConocimiento(input: { clave?: string }): Promise<string> {
+  try {
+    if (!input.clave) {
+      const indice = await getIndiceConocimiento();
+      return JSON.stringify({
+        documentos: indice,
+        nota: indice.length
+          ? "Volvé a llamar con 'clave' para leer el contenido de uno."
+          : "Hermes todavía no empujó nada. No inventes: decí que no hay conocimiento cargado.",
+      });
+    }
+    const doc = await getDocumentoConocimiento(input.clave);
+    if (!doc) {
+      const indice = await getIndiceConocimiento();
+      return JSON.stringify({
+        error: `No existe el documento '${input.clave}'`,
+        claves_disponibles: indice.map((d) => d.clave),
+      });
+    }
+    return JSON.stringify({ documento: doc });
+  } catch (e) {
+    return JSON.stringify({
+      error: `No se pudo leer el conocimiento: ${(e as Error).message}`,
+    });
+  }
+}
+
+const leerConocimientoCompetencia = betaTool({
+  name: "leer_conocimiento_competencia",
+  description:
+    "Base de conocimiento de competencia que mantiene Hermes (agente propio) " +
+    "y actualiza por cron: benchmark de PRECIOS de la competencia, battle " +
+    "cards modelo contra modelo, scan diario de promociones de las webs " +
+    "rivales, playbook de pauta y buyer personas. Es la única fuente interna " +
+    "de precios y promociones de la competencia — CADAM no los trae. " +
+    "Llamala SIN argumentos para ver el índice (clave, título y cuándo se " +
+    "actualizó cada documento) y después con 'clave' para leer uno. " +
+    "Mirá siempre la fecha: parte de este material se releva a mano y puede " +
+    "tener semanas.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      clave: {
+        type: "string",
+        description:
+          "Clave del documento a leer, sacada del índice. Omitila para pedir el índice.",
+      },
+    },
+    additionalProperties: false,
+  },
+  run: (input) => leerConocimiento(input as { clave?: string }),
+});
+
 interface TurnoCliente {
   role: "user" | "assistant";
   content: string;
@@ -179,6 +244,7 @@ export async function POST(request: Request) {
       tools: [
         consultarBase,
         leerInformeCompetencia,
+        leerConocimientoCompetencia,
         { type: "web_search_20260318", name: "web_search" },
         { type: "web_fetch_20260318", name: "web_fetch" },
         { type: "code_execution_20260521", name: "code_execution" },

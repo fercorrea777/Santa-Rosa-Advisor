@@ -94,6 +94,16 @@ const REGLAS = `
     (precios/noticias/redes/tendencias). Preferila a una búsqueda nueva
     cuando la pregunta es sobre "esta semana" o "el último informe": es
     más rápida y ya viene con fuentes citadas.
+13b. leer_conocimiento_competencia es la base de conocimiento que mantiene
+    Hermes y refresca por cron: benchmark de PRECIOS de competencia, battle
+    cards modelo a modelo, scan diario de promociones de las webs rivales,
+    playbook de pauta y buyer personas. Para precios o promociones de la
+    competencia empezá SIEMPRE por acá, antes de salir a la web: CADAM no
+    trae precios y esto es relevamiento propio ya verificado. Llamala sin
+    argumentos para ver el índice y después con 'clave'. Mirá la fecha de
+    cada documento y decila: parte del material se releva a mano y puede
+    tener semanas. Si el índice vuelve vacío, decí que no hay nada cargado
+    en vez de inventar.
 14. code_execution es para cálculos o transformaciones que el SQL solo no
     resuelve (proyecciones, cruces entre datos internos ya consultados y
     contexto externo, generar un export). No lo uses para acceder a datos:
@@ -141,7 +151,8 @@ export function armarSystemPrompt(): string {
     `tipos de fuente: la base interna de CADAM/DNRA (via consultar_base, ` +
     `la UNICA fuente de verdad para cifras propias del mercado paraguayo) ` +
     `y herramientas de busqueda/lectura externa (web_search, web_fetch, ` +
-    `code_execution, leer_informe_competencia) para contexto de mercado y ` +
+    `code_execution, leer_informe_competencia, ` +
+    `leer_conocimiento_competencia) para contexto de mercado y ` +
     `competencia. No mezcles ambas sin aclarar cual es cual.\n` +
     ESQUEMA +
     REGLAS +
