@@ -15,40 +15,33 @@ export interface BurbujaPrecio {
 }
 
 /**
- * Posicionamiento de la gama propia: una burbuja por modelo, agrupada en la
- * columna de su marca. Eje Y = PRECIO de lista · tamaño = unidades.
+ * Posicionamiento de la gama propia: una burbuja por versión, agrupada en la
+ * columna de su marca. Eje Y = PRECIO de lista · área = unidades.
  *
- * Es el gráfico que el tablero de referencia hace con precio, y que acá solo
- * se puede armar sobre la gama propia: CADAM no trae importes, así que los
- * únicos precios que existen son los de la lista de Santa Rosa. No compara
- * contra competencia — no hay con qué.
+ * Rediseñado (2026-09) con el skill de dataviz después de que Croman mostrara
+ * una captura donde esto era ilegible. Los cuatro defectos y su corrección:
  *
- * Deliberadamente separado de BurbujasMarcaChart en vez de generalizarlo con
- * props: ese tiene recorte de eje, línea del 0% y símbolos de desborde que
- * acá no aplican (un precio no se dispara ni es negativo). Un componente con
- * la mitad de su lógica apagada por bandera se lee peor que dos.
- *
- * El área (no el diámetro) es proporcional a las unidades: de ahí el sqrt.
+ * 1. TODAS las versiones de una marca caían en el MISMO x: veinte burbujas
+ *    apiladas en una línea vertical se funden en una mancha. Ahora el eje X
+ *    es numérico y cada versión se corre dentro de su columna con un JITTER
+ *    DETERMINISTA (hash del nombre, no Math.random: aleatorio saltaría en
+ *    cada render y rompería la hidratación SSR).
+ * 2. Burbujas con borde de tinta y opacidad alta. La regla del skill: nunca
+ *    un borde que no sea dato — la separación la hace un ANILLO de 2px del
+ *    color de la SUPERFICIE, que es lo que mantiene legibles los solapes.
+ * 3. Etiqueta en cada punto = ninguna etiqueta legible. Se etiqueta
+ *    SELECTIVAMENTE: la versión más vendida de cada marca y los dos extremos
+ *    de precio del gráfico. El resto vive en el tooltip.
+ * 4. El eje Y arrancaba en 0 y la franja 0–10k quedaba vacía. En un scatter
+ *    la posición no es una longitud desde cero (eso es de las barras): el
+ *    piso se ancla al dato, redondeado hacia abajo al múltiplo de 5k.
  */
-/** Nombre de version recortado para la etiqueta. Los de Cars llegan a
- *  "TANK 400 PHEV 4WD PREMIUM": entero tapa a la burbuja vecina, y cortado
- *  sigue siendo reconocible porque lo que identifica al modelo va al
- *  principio. El nombre completo queda en el tooltip. */
-function recortar(nombre: string, max = 22): string {
-  return nombre.length <= max ? nombre : `${nombre.slice(0, max - 1).trimEnd()}…`;
-}
-
 export function BurbujasPrecioChart({
   datos,
-  altura = 420,
-  etiquetas = false,
+  altura = 460,
 }: {
   datos: BurbujaPrecio[];
   altura?: number;
-  /** Escribe el nombre de cada burbuja al lado. Con pocas burbujas ayuda;
-   *  con muchas, ECharts esconde las que se pisan (`hideOverlap`) y quedan
-   *  rotuladas las que tienen aire. */
-  etiquetas?: boolean;
 }) {
   const theme = useChartTheme();
 
@@ -60,8 +53,8 @@ export function BurbujasPrecioChart({
     );
   }
 
-  // Marcas por volumen. Acá no hace falta poner las propias primero: todas
-  // lo son.
+  // Marcas ordenadas por volumen: la columna con más unidades a la izquierda,
+  // que es donde arranca la lectura.
   const volPorMarca = new Map<string, number>();
   for (const d of datos) {
     volPorMarca.set(d.marca, (volPorMarca.get(d.marca) ?? 0) + d.unidades);
@@ -71,43 +64,86 @@ export function BurbujasPrecioChart({
     .map(([m]) => m);
   const indice = new Map(marcas.map((m, i) => [m, i]));
 
+  // Jitter determinista en [-0.32, 0.32] de la columna. El hash del nombre
+  // reparte las versiones por el ancho; dos renders dan siempre lo mismo.
+  const jitter = (nombre: string) => {
+    let h = 0;
+    for (let i = 0; i < nombre.length; i++) h = (h * 31 + nombre.charCodeAt(i)) | 0;
+    return (((h >>> 0) % 1000) / 1000 - 0.5) * 0.64;
+  };
+
+  // Área ∝ unidades (de ahí el sqrt). Tope chico: en la captura que motivó
+  // el rediseño el radio llegaba a ~34px y las columnas densas eran una
+  // mancha; con 16px de tope el solape existe pero cada burbuja se lee.
   const maxU = Math.max(...datos.map((d) => d.unidades));
-  const anchoColumna = 820 / Math.max(marcas.length, 1);
-  const MIN_PX = 5;
-  const MAX_PX = Math.max(14, Math.min(34, anchoColumna));
-  const radio = (u: number) => MIN_PX + (MAX_PX - MIN_PX) * Math.sqrt(u / maxU);
+  const MIN_R = 4; // regla del skill: marcador ≥ 8px de diámetro
+  const MAX_R = 16;
+  const radio = (u: number) => MIN_R + (MAX_R - MIN_R) * Math.sqrt(u / maxU);
 
-  const moneda = datos[0].moneda;
-  const fmt = (v: number) =>
-    v >= 1_000_000
-      ? `${(v / 1_000_000).toFixed(v >= 10_000_000 ? 0 : 1)} M`
-      : formatUnidades(v);
+  // Piso del eje anclado al dato, techo redondeado hacia arriba.
+  const precios = datos.map((d) => d.precio);
+  const pisoY = Math.max(0, Math.floor(Math.min(...precios) / 5000) * 5000 - 5000);
+  const techoY = Math.ceil(Math.max(...precios) / 5000) * 5000;
 
-  const puntos = datos.map((d) => ({
-    value: [indice.get(d.marca) ?? 0, d.precio, d.unidades],
-    name: d.modelo,
-    marca: d.marca,
-    periodoPrecio: d.periodoPrecio,
-    moneda: d.moneda,
-    itemStyle: {
-      color: theme.series[(indice.get(d.marca) ?? 0) % theme.series.length],
-      opacity: 0.75,
-      borderColor: theme.text,
-      borderWidth: 1,
-    },
-  }));
+  // --- etiquetas selectivas: la más vendida de cada marca + extremos ---
+  const etiquetadas = new Set<string>();
+  for (const m of marcas) {
+    const top = datos
+      .filter((d) => d.marca === m)
+      .sort((a, b) => b.unidades - a.unidades)[0];
+    if (top && top.unidades > 0) etiquetadas.add(`${top.marca}|${top.modelo}`);
+  }
+  const caro = [...datos].sort((a, b) => b.precio - a.precio)[0];
+  const barato = [...datos].sort((a, b) => a.precio - b.precio)[0];
+  etiquetadas.add(`${caro.marca}|${caro.modelo}`);
+  etiquetadas.add(`${barato.marca}|${barato.modelo}`);
 
-  // Precio promedio PONDERADO por unidades, no promedio simple: el promedio
-  // simple le da el mismo peso a un modelo que vendió 3 unidades que a uno
-  // que vendió 300, y describe la lista en vez de describir lo que se vende.
+  /** Nombre recortado: lo que identifica va al principio; el resto, tooltip. */
+  const recortar = (n: string, max = 18) =>
+    n.length <= max ? n : `${n.slice(0, max - 1).trimEnd()}…`;
+
+  const puntos = datos.map((d) => {
+    const i = indice.get(d.marca) ?? 0;
+    return {
+      value: [i + jitter(d.modelo), d.precio, d.unidades],
+      name: d.modelo,
+      marca: d.marca,
+      periodoPrecio: d.periodoPrecio,
+      moneda: d.moneda,
+      itemStyle: {
+        color: theme.series[i % theme.series.length],
+        opacity: 0.82,
+        // Anillo del color de la superficie, NO un borde de tinta: es lo que
+        // separa dos burbujas que se tocan sin sumar tinta que no es dato.
+        borderColor: theme.card,
+        borderWidth: 2,
+      },
+      label: etiquetadas.has(`${d.marca}|${d.modelo}`)
+        ? {
+            show: true,
+            position: "right" as const,
+            distance: 4,
+            // Tinta de texto, nunca el color de la serie (regla del skill).
+            color: theme.text,
+            fontSize: 10,
+            formatter: () => recortar(d.modelo),
+          }
+        : { show: false },
+    };
+  });
+
+  // Precio promedio PONDERADO por unidades: describe lo que se vende, no la
+  // lista. El promedio simple le daría el mismo peso a 3 u. que a 300.
   const unidadesTotal = datos.reduce((s, d) => s + d.unidades, 0);
   const ponderado =
     datos.reduce((s, d) => s + d.precio * d.unidades, 0) / (unidadesTotal || 1);
 
+  const fmtK = (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v));
+
   const option = {
-    animationDuration: 700,
+    animationDuration: 600,
     animationEasing: "cubicOut" as const,
-    grid: { left: 72, right: 16, top: 16, bottom: 84 },
+    grid: { left: 8, right: 96, top: 12, bottom: 8, containLabel: true },
     tooltip: {
       ...TOOLTIP_BASE,
       trigger: "item",
@@ -118,63 +154,61 @@ export function BurbujasPrecioChart({
       }) =>
         `<b>${p.data.marca}</b> · ${p.name}<br/>` +
         `${p.data.moneda} ${p.value[1].toLocaleString("es-PY")}<br/>` +
-        `${formatUnidades(p.value[2])} u. en el período` +
-        `<br/><span style="font-size:11px;opacity:.75">Lista de ${p.data.periodoPrecio}</span>`,
+        `${formatUnidades(p.value[2])} u. facturadas en el período`,
     },
+    // Eje X numérico para poder correr cada burbuja dentro de su columna;
+    // las marcas entran como etiquetas de los ticks enteros.
     xAxis: {
-      type: "category" as const,
-      data: marcas,
+      type: "value" as const,
+      min: -0.5,
+      max: marcas.length - 0.5,
+      interval: 1,
       axisLabel: {
-        // La marca en el acento y en negrita: en este gráfico la columna ES
-        // la marca, no una etiqueta de escala. Mismo papel que en la
-        // referencia, con nuestro color y no el de ellos.
         color: theme.primary,
         fontSize: 10,
         fontWeight: "bold" as const,
-        // `rotate: 45` fijo dejaba las marcas cortas torcidas sin necesidad.
-        // Con muchas columnas no hay lugar horizontal y ahí sí se rota.
-        rotate: marcas.length > 12 ? 45 : 0,
-        interval: 0,
+        rotate: marcas.length > 9 ? 40 : 0,
+        // Los ticks caen en -0.5, 0.5, 1.5… y en los enteros. Solo los
+        // enteros son columnas; el resto queda vacío.
+        formatter: (v: number) =>
+          Number.isInteger(v) ? (marcas[v] ?? "") : "",
       },
-      axisLine: { lineStyle: { color: theme.grid } },
+      axisLine: { show: false },
       axisTick: { show: false },
+      splitLine: { show: false },
     },
     yAxis: {
       type: "value" as const,
-      name: `Precio de lista (${moneda})`,
+      min: pisoY,
+      max: techoY,
+      name: `Precio de lista (${datos[0].moneda})`,
       nameTextStyle: { color: theme.text, fontSize: 11, align: "left" as const },
-      axisLabel: { color: theme.text, fontSize: 11, formatter: fmt },
-      splitLine: { lineStyle: { color: theme.grid, type: "dashed" as const } },
+      axisLabel: { color: theme.text, fontSize: 11, formatter: fmtK },
+      // Hairline SOLIDA y recesiva (regla del skill: nunca punteada — el
+      // punteado agrega ruido de alta frecuencia que compite con el dato).
+      splitLine: { lineStyle: { color: theme.grid, width: 1 } },
     },
     series: [
       {
         type: "scatter" as const,
         symbolSize: (val: number[]) => radio(val[2]) * 2,
         data: puntos,
-        label: etiquetas
-          ? {
-              show: true,
-              position: "right" as const,
-              distance: 4,
-              color: theme.text,
-              fontSize: 9,
-              formatter: (p: { name: string }) => recortar(p.name),
-            }
-          : { show: false },
-        // Sin esto, con 130 burbujas las etiquetas se apilan hasta volverse
-        // una mancha. `hideOverlap` deja rotuladas las que tienen aire y
-        // esconde el resto — que igual se leen en el tooltip.
+        // Si dos etiquetas selectivas igual chocan, se esconde una: peor es
+        // mostrarlas encimadas.
         labelLayout: { hideOverlap: true },
-        emphasis: { focus: "self" as const, itemStyle: { opacity: 1, borderWidth: 2 } },
+        emphasis: {
+          focus: "self" as const,
+          itemStyle: { opacity: 1, shadowBlur: 8, shadowColor: "oklch(0.2 0.05 260 / 30%)" },
+        },
         markLine: {
           silent: true,
           symbol: "none" as const,
-          lineStyle: { color: theme.primary, type: "dashed" as const, width: 1 },
+          lineStyle: { color: theme.text, type: "dashed" as const, width: 1, opacity: 0.6 },
           label: {
             show: true,
             position: "insideEndTop" as const,
-            formatter: `Ponderado ${fmt(ponderado)}`,
-            color: theme.primary,
+            formatter: `Ponderado ${fmtK(Math.round(ponderado))}`,
+            color: theme.text,
             fontSize: 10,
           },
           data: [{ yAxis: ponderado }],

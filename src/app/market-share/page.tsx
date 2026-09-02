@@ -9,7 +9,6 @@ import {
   TECNOLOGIAS, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import { serieAAnios } from "@/lib/serie";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 const DIMENSIONES = {

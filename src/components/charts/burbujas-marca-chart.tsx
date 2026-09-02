@@ -110,11 +110,13 @@ export function BurbujasMarcaChart({
       symbol: recortada ? ("triangle" as const) : ("circle" as const),
       itemStyle: {
         color: colorDeMarca(d.marca),
-        // Las propias van opacas y con borde marcado; el resto translúcido,
-        // para que se lean como fondo de comparación y no compitan.
+        // Las propias opacas, el resto translúcido: esa diferencia —no un
+        // borde— es lo que las separa del fondo de comparación. El anillo es
+        // del color de la SUPERFICIE (skill dataviz): separa burbujas que se
+        // tocan sin sumar tinta que no es dato.
         opacity: d.esPropia ? 0.9 : 0.55,
-        borderColor: d.esPropia ? theme.text : "transparent",
-        borderWidth: d.esPropia ? 1.5 : 0,
+        borderColor: theme.card,
+        borderWidth: 2,
       },
     };
   });
@@ -172,7 +174,9 @@ export function BurbujasMarcaChart({
         formatter: (v: number) =>
           v === TECHO_VARIACION ? `≥ +${v}%` : `${v > 0 ? "+" : ""}${v}%`,
       },
-      splitLine: { lineStyle: { color: theme.grid, type: "dashed" as const } },
+      // Hairline sólida y recesiva, nunca punteada (skill dataviz 2026-09):
+      // el punteado agrega ruido que compite con las burbujas.
+      splitLine: { lineStyle: { color: theme.grid, width: 1 } },
     },
     series: [
       {

@@ -130,13 +130,14 @@ export default async function BubbleChartPage({
     `${f.anio}-${dd(f.mesHasta)}`
   ).catch(() => []);
   const propiasSet = getMarcasPropiasSet();
-  // Las del grupo primero, como en la referencia: la columna de la izquierda
-  // es donde arranca la lectura, y ahi tienen que estar las nuestras.
-  const ordenPrecio = [...burbujasPrecio].sort((a, b) => {
-    const pa = propiasSet.has(a.marca) ? 0 : 1;
-    const pb = propiasSet.has(b.marca) ? 0 : 1;
-    return pa - pb || b.unidades - a.unidades;
-  });
+  // SOLO las marcas del grupo. El stock de Cars también tiene canje y usados
+  // (BMW, KARRY, CHANGAN... con una unidad cada una): en la captura que
+  // motivó el rediseño, esa cola ocupaba MEDIA PANTALLA con una burbuja
+  // suelta por columna. Se cuentan aparte en la nota, no se grafican.
+  const ordenPrecio = burbujasPrecio
+    .filter((b) => propiasSet.has(b.marca))
+    .sort((a, b) => b.unidades - a.unidades);
+  const canje = burbujasPrecio.length - ordenPrecio.length;
   const unidadesBurbujas = ordenPrecio.reduce((s, b) => s + b.unidades, 0);
 
   return (
@@ -241,8 +242,7 @@ export default async function BubbleChartPage({
                 moneda: "US$",
                 periodoPrecio: "Cars",
               }))}
-              altura={520}
-              etiquetas
+              altura={480}
             />
             <NotaDato>
               El precio sale del <strong>API de Cars</strong>, que solo conoce
@@ -253,7 +253,11 @@ export default async function BubbleChartPage({
               cubre pocos modelos. {ordenPrecio.length} versiones con precio,{" "}
               {formatUnidades(unidadesBurbujas)} unidades facturadas en el
               período; las versiones sin precio en Cars quedan fuera del
-              gráfico porque no tendrían dónde ubicarse en el eje.
+              gráfico porque no tendrían dónde ubicarse en el eje
+              {canje > 0
+                ? `, y las ${canje} versiones de canje y usados (marcas que no distribuimos, una unidad cada una) también: están en /operacion`
+                : ""}
+              .
             </NotaDato>
           </CardContent>
         </Card>
