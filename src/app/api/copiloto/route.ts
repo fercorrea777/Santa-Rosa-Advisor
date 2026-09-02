@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaTool } from "@anthropic-ai/sdk/helpers/beta/json-schema";
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/cadam/db";
 import { armarSystemPrompt } from "@/lib/cadam/copiloto-contexto";
@@ -10,20 +8,32 @@ import {
 import {
   getEstadoSyncPropio, getStockPropio, getVentasPropias,
 } from "@/lib/informes/propios";
+import {
+  modeloCopiloto, responderConGemma, type HerramientaLocal,
+} from "@/lib/copiloto/ollama";
 
 /**
  * Copiloto de inteligencia comercial.
  *
- * Claude responde preguntas en lenguaje natural con dos tipos de fuente:
+ * PROVEEDOR: Gemma 4 sobre el Ollama del propio servidor, NO la API de
+ * Anthropic (cambio del 02/09/2026). El motivo inmediato fue que la
+ * ANTHROPIC_API_KEY de produccion tenia un placeholder de Ollama pegado
+ * encima y el Copiloto llevaba dias respondiendo "clave no valida" a todo.
+ * El motivo de fondo es que el modelo corre en la casa y no se paga por
+ * pregunta. Ver src/lib/copiloto/ollama.ts para los limites medidos.
+ *
+ * SE PERDIERON web_search, web_fetch y code_execution: son tools SERVIDAS
+ * por Anthropic, no del modelo, y Ollama no tiene equivalente. Quedan las
+ * cuatro locales, que son las que leen nuestros datos.
+ *
+ * El modelo responde preguntas en lenguaje natural con estas fuentes:
  * - consultar_base: SQL de solo lectura sobre la MISMA base SQLite que
  *   alimenta los dashboards. Es la unica fuente de verdad para cifras de
  *   matriculacion/importacion.
- * - web_search / web_fetch / code_execution: herramientas server-side de
- *   Anthropic para informacion externa de mercado/competencia y analisis
- *   ad-hoc. code_execution corre en un sandbox aislado sin acceso a la
- *   base interna ni a la red mas alla de lo que la propia tool necesita.
- * - leer_informe_competencia: lectura de los informes semanales generados
- *   por el job programado (ver /api/informes-competencia/generar).
+ * - leer_informe_competencia: informes semanales ya generados.
+ * - leer_conocimiento_competencia: lo que releva Hermes (precios y
+ *   promociones de competencia).
+ * - leer_operacion_propia: nuestra facturacion y stock (API de Cars).
  *
  * Seguridad de consultar_base (sin cambios):
  * - La conexion de la app ya se abre con { readonly: true } (db.ts), y
@@ -39,9 +49,8 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILAS = 200;
 const MAX_TURNOS = 40; // historial maximo que aceptamos del cliente
-// Mas alto que antes (era 8): con mas herramientas disponibles (SQL + web +
-// codigo) una pregunta puede necesitar mas pasos de ida y vuelta.
-const MAX_ITERACIONES = 12;
+// El tope de iteraciones del bucle de herramientas vive ahora en
+// src/lib/copiloto/ollama.ts, junto al bucle que lo usa.
 
 const PROHIBIDAS =
   /\b(insert|update|delete|drop|alter|create|replace|attach|detach|pragma|vacuum|reindex|begin|commit|rollback)\b/i;
@@ -70,14 +79,14 @@ function ejecutarSql(consulta: string): string {
   }
 }
 
-const consultarBase = betaTool({
-  name: "consultar_base",
-  description:
+const consultarBase: HerramientaLocal = {
+  nombre: "consultar_base",
+  descripcion:
     "Ejecuta una consulta SQL de SOLO LECTURA (SELECT) sobre la base de " +
     "matriculaciones e importaciones de CADAM. Usala para toda cifra que " +
     "vayas a afirmar sobre el mercado interno. Preferí agregaciones (GROUP " +
     "BY) a filas sueltas; el resultado se trunca a 200 filas.",
-  inputSchema: {
+  parametros: {
     type: "object",
     properties: {
       sql: {
@@ -91,8 +100,8 @@ const consultarBase = betaTool({
     required: ["sql"],
     additionalProperties: false,
   },
-  run: (input) => ejecutarSql((input as { sql: string }).sql),
-});
+  ejecutar: (input) => ejecutarSql((input as { sql: string }).sql),
+};
 
 async function leerInformes(input: { semana?: string }): Promise<string> {
   try {
@@ -105,14 +114,14 @@ async function leerInformes(input: { semana?: string }): Promise<string> {
   }
 }
 
-const leerInformeCompetencia = betaTool({
-  name: "leer_informe_competencia",
-  description:
+const leerInformeCompetencia: HerramientaLocal = {
+  nombre: "leer_informe_competencia",
+  descripcion:
     "Lee los informes semanales de competencia/mercado ya generados " +
     "(precios, noticias, redes, tendencias globales y resumen ejecutivo). " +
     "Solo lectura. Si no pasás 'semana', trae los últimos 12 informes " +
     "guardados (de cualquier semana/dimensión).",
-  inputSchema: {
+  parametros: {
     type: "object",
     properties: {
       semana: {
@@ -122,8 +131,8 @@ const leerInformeCompetencia = betaTool({
     },
     additionalProperties: false,
   },
-  run: (input) => leerInformes(input as { semana?: string }),
-});
+  ejecutar: (input) => leerInformes(input as { semana?: string }),
+};
 
 /**
  * Base de conocimiento que empuja Hermes (benchmark de precios de
@@ -161,9 +170,9 @@ async function leerConocimiento(input: { clave?: string }): Promise<string> {
   }
 }
 
-const leerConocimientoCompetencia = betaTool({
-  name: "leer_conocimiento_competencia",
-  description:
+const leerConocimientoCompetencia: HerramientaLocal = {
+  nombre: "leer_conocimiento_competencia",
+  descripcion:
     "Base de conocimiento de competencia que mantiene Hermes (agente propio) " +
     "y actualiza por cron: benchmark de PRECIOS de la competencia, battle " +
     "cards modelo contra modelo, scan diario de promociones de las webs " +
@@ -173,7 +182,7 @@ const leerConocimientoCompetencia = betaTool({
     "actualizó cada documento) y después con 'clave' para leer uno. " +
     "Mirá siempre la fecha: parte de este material se releva a mano y puede " +
     "tener semanas.",
-  inputSchema: {
+  parametros: {
     type: "object",
     properties: {
       clave: {
@@ -184,8 +193,8 @@ const leerConocimientoCompetencia = betaTool({
     },
     additionalProperties: false,
   },
-  run: (input) => leerConocimiento(input as { clave?: string }),
-});
+  ejecutar: (input) => leerConocimiento(input as { clave?: string }),
+};
 
 /**
  * Operacion propia (API de Cars): facturacion y stock de la casa.
@@ -224,16 +233,16 @@ async function leerOperacionPropia(input: { que?: string }): Promise<string> {
   }
 }
 
-const leerOperacion = betaTool({
-  name: "leer_operacion_propia",
-  description:
+const leerOperacion: HerramientaLocal = {
+  nombre: "leer_operacion_propia",
+  descripcion:
     "Datos de la operación de Santa Rosa que salen del API de Cars (el DMS " +
     "de la casa), no de CADAM: unidades FACTURADAS por mes/marca/modelo, y " +
     "el STOCK actual por marca/modelo/estado con su precio de lista en " +
     "dólares. Usala para preguntas sobre cómo vamos NOSOTROS (cuánto " +
     "vendimos, qué tenemos, cuánto stock queda de un modelo). Ojo: factura " +
     "no es matriculación, y no hay importes de facturación disponibles.",
-  inputSchema: {
+  parametros: {
     type: "object",
     properties: {
       que: {
@@ -245,8 +254,8 @@ const leerOperacion = betaTool({
     },
     additionalProperties: false,
   },
-  run: (input) => leerOperacionPropia(input as { que?: string }),
-});
+  ejecutar: (input) => leerOperacionPropia(input as { que?: string }),
+};
 
 interface TurnoCliente {
   role: "user" | "assistant";
@@ -254,17 +263,6 @@ interface TurnoCliente {
 }
 
 export async function POST(request: Request) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      {
-        error:
-          "Falta ANTHROPIC_API_KEY en .env.local de la app. " +
-          "Agregala y reiniciá el servidor.",
-      },
-      { status: 500 }
-    );
-  }
-
   let turnos: TurnoCliente[];
   try {
     const body = await request.json();
@@ -288,74 +286,29 @@ export async function POST(request: Request) {
     );
   }
 
-  const client = new Anthropic();
-
   try {
-    const final = await client.beta.messages.toolRunner({
-      model: "claude-opus-4-8",
-      max_tokens: 8000,
-      max_iterations: MAX_ITERACIONES,
-      thinking: { type: "adaptive" },
-      // El system es estable (el estado variable va al final del texto):
-      // se cachea entre preguntas de la misma sesion y entre usuarios.
-      system: [
-        {
-          type: "text",
-          text: armarSystemPrompt(),
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      tools: [
+    const r = await responderConGemma({
+      // `conWeb: false`: con Ollama no existen web_search ni code_execution,
+      // y prometerselas al modelo solo lo lleva a inventar busquedas.
+      system: armarSystemPrompt({ conWeb: false }),
+      turnos: turnos.slice(-MAX_TURNOS),
+      herramientas: [
         consultarBase,
         leerInformeCompetencia,
         leerConocimientoCompetencia,
         leerOperacion,
-        { type: "web_search_20260318", name: "web_search" },
-        { type: "web_fetch_20260318", name: "web_fetch" },
-        { type: "code_execution_20260521", name: "code_execution" },
       ],
-      messages: turnos.slice(-MAX_TURNOS).map((t) => ({
-        role: t.role,
-        content: t.content,
-      })),
     });
-
-    if (final.stop_reason === "refusal") {
-      return NextResponse.json({
-        respuesta:
-          "No puedo responder esa consulta. Reformulala sobre los datos del mercado.",
-      });
-    }
-
-    const texto = final.content
-      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("\n")
-      .trim();
-
     return NextResponse.json({
-      respuesta: texto || "No obtuve respuesta. Probá reformular la pregunta.",
-      truncada: final.stop_reason === "max_tokens",
+      respuesta: r.respuesta,
+      truncada: r.truncada,
+      modelo: modeloCopiloto(),
     });
   } catch (e) {
-    if (e instanceof Anthropic.AuthenticationError) {
-      return NextResponse.json(
-        { error: "La clave de API no es válida. Revisá ANTHROPIC_API_KEY." },
-        { status: 500 }
-      );
-    }
-    if (e instanceof Anthropic.RateLimitError) {
-      return NextResponse.json(
-        { error: "Límite de uso de la API alcanzado. Esperá un momento y reintentá." },
-        { status: 429 }
-      );
-    }
-    if (e instanceof Anthropic.APIError) {
-      return NextResponse.json(
-        { error: `Error de la API de Claude (${e.status}): ${e.message}` },
-        { status: 502 }
-      );
-    }
-    throw e;
+    console.error("POST /api/copiloto:", e);
+    return NextResponse.json(
+      { error: `El copiloto falló: ${(e as Error).message}` },
+      { status: 500 }
+    );
   }
 }

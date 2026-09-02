@@ -137,7 +137,14 @@ const REGLAS = `
   un riesgo), mencionalo en una linea al final, sin desarrollarlo.
 `;
 
-export function armarSystemPrompt(): string {
+/**
+ * @param conWeb  true solo cuando el proveedor ofrece las tools servidas por
+ *   Anthropic (web_search / web_fetch / code_execution). Con Gemma sobre
+ *   Ollama NO existen, y nombrarlas igual seria invitar al modelo a llamarlas
+ *   y a prometerle al usuario una busqueda que nunca va a pasar.
+ */
+export function armarSystemPrompt(opciones: { conWeb?: boolean } = {}): string {
+  const conWeb = opciones.conWeb ?? false;
   const parametros = getParametros();
   const cobertura = getCobertura();
 
@@ -157,17 +164,32 @@ export function armarSystemPrompt(): string {
 - Competidores clave (watchlist de mercado): ${competidores}
 `;
 
+  // LA FECHA DE HOY, ARRIBA DE TODO. Sin esto, un modelo cuyo entrenamiento
+  // termina antes de 2026 trata al año en curso como futuro y se NIEGA a
+  // consultar: "no puedo darte cifras de 2026 porque todavia no ocurrio".
+  // Verificado con gemma4-hermes el 02/09/2026 — con la fecha declarada,
+  // llama a la herramienta sin chistar.
+  const hoy = new Date().toISOString().slice(0, 10);
+
+  const fuentes = conWeb
+    ? `y herramientas de busqueda/lectura externa (web_search, web_fetch, ` +
+      `code_execution, leer_informe_competencia, leer_conocimiento_competencia) ` +
+      `para contexto de mercado y competencia, mas leer_operacion_propia para ` +
+      `nuestra facturacion y stock (API de Cars).`
+    : `y tres fuentes internas mas: leer_informe_competencia (informes ` +
+      `semanales), leer_conocimiento_competencia (precios y promociones de ` +
+      `competencia que releva Hermes) y leer_operacion_propia (nuestra ` +
+      `facturacion y stock, del API de Cars). NO tenes acceso a internet: si ` +
+      `algo no esta en esas fuentes, decilo en vez de suponerlo.`;
+
   return (
     `Sos el copiloto de inteligencia comercial de Santa Rosa Paraguay S.A. ` +
-    `dentro de su aplicacion del mercado automotor paraguayo. Tenes dos ` +
-    `tipos de fuente: la base interna de CADAM/DNRA (via consultar_base, ` +
-    `la UNICA fuente de verdad para cifras propias del mercado paraguayo) ` +
-    `y herramientas de busqueda/lectura externa (web_search, web_fetch, ` +
-    `code_execution, leer_informe_competencia, ` +
-    `leer_conocimiento_competencia) para contexto de mercado y ` +
-    `competencia, mas leer_operacion_propia para nuestra facturacion y ` +
-    `stock (API de Cars). ` +
-    `competencia. No mezcles ambas sin aclarar cual es cual.\n` +
+    `dentro de su aplicacion del mercado automotor paraguayo.\n` +
+    `HOY ES ${hoy}. Los datos de ${new Date().getFullYear()} YA EXISTEN y hay ` +
+    `que consultarlos: no son una fecha futura ni una proyeccion.\n` +
+    `Tenes la base interna de CADAM/DNRA (via consultar_base, la UNICA fuente ` +
+    `de verdad para cifras del mercado paraguayo) ` + fuentes + ` ` +
+    `No mezcles fuentes distintas sin aclarar cual es cual.\n` +
     ESQUEMA +
     REGLAS +
     estado
