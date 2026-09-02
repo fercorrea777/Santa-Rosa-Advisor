@@ -1,7 +1,7 @@
 /** Id del ícono de línea propio (ver src/components/icons.tsx). */
 export type IconoNav =
   | "inicio" | "mercado" | "evolucion" | "rankings" | "segmentos"
-  | "combustibles" | "market-share" | "brecha" | "bubble" | "gama"
+  | "combustibles" | "localidades" | "market-share" | "brecha" | "bubble" | "gama"
   | "inteligencia" | "copiloto" | "cargas" | "calidad" | "configuracion";
 
 export interface NavItem {
@@ -39,6 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/rankings", label: "Rankings", icono: "rankings", implementado: true },
       { href: "/segmentos", label: "Segmentos", icono: "segmentos", implementado: true },
       { href: "/combustibles", label: "Combustibles y tecnologías", icono: "combustibles", implementado: true },
+      { href: "/localidades", label: "Localidades", icono: "localidades", implementado: true },
       { href: "/market-share", label: "Market Share", icono: "market-share", implementado: true },
       { href: "/brecha", label: "Import. vs matric.", icono: "brecha", implementado: true },
       { href: "/bubble-chart", label: "Bubble chart", icono: "bubble", implementado: true },

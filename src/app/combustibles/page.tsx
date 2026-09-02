@@ -13,6 +13,9 @@ import {
   getCobertura, getPorDimension, getRankingMarcas, getRankingModelos,
   getSerieMensual, GRUPO_TECNOLOGIA, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
+import {
+  getCoberturaCorte, getMarcasPorCombustible, getPorCorte, hayCorte,
+} from "@/lib/cadam/cortes";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
@@ -84,6 +87,38 @@ export default async function CombustiblesPage({
     mesMax[a] = a === cobertura.matriculacion.ultimo?.anio ? cobertura.matriculacion.ultimo.mes : 12;
   }
 
+  // COMBUSTIBLE: otro archivo de CADAM y otra taxonomia que `tecnologia`.
+  // Arranca en 2025, mientras que la fuente principal llega hasta 2022, asi
+  // que la seccion se apaga sola en los años que el archivo no cubre en vez
+  // de mostrar una tarjeta vacia.
+  const cobComb = getCoberturaCorte("combustible");
+  const combDisponible = hayCorte("combustible") && cobComb.anios.includes(f.anio);
+  const comb = combDisponible
+    ? getPorCorte("combustible", f)
+    : { filas: [], total: 0, totalAnterior: 0, baseDisponible: false };
+  // Solo se abre el detalle de marcas de los combustibles con peso real: la
+  // cola (BIODIESEL con 1 unidad, NO DEFINIDO con 13) daria tarjetas de una
+  // marca sola que no dicen nada. Siguen contadas en el grafico y la tabla.
+  const combConMarcas = comb.filas
+    .filter((c) => c.participacion >= 0.01)
+    .map((c) => ({
+      combustible: c.valor,
+      unidades: c.unidades,
+      marcas: getMarcasPorCombustible(c.valor, f, 5),
+    }));
+
+  // Los dos archivos NO coinciden en que es un electrico, y la diferencia se
+  // ve a simple vista entre dos tarjetas de esta misma pantalla. Se calcula
+  // en vivo para nombrarla con los numeros del periodo que se este mirando,
+  // en vez de dejar que parezca que una de las dos tarjetas esta rota.
+  const electricoComb = comb.filas.find((c) => c.valor === "ELECTRICO")?.unidades ?? 0;
+  const electricoTec = tecnologias
+    .filter((t) => GRUPO_TECNOLOGIA[t.valor] === "Eléctricos")
+    .reduce((s, t) => s + t.unidades, 0);
+  const enchufablesTec = tecnologias
+    .filter((t) => t.valor === "PHEV")
+    .reduce((s, t) => s + t.unidades, 0);
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -105,6 +140,192 @@ export default async function CombustiblesPage({
         agrupación de abajo es solo una vista opcional; el detalle original no se
         pierde.
       </NotaDato>
+
+      {/* ---------------------------------------------------- COMBUSTIBLE --
+          Va primero porque es la primera palabra del título de la pantalla, y
+          hasta ahora la página prometía "combustibles" y sólo mostraba
+          tecnologías. Son ejes distintos: lo que el auto QUEMA vs. su tren
+          motriz. Un híbrido nafta es 'HIBRIDO' acá y 'HEV' abajo. */}
+      {combDisponible ? (
+        <>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Por combustible — {periodo}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Lo que el vehículo quema, según el registro de la DNRA.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <DistribucionChart
+                  datos={comb.filas.map((c) => ({ nombre: c.valor, valor: c.unidades }))}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Contra el mismo período de {f.anio - 1}
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {comb.baseDisponible
+                    ? `Misma ventana de meses en los dos años (${periodo} vs. ${f.anio - 1}), no un año entero contra medio.`
+                    : `${f.anio - 1} no tiene esta ventana cargada: no hay contra qué comparar.`}
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Combustible</TableHead>
+                      <TableHead className="text-right">Unidades</TableHead>
+                      <TableHead className="text-right">Part.</TableHead>
+                      <TableHead className="text-right">Var.</TableHead>
+                      <TableHead className="text-right">Δ part.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {comb.filas.map((c) => (
+                      <TableRow key={c.valor}>
+                        <TableCell className="font-medium">{c.valor}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatUnidades(c.unidades)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatPct(c.participacion)}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right tabular-nums",
+                            c.variacion !== null &&
+                              (c.variacion > 0
+                                ? "text-emerald-600 dark:text-emerald-500"
+                                : "text-rose-600 dark:text-rose-500")
+                          )}
+                        >
+                          {/* null = entrante o sin base: nunca 0% ni un
+                              porcentaje gigante que en realidad es ∞. */}
+                          {c.variacion === null
+                            ? comb.baseDisponible && c.unidadesAnterior === 0
+                              ? "nuevo"
+                              : "—"
+                            : formatPct(c.variacion, { signed: true })}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right tabular-nums",
+                            c.deltaParticipacion !== null &&
+                              (c.deltaParticipacion > 0
+                                ? "text-emerald-600 dark:text-emerald-500"
+                                : "text-rose-600 dark:text-rose-500")
+                          )}
+                        >
+                          {c.deltaParticipacion === null
+                            ? "—"
+                            : formatPuntosPct(c.deltaParticipacion)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Marcas líderes de cada combustible — {periodo}</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Top 5 por combustible; la participación es sobre ese combustible,
+                no sobre el mercado. Se omiten los que no llegan al 1% del
+                período (siguen contados arriba).
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 xl:grid-cols-3">
+                {combConMarcas.map((c) => (
+                  <div key={c.combustible} className="flex flex-col gap-1.5">
+                    <div className="flex items-baseline justify-between gap-2 border-b pb-1.5">
+                      <span className="text-sm font-semibold">{c.combustible}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {formatUnidades(c.unidades)} u.
+                      </span>
+                    </div>
+                    {c.marcas.map((m, i) => (
+                      <div
+                        key={m.marca}
+                        className="flex items-baseline justify-between gap-2 text-sm"
+                      >
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span className="w-3 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                            {i + 1}
+                          </span>
+                          <span
+                            className={cn(
+                              "min-w-0 truncate",
+                              propias.has(m.marca) && "font-semibold text-primary"
+                            )}
+                          >
+                            {m.marca}
+                          </span>
+                        </span>
+                        <span className="shrink-0 tabular-nums text-muted-foreground">
+                          {formatUnidades(m.unidades)} · {formatPct(m.participacion)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <NotaDato>
+            <strong>Combustible no es tecnología, y los dos archivos no
+            coinciden.</strong> Arriba se clasifica lo que el vehículo quema
+            (nafta, gasoil, flex, híbrido, eléctrico); abajo, su tren motriz
+            (ICE, MHEV, HEV, PHEV, REEV, EV). Un híbrido nafta cuenta como
+            «HIBRIDO» arriba y como «HEV» abajo: son dos ejes del mismo
+            vehículo, no dos nombres de lo mismo, y no se suman.
+            {electricoComb > 0 && electricoTec > 0 && (
+              <>
+                {" "}Por eso este período muestra{" "}
+                <strong>{formatUnidades(electricoComb)}</strong> «ELECTRICO» por
+                combustible y sólo{" "}
+                <strong>{formatUnidades(electricoTec)}</strong> entre EV y REEV
+                por tecnología: ninguna de las dos cifras está mal, cuentan cosas
+                distintas. La brecha se explica en buena parte por los{" "}
+                {formatUnidades(enchufablesTec)} PHEV, que enchufan pero también
+                queman combustible. <strong>Sin confirmar con CADAM:</strong> no
+                documentan el criterio, y al cruzar los dos archivos aparecen
+                casos que no cierran (unidades marcadas «ELECTRICO» que del otro
+                lado figuran como ICE). Para contar eléctricos puros, la cifra
+                buena es la de tecnología.
+              </>
+            )}
+            {f.tecnologia ? (
+              <>
+                {" "}El filtro de tecnología <strong>{f.tecnologia}</strong> no se
+                aplica a esta sección: el archivo de combustible no trae columna
+                de tecnología, así que los dos cortes no se pueden cruzar fila a
+                fila.
+              </>
+            ) : null}{" "}
+            Cobertura del corte: {cobComb.anios[0]}–{cobComb.anios.at(-1)}.
+          </NotaDato>
+        </>
+      ) : (
+        <NotaDato>
+          El corte por combustible sólo está cargado para{" "}
+          {cobComb.anios.length
+            ? `${cobComb.anios[0]}–${cobComb.anios.at(-1)}`
+            : "ningún año todavía"}
+          , y estás viendo {f.anio}. Viene en un archivo aparte de CADAM, más
+          corto que la serie principal. Lo de abajo —el corte por tecnología—
+          cubre todos los años igual.
+        </NotaDato>
+      )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>

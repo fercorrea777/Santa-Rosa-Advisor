@@ -101,6 +101,16 @@ export function IconCombustibles(props: IconProps) {
   );
 }
 
+/** Localidades: chincheta de mapa — el único corte geográfico del dato. */
+export function IconLocalidades(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 21c4-4.4 6-7.6 6-10a6 6 0 1 0-12 0c0 2.4 2 5.6 6 10z" />
+      <circle cx="12" cy="10.5" r="2.25" />
+    </svg>
+  );
+}
+
 export function IconMarketShare(props: IconProps) {
   return (
     <svg {...base(props)}>
