@@ -21,6 +21,12 @@ export const dynamic = "force-dynamic";
  * Se empuja el LOTE COMPLETO, no documentos sueltos: la transaccion de
  * `guardarConocimiento` garantiza que el Copiloto nunca vea medio vault
  * actualizado (benchmark nuevo, battle cards viejas) sin que nada lo delate.
+ *
+ * Con `reemplazar_todo: true` el lote ES el inventario: lo que no venga se
+ * borra. Es lo que manda el cron de Hermes, que siempre empuja su manifiesto
+ * entero — sin eso, un documento que Croman saque del manifiesto se quedaria
+ * para siempre y el Copiloto lo seguiria citando como vigente. Es opt-in
+ * para que un push parcial no pueda vaciar la base por descuido.
  */
 
 /** Los archivos del vault hoy pesan 4-15 KB. 80k caracteres deja aire de
@@ -108,7 +114,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Body inválido: se esperaba JSON" }, { status: 400 });
   }
 
-  const docs = (body as { documentos?: DocEntrada[] } | null)?.documentos ?? [];
+  const cuerpo = body as { documentos?: DocEntrada[]; reemplazar_todo?: unknown } | null;
+  const docs = cuerpo?.documentos ?? [];
+  // Explicito y opt-in: quien empuje un lote PARCIAL (una prueba, un script
+  // nuevo) no puede borrar el resto del conocimiento por descuido.
+  const reemplazarTodo = cuerpo?.reemplazar_todo === true;
   const v = validar(docs);
   if ("error" in v) {
     return NextResponse.json({ error: v.error }, { status: 400 });
@@ -125,7 +135,8 @@ export async function POST(request: Request) {
         contenido: (d.contenido as string).trim(),
         origen: typeof d.origen === "string" ? d.origen : "hermes",
         fechado_en: typeof d.fechado_en === "string" ? d.fechado_en : null,
-      }))
+      })),
+      { reemplazarTodo }
     );
   } catch (e) {
     console.error("POST /api/conocimiento-competencia:", e);
@@ -135,6 +146,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     guardados: docs.length,
+    reemplazo_total: reemplazarTodo,
     claves: docs.map((d) => d.clave),
   });
 }

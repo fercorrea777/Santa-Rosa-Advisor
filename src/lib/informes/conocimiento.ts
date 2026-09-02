@@ -61,7 +61,16 @@ export async function crearTablaConocimiento(): Promise<void> {
 }
 
 export async function guardarConocimiento(
-  docs: { clave: string; titulo: string; contenido: string; origen: string; fechado_en?: string | null }[]
+  docs: { clave: string; titulo: string; contenido: string; origen: string; fechado_en?: string | null }[],
+  opciones: {
+    /** Borra todo lo que NO venga en este lote. Hermes empuja siempre su
+     *  manifiesto completo, asi que sin esto un documento que Croman saca
+     *  del manifiesto se queda para siempre en la base: el Copiloto lo
+     *  seguiria leyendo como vigente y nadie se enteraria, porque en el
+     *  panel solo se ve que no se actualiza. Con esto, el manifiesto de
+     *  Hermes ES el inventario. */
+    reemplazarTodo?: boolean;
+  } = {}
 ): Promise<void> {
   if (!docs.length) return;
   const cliente = await getPool().connect();
@@ -83,6 +92,16 @@ export async function guardarConocimiento(
            fechado_en = excluded.fechado_en,
            actualizado_en = now()`,
         [d.clave, d.titulo, d.contenido, d.origen, d.fechado_en || null]
+      );
+    }
+    if (opciones.reemplazarTodo) {
+      // Al final y no al principio: si el insert de un documento fallara,
+      // el rollback deja la base como estaba. Borrar primero y fallar
+      // despues, dentro de la misma transaccion, terminaria igual — pero
+      // este orden hace obvio que nunca hay una ventana sin conocimiento.
+      await cliente.query(
+        `delete from conocimiento_competencia where clave <> all($1::text[])`,
+        [docs.map((d) => d.clave)]
       );
     }
     await cliente.query("commit");
