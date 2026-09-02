@@ -48,14 +48,39 @@ export function SerieAniosChart({
     tooltip: {
       ...TOOLTIP_BASE,
       trigger: "axis",
-      // seriesDesc invierte el orden de declaración de las series; como
-      // vienen ascendentes por año, el tooltip queda 2026→2023.
-      order: ordenTooltip,
-      valueFormatter: (v: number | null) => {
-        if (v === null || v === undefined) return "Sin datos";
-        return series[0]?.unidad === "porcentaje"
-          ? `${v.toFixed(1)}%`
-          : formatUnidades(v);
+      // Formateador propio para controlar el ORDEN de las filas de forma
+      // determinística: `tooltip.order` de ECharts no reordenaba de manera
+      // confiable. Con ordenTooltip="seriesDesc" (por defecto) las series se
+      // muestran de la última declarada a la primera; como vienen ascendentes
+      // por año, el año más reciente (2026) queda arriba. Market Share pasa
+      // "seriesAsc" para respetar su orden por ranking.
+      formatter: (raw: unknown) => {
+        const params = (Array.isArray(raw) ? raw : [raw]) as {
+          seriesIndex: number; seriesName: string; marker: string;
+          value: number | null; axisValueLabel?: string;
+        }[];
+        const filas = [...params].sort((a, b) =>
+          ordenTooltip === "seriesDesc"
+            ? b.seriesIndex - a.seriesIndex
+            : a.seriesIndex - b.seriesIndex
+        );
+        const fmt = (v: number | null) =>
+          v === null || v === undefined
+            ? "Sin datos"
+            : series[0]?.unidad === "porcentaje"
+              ? `${v.toFixed(1)}%`
+              : formatUnidades(v);
+        const cabecera = filas[0]?.axisValueLabel ?? "";
+        const cuerpo = filas
+          .map(
+            (p) =>
+              `<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;line-height:1.7">` +
+              `<span style="display:flex;align-items:center;gap:6px">${p.marker}${p.seriesName}</span>` +
+              `<span style="font-variant-numeric:tabular-nums;font-weight:600">${fmt(p.value)}</span>` +
+              `</div>`
+          )
+          .join("");
+        return `<div style="font-weight:600;margin-bottom:2px">${cabecera}</div>${cuerpo}`;
       },
     },
     legend: {
