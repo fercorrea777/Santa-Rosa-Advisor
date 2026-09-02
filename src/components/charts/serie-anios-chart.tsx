@@ -50,7 +50,15 @@ export function SerieAniosChart({
           : formatUnidades(v);
       },
     },
-    legend: { top: 0, textStyle: { color: theme.text, fontSize: 12 } },
+    legend: {
+      top: 0,
+      textStyle: { color: theme.text, fontSize: 12 },
+      // Orden explícito = el de las series (ya vienen ordenadas por año).
+      // Sin esto, con `replaceMerge` ECharts conserva la leyenda previa y
+      // cuelga cada serie nueva al final: al agregar un año quedaba fuera
+      // de orden (2024·2025·2026·2023 en vez de 2023·2024·2025·2026).
+      data: series.map((s) => String(s.anio)),
+    },
     xAxis: {
       type: "category",
       data: MESES_CORTOS,
