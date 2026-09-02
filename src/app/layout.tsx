@@ -78,7 +78,10 @@ export default function RootLayout({
             queda como elección explícita del toggle. */}
         <ThemeProvider attribute="class" defaultTheme="light">
           <TooltipProvider>
-            <AppShell>{children}</AppShell>
+            {/* `sinClave` se lee ACA, en el layout, que es Server Component:
+                AppShell es "use client" y ahi process.env no existe. Ver
+                src/proxy.ts para por que la puerta falla abierta. */}
+            <AppShell sinClave={!process.env.ADVISOR_CLAVE}>{children}</AppShell>
           </TooltipProvider>
         </ThemeProvider>
       </body>

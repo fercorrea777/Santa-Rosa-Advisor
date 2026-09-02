@@ -8,7 +8,17 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { cn } from "@/lib/utils";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  sinClave = false,
+}: {
+  children: React.ReactNode;
+  /** true cuando falta ADVISOR_CLAVE, o sea que el tablero esta abierto a
+   *  quien tenga la URL. Ver src/proxy.ts: la puerta falla ABIERTA a
+   *  proposito para no dejar al equipo afuera en el deploy, y este aviso es
+   *  la contrapartida — el riesgo tiene que verse, no quedar en silencio. */
+  sinClave?: boolean;
+}) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   return (
@@ -19,6 +29,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // con la misma marca escrita dos veces.
     <div className="flex min-h-screen w-full flex-col">
       <BarraMarca onAbrirMenu={() => setMobileOpen(true)} />
+
+      {sinClave && <AvisoSinClave />}
 
       <div className="flex min-h-0 w-full flex-1">
         {/* Sidebar desktop: fijo mientras el contenido scrollea.
@@ -157,5 +169,30 @@ function BarraMarca({ onAbrirMenu }: { onAbrirMenu: () => void }) {
         <ThemeToggle />
       </div>
     </header>
+  );
+}
+
+/**
+ * Franja de "este tablero es publico".
+ *
+ * Fea a proposito: tiene que molestar hasta que alguien ponga la clave. Un
+ * aviso discreto en un tablero que se mira todos los dias se vuelve parte
+ * del mobiliario en una semana, y entonces deja de avisar.
+ *
+ * No lleva boton para cerrarla: no es una notificacion, es un estado.
+ */
+function AvisoSinClave() {
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-rose-700/40 bg-rose-600 px-4 py-2 text-center text-[0.8rem] font-medium text-white"
+    >
+      <span className="font-bold uppercase tracking-wide">Tablero sin clave</span>
+      <span className="opacity-95">
+        Cualquiera con la URL ve el stock, los precios y la inteligencia de
+        competencia. Definí <code className="font-mono">ADVISOR_CLAVE</code> en
+        el entorno del servidor para cerrarlo.
+      </span>
+    </div>
   );
 }
