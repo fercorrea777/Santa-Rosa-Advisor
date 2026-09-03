@@ -92,14 +92,25 @@ export function AppShell({
             {!sinClave && (
               // Solo si hay clave: sin ella no hay sesión que cerrar y el
               // botón prometería algo que no hace.
-              <form action={salir}>
-                <button
-                  type="submit"
+              <div className="flex flex-col gap-0.5">
+                {/* "Mi clave" vive ACA y no en el menu lateral: no es una
+                    pantalla de analisis, es una cosa de la propia cuenta, y
+                    es donde uno la va a buscar — al lado de cerrar sesion. */}
+                <Link
+                  href="/mi-clave"
                   className="w-full rounded-md px-2 py-1.5 text-left text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white pointer-coarse:min-h-9"
                 >
-                  Cerrar sesión
-                </button>
-              </form>
+                  Mi clave
+                </Link>
+                <form action={salir}>
+                  <button
+                    type="submit"
+                    className="w-full rounded-md px-2 py-1.5 text-left text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white pointer-coarse:min-h-9"
+                  >
+                    Cerrar sesión
+                  </button>
+                </form>
+              </div>
             )}
           </div>
         </aside>
