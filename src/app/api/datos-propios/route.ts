@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   crearTablasPropias, getEstadoSyncPropio, guardarDatosPropios,
-  type StockPropio, type VentaPropia,
+  type StockPropio, type VentaAsesor, type VentaPropia,
 } from "@/lib/informes/propios";
 
 export const runtime = "nodejs";
@@ -25,10 +25,15 @@ export const dynamic = "force-dynamic";
  * Hermes ya sincroniza Cars cada 4 horas para PDI desde esa misma maquina.
  *
  * LO QUE ESTE ENDPOINT NO ACEPTA. El esquema no tiene lugar para Cliente,
- * Email, Telefono, VIN, NroFactura ni Vendedor. No es un olvido: la app no
- * tiene login y esos campos son datos personales de compradores reales y de
- * empleados. El agregado se hace del lado de Hermes; lo crudo no sale de
- * ahi. Cualquier campo de mas que venga en el body se ignora.
+ * Email, Telefono, VIN ni NroFactura: son datos personales de compradores
+ * reales, y esos SIGUEN sin tener ningun uso en un tablero gerencial. El
+ * agregado se hace del lado de Hermes; lo crudo no sale de ahi. Cualquier
+ * campo de mas que venga en el body se ignora.
+ *
+ * `asesores` es la excepcion agregada (03/09/2026, ver propios.ts): ahora
+ * que el Advisor tiene login y roles, se acepta periodo x marca x asesor ->
+ * unidades para el ranking de asesores. Sigue siendo agregado, nunca una
+ * fila por factura.
  */
 
 const MAX_FILAS = 5_000;
@@ -48,11 +53,20 @@ function entero(v: unknown): number | null {
 function validar(body: {
   ventas?: unknown;
   stock?: unknown;
-}): { error: string } | { ventas: VentaPropia[]; stock: StockPropio[] } {
+  asesores?: unknown;
+}):
+  | { error: string }
+  | { ventas: VentaPropia[]; stock: StockPropio[]; asesores?: VentaAsesor[] } {
   if (!Array.isArray(body.ventas) || !Array.isArray(body.stock)) {
     return { error: "Se esperaban 'ventas' y 'stock' como arrays" };
   }
-  if (body.ventas.length > MAX_FILAS || body.stock.length > MAX_FILAS) {
+  if (body.asesores !== undefined && !Array.isArray(body.asesores)) {
+    return { error: "'asesores', si viene, tiene que ser un array" };
+  }
+  if (
+    body.ventas.length > MAX_FILAS || body.stock.length > MAX_FILAS ||
+    (Array.isArray(body.asesores) && body.asesores.length > MAX_FILAS)
+  ) {
     return { error: `Máximo ${MAX_FILAS} filas por tabla` };
   }
 
@@ -100,7 +114,26 @@ function validar(body: {
     stock.push({ marca, modelo, version: version ?? modelo, estado, unidades, reservadas, precio_usd });
   }
 
-  return { ventas, stock };
+  let asesores: VentaAsesor[] | undefined;
+  if (Array.isArray(body.asesores)) {
+    asesores = [];
+    for (const [i, r] of body.asesores.entries()) {
+      const a = r as Record<string, unknown>;
+      const periodo = texto(a.periodo, 7);
+      const marca = texto(a.marca);
+      const asesor = texto(a.asesor, 120);
+      const unidades = entero(a.unidades);
+      if (!periodo || !RE_PERIODO.test(periodo)) {
+        return { error: `asesores[${i}].periodo debe ser YYYY-MM` };
+      }
+      if (!marca || !asesor || unidades === null) {
+        return { error: `asesores[${i}]: marca, asesor y unidades son obligatorios` };
+      }
+      asesores.push({ periodo, marca, asesor, unidades });
+    }
+  }
+
+  return { ventas, stock, asesores };
 }
 
 function autorizado(request: Request): boolean {
@@ -130,6 +163,7 @@ export async function POST(request: Request) {
     await guardarDatosPropios({
       ventas: v.ventas,
       stock: v.stock,
+      asesores: v.asesores,
       detalle:
         typeof body.detalle === "object" && body.detalle !== null
           ? (body.detalle as Record<string, unknown>)
@@ -145,6 +179,7 @@ export async function POST(request: Request) {
     ventas: v.ventas.length,
     stock: v.stock.length,
     unidades_stock: v.stock.reduce((s, x) => s + x.unidades, 0),
+    asesores: v.asesores?.length ?? null,
   });
 }
 

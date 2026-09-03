@@ -14,7 +14,8 @@ import {
 } from "@/lib/cadam/mercado";
 import { getParametros } from "@/lib/cadam/config";
 import {
-  getEstadoSyncPropio, getStockPropio, getVentasPropias, hayDatosPropios,
+  getEstadoSyncPropio, getStockPropio, getVentasAsesor, getVentasPropias,
+  hayDatosPropios,
 } from "@/lib/informes/propios";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
@@ -59,11 +60,23 @@ export default async function OperacionPage({
     );
   }
 
-  const [ventas, stock, sync] = await Promise.all([
+  const [ventasCrudas, stockCrudo, asesoresCrudos, sync] = await Promise.all([
     getVentasPropias(),
     getStockPropio(),
+    getVentasAsesor(),
     getEstadoSyncPropio(),
   ]);
+
+  // --- filtro de marca: cascada a TODO lo de esta página, como en el resto
+  // del tablero. `f.marca` ya viaja de filtroDesdeUrl() (mismo param que
+  // usan mercado/rankings/etc), así que un link "?marca=JETOUR" de otra
+  // pantalla ya llegaba filtrando CADAM a medias antes de este cambio —
+  // ver el porqué de `mercado` más abajo.
+  const ventas = f.marca ? ventasCrudas.filter((v) => v.marca === f.marca) : ventasCrudas;
+  const stock = f.marca ? stockCrudo.filter((s) => s.marca === f.marca) : stockCrudo;
+  const asesoresCrudosF = f.marca
+    ? asesoresCrudos.filter((a) => a.marca === f.marca)
+    : asesoresCrudos;
 
   // --- facturación del período filtrado, y del mismo período del año anterior
   const enVentana = (periodoTxt: string, anio: number) => {
@@ -82,7 +95,11 @@ export default async function OperacionPage({
     rankingMarcas.filter((r) => propias.includes(r.marca)).map((r) => [r.marca, r.unidades])
   );
   const totalMatric = [...matricPorMarca.values()].reduce((s, u) => s + u, 0);
-  const mercado = totalUnidades("matriculacion", f);
+  // SIEMPRE el mercado COMPLETO, nunca filtrado por marca: es el
+  // denominador del share. Si se filtrara con f.marca, elegir una marca
+  // dejaría el share en ~100% — no porque ganamos el mercado, sino porque
+  // el mercado pasaría a ser esa sola marca.
+  const mercado = totalUnidades("matriculacion", { ...f, marca: undefined });
 
   // Matriculaciones propias del MISMO período del año anterior. Sirven para
   // contrastar el crecimiento de facturación contra una fuente que no es
@@ -174,6 +191,41 @@ export default async function OperacionPage({
       ? cobertura.matriculacion.ultimo.mes : 12;
   }
 
+  // --- ranking de asesores: mismo período, ya filtrado por marca arriba
+  const asesoresPeriodo = asesoresCrudosF.filter((a) => enVentana(a.periodo, f.anio));
+  const rankingAsesores = [...asesoresPeriodo
+    .reduce((m, a) => m.set(a.asesor, (m.get(a.asesor) ?? 0) + a.unidades), new Map<string, number>())
+    .entries()]
+    .map(([asesor, unidades]) => ({ asesor, unidades }))
+    .sort((a, b) => b.unidades - a.unidades);
+  const unidadesConAsesor = rankingAsesores.reduce((s, a) => s + a.unidades, 0);
+
+  // Mejor asesor de cada marca: agrupa por marca y, dentro, por asesor.
+  const porMarcaAsesor = new Map<string, Map<string, number>>();
+  for (const a of asesoresPeriodo) {
+    const m = porMarcaAsesor.get(a.marca) ?? new Map<string, number>();
+    m.set(a.asesor, (m.get(a.asesor) ?? 0) + a.unidades);
+    porMarcaAsesor.set(a.marca, m);
+  }
+  const mejorPorMarca = [...porMarcaAsesor.entries()]
+    .filter(([marca]) => propias.includes(marca))
+    .map(([marca, mapa]) => {
+      const ordenado = [...mapa.entries()].sort((a, b) => b[1] - a[1]);
+      return {
+        marca,
+        totalMarca: ordenado.reduce((s, [, n]) => s + n, 0),
+        asesoresDistintos: ordenado.length,
+        mejorNombre: ordenado[0][0],
+        mejorUnidades: ordenado[0][1],
+      };
+    })
+    .sort((a, b) => b.totalMarca - a.totalMarca);
+
+  // "VENTAS GERENCIA" y variantes: Cars las trae en el mismo campo Vendedor
+  // que un asesor real. No se pueden distinguir de forma confiable acá, así
+  // que se muestran igual — la nota de la sección lo aclara.
+  const noEsPersona = (nombre: string) => nombre.startsWith("VENTAS ") || nombre.includes(" SA");
+
   const detalle = (sync?.detalle ?? {}) as Record<string, unknown>;
 
   return (
@@ -186,7 +238,13 @@ export default async function OperacionPage({
         }.`}
       />
 
-      <FiltroPeriodo anios={cobertura.matriculacion.anios} mesMaximoPorAnio={mesMax} />
+      <FiltroPeriodo
+        anios={cobertura.matriculacion.anios}
+        mesMaximoPorAnio={mesMax}
+        opciones={[
+          { param: "marca", label: "Marca", valores: [...propias].sort() },
+        ]}
+      />
 
       <NotaDato>
         <strong>Facturar no es matricular.</strong> Cars cuenta cuándo emitimos
@@ -451,6 +509,123 @@ export default async function OperacionPage({
         </CardContent>
       </Card>
 
+      </Seccion>
+
+      <Seccion titulo="Asesores">
+      {asesoresPeriodo.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ranking de asesores — {periodo}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <EmptyState
+              title="Todavía no hay ranking de asesores"
+              description="Se agrega el 03/09/2026: hace falta que Hermes corra el push de Cars de nuevo para que este período tenga datos. Si ya pasaron unas horas, revisá el trabajo advisor-datos-propios."
+            />
+          </CardContent>
+        </Card>
+      ) : (
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Ranking global — {periodo}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Los {Math.min(15, rankingAsesores.length)} de {rankingAsesores.length}{" "}
+              asesores con más unidades facturadas
+              {f.marca ? ` de ${f.marca}` : ""}.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Asesor</TableHead>
+                  <TableHead className="text-right">Unidades</TableHead>
+                  <TableHead className="text-right">% del total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rankingAsesores.slice(0, 15).map((a, i) => (
+                  <TableRow key={a.asesor}>
+                    <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell
+                      className={cn("font-medium", noEsPersona(a.asesor) && "italic text-muted-foreground")}
+                      title={noEsPersona(a.asesor) ? "No es una persona: bucket interno de Cars." : undefined}
+                    >
+                      {a.asesor}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatUnidades(a.unidades)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatPct(a.unidades / unidadesConAsesor)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>El mejor de cada marca — {periodo}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Quién vendió más de cada marca en el período, y cuántos asesores
+              distintos facturaron algo de esa marca.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Marca</TableHead>
+                  <TableHead>Asesor top</TableHead>
+                  <TableHead className="text-right">Sus unidades</TableHead>
+                  <TableHead className="text-right">Asesores</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mejorPorMarca.map((m) => (
+                  <TableRow key={m.marca}>
+                    <TableCell className="font-medium">{m.marca}</TableCell>
+                    <TableCell
+                      className={cn(noEsPersona(m.mejorNombre) && "italic text-muted-foreground")}
+                      title={noEsPersona(m.mejorNombre) ? "No es una persona: bucket interno de Cars." : undefined}
+                    >
+                      {m.mejorNombre}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatUnidades(m.mejorUnidades)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {m.asesoresDistintos}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+      )}
+      <NotaDato>
+        <strong>Esto es desempeño individual, no un dato de mercado.</strong>{" "}
+        Sale de <code>Vendedor</code> en las facturas de Cars, agregado por
+        Hermes antes de salir de la máquina — nunca viaja factura por
+        factura. Algunos nombres no son una persona (<em>VENTAS GERENCIA</em>,{" "}
+        <em>VENTAS GERENCIA EXTERNA</em> y alguna razón social): Cars los
+        carga en el mismo campo que un asesor real y no hay forma confiable
+        de distinguirlos acá, así que se muestran igual, en cursiva.
+        {unidadesConAsesor !== totalFacturas && (
+          <>
+            {" "}De las {formatUnidades(totalFacturas)} unidades facturadas del
+            período, {formatUnidades(unidadesConAsesor)} tienen un asesor
+            asignado; el resto llegó sin ese campo cargado en Cars.
+          </>
+        )}
+      </NotaDato>
       </Seccion>
 
       <NotaDato>

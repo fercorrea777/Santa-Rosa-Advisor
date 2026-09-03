@@ -33,12 +33,19 @@ import { getPool } from "./db";
  * harina de otro costal: ese si esta en USD y es creible (mediana 24.990,
  * precios terminados en 990).
  *
- * SIN DATOS PERSONALES, TAMPOCO
- * -----------------------------
+ * SIN DATOS PERSONALES, CASI DE TODO
+ * -----------------------------------
  * `/sales/list` devuelve Cliente, Email, Telefono, VIN y Vendedor en cada
- * factura. Esta app NO tiene login. Nada de eso entra a estas tablas: el
- * script de Hermes agrega ANTES de mandar y los datos crudos no salen de la
- * maquina. Si algun dia se agrega login, se puede revisar — hoy no.
+ * factura. NADA de eso entra a estas tablas ni sale de la maquina de
+ * Hermes: el script agrega ANTES de mandar.
+ *
+ * `Vendedor` es la excepcion, y es reciente (03/09/2026): hasta que el
+ * Advisor tuvo login, CUALQUIERA con la URL veia todo, asi que un ranking de
+ * asesores hubiera expuesto desempeño individual sin control de acceso. Con
+ * login y roles ya andando, se agrega (nunca fila por fila) a
+ * periodo x marca x asesor -> unidades, igual que `venta_propia`. Sigue sin
+ * viajar Cliente, Email, Telefono, VIN ni NroFactura: eso no tiene ningun
+ * uso en un tablero gerencial y ninguna razon para dejar la maquina.
  */
 
 export interface VentaPropia {
@@ -68,6 +75,17 @@ export interface StockPropio {
   precio_usd: number | null;
 }
 
+export interface VentaAsesor {
+  periodo: string; // YYYY-MM
+  marca: string;
+  /** Nombre tal cual lo escribe Cars. Incluye algunos que NO son una
+   *  persona ("VENTAS GERENCIA", "VENTAS GERENCIA EXTERNA") — se mandan
+   *  igual: adivinar cuales filtrar seria peor que mostrarlos y que se
+   *  reconozcan a simple vista. */
+  asesor: string;
+  unidades: number;
+}
+
 export interface EstadoSync {
   actualizado_en: string;
   detalle: Record<string, unknown>;
@@ -95,6 +113,15 @@ export async function crearTablasPropias(): Promise<void> {
       reservadas integer not null,
       precio_usd integer,
       primary key (marca, modelo, version, estado)
+    );
+  `);
+  await pool.query(`
+    create table if not exists venta_asesor (
+      periodo  text not null,
+      marca    text not null,
+      asesor   text not null,
+      unidades integer not null,
+      primary key (periodo, marca, asesor)
     );
   `);
   await pool.query(`
@@ -152,6 +179,10 @@ export async function crearTablasPropias(): Promise<void> {
 export async function guardarDatosPropios(params: {
   ventas: VentaPropia[];
   stock: StockPropio[];
+  /** Opcional: pushes viejos del script todavia no la mandan. Sin esto, un
+   *  push a mitad de rollout borraria el ranking de asesores en vez de
+   *  dejarlo como estaba. */
+  asesores?: VentaAsesor[];
   detalle: Record<string, unknown>;
 }): Promise<void> {
   const cliente = await getPool().connect();
@@ -174,6 +205,17 @@ export async function guardarDatosPropios(params: {
          values ($1, $2, $3, $4, $5, $6, $7)`,
         [s.marca, s.modelo, s.version, s.estado, s.unidades, s.reservadas, s.precio_usd]
       );
+    }
+
+    if (params.asesores) {
+      await cliente.query("delete from venta_asesor");
+      for (const a of params.asesores) {
+        await cliente.query(
+          `insert into venta_asesor (periodo, marca, asesor, unidades)
+           values ($1, $2, $3, $4)`,
+          [a.periodo, a.marca, a.asesor, a.unidades]
+        );
+      }
     }
 
     await cliente.query(
@@ -207,6 +249,21 @@ export async function getStockPropio(): Promise<StockPropio[]> {
      from stock_propio order by unidades desc`
   );
   return rows;
+}
+
+export async function getVentasAsesor(): Promise<VentaAsesor[]> {
+  try {
+    const { rows } = await getPool().query<VentaAsesor>(
+      `select periodo, marca, asesor, unidades from venta_asesor
+       order by periodo desc, unidades desc`
+    );
+    return rows;
+  } catch {
+    // La tabla puede no existir todavia en una base que no paso por el
+    // crearTablasPropias() nuevo. No es un error del pedido: es "no hay
+    // ranking de asesores todavia", que la pagina ya sabe mostrar.
+    return [];
+  }
 }
 
 export async function getEstadoSyncPropio(): Promise<EstadoSync | null> {
