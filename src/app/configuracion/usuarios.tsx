@@ -4,6 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CampoClave } from "@/components/ui/campo-clave";
 import { cn } from "@/lib/utils";
 import {
   accionBorrarUsuario, accionCambiarActivo, accionCambiarRol,
@@ -129,15 +130,17 @@ function FormularioAlta() {
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-muted-foreground">Clave inicial</span>
-          <input
+          <CampoClave
             name="clave"
-            type="text"
             required
             minLength={10}
+            autoComplete="new-password"
             placeholder="mínimo 10 caracteres"
-            // type="text" a propósito: quien la crea la tiene que poder leer
-            // para pasársela. Es una clave provisoria que esa persona cambia.
-            className="input-base h-9 font-mono"
+            // Arranca VISIBLE: quien la crea la tiene que poder leer para
+            // pasársela. Es provisoria, esa persona después la cambia. Con el
+            // ojito se tapa en un clic si hay alguien atrás.
+            visiblePorDefecto
+            className="input-base h-9"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -229,13 +232,15 @@ function ResetearClave({ usuario }: { usuario: Usuario }) {
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-1 flex-col gap-1">
           <span className="text-[11px] text-muted-foreground">Clave nueva</span>
-          <input
+          <CampoClave
             name="clave"
-            type="text"
             required
             minLength={10}
+            autoComplete="new-password"
             placeholder="mínimo 10 caracteres"
-            className="input-base h-9 font-mono"
+            // Misma razón que en el alta: el admin se la tiene que dictar.
+            visiblePorDefecto
+            className="input-base h-9"
           />
         </label>
         <Button type="submit" size="sm" variant="outline" disabled={pendiente}>

@@ -237,3 +237,26 @@ export function IconLuna(props: IconProps) {
     </svg>
   );
 }
+
+/** Ojo abierto: la clave se está viendo. */
+export function IconOjo(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" />
+      <circle cx="12" cy="12" r="2.75" />
+    </svg>
+  );
+}
+
+/** Ojo tachado: la clave está oculta. La barra cruza de esquina a esquina —
+ *  a 16px una diagonal corta se lee como un rayón, no como "tachado". */
+export function IconOjoTachado(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10.6 6.2A8.9 8.9 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-2.5 3.2" />
+      <path d="M6.8 7.9A17.2 17.2 0 0 0 2.5 12s3.5 6 9.5 6a9.4 9.4 0 0 0 3.6-.7" />
+      <path d="M10 10a2.75 2.75 0 0 0 3.9 3.9" />
+      <path d="M3.5 3.5l17 17" />
+    </svg>
+  );
+}

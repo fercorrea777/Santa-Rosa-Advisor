@@ -4,6 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CampoClave } from "@/components/ui/campo-clave";
 import { cn } from "@/lib/utils";
 import { cambiarMiClave, type EstadoMiClave } from "./acciones";
 
@@ -73,9 +74,8 @@ function Campo({
   return (
     <label className="flex flex-col gap-1">
       <span className="text-[11px] text-muted-foreground">{label}</span>
-      <input
+      <CampoClave
         name={name}
-        type="password"
         required
         minLength={minLength}
         autoComplete={autoComplete}

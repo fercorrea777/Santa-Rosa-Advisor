@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { CampoClave } from "@/components/ui/campo-clave";
 import { entrar, type EstadoLogin } from "./acciones";
 
 /**
@@ -70,12 +71,13 @@ export function FormularioLogin({ destino }: { destino: string }) {
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-white/70">Clave</span>
-            <input
+            <CampoClave
               name="clave"
-              type="password"
               autoComplete="current-password"
               required
               className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus-visible:border-white/40 focus-visible:outline-none"
+              // El ojito va sobre el navy: el gris de la app no se ve ahi.
+              claseBoton="text-white/45 hover:text-white hover:bg-white/10"
               placeholder="••••••••"
             />
           </label>
