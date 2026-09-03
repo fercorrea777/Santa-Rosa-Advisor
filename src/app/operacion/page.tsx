@@ -224,7 +224,12 @@ export default async function OperacionPage({
   // "VENTAS GERENCIA" y variantes: Cars las trae en el mismo campo Vendedor
   // que un asesor real. No se pueden distinguir de forma confiable acá, así
   // que se muestran igual — la nota de la sección lo aclara.
-  const noEsPersona = (nombre: string) => nombre.startsWith("VENTAS ") || nombre.includes(" SA");
+  //
+  // Razón social = termina en SA / S.A. / SRL. Se mira el FINAL del nombre,
+  // no si contiene " SA": con includes(), "JUAN SANCHEZ" quedaba marcado
+  // como empresa.
+  const noEsPersona = (nombre: string) =>
+    nombre.startsWith("VENTAS ") || /\b(S\.?A\.?|S\.?R\.?L\.?)$/.test(nombre);
 
   const detalle = (sync?.detalle ?? {}) as Record<string, unknown>;
 
