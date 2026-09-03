@@ -29,6 +29,12 @@ export function StackedBarChart({
 }) {
   const theme = useChartTheme();
 
+  // Total por categoría: se necesita para decidir si un segmento es lo
+  // bastante ancho como para llevar su cifra adentro.
+  const totales = (series[0]?.datos ?? []).map((_, idx) =>
+    series.reduce((acc, s) => acc + (s.datos[idx] ?? 0), 0)
+  );
+
   const option = {
     color: theme.series,
     animationDuration: 700,
@@ -63,6 +69,24 @@ export function StackedBarChart({
       type: "bar" as const,
       stack: "total",
       barMaxWidth: 46,
+      // EL NUMERO ADENTRO DEL SEGMENTO, pero sólo si el segmento da el ancho.
+      // En una apilada, etiquetar todo es ilegible: los segmentos finos se
+      // superponen entre sí y con los vecinos. Se muestra desde el 7% del
+      // total de la barra, que es donde el texto entra sin pisarse — la misma
+      // regla que usa el tablero de referencia.
+      label: {
+        show: true,
+        position: "inside" as const,
+        color: "#fff",
+        fontSize: 10,
+        fontWeight: 700 as const,
+        fontFamily: FUENTE_MONO_EJES,
+        formatter: (p: { value: number; dataIndex: number }) => {
+          const total = totales[p.dataIndex] ?? 0;
+          if (!total || !p.value) return "";
+          return p.value / total >= 0.07 ? formatUnidades(p.value) : "";
+        },
+      },
       // Sólo la capa de arriba (última) redondea el tope de la barra.
       itemStyle: i === series.length - 1
         ? { borderRadius: [5, 5, 0, 0] as [number, number, number, number] }

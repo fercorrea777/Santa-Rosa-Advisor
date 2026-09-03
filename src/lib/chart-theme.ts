@@ -11,6 +11,10 @@ export interface ChartTheme {
   axis: string; // color de ejes/lineas
   text: string; // color de texto de labels
   grid: string; // lineas de grilla suaves
+  /** Color de las etiquetas de valor dibujadas sobre las marcas. Mas oscuro
+   *  que `text`: la cifra tiene que leerse a distancia de proyector, y el
+   *  gris de los ejes a 11px se pierde. */
+  etiqueta: string;
   /** --card resuelto: para bordes/separadores dibujados en CANVAS, donde
    *  un var() crudo no se resuelve — a diferencia del tooltip, que es HTML
    *  real. Sin uso hoy (lo usaba el donut, reemplazado por barras en
@@ -29,6 +33,7 @@ const FALLBACK: ChartTheme = {
   axis: "#94a3b8",
   text: "#64748b",
   grid: "#e2e8f0",
+  etiqueta: "#334155",
   card: "#ffffff",
 };
 
@@ -57,6 +62,65 @@ export const TOOLTIP_BASE = {
  *  de las tarjetas) — la sans propor­cional hace bailar los ticks. */
 export const FUENTE_MONO_EJES = "var(--font-geist-mono), monospace";
 
+/**
+ * ETIQUETAS DE VALOR SOBRE LA MARCA.
+ *
+ * Croman pidió (2026-09-03) que los gráficos muestren el número encima, como
+ * el tablero de Grupo Antelo que usa de referencia: ahí cada barra lleva su
+ * cifra en negrita arriba, y no hay que pasar el mouse para leer el dato.
+ *
+ * POR QUE IMPORTA MÁS DE LO QUE PARECE: este tablero se PROYECTA en reuniones.
+ * Un tooltip no existe en un proyector — nadie va a pasar el mouse mientras
+ * habla. Si el número no está dibujado, para media sala ese gráfico no tiene
+ * datos, solo formas.
+ *
+ * `distancia` separa la etiqueta de la punta de la barra; hay que acompañarla
+ * con aire en el `grid.top` del chart o la fila de arriba se corta.
+ */
+export function etiquetaValor(
+  theme: ChartTheme,
+  opciones: {
+    formatter: (v: number) => string;
+    posicion?: "top" | "right" | "inside";
+    distancia?: number;
+    /** Para series de comparación (el año anterior): más tenue, para que la
+     *  serie principal siga siendo la que se lee primero. */
+    tenue?: boolean;
+  }
+) {
+  return {
+    show: true,
+    position: opciones.posicion ?? "top",
+    distance: opciones.distancia ?? 6,
+    color: opciones.tenue ? theme.text : theme.etiqueta,
+    fontSize: 11,
+    fontWeight: opciones.tenue ? (400 as const) : (700 as const),
+    fontFamily: FUENTE_MONO_EJES,
+    // Los valores nulos son huecos reales del origen (falta febrero 2022, por
+    // ejemplo). Dibujar "0" ahí sería afirmar que ese mes no se vendió nada.
+    formatter: (p: { value: number | null }) =>
+      p.value === null || p.value === undefined ? "" : opciones.formatter(p.value),
+  };
+}
+
+/**
+ * Ejes al estilo de la referencia: grilla horizontal tenue, SIN línea de eje
+ * ni marcas. La grilla ayuda a comparar alturas; el marco alrededor solo
+ * agrega tinta que no aporta.
+ */
+export function ejeValor(theme: ChartTheme, formatter: (v: number) => string) {
+  return {
+    type: "value" as const,
+    splitLine: { lineStyle: { color: theme.grid, type: "solid" as const } },
+    axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: {
+      color: theme.text, fontSize: 11,
+      fontFamily: FUENTE_MONO_EJES, formatter,
+    },
+  };
+}
+
 /** Lee la paleta de tokens CSS (shadcn) resuelta, y se recalcula al cambiar de tema. */
 export function useChartTheme(): ChartTheme {
   const { resolvedTheme } = useTheme();
@@ -74,6 +138,7 @@ export function useChartTheme(): ChartTheme {
       axis: readVar("--border", FALLBACK.axis),
       text: readVar("--muted-foreground", FALLBACK.text),
       grid: readVar("--border", FALLBACK.grid),
+      etiqueta: readVar("--foreground", FALLBACK.etiqueta),
       card: readVar("--card", FALLBACK.card),
     });
   }, [resolvedTheme]);

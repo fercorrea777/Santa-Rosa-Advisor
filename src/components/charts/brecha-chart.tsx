@@ -1,7 +1,9 @@
 "use client";
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
-import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
+import {
+  etiquetaValor, FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme,
+} from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 
 /**
@@ -33,7 +35,8 @@ export function BrechaChart({
     color: [theme.series[3], theme.series[0], theme.series[1]],
     animationDuration: 700,
     animationEasing: "cubicOut" as const,
-    grid: { left: 8, right: 8, top: 36, bottom: 24, containLabel: true },
+    // Aire arriba: la etiqueta de la barra más alta se dibuja por encima.
+    grid: { left: 8, right: 8, top: 48, bottom: 24, containLabel: true },
     tooltip: {
       ...TOOLTIP_BASE,
       trigger: "axis",
@@ -63,6 +66,13 @@ export function BrechaChart({
         data: diferencia,
         itemStyle: { borderRadius: [4, 4, 0, 0], opacity: 0.55 },
         barMaxWidth: 28,
+        // Si dos barras vecinas quedan muy juntas, se descarta la etiqueta
+        // que chocaría en vez de dibujar las dos encimadas.
+        labelLayout: { hideOverlap: true },
+        // La cifra va SOLO en la barra, no en las dos líneas. Con las tres
+        // etiquetadas las tres se pisan entre sí en cada mes, y la barra es
+        // el sujeto de este gráfico: las líneas son de dónde sale.
+        label: etiquetaValor(theme, { formatter: formatUnidades }),
       },
       {
         name: "Importaciones",

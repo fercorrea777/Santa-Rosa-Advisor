@@ -1,7 +1,9 @@
 "use client";
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
-import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
+import {
+  etiquetaValor, FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme,
+} from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 import { MESES_CORTOS } from "@/lib/periodo";
 
@@ -44,7 +46,9 @@ export function SerieAniosChart({
     color: theme.series,
     animationDuration: 700,
     animationEasing: "cubicOut" as const,
-    grid: { left: 8, right: 8, top: 36, bottom: 24, containLabel: true },
+    // top 48 y no 36: las etiquetas de valor se dibujan ARRIBA del punto, y
+    // la del pico del año quedaba pisada contra la leyenda.
+    grid: { left: 8, right: 8, top: 48, bottom: 24, containLabel: true },
     tooltip: {
       ...TOOLTIP_BASE,
       trigger: "axis",
@@ -139,7 +143,29 @@ export function SerieAniosChart({
       symbolSize: 6,
       // Ver comentario del componente: los huecos NO se conectan.
       connectNulls: false,
+      // ANTI-SUPERPOSICION. Con dos años dibujados, en los meses donde las
+      // líneas se juntan las dos cifras caían una encima de la otra y no se
+      // leía ninguna. `hideOverlap` deja la que entra y descarta la que
+      // chocaría: mejor perder una etiqueta que tener dos ilegibles.
+      labelLayout: { hideOverlap: true },
       lineStyle: s.punteada ? { width: 2, type: "dashed" } : { width: 3 },
+      // EL NUMERO, DIBUJADO — pero SOLO en la serie del año en curso.
+      //
+      // Este tablero se proyecta: en una reunión nadie pasa el mouse, así que
+      // un dato que sólo vive en el tooltip no existe para la sala.
+      //
+      // Se probó etiquetar también los años de comparación (punteados) y sale
+      // peor: donde las líneas se juntan, `hideOverlap` descarta una de las
+      // dos cifras y la descartada terminaba siendo la del año en curso —
+      // enero y febrero 2026 quedaban sin número mientras 2025 sí lo tenía,
+      // justo al revés de lo que hace falta. Los años viejos son la
+      // referencia, no el sujeto: viven en la línea y en el tooltip.
+      label: s.punteada
+        ? { show: false }
+        : etiquetaValor(theme, {
+            formatter: (v) =>
+              series[0]?.unidad === "porcentaje" ? `${v.toFixed(1)}%` : formatUnidades(v),
+          }),
       emphasis: { focus: "series" as const },
       // Relleno degradado bajo la serie principal (las punteadas son
       // referencia histórica: solo línea, para no apilar veladuras).
