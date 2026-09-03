@@ -152,11 +152,28 @@
      (nunca ciclado) es el mecanismo de seguridad para daltonismo, no una
      decisión estética: se valida con el script del skill de dataviz contra la
      superficie real de la app. */
+  /* CORREGIDO 2026-09-03. La validación se había corrido SOLO contra la
+     superficie oscura. Contra el panel blanco, tres tonos quedaban por debajo
+     del piso de 3:1 — o sea que en modo claro no se distinguían del fondo:
+
+       rosa    #e87ba4  2,69  ->  #d9739a  3,05
+       ámbar   #eda100  2,17  ->  #c78700  3,06
+       verde   #1baf7a  2,82  ->  #19a774  3,07
+
+     Se bajó SOLO la luminosidad en OKLCH, conservando tono y croma: oscurecer
+     multiplicando los canales RGB corre el tono (el ámbar se va a marrón) y
+     hunde el croma, que tiene piso propio en el validador. Los tres siguen
+     dentro de la banda de luminosidad y sobre el piso de croma.
+
+     Ojo al re-validar: la separación tritán del par verde↔ámbar bajó de 5,8 a
+     3,9. El validador igual pasa (gatilla sobre protan, 9,0) y la tritanopía
+     es rarísima, pero el par queda sostenido por la codificación secundaria
+     que estos gráficos ya tienen: leyenda y cifra dibujada sobre la marca. */
   --chart-1: #2a78d6;
   --chart-2: #008300;
-  --chart-3: #e87ba4;
-  --chart-4: #eda100;
-  --chart-5: #1baf7a;
+  --chart-3: #d9739a;
+  --chart-4: #c78700;
+  --chart-5: #19a774;
   --chart-6: #eb6834;
   --chart-7: #4a3aa7;
   --chart-8: #e34948;

@@ -97,12 +97,30 @@ trama diagonal de 3px al 3,5% que se lee como textura de señal.
 Ocho tonos categóricos en orden **fijo, nunca ciclado**: el orden es el
 mecanismo de seguridad para daltonismo, no una decisión estética.
 
-Validados con el script del skill `dataviz` contra la superficie real de los
-paneles (`#111a24`): banda de luminosidad, piso de croma, separación CVD y piso
-de visión normal — **todos pasan**, con contraste ≥3:1 contra el panel.
+Validados con el script del skill `dataviz` contra **las dos superficies**:
+`#111a24` en oscuro y `#ffffff` en claro. Banda de luminosidad, piso de croma,
+separación CVD, piso de visión normal y contraste ≥3:1 — **todos pasan en
+ambas**.
 
-Al cambiar cualquier color de panel hay que **volver a correr el validador**,
-porque el resultado depende de la superficie sobre la que se dibuja.
+> **Corregido el 2026-09-03.** Hasta esa fecha la validación se había corrido
+> **solo contra el panel oscuro**, y este documento lo afirmaba como si
+> cubriera todo. Contra el panel blanco, tres tonos estaban por debajo del piso
+> de 3:1 y no se distinguían del fondo: rosa `#e87ba4` (2,69), ámbar `#eda100`
+> (**2,17**) y verde `#1baf7a` (2,82). Se les bajó **solo la luminosidad en
+> OKLCH**, conservando tono y croma — oscurecer en RGB corre el tono y hunde el
+> croma, que tiene piso propio. Quedaron `#d9739a`, `#c78700` y `#19a774`, los
+> tres en 3,05–3,07.
+>
+> Efecto lateral que hay que conocer: la separación **tritán** del par
+> verde↔ámbar bajó de 5,8 a 3,9 (el modo oscuro ya estaba en 5,4). El validador
+> pasa porque gatilla sobre protan (9,0), y el par se sostiene con la
+> codificación secundaria que estos gráficos ya tienen — leyenda y cifra
+> dibujada sobre la marca.
+
+Al cambiar cualquier color de panel hay que **volver a correr el validador en
+los dos modos**, porque el resultado depende de la superficie sobre la que se
+dibuja. El comando está en el skill `dataviz`:
+`node scripts/validate_palette.js "<los 8 hex>" --mode light --surface "#ffffff"`.
 
 ## Prohibiciones que este proyecto respeta
 

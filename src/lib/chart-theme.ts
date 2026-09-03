@@ -25,8 +25,12 @@ export interface ChartTheme {
 
 const FALLBACK: ChartTheme = {
   // Mismos ocho tonos que --chart-1..8 en globals.css (modo claro), por si
-  // getComputedStyle todavia no resolvio los tokens.
-  series: ["#2a78d6", "#008300", "#e87ba4", "#eda100", "#1baf7a", "#eb6834", "#4a3aa7", "#e34948"],
+  // getComputedStyle todavia no resolvio los tokens. SI SE TOCAN ALLA, HAY QUE
+  // TOCARLOS ACA: son la misma paleta escrita dos veces, y desincronizarlas
+  // significa que el primer frame se dibuja con colores que ya no existen.
+  // (2026-09-03: rosa, ambar y verde bajados para pasar 3:1 contra el panel
+  // blanco — ver el comentario en globals.css.)
+  series: ["#2a78d6", "#008300", "#d9739a", "#c78700", "#19a774", "#eb6834", "#4a3aa7", "#e34948"],
   primary: "#2563eb",
   positive: "#10b981",
   negative: "#f43f5e",
