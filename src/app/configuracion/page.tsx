@@ -1,8 +1,12 @@
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/components/dashboard/page-header";
+import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { getParametros } from "@/lib/cadam/config";
 import { getPeriodoInfo } from "@/lib/cadam/queries";
+import { EditorConfiguracion } from "./editor";
+
+// Los formularios escriben parametros.json: si esto quedara estatico, la
+// pagina serviria para siempre los valores del build.
+export const dynamic = "force-dynamic";
 
 export default function ConfiguracionPage() {
   const parametros = getParametros();
@@ -12,11 +16,8 @@ export default function ConfiguracionPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Configuración"
-        descripcion="Esto es exactamente lo que hay hoy en SANTA ROSA COMERCIAL ADVISOR/CADAM/parametros.json — la app lo lee de ahí, no lo duplica. Editarlo desde acá (en vez de a mano en el archivo) queda para cuando haya persistencia real (Fase 2)."
+        descripcion="Metas y competidores se editan acá y se guardan en parametros.json — el mismo archivo que la app ya leía. Un solo lugar, sin duplicados."
       />
-      <Badge variant="outline" className="w-fit font-normal">
-        Solo lectura por ahora
-      </Badge>
 
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
       <Card>
@@ -39,38 +40,17 @@ export default function ConfiguracionPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Competidores clave</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-1.5">
-          {parametros.competidores_clave.map((c) => (
-            <Badge key={c} variant="secondary" className="font-normal">
-              {c}
-            </Badge>
-          ))}
-        </CardContent>
-      </Card>
+      <EditorConfiguracion
+        metas={parametros.metas}
+        competidores={parametros.competidores_clave}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Metas</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-1 text-sm">
-          <MetaRow
-            label="Participación de mercado 2026"
-            value={parametros.metas.participacion_mercado_2026_pct}
-          />
-          <MetaRow label="Ranking objetivo 2026" value={parametros.metas.ranking_objetivo_2026} />
-          <MetaRow
-            label="Unidades objetivo mensual"
-            value={parametros.metas.unidades_objetivo_mensual}
-          />
-          <p className="mt-2 text-xs text-muted-foreground">
-            Todavía sin definir por el equipo comercial.
-          </p>
-        </CardContent>
-      </Card>
+      <NotaDato>
+        Las <strong>marcas propias no se editan desde acá</strong>, a propósito:
+        son el numerador del share en todo el tablero y el vínculo con los
+        nombres exactos de CADAM. Un cambio distraído acá serían cifras mal
+        calculadas en doce pantallas — se tocan en el archivo, a conciencia.
+      </NotaDato>
 
       <Card>
         <CardHeader>
@@ -92,11 +72,3 @@ export default function ConfiguracionPage() {
   );
 }
 
-function MetaRow({ label, value }: { label: string; value: number | null }) {
-  return (
-    <div className="flex items-center justify-between border-b py-1.5 last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value ?? "— sin definir"}</span>
-    </div>
-  );
-}

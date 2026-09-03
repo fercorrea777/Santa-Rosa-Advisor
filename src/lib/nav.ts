@@ -60,7 +60,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/cargas", label: "Carga de archivos", icono: "cargas", implementado: true },
       { href: "/calidad-datos", label: "Calidad de datos", icono: "calidad", implementado: true },
-      { href: "/configuracion", label: "Configuración", icono: "configuracion", implementado: false },
+      { href: "/configuracion", label: "Configuración", icono: "configuracion", implementado: true },
     ],
   },
 ];

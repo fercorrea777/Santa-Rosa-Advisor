@@ -39,6 +39,38 @@ export function getParametros(): Parametros {
   return cached;
 }
 
+/**
+ * Guarda metas y competidores en parametros.json — la "Fase 2" que la
+ * pantalla de Configuración venía anunciando.
+ *
+ * SOLO esos dos campos. Las marcas propias quedan fuera a propósito: son el
+ * numerador del share en todo el tablero y el vínculo con los nombres de
+ * CADAM; editarlas por un formulario convierte un click distraído en cifras
+ * mal calculadas en doce pantallas. Eso se sigue tocando en el archivo, a
+ * conciencia.
+ *
+ * Se escribe leyendo el ARCHIVO de nuevo (no el caché) y pisando solo los
+ * campos editados: cualquier campo futuro que alguien agregue a mano
+ * sobrevive. Escritura atómica —tmp + rename— para que un corte a mitad de
+ * escritura no deje un JSON truncado que tumbe TODA la app al siguiente
+ * arranque (config.ts no tolera un parse fallido).
+ */
+export function guardarParametros(cambios: {
+  metas: Parametros["metas"];
+  competidores_clave: string[];
+}): void {
+  const ruta = resolverParametrosPath();
+  const actual = JSON.parse(fs.readFileSync(ruta, "utf-8")) as Parametros;
+  actual.metas = cambios.metas;
+  actual.competidores_clave = cambios.competidores_clave;
+  const tmp = `${ruta}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(actual, null, 2) + "\n", "utf-8");
+  fs.renameSync(tmp, ruta);
+  // El caché de módulo quedó viejo: sin esto, la página seguiría mostrando
+  // los valores anteriores hasta el próximo reinicio del proceso.
+  cached = null;
+}
+
 export function getMarcasPropiasSet(): Set<string> {
   return new Set(getParametros().marcas_propias.map((m) => m.marca_cadam));
 }
