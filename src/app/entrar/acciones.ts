@@ -3,7 +3,10 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { timingSafeEqual } from "node:crypto";
-import { crearToken, NOMBRE_COOKIE, opcionesCookie } from "@/lib/auth/sesion";
+import {
+  crearToken, crearTokenUsuario, NOMBRE_COOKIE, opcionesCookie,
+} from "@/lib/auth/sesion";
+import { registrarAcceso, verificarCredenciales } from "@/lib/auth/usuarios";
 
 export interface EstadoLogin {
   error: string;
@@ -70,15 +73,44 @@ export async function entrar(
   }
 
   const enviada = String(form.get("clave") ?? "");
-  if (!igual(enviada, clave)) {
+  const usuario = String(form.get("usuario") ?? "").trim();
+
+  // DOS CAMINOS, Y EL ORDEN IMPORTA. Con usuario se busca la cuenta; sin
+  // usuario se compara contra la clave compartida del entorno, que es la
+  // llave de emergencia (sirve aunque Postgres esté caído y aunque no quede
+  // ningún admin). Ver lib/auth/usuarios.ts.
+  let token: string | null = null;
+  if (usuario) {
+    try {
+      const persona = await verificarCredenciales(usuario, enviada);
+      if (persona) {
+        token = crearTokenUsuario(clave, { id: persona.id, rol: persona.rol });
+        void registrarAcceso(persona.id);
+      }
+    } catch (e) {
+      // Si la base no responde no se puede afirmar que las credenciales estén
+      // mal: se dice lo que pasa y se ofrece la salida que sí funciona.
+      console.error("Login: no se pudo consultar usuarios:", e);
+      return {
+        error:
+          "No se pudo verificar el usuario (la base no responde). " +
+          "Probá con la clave general, dejando el usuario vacío.",
+      };
+    }
+  } else if (igual(enviada, clave)) {
+    token = crearToken(clave);
+  }
+
+  if (!token) {
     const fallos = (registro?.fallos ?? 0) + 1;
     intentos.set(ip, {
       fallos,
       hasta: fallos >= MAX_FALLOS ? ahora + ESPERA_MS : 0,
     });
-    // El mensaje no distingue "clave vacía" de "clave incorrecta": cualquier
-    // matiz es información gratis para quien está probando.
-    return { error: "Clave incorrecta." };
+    // El mensaje no distingue "usuario inexistente" de "clave incorrecta" ni
+    // de "clave vacía": cualquier matiz es información gratis para quien está
+    // probando.
+    return { error: "Usuario o clave incorrectos." };
   }
 
   intentos.delete(ip);
@@ -86,7 +118,7 @@ export async function entrar(
   const esHttps =
     h.get("x-forwarded-proto") === "https" || h.get("origin")?.startsWith("https:") === true;
   const store = await cookies();
-  store.set(NOMBRE_COOKIE, crearToken(clave), opcionesCookie(esHttps));
+  store.set(NOMBRE_COOKIE, token, opcionesCookie(esHttps));
 
   redirect(destinoSeguro(String(form.get("destino") ?? "")));
 }

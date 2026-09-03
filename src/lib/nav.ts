@@ -11,6 +11,10 @@ export interface NavItem {
   icono: IconoNav;
   /** true = tiene datos reales conectados en esta fase; false = shell/placeholder */
   implementado: boolean;
+  /** Solo para rol admin. Quien no lo tiene NI SIQUIERA VE el renglón: la
+   *  puerta (proxy.ts) ya lo frena si escribe la URL, pero ofrecer un enlace
+   *  que va a rebotar es peor que no ofrecerlo. */
+  soloAdmin?: boolean;
 }
 
 export interface NavGroup {
@@ -60,10 +64,20 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/cargas", label: "Estado de los datos", icono: "cargas", implementado: true },
       { href: "/calidad-datos", label: "Calidad de datos", icono: "calidad", implementado: true },
-      { href: "/configuracion", label: "Configuración", icono: "configuracion", implementado: true },
+      { href: "/configuracion", label: "Configuración", icono: "configuracion", implementado: true, soloAdmin: true },
     ],
   },
 ];
+
+/** El menú que le toca a un rol. Los grupos que quedan sin items desaparecen
+ *  enteros, para no dejar un encabezado de sección colgado sin nada debajo. */
+export function navPara(esAdmin: boolean): NavGroup[] {
+  if (esAdmin) return NAV_GROUPS;
+  return NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => !i.soloAdmin),
+  })).filter((g) => g.items.length > 0);
+}
 
 // Lista plana derivada, por si algún consumidor necesita recorrer todas las
 // pantallas sin importar el grupo (breadcrumbs, títulos, etc.).

@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
+import { cookies } from "next/headers";
+import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 
 // Historia: Nunito Sans -> Inter (2026-07-23, "mejorar las fuentes") ->
 // Archivo (2026-08-27, "que sea mas moderno").
@@ -60,11 +62,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // El rol se resuelve ACA porque es el unico lugar con acceso a la cookie
+  // que envuelve a todas las pantallas. Sale del token FIRMADO, no de una
+  // consulta: la puerta ya lo valido y repetir el trabajo en cada render no
+  // agrega seguridad, solo latencia. Sin clave configurada no hay sesiones y
+  // todo el mundo ve todo, que es lo mismo que ya pasaba.
+  const clave = process.env.ADVISOR_CLAVE;
+  const sesion = clave
+    ? leerSesion((await cookies()).get(NOMBRE_COOKIE)?.value, clave)
+    : null;
+  const esAdmin = !clave || sesion?.rol === "admin";
+
   return (
     <html
       lang="es"
@@ -81,7 +94,9 @@ export default function RootLayout({
             {/* `sinClave` se lee ACA, en el layout, que es Server Component:
                 AppShell es "use client" y ahi process.env no existe. Ver
                 src/proxy.ts para por que la puerta falla abierta. */}
-            <AppShell sinClave={!process.env.ADVISOR_CLAVE}>{children}</AppShell>
+            <AppShell sinClave={!clave} esAdmin={esAdmin}>
+              {children}
+            </AppShell>
           </TooltipProvider>
         </ThemeProvider>
       </body>

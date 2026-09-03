@@ -2,15 +2,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { getParametros } from "@/lib/cadam/config";
 import { getPeriodoInfo } from "@/lib/cadam/queries";
+import { listarUsuarios, type Usuario } from "@/lib/auth/usuarios";
 import { EditorConfiguracion } from "./editor";
+import { PanelUsuarios } from "./usuarios";
 
 // Los formularios escriben parametros.json: si esto quedara estatico, la
 // pagina serviria para siempre los valores del build.
 export const dynamic = "force-dynamic";
 
-export default function ConfiguracionPage() {
+export default async function ConfiguracionPage() {
   const parametros = getParametros();
   const info = getPeriodoInfo();
+
+  // Los usuarios viven en Postgres y el resto de esta pantalla no. Si la base
+  // no responde, se muestra el aviso SOLO en esa tarjeta: metas y
+  // competidores salen de parametros.json y no tienen por que caerse con ella.
+  let usuarios: Usuario[] = [];
+  let errorUsuarios: string | undefined;
+  try {
+    usuarios = await listarUsuarios();
+  } catch (e) {
+    errorUsuarios =
+      `No se pudo leer la lista de usuarios: ${(e as Error).message}. ` +
+      `Mientras tanto se entra con la clave general.`;
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -39,6 +54,8 @@ export default function ConfiguracionPage() {
           ))}
         </CardContent>
       </Card>
+
+      <PanelUsuarios usuarios={usuarios} error={errorUsuarios} />
 
       <EditorConfiguracion
         metas={parametros.metas}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { NOMBRE_COOKIE, tokenValido } from "@/lib/auth/sesion";
+import { NOMBRE_COOKIE, leerSesion } from "@/lib/auth/sesion";
 
 /**
  * Puerta de entrada del tablero.
@@ -95,7 +95,38 @@ export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === "/entrar") return NextResponse.next();
 
   const token = request.cookies.get(NOMBRE_COOKIE)?.value;
-  return tokenValido(token, clave) ? NextResponse.next() : aLogin(request);
+  const sesion = leerSesion(token, clave);
+  if (!sesion) return aLogin(request);
+
+  // Configuracion es de admins: ahi se editan las metas que mueven el share
+  // de doce pantallas y se dan de alta y de baja los usuarios. Un lector que
+  // escribe la URL a mano no tiene que poder abrirla.
+  //
+  // El rol viaja FIRMADO en la cookie, asi que decidir esto no cuesta una
+  // consulta a Postgres por request. Cambiar el rol de alguien se le aplica
+  // cuando vuelve a entrar (ver lib/auth/sesion.ts).
+  if (esDeAdmins(request.nextUrl.pathname) && sesion.rol !== "admin") {
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Necesitás rol de administrador." },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/mercado";
+    url.search = "?sin-permiso=1";
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
+}
+
+function esDeAdmins(pathname: string): boolean {
+  return (
+    pathname === "/configuracion" ||
+    pathname.startsWith("/configuracion/") ||
+    pathname.startsWith("/api/usuarios")
+  );
 }
 
 export const config = {

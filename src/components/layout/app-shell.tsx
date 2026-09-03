@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 export function AppShell({
   children,
   sinClave = false,
+  esAdmin = true,
 }: {
   children: React.ReactNode;
   /** true cuando falta ADVISOR_CLAVE, o sea que el tablero esta abierto a
@@ -20,6 +21,10 @@ export function AppShell({
    *  proposito para no dejar al equipo afuera en el deploy, y este aviso es
    *  la contrapartida — el riesgo tiene que verse, no quedar en silencio. */
   sinClave?: boolean;
+  /** Rol de quien esta mirando. Se calcula en el layout (Server Component,
+   *  unico lugar donde se puede leer la cookie) y baja hasta el menu: un
+   *  lector no ve el renglon de Configuracion. */
+  esAdmin?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const pathname = usePathname();
@@ -76,7 +81,7 @@ export function AppShell({
           }}
         >
           <div className="flex-1 overflow-y-auto py-4">
-            <SidebarNav />
+            <SidebarNav esAdmin={esAdmin} />
           </div>
           <div className="flex flex-col gap-2 border-t border-white/10 p-3">
             <span className="text-[11px] leading-snug text-white/50">
@@ -144,7 +149,7 @@ export function AppShell({
             </Button>
           </div>
           <div className="flex-1 overflow-y-auto py-3">
-            <SidebarNav onNavigate={() => setMobileOpen(false)} />
+            <SidebarNav esAdmin={esAdmin} onNavigate={() => setMobileOpen(false)} />
           </div>
         </aside>
       </div>

@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { NAV_GROUPS, type IconoNav } from "@/lib/nav";
+import { navPara, type IconoNav } from "@/lib/nav";
 import { Badge } from "@/components/ui/badge";
 import {
   IconInicio, IconMercado, IconEvolucion, IconRankings, IconSegmentos,
@@ -47,7 +47,16 @@ const ICONOS: Record<IconoNav, React.ComponentType<{ size?: number; className?: 
  * grupos y trece ítems — el colapso es para enfocar un rato, no una
  * preferencia que valga la pena recordar entre sesiones.
  */
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({
+  onNavigate,
+  esAdmin = true,
+}: {
+  onNavigate?: () => void;
+  /** Un lector no ve Configuración. Por defecto true para no romper a quien
+   *  monte este componente sin pasar el rol; la puerta igual manda. */
+  esAdmin?: boolean;
+}) {
+  const grupos = navPara(esAdmin);
   const pathname = usePathname();
   const [cerrados, setCerrados] = React.useState<Set<string>>(new Set());
 
@@ -61,7 +70,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav className="flex flex-col gap-2 px-2">
-      {NAV_GROUPS.map((grupo) => {
+      {grupos.map((grupo) => {
         const abierto = !cerrados.has(grupo.titulo);
         return (
           // Panel hundido del grupo: el fondo apenas-más-claro es lo que

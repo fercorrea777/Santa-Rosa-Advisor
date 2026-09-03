@@ -50,12 +50,21 @@ export const dynamic = "force-dynamic";
 const MAX_FILAS = 200;
 const MAX_TURNOS = 40; // historial maximo que aceptamos del cliente
 
-/** Cuantos documentos de Hermes se pueden abrir en una sola llamada, y
- *  cuanto texto entra en total. El vault son ~69 KB: mandarlo entero
- *  reventaria el num_ctx de 16k con el que corre Gemma (ver ollama.ts), y el
- *  modelo empezaria a perder el principio de la conversacion sin avisar. */
+/**
+ * Cuanto conocimiento de Hermes entra en una llamada. El vault son ~69 KB:
+ * mandarlo entero reventaria el num_ctx de 16k con el que corre Gemma (ver
+ * ollama.ts) y el modelo perderia el principio de la conversacion sin avisar.
+ *
+ * El tope es POR LLAMADA, no por documento, y por eso son dos numeros. Con un
+ * tope fijo por documento, el benchmark (9.066 caracteres) se cortaba por 66
+ * caracteres contra un limite de 9.000 — justo el final, que es donde suelen
+ * estar las tablas. Ahora un documento solo puede usar hasta 12.000 y el
+ * conjunto hasta 26.000, asi que el caso comun (benchmark + promociones =
+ * 16 KB) entra COMPLETO y solo se recorta cuando de verdad no cabe.
+ */
 const MAX_DOCS = 3;
-const MAX_CHARS_DOC = 9000;
+const MAX_CHARS_DOC = 12_000;
+const MAX_CHARS_TOTAL = 26_000;
 
 /** Anota que fuente se uso, para poder mostrarselo al que pregunta. Un
  *  gerente que ve "salio del benchmark del 03/08" confia distinto que uno
@@ -205,21 +214,24 @@ async function leerConocimiento(
     const aLeer = pedidas.filter((c) => validas.has(c)).slice(0, MAX_DOCS);
 
     const documentos = [];
+    let presupuesto = MAX_CHARS_TOTAL;
     for (const clave of aLeer) {
       const doc = await getDocumentoConocimiento(clave);
       if (!doc) continue;
-      const recortado = doc.contenido.length > MAX_CHARS_DOC;
+      const tope = Math.min(MAX_CHARS_DOC, presupuesto);
+      const recortado = doc.contenido.length > tope;
+      const contenido = recortado ? doc.contenido.slice(0, tope) : doc.contenido;
+      presupuesto -= contenido.length;
       documentos.push({
         clave: doc.clave,
         titulo: doc.titulo,
         fecha_del_dato: doc.fechado_en,
         empujado_por_hermes: doc.actualizado_en,
         origen: doc.origen,
-        contenido: recortado
-          ? doc.contenido.slice(0, MAX_CHARS_DOC)
-          : doc.contenido,
+        contenido,
         recortado: recortado
-          ? `Se muestran los primeros ${MAX_CHARS_DOC} caracteres de ${doc.contenido.length}.`
+          ? `RECORTADO: se muestran ${tope} caracteres de ${doc.contenido.length}. ` +
+            `Si lo que buscabas podría estar en la parte que falta, decilo.`
           : undefined,
       });
       const fecha = doc.fechado_en ? String(doc.fechado_en).slice(0, 10) : null;

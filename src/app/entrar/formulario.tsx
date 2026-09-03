@@ -55,12 +55,25 @@ export function FormularioLogin({ destino }: { destino: string }) {
         <form action={enviar} className="flex flex-col gap-3">
           <input type="hidden" name="destino" value={destino} />
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-white/70">Clave de acceso</span>
+            <span className="text-xs font-medium text-white/70">Usuario</span>
+            <input
+              name="usuario"
+              type="text"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoFocus
+              className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus-visible:border-white/40 focus-visible:outline-none"
+              placeholder="tu.usuario"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-white/70">Clave</span>
             <input
               name="clave"
               type="password"
               autoComplete="current-password"
-              autoFocus
               required
               className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus-visible:border-white/40 focus-visible:outline-none"
               placeholder="••••••••"
@@ -85,7 +98,8 @@ export function FormularioLogin({ destino }: { destino: string }) {
         </form>
 
         <p className="text-center text-[11px] leading-relaxed text-white/40">
-          Clave compartida del equipo comercial de Santa Rosa Paraguay S.A.
+          ¿No tenés usuario todavía? Dejalo vacío y entrá con la clave general
+          del equipo.
           <br />
           El tablero incluye precios y stock propios: no la compartas fuera.
         </p>
