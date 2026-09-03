@@ -64,7 +64,17 @@ export function BrechaChart({
         name: "Diferencia (import. − matric.)",
         type: "bar",
         data: diferencia,
-        itemStyle: { borderRadius: [4, 4, 0, 0], opacity: 0.55 },
+        // SIN `opacity`. Estaba en 0.55 para que las dos líneas se leyeran por
+        // encima, pero diluir el color contra el panel lo saca de la paleta
+        // validada: medido sobre `--card` oscuro, `--chart-4` da 5,71:1 solo y
+        // 2,57:1 compuesto al 55% — por debajo del piso de 3:1 que declara el
+        // DESIGN.md para los tonos de gráfico. Y visualmente el ámbar se
+        // convertía en un marrón sucio que no es ningún token del sistema.
+        //
+        // Las líneas igual quedan arriba: van después en `series`, y ECharts
+        // dibuja en ese orden. La separación se logra con el z, no bajándole
+        // el contraste al dato.
+        itemStyle: { borderRadius: [4, 4, 0, 0] },
         barMaxWidth: 28,
         // Si dos barras vecinas quedan muy juntas, se descarta la etiqueta
         // que chocaría en vez de dibujar las dos encimadas.
