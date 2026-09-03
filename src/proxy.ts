@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { timingSafeEqual } from "node:crypto";
+import { NOMBRE_COOKIE, tokenValido } from "@/lib/auth/sesion";
 
 /**
  * Puerta de entrada del tablero.
@@ -21,13 +21,21 @@ import { timingSafeEqual } from "node:crypto";
  * con el nombre viejo no falla al compilar: simplemente NO CORRE, que en un
  * control de acceso es la peor forma de equivocarse.
  *
- * POR QUE BASIC Y NO UNA PANTALLA DE LOGIN
- * ----------------------------------------
- * Basic no necesita sesion, ni base de usuarios, ni cookie, ni pantalla: son
- * treinta lineas y protege TODO —paginas, rutas de API y los payloads RSC—
- * sin que quede ningun borde sin cubrir. Para un tablero interno de un equipo
- * chico eso alcanza. Una pantalla de login propia seria mas linda y bastante
- * mas superficie donde equivocarse.
+ * DE BASIC A SESION PROPIA (2026-09)
+ * ----------------------------------
+ * Arranco con HTTP Basic. Se cambio a una pantalla propia por dos razones,
+ * y la segunda pesa mas que la estetica:
+ *
+ *  - Basic NO SE PUEDE CERRAR. El navegador reenvia las credenciales en cada
+ *    request hasta que se cierra el navegador ENTERO. En una maquina
+ *    compartida —o una notebook en una reunion— eso es una sesion que no
+ *    tiene forma de terminar.
+ *  - Su dialogo es del navegador: no se puede maquillar, ni explicar que es
+ *    esto, ni decir por que hay una clave.
+ *
+ * Ahora: cookie firmada (ver lib/auth/sesion.ts), HttpOnly, SameSite=Lax, con
+ * vencimiento adentro del token. Sigue cubriendo TODO —paginas, rutas de API
+ * y los payloads RSC— porque la puerta esta en el proxy, no en cada pantalla.
  */
 
 /**
@@ -49,25 +57,24 @@ const SIN_PUERTA = new Set([
   "/api/informes-competencia/hermes",
 ]);
 
-/** Compara sin filtrar el largo por el tiempo de respuesta. Es barato y
- *  evita el unico ataque realista contra una clave compartida. */
-function igual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
-}
-
-function pedirClave(): NextResponse {
-  return new NextResponse("Se necesita autorización.", {
-    status: 401,
-    headers: {
-      // El `realm` es lo que el navegador muestra en su cuadro de dialogo.
-      "WWW-Authenticate": 'Basic realm="Santa Rosa · Advisor", charset="UTF-8"',
-      // Que ningun intermediario guarde la respuesta del rechazo.
-      "Cache-Control": "no-store",
-    },
-  });
+/** A la pantalla de acceso, recordando adonde queria ir. Para las rutas de
+ *  API se responde 401 en JSON: un fetch que recibe el HTML del login no
+ *  tiene forma de darse cuenta de que lo que le falta es la sesion. */
+function aLogin(request: NextRequest): NextResponse {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      { error: "Sesión requerida." },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+  const url = request.nextUrl.clone();
+  url.pathname = "/entrar";
+  url.search = "";
+  const destino = request.nextUrl.pathname + request.nextUrl.search;
+  if (destino !== "/") url.searchParams.set("destino", destino);
+  const r = NextResponse.redirect(url);
+  r.headers.set("Cache-Control", "no-store");
+  return r;
 }
 
 export function proxy(request: NextRequest) {
@@ -84,23 +91,11 @@ export function proxy(request: NextRequest) {
 
   if (SIN_PUERTA.has(request.nextUrl.pathname)) return NextResponse.next();
 
-  const auth = request.headers.get("authorization") ?? "";
-  if (!auth.startsWith("Basic ")) return pedirClave();
+  // La pantalla de acceso queda afuera, si no el redirect se muerde la cola.
+  if (request.nextUrl.pathname === "/entrar") return NextResponse.next();
 
-  let credenciales: string;
-  try {
-    credenciales = Buffer.from(auth.slice(6), "base64").toString("utf8");
-  } catch {
-    return pedirClave();
-  }
-
-  // "usuario:clave". El usuario se ignora a proposito — es una clave
-  // compartida de equipo, no una cuenta por persona, y obligar a recordar
-  // tambien un nombre de usuario solo agrega una forma de no poder entrar.
-  const i = credenciales.indexOf(":");
-  const enviada = i === -1 ? "" : credenciales.slice(i + 1);
-
-  return igual(enviada, clave) ? NextResponse.next() : pedirClave();
+  const token = request.cookies.get(NOMBRE_COOKIE)?.value;
+  return tokenValido(token, clave) ? NextResponse.next() : aLogin(request);
 }
 
 export const config = {

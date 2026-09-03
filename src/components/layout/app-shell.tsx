@@ -2,10 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { salir } from "@/app/entrar/acciones";
 import { cn } from "@/lib/utils";
 
 export function AppShell({
@@ -20,6 +22,12 @@ export function AppShell({
   sinClave?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const pathname = usePathname();
+
+  // La pantalla de acceso NO lleva el marco de la app: mostrar el menú de
+  // trece secciones detrás del login sería enseñar el mapa de lo que
+  // justamente todavía no se puede ver.
+  if (pathname === "/entrar") return <>{children}</>;
 
   return (
     // Columna, no fila: la barra de marca cruza TODO el ancho arriba de todo
@@ -70,10 +78,24 @@ export function AppShell({
           <div className="flex-1 overflow-y-auto py-4">
             <SidebarNav />
           </div>
-          <div className="border-t border-white/10 p-3 text-[11px] leading-snug text-white/50">
-            Santa Rosa Paraguay S.A.
-            <br />
-            Inteligencia Comercial
+          <div className="flex flex-col gap-2 border-t border-white/10 p-3">
+            <span className="text-[11px] leading-snug text-white/50">
+              Santa Rosa Paraguay S.A.
+              <br />
+              Inteligencia Comercial
+            </span>
+            {!sinClave && (
+              // Solo si hay clave: sin ella no hay sesión que cerrar y el
+              // botón prometería algo que no hace.
+              <form action={salir}>
+                <button
+                  type="submit"
+                  className="w-full rounded-md px-2 py-1.5 text-left text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white pointer-coarse:min-h-9"
+                >
+                  Cerrar sesión
+                </button>
+              </form>
+            )}
           </div>
         </aside>
 
