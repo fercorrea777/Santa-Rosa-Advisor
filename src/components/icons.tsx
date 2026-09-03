@@ -212,6 +212,15 @@ export function IconConfiguracion(props: IconProps) {
   );
 }
 
+/** Chevron de grupo colapsable (menú lateral). */
+export function IconChevron(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 export function IconSol(props: IconProps) {
   return (
     <svg {...base(props)}>

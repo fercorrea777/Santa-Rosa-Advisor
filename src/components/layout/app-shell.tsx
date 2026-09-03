@@ -47,11 +47,30 @@ export function AppShell({
             columna pegada al borde. Mantiene labels (13 secciones con ícono
             solo sería adivinanza). El bloque de marca salió de acá: ahora
             vive en la barra superior, que se ve también en móvil. */}
-        <aside className="sticky top-20 ml-6 hidden h-[calc(100vh-6.5rem)] w-60 shrink-0 self-start overflow-hidden rounded-[0.8125rem] border bg-card text-sidebar-foreground shadow-[var(--card-shadow)] md:flex md:flex-col">
-          <div className="flex-1 overflow-y-auto py-3">
+        {/* Rediseño 2026-09 ("mas moderno"): el rail dejo de ser una tarjeta
+            blanca flotante — la iteracion anterior solo refino el item activo
+            y no se notaba. Ahora es un PANEL NAVY PLENO, continuo con la
+            barra de marca de arriba: juntos forman un marco en L alrededor
+            del contenido claro. Es el patron de sidebar oscura de las apps
+            actuales, y ademas el navy es el color de la referencia que
+            Croman eligio. Sin borde, sin radio, sin sombra: navy contra
+            lienzo claro no necesita ninguna de las tres. */}
+        <aside
+          className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-60 shrink-0 self-start overflow-hidden md:flex md:flex-col"
+          style={{
+            // Un brillo suave arriba y un oscurecido hacia el pie, como la
+            // referencia: profundidad sin textura ni imagen. El color base
+            // sigue siendo el token —el degradado es un velo encima.
+            backgroundColor: "var(--barra)",
+            backgroundImage:
+              "radial-gradient(140% 50% at 50% 0%, rgba(255,255,255,0.07), transparent 55%), linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.25) 100%)",
+            color: "var(--barra-foreground)",
+          }}
+        >
+          <div className="flex-1 overflow-y-auto py-4">
             <SidebarNav />
           </div>
-          <div className="border-t p-3 text-[11px] leading-snug text-muted-foreground">
+          <div className="border-t border-white/10 p-3 text-[11px] leading-snug text-white/50">
             Santa Rosa Paraguay S.A.
             <br />
             Inteligencia Comercial
@@ -77,10 +96,16 @@ export function AppShell({
           aria-hidden="true"
         />
         <aside
-          className="relative flex w-72 flex-col bg-sidebar text-sidebar-foreground shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-          style={{ translate: mobileOpen ? "0" : "-100%" }}
+          className="relative flex w-72 flex-col shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+          style={{
+            translate: mobileOpen ? "0" : "-100%",
+            backgroundColor: "var(--barra)",
+            backgroundImage:
+              "radial-gradient(140% 50% at 50% 0%, rgba(255,255,255,0.07), transparent 55%), linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.25) 100%)",
+            color: "var(--barra-foreground)",
+          }}
         >
-          <div className="flex h-14 items-center justify-between border-b px-4">
+          <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold tracking-tight">
                 Mercado Automotor PY
@@ -89,7 +114,7 @@ export function AppShell({
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 text-base leading-none"
+              className="size-8 text-base leading-none text-white/80 hover:bg-white/10 hover:text-white"
               aria-label="Cerrar menú"
               onClick={() => setMobileOpen(false)}
             >
