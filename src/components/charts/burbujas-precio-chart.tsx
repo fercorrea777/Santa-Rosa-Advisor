@@ -5,7 +5,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
-import { SIN_CLASIFICAR } from "@/lib/informes/segmento-version";
+import {
+  ORDEN_TECNOLOGIA, SIN_CLASIFICAR, SIN_DATO_TECNOLOGIA,
+} from "@/lib/informes/segmento-version";
 import { cn } from "@/lib/utils";
 
 export interface BurbujaPrecio {
@@ -19,6 +21,9 @@ export interface BurbujaPrecio {
   /** SUV, Pick Up, Automóvil... o SIN_CLASIFICAR. Define la columna cuando
    *  `columna="segmento"`. */
   segmento?: string;
+  /** Movilidad: "ICE", "HEV", "PHEV", "EV"... o "ICE+PHEV" para una familia
+   *  que mezcla, o SIN_DATO_TECNOLOGIA. Solo filtra; no cambia la posición. */
+  tecnologia?: string;
   /** Unidades del período. Define el TAMAÑO de la burbuja. */
   unidades: number;
   precio: number;
@@ -37,6 +42,7 @@ export type ColumnaBurbujas = "segmento" | "marca";
  *  consultas CADAM); estos son multiselección y solo tocan este gráfico. */
 const PARAM_MARCAS = "bmarcas";
 const PARAM_SEGMENTOS = "bsegmentos";
+const PARAM_MOVILIDAD = "bmov";
 
 /**
  * Posicionamiento de la gama propia: eje X = SEGMENTO, eje Y = precio de
@@ -88,14 +94,20 @@ export function BurbujasPrecioChart({
     porSegmento ? (d.segmento ?? SIN_CLASIFICAR) : d.marca;
 
   // --- universo (independiente del filtro): define orden y color -----------
+  const movDe = (d: BurbujaPrecio) => d.tecnologia ?? SIN_DATO_TECNOLOGIA;
   const volMarca = new Map<string, number>();
   const volSeg = new Map<string, number>();
+  const volMov = new Map<string, number>();
   for (const d of datos) {
     volMarca.set(d.marca, (volMarca.get(d.marca) ?? 0) + d.unidades);
     volSeg.set(colDe(d), (volSeg.get(colDe(d)) ?? 0) + d.unidades);
+    volMov.set(movDe(d), (volMov.get(movDe(d)) ?? 0) + d.unidades);
   }
   const marcasTodas = [...volMarca.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => m);
   const segmentosTodos = ordenarSegmentos([...volSeg.entries()]);
+  const movilidadesTodas = ordenarMovilidad([...volMov.keys()]);
+  // Un solo valor de movilidad = no hay nada que filtrar: la fila no se muestra.
+  const hayMovilidad = movilidadesTodas.length > 1;
   const colorDe = (marca: string) => {
     const i = marcasTodas.indexOf(marca);
     return i >= 0 && i < theme.series.length ? theme.series[i] : theme.axis;
@@ -112,6 +124,7 @@ export function BurbujasPrecioChart({
   // En la vista por marca la columna YA es la marca: un segundo filtro sería
   // el mismo control dos veces.
   const segmentosSel = porSegmento ? leer(PARAM_SEGMENTOS, segmentosTodos) : segmentosTodos;
+  const movSel = hayMovilidad ? leer(PARAM_MOVILIDAD, movilidadesTodas) : movilidadesTodas;
 
   const escribir = React.useCallback(
     (param: string, valores: string[], todos: string[]) => {
@@ -140,7 +153,8 @@ export function BurbujasPrecioChart({
 
   // --- datos filtrados ---------------------------------------------------------
   const visibles = datos.filter(
-    (d) => marcasSel.includes(d.marca) && segmentosSel.includes(colDe(d))
+    (d) =>
+      marcasSel.includes(d.marca) && segmentosSel.includes(colDe(d)) && movSel.includes(movDe(d))
   );
 
   const chips = (
@@ -166,6 +180,19 @@ export function BurbujasPrecioChart({
               onClick={() => alternar(PARAM_SEGMENTOS, segmentosSel, segmentosTodos, s)}
             >
               {s}
+            </Chip>
+          ))}
+        </FilaChips>
+      )}
+      {hayMovilidad && (
+        <FilaChips label="Movilidad en este gráfico">
+          {movilidadesTodas.map((t) => (
+            <Chip
+              key={t}
+              puesto={movSel.includes(t)}
+              onClick={() => alternar(PARAM_MOVILIDAD, movSel, movilidadesTodas, t)}
+            >
+              {t}
             </Chip>
           ))}
         </FilaChips>
@@ -267,6 +294,7 @@ export function BurbujasPrecioChart({
     marca: d.marca,
     familia: d.familia,
     segmento: porSegmento ? colDe(d) : undefined,
+    tecnologia: d.tecnologia,
     moneda: d.moneda,
     itemStyle: {
       color: colorDe(d.marca),
@@ -310,10 +338,13 @@ export function BurbujasPrecioChart({
       formatter: (p: {
         name: string;
         value: number[];
-        data: { marca: string; familia?: string; segmento?: string; moneda: string };
+        data: {
+          marca: string; familia?: string; segmento?: string; tecnologia?: string; moneda: string;
+        };
       }) => {
         const contexto = [
           p.data.segmento,
+          p.data.tecnologia && p.data.tecnologia !== SIN_DATO_TECNOLOGIA ? p.data.tecnologia : null,
           p.data.familia && p.data.familia !== p.name ? `familia ${p.data.familia}` : null,
         ]
           .filter(Boolean)
@@ -412,6 +443,16 @@ function nombreDe(d: { version?: string; modelo?: string }) {
 
 function clave(d: { marca: string; version?: string; modelo?: string }) {
   return `${d.marca}|${nombreDe(d)}`;
+}
+
+/** Orden canónico de movilidad (ICE → EV), después las mixtas ("ICE+PHEV")
+ *  y "Sin dato" al final. Nunca por volumen: el lector ya sabe que ICE es
+ *  lo más grande, y el orden fijo es lo que deja comparar dos vistas. */
+function ordenarMovilidad(valores: string[]): string[] {
+  const pos = new Map<string, number>(ORDEN_TECNOLOGIA.map((t, i) => [t, i]));
+  const rango = (v: string) =>
+    v === SIN_DATO_TECNOLOGIA ? 200 : v.includes("+") ? 100 + (pos.get(v.split("+")[0]) ?? 50) : (pos.get(v) ?? 90);
+  return [...valores].sort((a, b) => rango(a) - rango(b) || a.localeCompare(b));
 }
 
 /** Por volumen, y "Sin clasificar" siempre al final: no es un segmento, es

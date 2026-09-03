@@ -3,6 +3,7 @@ import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { getPool } from "@/lib/informes/db";
 import type { Filtro } from "@/lib/cadam/mercado";
 import type { ModeloConPrecio } from "@/lib/cadam/precios";
+import { normalizarTecnologias } from "@/lib/informes/segmento-version";
 
 /**
  * Precios de la gama propia tomados del STOCK DE CARS, no de una lista a mano.
@@ -123,7 +124,8 @@ export async function getGamaPropiaDesdeCars(f: Filtro): Promise<GamaPropiaCars>
   const marcasIn = propias.map(() => "?").join(",");
   const ventas = getDb()
     .prepare(
-      `SELECT marca, modelo_base modelo, SUM(unidades) unidades
+      `SELECT marca, modelo_base modelo, SUM(unidades) unidades,
+              GROUP_CONCAT(DISTINCT tecnologia) tecs
        FROM v_matriculacion
        WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
        GROUP BY marca, modelo_base
@@ -131,7 +133,7 @@ export async function getGamaPropiaDesdeCars(f: Filtro): Promise<GamaPropiaCars>
        ORDER BY unidades DESC`
     )
     .all(f.anio, f.mesDesde, f.mesHasta, ...propias) as {
-    marca: string; modelo: string; unidades: number;
+    marca: string; modelo: string; unidades: number; tecs: string | null;
   }[];
   if (!ventas.length) return vacio;
 
@@ -196,6 +198,7 @@ export async function getGamaPropiaDesdeCars(f: Filtro): Promise<GamaPropiaCars>
       conPrecio.push({
         marca: v.marca, modelo: v.modelo, unidades: v.unidades,
         precio, moneda: "USD", periodoPrecio: periodo,
+        tecnologia: normalizarTecnologias(v.tecs),
       });
   }
   return { conPrecio, sinPrecio, sincronizado, error: null };

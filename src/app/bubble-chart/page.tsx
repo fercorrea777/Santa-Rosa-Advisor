@@ -151,7 +151,12 @@ export default async function BubbleChartPage({
     ...getRankingModelos("matriculacion", { ...anioEntero, anio: f.anio - 1 }, 5000),
   ]
     .filter((m) => m.esPropia && m.modelo && m.segmento)
-    .map((m) => ({ marca: m.marca, modelo: m.modelo as string, segmento: m.segmento as string }));
+    .map((m) => ({
+      marca: m.marca,
+      modelo: m.modelo as string,
+      segmento: m.segmento as string,
+      tecnologia: m.tecnologia,
+    }));
   const conSegmento = asignarSegmento(ordenPrecio, catalogoCadam);
   const sinClasificar = conSegmento.filter((b) => b.segmento === SIN_CLASIFICAR);
   const unidadesSinClasificar = sinClasificar.reduce((s, b) => s + b.unidades, 0);
@@ -256,6 +261,7 @@ export default async function BubbleChartPage({
                 familia: b.modelo,
                 version: b.version,
                 segmento: b.segmento,
+                tecnologia: b.tecnologia,
                 unidades: b.unidades,
                 precio: b.precio,
                 moneda: "US$",

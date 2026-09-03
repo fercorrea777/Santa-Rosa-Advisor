@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/cadam/db";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import type { Filtro } from "@/lib/cadam/mercado";
+import { normalizarTecnologias } from "@/lib/informes/segmento-version";
 
 /**
  * Lectura de la lista de precios propia (tabla `precio_modelo`, la carga
@@ -19,6 +20,10 @@ export interface ModeloConPrecio {
   unidades: number;
   precio: number;
   moneda: string;
+  /** Tren motriz de la familia según CADAM: "ICE", "PHEV"... o "ICE+PHEV"
+   *  cuando la familia mezcla versiones de dos (T1, T2, S06). "Sin dato" si
+   *  CADAM no lo trae. Ver normalizarTecnologias(). */
+  tecnologia?: string;
   /** Periodo de la lista de la que salio el precio (AAAA-MM). Puede no ser
    *  el periodo filtrado: se usa la lista mas reciente que no lo supere. */
   periodoPrecio: string;
@@ -69,7 +74,8 @@ export function getGamaPropiaConPrecio(f: Filtro): ModeloConPrecio[] {
   const filas = getDb()
     .prepare(
       `WITH ventas AS (
-         SELECT marca, modelo_base modelo, SUM(unidades) unidades
+         SELECT marca, modelo_base modelo, SUM(unidades) unidades,
+                GROUP_CONCAT(DISTINCT tecnologia) tecs
          FROM v_matriculacion
          WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
          GROUP BY marca, modelo_base
@@ -86,14 +92,16 @@ export function getGamaPropiaConPrecio(f: Filtro): ModeloConPrecio[] {
          WHERE periodo <= ? AND version = ''
        )
        SELECT v.marca, v.modelo, v.unidades, l.precio, l.moneda,
-              l.periodo periodoPrecio
+              l.periodo periodoPrecio, v.tecs
        FROM ventas v
        JOIN lista l ON l.marca = v.marca AND l.modelo = v.modelo AND l.rn = 1
        ORDER BY v.unidades DESC`
     )
-    .all(f.anio, f.mesDesde, f.mesHasta, ...propias, tope) as ModeloConPrecio[];
+    .all(f.anio, f.mesDesde, f.mesHasta, ...propias, tope) as (ModeloConPrecio & {
+    tecs: string | null;
+  })[];
 
-  return filas;
+  return filas.map(({ tecs, ...m }) => ({ ...m, tecnologia: normalizarTecnologias(tecs) }));
 }
 
 /** Modelos propios con ventas en el periodo pero SIN precio en ninguna lista

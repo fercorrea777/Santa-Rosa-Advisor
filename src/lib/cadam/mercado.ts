@@ -310,7 +310,10 @@ export function totalUnidades(fuente: Fuente, f: Filtro): number {
 }
 
 function armarRanking(
-  filasActual: { clave: string; marca: string; modelo?: string; segmento?: string; unidades: number }[],
+  filasActual: {
+    clave: string; marca: string; modelo?: string; segmento?: string;
+    tecnologia?: string | null; unidades: number;
+  }[],
   filasAnterior: Map<string, number>,
   ordenAnterior: Map<string, number>,
   baseDisponible: boolean,
@@ -338,6 +341,7 @@ function armarRanking(
       marca: r.marca,
       modelo: r.modelo,
       segmento: r.segmento,
+      tecnologia: r.tecnologia ?? undefined,
       unidades: r.unidades,
       participacion: partActual,
       variacion: baseDisponible && antes ? variacion(r.unidades, antes) : null,
@@ -401,14 +405,19 @@ function rankingPorColumna(
   const w = where(fuente, f);
   const actual = db
     .prepare(
+      // tecnologia solo existe en matriculacion; en importacion la columna
+      // no esta y el MIN() rompería la consulta.
       `SELECT marca || ' ' || ${columna} clave, marca, ${columna} modelo,
-              MIN(segmento) segmento, SUM(unidades) unidades
+              MIN(segmento) segmento,
+              ${fuente === "matriculacion" ? "MIN(tecnologia) tecnologia," : "NULL tecnologia,"}
+              SUM(unidades) unidades
        FROM ${vista(fuente)} WHERE ${w.sql}
        GROUP BY marca, ${columna} HAVING unidades > 0
        ORDER BY unidades DESC LIMIT ?`
     )
     .all(...w.args, limite) as {
-    clave: string; marca: string; modelo: string; segmento: string; unidades: number;
+    clave: string; marca: string; modelo: string; segmento: string;
+    tecnologia: string | null; unidades: number;
   }[];
 
   const wp = where(fuente, { ...f, anio: f.anio - 1 });
