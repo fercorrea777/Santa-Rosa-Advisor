@@ -13,7 +13,7 @@ import {
   getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getParametros } from "@/lib/cadam/config";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { aniosDeSerie, etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { serieAAnios } from "@/lib/serie";
 
@@ -34,12 +34,10 @@ export default async function MercadoPage({
   // tecnologia, marca), pero NO el rango de meses: muestran el ano
   // completo para que se vea la estacionalidad.
   const cortes = { segmento: f.segmento, tecnologia: f.tecnologia, marca: f.marca, empresa: f.empresa };
-  const aniosMat = [f.anio - 1, f.anio].filter((a) =>
-    cobertura.matriculacion.anios.includes(a)
-  );
-  const aniosImp = [f.anio - 1, f.anio].filter((a) =>
-    cobertura.importacion.anios.includes(a)
-  );
+  // Los años del gráfico salen del filtro `anios` (chips), no del año del
+  // KPI: se puede mirar 2022–2026 en la serie sin mover las cifras de arriba.
+  const aniosMat = aniosDeSerie(sp, f.anio, cobertura.matriculacion.anios);
+  const aniosImp = aniosDeSerie(sp, f.anio, cobertura.importacion.anios);
   const serieMat = serieAAnios(getSerieMensual("matriculacion", aniosMat, cortes), aniosMat);
   const serieImp = serieAAnios(getSerieMensual("importacion", aniosImp, cortes), aniosImp);
 
@@ -128,7 +126,9 @@ export default async function MercadoPage({
             pegajoso={false}
             anios={cobertura.matriculacion.anios}
             mesMaximoPorAnio={mesMax}
+            aniosSerie
             opciones={[
+              { param: "marca", label: "Marca", valores: opciones.marcas },
               { param: "segmento", label: "Segmento", valores: opciones.segmentos },
               ...(esImportacion
                 ? []

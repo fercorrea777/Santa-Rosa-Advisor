@@ -18,6 +18,7 @@ import {
   getCoberturaCorte, getMarcasPorCombustible, getPorCorte, hayCorte,
 } from "@/lib/cadam/cortes";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
+import { getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
@@ -131,7 +132,11 @@ export default async function CombustiblesPage({
       <FiltroPeriodo
         anios={anios}
         mesMaximoPorAnio={mesMax}
-        opciones={[{ param: "tecnologia", label: "Tecnología", valores: [...TECNOLOGIAS] }]}
+        opciones={[
+          { param: "marca", label: "Marca", valores: getOpcionesFiltro().marcas },
+          { param: "segmento", label: "Segmento", valores: getOpcionesFiltro().segmentos },
+          { param: "tecnologia", label: "Tecnología", valores: [...TECNOLOGIAS] },
+        ]}
       />
 
       <NotaDato>

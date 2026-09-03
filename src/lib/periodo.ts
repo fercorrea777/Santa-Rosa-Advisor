@@ -64,3 +64,39 @@ export function filtroDesdeUrl(
     version: txt(sp.version),
   };
 }
+
+/**
+ * Años que deben dibujarse en los graficos de serie.
+ *
+ * Param `anios` en la URL, separados por coma: `?anios=2023,2024,2026`.
+ *
+ * ES ADITIVO A PROPOSITO. No reemplaza a `anio`, que sigue mandando en los
+ * KPIs y en toda comparacion "contra el mismo periodo del año anterior".
+ * Mezclar las dos cosas —que el selector de años tambien moviera el periodo
+ * de los KPIs— haria que elegir un año viejo para verlo en la serie cambiara
+ * en silencio todas las cifras de arriba. Aca se elige QUE SE DIBUJA, no
+ * sobre que se calcula.
+ *
+ * Sin el param, el comportamiento de siempre: el año del filtro y el
+ * anterior. Se acotan a los años que existen y se ordenan, asi la leyenda
+ * del grafico no depende del orden en que se tildaron.
+ */
+export function aniosDeSerie(
+  sp: SearchParams,
+  anioActual: number,
+  disponibles: number[]
+): number[] {
+  const crudo = Array.isArray(sp.anios) ? sp.anios[0] : sp.anios;
+  if (!crudo) {
+    return [anioActual - 1, anioActual].filter((a) => disponibles.includes(a));
+  }
+  const pedidos = crudo
+    .split(",")
+    .map((x) => Number(x.trim()))
+    .filter((n) => Number.isInteger(n) && disponibles.includes(n));
+  // Si el filtro deja la lista vacia (año que no existe, param manipulado)
+  // se cae al default en vez de devolver un grafico en blanco.
+  return pedidos.length
+    ? [...new Set(pedidos)].sort((a, b) => a - b)
+    : [anioActual - 1, anioActual].filter((a) => disponibles.includes(a));
+}
