@@ -148,12 +148,23 @@ export async function getGamaPropiaDesdeCars(f: Filtro): Promise<GamaPropiaCars>
       [propias]
     );
     filas = r.rows;
-    const s = await pool.query<{ t: string }>(
-      `select max(actualizado_en)::text t from sync_propio`
-    );
-    sincronizado = s.rows[0]?.t ?? null;
   } catch (e) {
     return { ...vacio, error: (e as Error).message };
+  }
+
+  // LA FECHA DE SINCRONIZACION VA EN SU PROPIO try, Y NO ES NEGOCIABLE.
+  // Estaba adentro del anterior, y con el nombre de tabla equivocado
+  // (`sync_propio` en vez de `sincronizacion_propia`): la consulta tiraba, el
+  // catch devolvia el estado de error, y la pantalla quedaba vacia en
+  // produccion POR UN TIMESTAMP DECORATIVO, con los 122 precios ya leidos y
+  // descartados. Un dato cosmetico nunca puede tumbar al dato principal.
+  try {
+    const s = await getPool().query<{ t: string }>(
+      `select max(actualizado_en)::text t from sincronizacion_propia`
+    );
+    sincronizado = s.rows[0]?.t ?? null;
+  } catch {
+    sincronizado = null; // se muestra sin fecha; los precios siguen estando
   }
 
   // Indice por marca: modelo, version completa y primer token de la version.
