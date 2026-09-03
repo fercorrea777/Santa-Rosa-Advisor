@@ -9,6 +9,7 @@ import { getCobertura } from "@/lib/cadam/mercado";
 import {
   getGamaPropiaConPrecio, getGamaPropiaSinPrecio, getPeriodosPrecio, hayPrecios,
 } from "@/lib/cadam/precios";
+import { getGamaPropiaDesdeCars } from "@/lib/cadam/precios-cars";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
@@ -28,10 +29,23 @@ export default async function GamaPropiaPage({
       ? cobertura.matriculacion.ultimo.mes : 12;
   }
 
-  const tienePrecios = hayPrecios();
-  const conPrecio = getGamaPropiaConPrecio(f);
-  const sinPrecio = getGamaPropiaSinPrecio(f);
+  // DOS FUENTES DE PRECIO, con prioridad explicita:
+  //
+  //  1. La lista cargada a mano (`precio_modelo`), si existe. Alguien la subio
+  //     a proposito para un periodo: eso gana.
+  //  2. El stock de Cars, que se sincroniza solo cada 4 horas.
+  //
+  // Antes solo existia la primera, y como nadie la subio nunca la pantalla
+  // llevaba meses mostrando un instructivo en vez de datos — pidiendo a mano
+  // un dato que el sistema ya tenia. Ver lib/cadam/precios-cars.ts.
+  const listaManual = hayPrecios();
   const periodosLista = getPeriodosPrecio();
+  const cars = listaManual ? null : await getGamaPropiaDesdeCars(f);
+
+  const conPrecio = listaManual ? getGamaPropiaConPrecio(f) : (cars?.conPrecio ?? []);
+  const sinPrecio = listaManual ? getGamaPropiaSinPrecio(f) : (cars?.sinPrecio ?? []);
+  const tienePrecios = conPrecio.length > 0;
+  const fuentePrecio = listaManual ? "lista propia cargada" : "stock de Cars";
 
   const uConPrecio = conPrecio.reduce((s, d) => s + d.unidades, 0);
   const uSinPrecio = sinPrecio.reduce((s, d) => s + d.unidades, 0);
@@ -42,7 +56,7 @@ export default async function GamaPropiaPage({
       <PageHeader
         titulo="Gama propia"
         descripcion={`Posicionamiento por precio de los modelos del grupo · matriculaciones · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · precios: lista propia.`}
+        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · precios: ${fuentePrecio}${cars?.sincronizado ? ` (sinc. ${cars.sincronizado.slice(0, 16)})` : ""}.`}
       />
 
       <FiltroPeriodo anios={cobertura.matriculacion.anios} mesMaximoPorAnio={mesMax} />
@@ -52,13 +66,32 @@ export default async function GamaPropiaPage({
         // falta es un dato que alguien tiene que cargar, y acá se dice cómo.
         <Card>
           <CardHeader>
-            <CardTitle>Falta la lista de precios</CardTitle>
+            <CardTitle>
+              {cars?.error ? "No se pudo leer el stock de Cars" : "Sin precios para este período"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
             <p className="text-muted-foreground">
-              Esta vista cruza las unidades de CADAM con la lista de precios
-              propia. CADAM no trae importes, así que sin esa lista no hay eje
-              de precio que mostrar. Se carga una vez por período:
+              {cars?.error ? (
+                <>
+                  Los precios salen del stock de Cars y la base no respondió:{" "}
+                  <code className="rounded bg-muted px-1 py-0.5">{cars.error}</code>.
+                  No es que no tengamos precios — es que no se pudieron leer ahora.
+                  El resto del tablero no depende de esto.
+                </>
+              ) : (
+                <>
+                  Esta vista cruza las unidades de CADAM con el precio de lista.
+                  CADAM no trae importes, así que sin precio no hay eje que
+                  mostrar. Normalmente el precio sale solo del stock de Cars; si
+                  acá no aparece nada, o el período filtrado no tiene ventas del
+                  grupo, o el stock todavía no sincronizó.
+                </>
+              )}
+            </p>
+            <p className="text-muted-foreground">
+              También se puede cargar una lista a mano, que tiene prioridad sobre
+              Cars:
             </p>
             <div className="flex flex-col gap-1 rounded-md bg-muted/50 p-2 font-mono text-xs">
               <span>cd CADAM/scripts</span>
@@ -83,11 +116,23 @@ export default async function GamaPropiaPage({
       ) : (
         <>
           <NotaDato>
-            Los precios salen de la lista propia, así que esta vista solo cubre
-            las marcas del grupo — <strong>no compara contra la competencia</strong>,
-            porque CADAM no trae precios de terceros. Se usa la lista más
-            reciente que no supere el período filtrado
-            {periodosLista.length > 0 && <> (cargadas: {periodosLista.join(", ")})</>}.
+            {listaManual ? (
+              <>
+                Precios de la <strong>lista cargada a mano</strong>. Se usa la más
+                reciente que no supere el período filtrado
+                {periodosLista.length > 0 && <> (cargadas: {periodosLista.join(", ")})</>}.
+              </>
+            ) : (
+              <>
+                Precios del <strong>stock de Cars</strong>, nuestro DMS — el mismo
+                precio de lista que ve un vendedor, sin subir nada a mano. Cuando
+                un modelo tiene varias versiones se toma la más barata: es el
+                «desde» de esa gama.
+              </>
+            )}{" "}
+            Esta vista solo cubre las marcas del grupo —{" "}
+            <strong>no compara contra la competencia</strong>, porque CADAM no
+            trae precios de terceros.
             {uTotal > 0 && (
               <>
                 {" "}Con precio: <strong>{formatUnidades(uConPrecio)} u.</strong>{" "}
@@ -116,13 +161,18 @@ export default async function GamaPropiaPage({
           {sinPrecio.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Modelos con ventas y sin precio en la lista</CardTitle>
+                <CardTitle>Modelos con ventas y sin precio</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="pb-3 text-xs text-muted-foreground">
-                  Vendieron en el período pero no figuran en ninguna lista
-                  aplicable. Se muestran acá en vez de desaparecer del gráfico:
-                  es un dato que falta, no un modelo que no existe.
+                  Vendieron en el período pero no tienen precio en la fuente.
+                  Se muestran acá en vez de desaparecer del gráfico: es un dato
+                  que falta, no un modelo que no existe.{" "}
+                  {!listaManual && (
+                    <>Son casi todos <strong>camiones</strong> (Fuso, Canter,
+                    chasis JAC): Cars no les pone precio de lista porque se
+                    cotizan uno por uno.</>
+                  )}
                 </p>
                 <Table>
                   <TableHeader>
