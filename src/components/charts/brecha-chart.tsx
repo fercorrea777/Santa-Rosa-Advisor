@@ -63,7 +63,17 @@ export function BrechaChart({
       {
         name: "Diferencia (import. − matric.)",
         type: "bar",
-        data: diferencia,
+        // La etiqueta va DEL LADO AL QUE APUNTA LA BARRA. Con `position: "top"`
+        // fijo (que es lo que hereda del helper), una barra negativa dibuja su
+        // cifra ARRIBA del cero mientras la barra cuelga abajo: el "-3.440"
+        // de mayo quedaba flotando en la zona positiva, separado de su propia
+        // barra y pegado al mes de al lado. `position` no acepta función, así
+        // que se resuelve por dato.
+        data: diferencia.map((v) =>
+          v === null || v === undefined
+            ? v
+            : { value: v, label: { position: v < 0 ? "bottom" : "top" } }
+        ),
         // SIN `opacity`. Estaba en 0.55 para que las dos líneas se leyeran por
         // encima, pero diluir el color contra el panel lo saca de la paleta
         // validada: medido sobre `--card` oscuro, `--chart-4` da 5,71:1 solo y
