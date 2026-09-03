@@ -58,7 +58,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     titulo: "Datos",
     items: [
-      { href: "/cargas", label: "Carga de archivos", icono: "cargas", implementado: true },
+      { href: "/cargas", label: "Estado de los datos", icono: "cargas", implementado: true },
       { href: "/calidad-datos", label: "Calidad de datos", icono: "calidad", implementado: true },
       { href: "/configuracion", label: "Configuración", icono: "configuracion", implementado: true },
     ],
