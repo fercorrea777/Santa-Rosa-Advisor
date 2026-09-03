@@ -154,7 +154,7 @@ export default async function GamaPropiaPage({
                 el promedio simple: un modelo que vendió 3 no puede pesar lo
                 mismo que uno que vendió 300.
               </p>
-              <BurbujasPrecioChart datos={conPrecio} />
+              <BurbujasPrecioChart datos={conPrecio} columna="marca" />
             </CardContent>
           </Card>
 

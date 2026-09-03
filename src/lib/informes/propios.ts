@@ -287,6 +287,9 @@ export async function hayDatosPropios(): Promise<boolean> {
 
 export interface BurbujaVersion {
   marca: string;
+  /** Familia ("X70"). Es lo que se cruza contra CADAM para darle segmento
+   *  a la versión cuando el nombre completo no coincide letra por letra. */
+  modelo: string;
   version: string;
   /** Unidades FACTURADAS de esa versión en la ventana pedida. Es lo que da
    *  el tamaño de la burbuja: el stock dice lo que tenemos, la facturación
@@ -312,20 +315,21 @@ export async function getBurbujasVersion(
 ): Promise<BurbujaVersion[]> {
   const { rows } = await getPool().query<BurbujaVersion>(
     `select s.marca,
+            min(s.modelo) as modelo,
             s.version,
             coalesce(v.unidades, 0)::int as unidades,
             max(s.precio_usd)::int as precio
-     from (select marca, version, max(precio_usd) precio_usd
+     from (select marca, modelo, version, max(precio_usd) precio_usd
            from stock_propio
            where precio_usd is not null
-           group by marca, version) s
+           group by marca, modelo, version) s
      left join (select marca, version, sum(unidades) unidades
                 from venta_propia
                 where periodo between $1 and $2
                 group by marca, version) v
        on v.marca = s.marca and v.version = s.version
      group by s.marca, s.version, v.unidades
-     order by 4 desc`,
+     order by 5 desc`,
     [desde, hasta]
   );
   return rows.filter((r) => r.precio > 0);

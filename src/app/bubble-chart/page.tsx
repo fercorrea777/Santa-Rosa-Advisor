@@ -11,6 +11,7 @@ import {
   type Fuente,
 } from "@/lib/cadam/mercado";
 import { getBurbujasVersion } from "@/lib/informes/propios";
+import { asignarSegmento, SIN_CLASIFICAR } from "@/lib/informes/segmento-version";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
@@ -140,6 +141,21 @@ export default async function BubbleChartPage({
   const canje = burbujasPrecio.length - ordenPrecio.length;
   const unidadesBurbujas = ordenPrecio.reduce((s, b) => s + b.unidades, 0);
 
+  // Segmento por versión, desde CADAM. Se toma el año entero del filtro y el
+  // anterior, no solo la ventana de meses: el segmento es una propiedad del
+  // modelo, no del período, y una versión facturada en marzo puede recién
+  // matricularse en agosto. Sin filtro de marca ni segmento: es un catálogo.
+  const anioEntero = { anio: f.anio, mesDesde: 1, mesHasta: 12 };
+  const catalogoCadam = [
+    ...getRankingModelos("matriculacion", anioEntero, 5000),
+    ...getRankingModelos("matriculacion", { ...anioEntero, anio: f.anio - 1 }, 5000),
+  ]
+    .filter((m) => m.esPropia && m.modelo && m.segmento)
+    .map((m) => ({ marca: m.marca, modelo: m.modelo as string, segmento: m.segmento as string }));
+  const conSegmento = asignarSegmento(ordenPrecio, catalogoCadam);
+  const sinClasificar = conSegmento.filter((b) => b.segmento === SIN_CLASIFICAR);
+  const unidadesSinClasificar = sinClasificar.reduce((s, b) => s + b.unidades, 0);
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -226,23 +242,25 @@ export default async function BubbleChartPage({
         <Seccion titulo="Posicionamiento por versión">
         <Card>
           <CardHeader>
-            <CardTitle>Bubble chart por marca y versión</CardTitle>
+            <CardTitle>Bubble chart por segmento y versión</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Una burbuja por versión · eje Y = precio de lista · tamaño =
-              unidades · marcas del grupo primero
+              Una burbuja por versión · eje X = segmento · eje Y = precio de
+              lista · tamaño = unidades · color = marca. Lo que comparte columna
+              compite entre sí.
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <BurbujasPrecioChart
-              datos={ordenPrecio.map((b) => ({
+              datos={conSegmento.map((b) => ({
                 marca: b.marca,
-                modelo: b.version,
+                familia: b.modelo,
+                version: b.version,
+                segmento: b.segmento,
                 unidades: b.unidades,
                 precio: b.precio,
                 moneda: "US$",
-                periodoPrecio: "Cars",
               }))}
-              altura={480}
+              altura={520}
             />
             <NotaDato>
               El precio sale del <strong>API de Cars</strong>, que solo conoce
@@ -250,7 +268,25 @@ export default async function BubbleChartPage({
               entero. CADAM no trae importes, así que no hay precio de
               competencia a nivel versión en ninguna fuente que tengamos —
               lo público de la competencia vive en el benchmark de Hermes, que
-              cubre pocos modelos. {ordenPrecio.length} versiones con precio,{" "}
+              cubre pocos modelos. El <strong>segmento</strong> tampoco está en
+              Cars: se cruza contra el nombre de la versión en CADAM, y lo que no
+              cruza va a «Sin clasificar» en vez de adivinarse
+              {sinClasificar.length > 0 ? (
+                <>
+                  {" "}— {sinClasificar.length}{" "}
+                  {sinClasificar.length === 1 ? "versión" : "versiones"},{" "}
+                  {formatUnidades(unidadesSinClasificar)} u.:{" "}
+                  {[...sinClasificar]
+                    .sort((a, b) => b.unidades - a.unidades)
+                    .slice(0, 3)
+                    .map((b) => `${b.marca} ${b.version}`)
+                    .join(", ")}
+                  {sinClasificar.length > 3 ? " y otras" : ""}
+                </>
+              ) : (
+                ""
+              )}
+              . {ordenPrecio.length} versiones con precio,{" "}
               {formatUnidades(unidadesBurbujas)} unidades facturadas en el
               período; las versiones sin precio en Cars quedan fuera del
               gráfico porque no tendrían dónde ubicarse en el eje
