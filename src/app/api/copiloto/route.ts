@@ -49,6 +49,18 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILAS = 200;
 const MAX_TURNOS = 40; // historial maximo que aceptamos del cliente
+
+/** Cuantos documentos de Hermes se pueden abrir en una sola llamada, y
+ *  cuanto texto entra en total. El vault son ~69 KB: mandarlo entero
+ *  reventaria el num_ctx de 16k con el que corre Gemma (ver ollama.ts), y el
+ *  modelo empezaria a perder el principio de la conversacion sin avisar. */
+const MAX_DOCS = 3;
+const MAX_CHARS_DOC = 9000;
+
+/** Anota que fuente se uso, para poder mostrarselo al que pregunta. Un
+ *  gerente que ve "salio del benchmark del 03/08" confia distinto que uno
+ *  que lee un parrafo sin procedencia. */
+type Anotar = (fuente: string) => void;
 // El tope de iteraciones del bucle de herramientas vive ahora en
 // src/lib/copiloto/ollama.ts, junto al bucle que lo usa.
 
@@ -79,7 +91,7 @@ function ejecutarSql(consulta: string): string {
   }
 }
 
-const consultarBase: HerramientaLocal = {
+const tConsultarBase = (anotar: Anotar): HerramientaLocal => ({
   nombre: "consultar_base",
   descripcion:
     "Ejecuta una consulta SQL de SOLO LECTURA (SELECT) sobre la base de " +
@@ -100,8 +112,11 @@ const consultarBase: HerramientaLocal = {
     required: ["sql"],
     additionalProperties: false,
   },
-  ejecutar: (input) => ejecutarSql((input as { sql: string }).sql),
-};
+  ejecutar: (input) => {
+    anotar("CADAM / DNRA — matriculación e importación");
+    return ejecutarSql((input as { sql: string }).sql);
+  },
+});
 
 async function leerInformes(input: { semana?: string }): Promise<string> {
   try {
@@ -114,7 +129,7 @@ async function leerInformes(input: { semana?: string }): Promise<string> {
   }
 }
 
-const leerInformeCompetencia: HerramientaLocal = {
+const tLeerInformeCompetencia = (anotar: Anotar): HerramientaLocal => ({
   nombre: "leer_informe_competencia",
   descripcion:
     "Lee los informes semanales de competencia/mercado ya generados " +
@@ -131,38 +146,96 @@ const leerInformeCompetencia: HerramientaLocal = {
     },
     additionalProperties: false,
   },
-  ejecutar: (input) => leerInformes(input as { semana?: string }),
-};
+  ejecutar: (input) => {
+    anotar("Informes semanales de competencia");
+    return leerInformes(input as { semana?: string });
+  },
+});
 
 /**
  * Base de conocimiento que empuja Hermes (benchmark de precios de
  * competencia, battle cards, scan diario de promociones, playbook de pauta).
  *
- * Dos pasos a proposito — indice primero, documento despues. El vault entero
- * son ~60 KB de markdown: meterlo en el system prompt lo pagaria CADA
- * pregunta, incluidas las que no hablan de competencia. Asi el modelo ve un
- * indice de una linea por documento y abre solo el que necesita.
+ * ABRE VARIOS DOCUMENTOS DE UNA. Antes era un documento por llamada y el
+ * indice se pedia aparte, o sea tres saltos para contestar "JETOUR contra
+ * CHERY": indice -> benchmark -> promociones. Gemma no los daba: pedia el
+ * indice y contestaba "te recomiendo revisar la clave benchmark", con los
+ * datos ahi al lado. Ahora el indice ya viaja en el system prompt y esta
+ * tool acepta hasta MAX_DOCS claves juntas, asi que el mismo caso se
+ * resuelve en UN salto. Menos saltos, menos lugares donde el modelo se
+ * baja a mitad de camino.
+ *
+ * Sigue aceptando 'clave' suelta: el modelo la inventa igual por costumbre
+ * del formato viejo, y rechazarsela solo gastaria una iteracion.
  */
-async function leerConocimiento(input: { clave?: string }): Promise<string> {
+async function leerConocimiento(
+  input: { clave?: string; claves?: string[] },
+  anotar: Anotar
+): Promise<string> {
+  const pedidas = [
+    ...(input.clave ? [input.clave] : []),
+    ...(Array.isArray(input.claves) ? input.claves : []),
+  ]
+    .map((c) => String(c).trim())
+    .filter(Boolean);
+
   try {
-    if (!input.clave) {
-      const indice = await getIndiceConocimiento();
+    const indice = await getIndiceConocimiento();
+
+    if (!indice.length) {
       return JSON.stringify({
-        documentos: indice,
-        nota: indice.length
-          ? "Volvé a llamar con 'clave' para leer el contenido de uno."
-          : "Hermes todavía no empujó nada. No inventes: decí que no hay conocimiento cargado.",
+        error: "La base de conocimiento está vacía: Hermes no empujó nada todavía.",
+        instruccion:
+          "Decí que no hay precios ni promociones cargados. No los estimes.",
       });
     }
-    const doc = await getDocumentoConocimiento(input.clave);
-    if (!doc) {
-      const indice = await getIndiceConocimiento();
+    if (!pedidas.length) {
+      // Sin claves no hay nada que leer. Se devuelve el indice igual —pero
+      // como error, no como paso valido— porque el prompt ya se lo dio y
+      // repetir el viaje es justo lo que se quiso eliminar.
       return JSON.stringify({
-        error: `No existe el documento '${input.clave}'`,
+        error: "Faltó 'claves'. El índice ya está en tu contexto, no hace falta pedirlo.",
         claves_disponibles: indice.map((d) => d.clave),
+        instruccion: "Volvé a llamar con claves: ['benchmark','promociones'].",
       });
     }
-    return JSON.stringify({ documento: doc });
+
+    const validas = new Set(indice.map((d) => d.clave));
+    const desconocidas = pedidas.filter((c) => !validas.has(c));
+    const aLeer = pedidas.filter((c) => validas.has(c)).slice(0, MAX_DOCS);
+
+    const documentos = [];
+    for (const clave of aLeer) {
+      const doc = await getDocumentoConocimiento(clave);
+      if (!doc) continue;
+      const recortado = doc.contenido.length > MAX_CHARS_DOC;
+      documentos.push({
+        clave: doc.clave,
+        titulo: doc.titulo,
+        fecha_del_dato: doc.fechado_en,
+        empujado_por_hermes: doc.actualizado_en,
+        origen: doc.origen,
+        contenido: recortado
+          ? doc.contenido.slice(0, MAX_CHARS_DOC)
+          : doc.contenido,
+        recortado: recortado
+          ? `Se muestran los primeros ${MAX_CHARS_DOC} caracteres de ${doc.contenido.length}.`
+          : undefined,
+      });
+      const fecha = doc.fechado_en ? String(doc.fechado_en).slice(0, 10) : null;
+      anotar(`Hermes · ${doc.titulo}${fecha ? ` (dato del ${fecha})` : ""}`);
+    }
+
+    return JSON.stringify({
+      documentos,
+      claves_inexistentes: desconocidas.length ? desconocidas : undefined,
+      ignoradas_por_tope: pedidas.length > MAX_DOCS
+        ? `Se piden hasta ${MAX_DOCS} por llamada; pedí el resto en otra.`
+        : undefined,
+      instruccion:
+        "Contestá con estos datos. Si algo que te preguntaron no figura acá, " +
+        "decilo explícitamente en vez de mandar al usuario a buscarlo.",
+    });
   } catch (e) {
     return JSON.stringify({
       error: `No se pudo leer el conocimiento: ${(e as Error).message}`,
@@ -170,31 +243,38 @@ async function leerConocimiento(input: { clave?: string }): Promise<string> {
   }
 }
 
-const leerConocimientoCompetencia: HerramientaLocal = {
+const tLeerConocimientoCompetencia = (anotar: Anotar): HerramientaLocal => ({
   nombre: "leer_conocimiento_competencia",
   descripcion:
-    "Base de conocimiento de competencia que mantiene Hermes (agente propio) " +
+    "Abre los documentos de competencia que mantiene Hermes (agente propio) " +
     "y actualiza por cron: benchmark de PRECIOS de la competencia, battle " +
     "cards modelo contra modelo, scan diario de promociones de las webs " +
-    "rivales, playbook de pauta y buyer personas. Es la única fuente interna " +
-    "de precios y promociones de la competencia — CADAM no los trae. " +
-    "Llamala SIN argumentos para ver el índice (clave, título y cuándo se " +
-    "actualizó cada documento) y después con 'clave' para leer uno. " +
-    "Mirá siempre la fecha: parte de este material se releva a mano y puede " +
-    "tener semanas.",
+    "rivales, playbook de pauta y buyer personas. Es la única fuente de " +
+    "precios y promociones de la competencia que tenés — CADAM no los trae y " +
+    "no hay internet. EL ÍNDICE DE CLAVES YA ESTÁ EN TU SYSTEM PROMPT: no " +
+    "la llames vacía para verlo. Pasá 'claves' con los documentos que " +
+    "necesites (hasta 3 juntos, ej. ['benchmark','promociones']) y te " +
+    "devuelve el contenido completo con su fecha. Citá esa fecha: parte del " +
+    "material se releva a mano y puede tener semanas.",
   parametros: {
     type: "object",
     properties: {
+      claves: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Claves a leer, del índice que ya tenés (hasta 3). Ej.: ['benchmark','promociones'].",
+      },
       clave: {
         type: "string",
-        description:
-          "Clave del documento a leer, sacada del índice. Omitila para pedir el índice.",
+        description: "Una sola clave. Preferí 'claves' para pedir varias de una.",
       },
     },
     additionalProperties: false,
   },
-  ejecutar: (input) => leerConocimiento(input as { clave?: string }),
-};
+  ejecutar: (input) =>
+    leerConocimiento(input as { clave?: string; claves?: string[] }, anotar),
+});
 
 /**
  * Operacion propia (API de Cars): facturacion y stock de la casa.
@@ -233,7 +313,7 @@ async function leerOperacionPropia(input: { que?: string }): Promise<string> {
   }
 }
 
-const leerOperacion: HerramientaLocal = {
+const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
   nombre: "leer_operacion_propia",
   descripcion:
     "Datos de la operación de Santa Rosa que salen del API de Cars (el DMS " +
@@ -254,8 +334,35 @@ const leerOperacion: HerramientaLocal = {
     },
     additionalProperties: false,
   },
-  ejecutar: (input) => leerOperacionPropia(input as { que?: string }),
-};
+  ejecutar: (input) => {
+    anotar("Cars (DMS propio) — facturación y stock");
+    return leerOperacionPropia(input as { que?: string });
+  },
+});
+
+/**
+ * Las cuatro herramientas, creadas POR PREGUNTA para que el registro de
+ * fuentes no se mezcle entre pedidos concurrentes. Con consts de modulo, dos
+ * gerentes preguntando a la vez se veian las fuentes del otro.
+ */
+function crearHerramientas(): {
+  herramientas: HerramientaLocal[];
+  fuentes: string[];
+} {
+  const fuentes: string[] = [];
+  const anotar: Anotar = (f) => {
+    if (!fuentes.includes(f)) fuentes.push(f);
+  };
+  return {
+    herramientas: [
+      tConsultarBase(anotar),
+      tLeerInformeCompetencia(anotar),
+      tLeerConocimientoCompetencia(anotar),
+      tLeerOperacion(anotar),
+    ],
+    fuentes,
+  };
+}
 
 interface TurnoCliente {
   role: "user" | "assistant";
@@ -287,20 +394,32 @@ export async function POST(request: Request) {
   }
 
   try {
+    // El indice de Hermes VIAJA EN EL PROMPT (ver copiloto-contexto.ts): sin
+    // eso el modelo gasta un salto en descubrir que documentos existen, y ahi
+    // es donde se bajaba. Si Postgres no contesta se sigue igual, con el
+    // indice vacio: el prompt lo declara vacio y el modelo dice que no hay
+    // precios cargados, que es mejor que quedarse sin Copiloto entero.
+    let conocimiento: Awaited<ReturnType<typeof getIndiceConocimiento>> = [];
+    try {
+      conocimiento = await getIndiceConocimiento();
+    } catch (e) {
+      console.error("Copiloto: no se pudo leer el índice de Hermes:", e);
+    }
+
+    const { herramientas, fuentes } = crearHerramientas();
     const r = await responderConGemma({
       // `conWeb: false`: con Ollama no existen web_search ni code_execution,
       // y prometerselas al modelo solo lo lleva a inventar busquedas.
-      system: armarSystemPrompt({ conWeb: false }),
+      system: armarSystemPrompt({ conWeb: false, conocimiento }),
       turnos: turnos.slice(-MAX_TURNOS),
-      herramientas: [
-        consultarBase,
-        leerInformeCompetencia,
-        leerConocimientoCompetencia,
-        leerOperacion,
-      ],
+      herramientas,
     });
     return NextResponse.json({
       respuesta: r.respuesta,
+      // De donde salio. Se muestra debajo de la respuesta: una cifra sin
+      // procedencia no sirve para decidir, y el que pregunta no tiene forma
+      // de saber si el modelo miro los datos o los invento.
+      fuentes,
       truncada: r.truncada,
       modelo: modeloCopiloto(),
     });

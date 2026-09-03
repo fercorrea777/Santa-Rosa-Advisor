@@ -8,6 +8,9 @@ import { IconCopiloto } from "@/components/icons";
 interface Turno {
   role: "user" | "assistant";
   content: string;
+  /** Fuentes que el copiloto abrió para esa respuesta. Solo en las del
+   *  asistente, y solo hacia adelante: los turnos viejos no las tienen. */
+  fuentes?: string[];
 }
 
 /**
@@ -38,7 +41,11 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
       const res = await fetch("/api/copiloto", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensajes: nuevos }),
+        // Solo role y content: `fuentes` es nuestro, el modelo no lo pidió y
+        // mandárselo de vuelta sería ensuciarle el historial.
+        body: JSON.stringify({
+          mensajes: nuevos.map((t) => ({ role: t.role, content: t.content })),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -46,7 +53,14 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
         // La pregunta queda en el historial para poder reintentar.
         return;
       }
-      setTurnos([...nuevos, { role: "assistant", content: data.respuesta }]);
+      setTurnos([
+        ...nuevos,
+        {
+          role: "assistant",
+          content: data.respuesta,
+          fuentes: Array.isArray(data.fuentes) ? data.fuentes : undefined,
+        },
+      ]);
       if (data.truncada) {
         setError("La respuesta se cortó por longitud. Pedí el detalle en partes.");
       }
@@ -236,7 +250,42 @@ function Mensaje({ turno }: { turno: Turno }) {
         )}
       >
         <Contenido texto={turno.content} />
+        {!esUsuario && <Fuentes fuentes={turno.fuentes} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * De donde salio la respuesta.
+ *
+ * No es decoracion: una cifra sin procedencia no se puede llevar a una
+ * reunion. Y distingue el caso que mas importa —"el modelo abrio el
+ * benchmark del 03/08" contra "el modelo no abrio nada"— que hasta ahora era
+ * invisible desde afuera.
+ */
+function Fuentes({ fuentes }: { fuentes?: string[] }) {
+  if (!fuentes) return null;
+  if (!fuentes.length) {
+    return (
+      <p className="mt-2 border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
+        Sin fuentes consultadas — esta respuesta no salió de los datos.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2">
+      <span className="text-[11px] font-medium text-muted-foreground">
+        Fuentes:
+      </span>
+      {fuentes.map((f) => (
+        <span
+          key={f}
+          className="rounded-full bg-primary/8 px-2 py-0.5 text-[11px] text-muted-foreground"
+        >
+          {f}
+        </span>
+      ))}
     </div>
   );
 }

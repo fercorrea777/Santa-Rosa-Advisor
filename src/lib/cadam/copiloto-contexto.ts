@@ -1,5 +1,6 @@
 import { getCobertura } from "./mercado";
 import { getParametros } from "./config";
+import type { EntradaIndice } from "@/lib/informes/conocimiento";
 
 /**
  * Contexto que recibe el copiloto: esquema real de la base y las reglas
@@ -94,16 +95,16 @@ const REGLAS = `
     (precios/noticias/redes/tendencias). Preferila a una búsqueda nueva
     cuando la pregunta es sobre "esta semana" o "el último informe": es
     más rápida y ya viene con fuentes citadas.
-13b. leer_conocimiento_competencia es la base de conocimiento que mantiene
-    Hermes y refresca por cron: benchmark de PRECIOS de competencia, battle
-    cards modelo a modelo, scan diario de promociones de las webs rivales,
-    playbook de pauta y buyer personas. Para precios o promociones de la
-    competencia empezá SIEMPRE por acá, antes de salir a la web: CADAM no
-    trae precios y esto es relevamiento propio ya verificado. Llamala sin
-    argumentos para ver el índice y después con 'clave'. Mirá la fecha de
-    cada documento y decila: parte del material se releva a mano y puede
-    tener semanas. Si el índice vuelve vacío, decí que no hay nada cargado
-    en vez de inventar.
+13b. leer_conocimiento_competencia abre los documentos que mantiene Hermes
+    y refresca por cron. EL INDICE COMPLETO YA ESTA MAS ABAJO EN ESTE
+    PROMPT: no la llames sin argumentos para "ver que hay", ya lo sabés.
+    Llamala con 'claves' (podés pedir hasta 3 de una) y leé el contenido.
+    Para precios o promociones de la competencia es la UNICA fuente que
+    tenés: CADAM no trae precios y no tenés internet. Mirá la fecha de cada
+    documento y decila: parte del material se releva a mano y puede tener
+    semanas. Si un documento no menciona la marca que te preguntaron,
+    decilo con todas las letras ("el benchmark no lista JETOUR") en vez de
+    callarlo o de mandar al usuario a buscarlo.
 13c. leer_operacion_propia trae lo NUESTRO desde el API de Cars (el DMS de
     la casa): unidades facturadas por mes/marca/modelo y el stock actual con
     su precio de lista en dólares. Es la única fuente de "cómo vamos
@@ -122,6 +123,28 @@ const REGLAS = `
     no tiene conexión a la base ni a la red salvo lo que la propia tool
     necesita.
 
+## Trae vos el dato. NO lo delegues. (regla de cierre)
+
+15. NUNCA le digas al usuario que consulte una fuente que VOS podes
+    consultar. Tenes las herramientas cargadas: usalas en este mismo turno.
+    Estas frases son una respuesta INCOMPLETA y no se escriben nunca:
+      "te recomiendo revisar la clave benchmark"
+      "consulta la base de conocimiento de Hermes"
+      "para eso habria que mirar las battle cards"
+    Si para contestar hace falta un documento, ABRILO y trae el dato. El
+    que pregunta es un gerente que no tiene forma de abrirlo por su cuenta:
+    mandarlo a buscar es dejarlo sin respuesta.
+16. Si la pregunta compara marcas o modelos (X contra Y), el volumen de
+    CADAM solo no alcanza. En el mismo turno abri tambien 'benchmark'
+    (precios de lista publicados) y 'promociones' (ofertas vigentes), y
+    cerra con las tres cosas: cuanto matriculo cada una, a que precio esta
+    cada una, y que esta ofreciendo cada una. Si alguna de las tres no
+    figura en los documentos, decilo explicitamente.
+17. Cuando una herramienta te devuelva un error o venga vacia, decilo en la
+    respuesta ("el scan de promociones no trae GWM"). Un vacio silenciado
+    se lee como "no hay promociones", que es una afirmacion distinta y
+    puede ser falsa.
+
 ## Como responder
 
 - En español, tono ejecutivo (hablas con el equipo comercial de un
@@ -138,12 +161,65 @@ const REGLAS = `
 `;
 
 /**
+ * El indice de Hermes, YA RESUELTO, dentro del prompt.
+ *
+ * Antes el modelo tenia que llamar a la tool sin argumentos para descubrir
+ * que documentos existian y recien despues abrir uno. Ese salto extra es lo
+ * que rompia: el 02/09/2026, preguntado "JETOUR contra CHERY", Gemma pidio el
+ * indice, vio las claves `benchmark` y `promociones`... y en vez de abrirlas
+ * le contesto al gerente "te recomiendo revisar la clave benchmark". Los
+ * datos estaban cargados (9 KB de precios, 6,9 KB de promociones del dia) y
+ * la respuesta igual salio vacia.
+ *
+ * Con el indice acá el salto desaparece: no hay nada que descubrir, solo que
+ * leer. Cuesta ~200 tokens por pregunta y es la diferencia entre una
+ * respuesta con precios y una que manda al gerente a buscarlos solo.
+ */
+function bloqueConocimiento(indice: EntradaIndice[]): string {
+  if (!indice.length) {
+    return `
+## Base de conocimiento de Hermes
+
+VACIA: Hermes todavia no empujo ningun documento. No hay precios ni
+promociones de competencia disponibles. Si te preguntan por eso, deci que no
+hay nada cargado — no lo inventes ni lo estimes.
+`;
+  }
+  const filas = indice
+    .map((d) => {
+      const fecha = d.fechado_en
+        ? `dato del ${String(d.fechado_en).slice(0, 10)}`
+        : "sin fecha propia";
+      const empujado = String(d.actualizado_en).slice(0, 10);
+      return `- ${d.clave} — ${d.titulo} (${fecha}; Hermes lo empujo el ${empujado})`;
+    })
+    .join("\n");
+  return `
+## Base de conocimiento de Hermes — INDICE YA RESUELTO
+
+Estos documentos ESTAN cargados ahora mismo. No pidas el indice: ya lo
+tenes. Llama a leer_conocimiento_competencia con las claves que necesites
+(hasta 3 por llamada) y trae el contenido.
+
+${filas}
+
+Para precios usa 'benchmark'. Para ofertas vigentes usa 'promociones'. Para
+un modelo contra otro usa 'battle-cards'. Citá siempre la fecha del dato.
+`;
+}
+
+/**
  * @param conWeb  true solo cuando el proveedor ofrece las tools servidas por
  *   Anthropic (web_search / web_fetch / code_execution). Con Gemma sobre
  *   Ollama NO existen, y nombrarlas igual seria invitar al modelo a llamarlas
  *   y a prometerle al usuario una busqueda que nunca va a pasar.
+ * @param conocimiento  indice de la base de Hermes. Se pasa desde la ruta
+ *   porque vive en Postgres (async) y esto es sincrono. Si viene vacio el
+ *   prompt lo dice en vez de callarlo.
  */
-export function armarSystemPrompt(opciones: { conWeb?: boolean } = {}): string {
+export function armarSystemPrompt(
+  opciones: { conWeb?: boolean; conocimiento?: EntradaIndice[] } = {}
+): string {
   const conWeb = opciones.conWeb ?? false;
   const parametros = getParametros();
   const cobertura = getCobertura();
@@ -192,6 +268,7 @@ export function armarSystemPrompt(opciones: { conWeb?: boolean } = {}): string {
     `No mezcles fuentes distintas sin aclarar cual es cual.\n` +
     ESQUEMA +
     REGLAS +
-    estado
+    estado +
+    bloqueConocimiento(opciones.conocimiento ?? [])
   );
 }
