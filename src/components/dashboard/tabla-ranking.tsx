@@ -132,7 +132,11 @@ export function TablaRanking({
           // La tabla es sm+ (en móvil son tarjetas), pero una tablet entra
           // acá con dedo: sin min-h el botón de ordenar mide el alto del
           // texto (~18px).
-          "inline-flex items-center gap-1 pointer-coarse:min-h-11 hover:text-foreground",
+          // uppercase repetido a proposito: el th ya lo tiene, pero el
+          // preflight de Tailwind resetea text-transform en <button> y el
+          // heredado se pierde. Sin esto, rankings quedaba en minuscula
+          // mientras el resto de las tablas va en mayuscula.
+          "inline-flex items-center gap-1 uppercase tracking-wider pointer-coarse:min-h-11 hover:text-foreground",
           alinearDerecha && "flex-row-reverse",
           orden.campo === campo ? "text-foreground" : "text-muted-foreground"
         )}

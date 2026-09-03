@@ -69,8 +69,13 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
+      // Los encabezados van chicos, en mayusculas y apagados A PROPOSITO:
+      // en una tabla de datos el protagonista es el numero, no el rotulo.
+      // Antes competian (mismo tamano y peso similar que las celdas) y la
+      // tabla entera se leia "floja" — el reclamo fue que las letras se
+      // veian poco.
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle text-xs font-semibold uppercase tracking-wider whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -82,8 +87,10 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
+      // py-2.5 (antes p-2): las filas de datos necesitan aire para que el
+      // ojo separe una de otra sin zebra ni bordes fuertes.
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "px-2 py-2.5 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

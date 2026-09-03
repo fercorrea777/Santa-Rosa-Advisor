@@ -184,26 +184,44 @@ export default async function EvolucionPage({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
+                      {/* Los numeros van a 15px y con peso: son lo que Fer
+                          viene a leer. El acumulado es LA cifra de la fila y
+                          lleva semibold; la variacion usa el mismo par
+                          esmeralda/rosa que ya usan las tarjetas moviles de
+                          arriba (el signo ya viene en el texto, el color solo
+                          refuerza). "Meses con dato" queda apagado a proposito:
+                          es contexto, no dato. */}
                       {filas.map((f) => (
                         <TableRow key={f.anio}>
-                          <TableCell className="font-medium">{f.anio}</TableCell>
+                          <TableCell className="text-[15px] font-semibold">{f.anio}</TableCell>
                           <TableCell className="text-right tabular-nums text-muted-foreground">
                             {f.con.length}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">{formatUnidades(f.acum)}</TableCell>
-                          <TableCell className="text-right tabular-nums">
+                          <TableCell className="text-right text-[15px] font-semibold tabular-nums">
+                            {formatUnidades(f.acum)}
+                          </TableCell>
+                          <TableCell className="text-right text-[15px] font-medium tabular-nums">
                             {f.prom === null ? "—" : formatUnidades(Math.round(f.prom))}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">
+                          <TableCell className="text-right text-[15px] font-medium tabular-nums">
                             {f.con.length ? `${formatUnidades(Math.max(...f.con))} (${mesCorto(f.maxIdx + 1)})` : "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">
+                          <TableCell className="text-right text-[15px] font-medium tabular-nums">
                             {f.con.length ? `${formatUnidades(Math.min(...f.con))} (${mesCorto(f.minIdx + 1)})` : "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">
+                          <TableCell
+                            className={
+                              "text-right text-[15px] font-medium tabular-nums " +
+                              (f.varYtd === null
+                                ? ""
+                                : f.varYtd >= 0
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : "text-rose-600 dark:text-rose-400")
+                            }
+                          >
                             {f.varYtd === null ? "—" : formatPct(f.varYtd, { signed: true })}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                          <TableCell className="text-right text-[15px] font-medium tabular-nums">
                             {f.proy ? formatUnidades(f.proy.proyectado) : "—"}
                           </TableCell>
                         </TableRow>
