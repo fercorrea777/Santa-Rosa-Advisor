@@ -17,8 +17,8 @@ import {
   getEstadoSyncPropio, getStockPropio, getVentasAsesor, getVentasPropias,
   hayDatosPropios,
 } from "@/lib/informes/propios";
-import { formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
+import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -42,8 +42,6 @@ export default async function OperacionPage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
-  const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
 
   if (!(await hayDatosPropios())) {
     return (
@@ -67,6 +65,32 @@ export default async function OperacionPage({
     getEstadoSyncPropio(),
   ]);
 
+  // --- período: lo manda CARS, no CADAM -------------------------------
+  // CADAM cierra por mes (hoy, julio) y el resto del tablero se acota a eso.
+  // Esta página es la operación PROPIA y Cars llega hasta hoy: con el tope
+  // de CADAM, agosto y septiembre no se podían ni elegir. Por defecto, el
+  // último mes con facturas (el que está corriendo).
+  const periodosCars = [...new Set(ventasCrudas.map((v) => v.periodo))].sort();
+  const ultimoPeriodoCars = periodosCars[periodosCars.length - 1];
+  const ultimoCars = ultimoPeriodoCars
+    ? { anio: Number(ultimoPeriodoCars.slice(0, 4)), mes: Number(ultimoPeriodoCars.slice(5, 7)) }
+    : cobertura.matriculacion.ultimo;
+  const f = filtroDesdeUrl(sp, ultimoCars);
+  const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
+
+  // CADAM se recorta a su último mes cerrado, y se DICE. Si no, "Matriculado"
+  // compararía nueve meses de facturas contra siete de matriculaciones y la
+  // brecha parecería un problema de registro.
+  const ultimoCadam = cobertura.matriculacion.ultimo;
+  const cadamRecorta =
+    !!ultimoCadam && f.anio === ultimoCadam.anio && f.mesHasta > ultimoCadam.mes;
+  const fCadam = cadamRecorta && ultimoCadam ? { ...f, mesHasta: ultimoCadam.mes } : f;
+  const cadamDisponible =
+    !!ultimoCadam &&
+    (f.anio < ultimoCadam.anio || (f.anio === ultimoCadam.anio && f.mesDesde <= ultimoCadam.mes));
+  const periodoCadam = etiquetaPeriodo(fCadam.anio, fCadam.mesDesde, fCadam.mesHasta);
+  const hastaCadam = ultimoCadam ? mesCorto(ultimoCadam.mes) : "";
+
   // --- filtro de marca: cascada a TODO lo de esta página, como en el resto
   // del tablero. `f.marca` ya viaja de filtroDesdeUrl() (mismo param que
   // usan mercado/rankings/etc), así que un link "?marca=JETOUR" de otra
@@ -79,18 +103,26 @@ export default async function OperacionPage({
     : asesoresCrudos;
 
   // --- facturación del período filtrado, y del mismo período del año anterior
-  const enVentana = (periodoTxt: string, anio: number) => {
+  const enVentana = (periodoTxt: string, anio: number, hasta = f.mesHasta) => {
     const [a, m] = periodoTxt.split("-").map(Number);
-    return a === anio && m >= f.mesDesde && m <= f.mesHasta;
+    return a === anio && m >= f.mesDesde && m <= hasta;
   };
   const facturasPeriodo = ventas.filter((v) => enVentana(v.periodo, f.anio));
   const facturasAnterior = ventas.filter((v) => enVentana(v.periodo, f.anio - 1));
   const totalFacturas = facturasPeriodo.reduce((s, v) => s + v.unidades, 0);
   const totalFacturasAnterior = facturasAnterior.reduce((s, v) => s + v.unidades, 0);
+  // Para la frase que compara con CADAM, la facturación va en la MISMA
+  // ventana que CADAM (hasta su último mes cerrado): si no, 9 meses contra 7.
+  const totalFacturasCadam = ventas
+    .filter((v) => enVentana(v.periodo, f.anio, fCadam.mesHasta))
+    .reduce((s, v) => s + v.unidades, 0);
+  const totalFacturasCadamAnterior = ventas
+    .filter((v) => enVentana(v.periodo, f.anio - 1, fCadam.mesHasta))
+    .reduce((s, v) => s + v.unidades, 0);
 
   // --- matriculaciones CADAM de las marcas propias, misma ventana
   const propias = getParametros().marcas_propias.map((m) => m.marca_cadam);
-  const rankingMarcas = getRankingMarcas("matriculacion", f);
+  const rankingMarcas = cadamDisponible ? getRankingMarcas("matriculacion", fCadam) : [];
   const matricPorMarca = new Map(
     rankingMarcas.filter((r) => propias.includes(r.marca)).map((r) => [r.marca, r.unidades])
   );
@@ -99,18 +131,24 @@ export default async function OperacionPage({
   // denominador del share. Si se filtrara con f.marca, elegir una marca
   // dejaría el share en ~100% — no porque ganamos el mercado, sino porque
   // el mercado pasaría a ser esa sola marca.
-  const mercado = totalUnidades("matriculacion", { ...f, marca: undefined });
+  const mercado = cadamDisponible
+    ? totalUnidades("matriculacion", { ...fCadam, marca: undefined })
+    : 0;
 
   // Matriculaciones propias del MISMO período del año anterior. Sirven para
   // contrastar el crecimiento de facturación contra una fuente que no es
   // nuestra: si Cars dice que duplicamos y CADAM dice lo mismo con el
   // registro de la DNRA, el número deja de depender de nuestro propio
   // sistema. Si no coincidieran, eso también hay que verlo.
-  const matricAnterior = getRankingMarcas("matriculacion", { ...f, anio: f.anio - 1 })
-    .filter((r) => propias.includes(r.marca))
-    .reduce((s, r) => s + r.unidades, 0);
+  const matricAnterior = cadamDisponible
+    ? getRankingMarcas("matriculacion", { ...fCadam, anio: fCadam.anio - 1 })
+        .filter((r) => propias.includes(r.marca))
+        .reduce((s, r) => s + r.unidades, 0)
+    : 0;
   const crecFacturas =
     totalFacturasAnterior > 0 ? totalFacturas / totalFacturasAnterior - 1 : null;
+  const crecFacturasCadam =
+    totalFacturasCadamAnterior > 0 ? totalFacturasCadam / totalFacturasCadamAnterior - 1 : null;
   const crecMatric = matricAnterior > 0 ? totalMatric / matricAnterior - 1 : null;
 
   // --- stock por marca
@@ -185,10 +223,16 @@ export default async function OperacionPage({
     punteada: i < aniosSerie.length - 1,
   }));
 
+  // Años y tope de mes según CARS (más los años que solo CADAM tiene): el
+  // último año llega hasta el último mes con facturas, no hasta el cierre
+  // de CADAM.
+  const aniosFiltro = [...new Set([
+    ...cobertura.matriculacion.anios,
+    ...periodosCars.map((p) => Number(p.slice(0, 4))),
+  ])].sort((a, b) => a - b);
   const mesMax: Record<number, number> = {};
-  for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio
-      ? cobertura.matriculacion.ultimo.mes : 12;
+  for (const a of aniosFiltro) {
+    mesMax[a] = ultimoCars && a === ultimoCars.anio ? ultimoCars.mes : 12;
   }
 
   // --- ranking de asesores: mismo período, ya filtrado por marca arriba
@@ -237,14 +281,16 @@ export default async function OperacionPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Nuestra operación"
-        descripcion={`Lo que facturamos y lo que tenemos en stock · ${periodo}.`}
+        descripcion={`Lo que facturamos y lo que tenemos en stock · ${periodo}${
+          cadamRecorta ? ` · CADAM cierra en ${hastaCadam}` : ""
+        }.`}
         fuente={`Fuente: API de Cars (DMS propio)${
-          sync ? ` · sincronizado ${new Date(sync.actualizado_en).toLocaleString("es-PY")}` : ""
+          sync ? ` · sincronizado ${formatFechaHora(sync.actualizado_en)}` : ""
         }.`}
       />
 
       <FiltroPeriodo
-        anios={cobertura.matriculacion.anios}
+        anios={aniosFiltro}
         mesMaximoPorAnio={mesMax}
         opciones={[
           { param: "marca", label: "Marca", valores: [...propias].sort() },
@@ -252,15 +298,17 @@ export default async function OperacionPage({
       />
 
       <NotaDato>
-        <strong>Facturar no es matricular.</strong> Cars cuenta cuándo emitimos
-        la factura; CADAM, cuándo la DNRA registró el vehículo — y el comprador
+        <strong>Facturar no es matricular.</strong> Cars cuenta cada vehículo
+        (VIN) en el mes de su primera factura; CADAM, cuándo la DNRA lo
+        registró — y el comprador
         matricula después, o nunca si es flota o si registra en otra plaza. Por
         eso las dos columnas no coinciden y <strong>ninguna de las dos está
         mal</strong>: miden momentos distintos del mismo auto.
-        {crecFacturas !== null && crecMatric !== null && (
+        {crecFacturasCadam !== null && crecMatric !== null && (
           <>
-            {" "}En este período nuestra facturación creció{" "}
-            <strong>{formatPct(crecFacturas, { signed: true })}</strong> y las
+            {" "}{cadamRecorta ? `Hasta ${hastaCadam}, donde cierra CADAM,` : "En este período"}{" "}
+            nuestra facturación creció{" "}
+            <strong>{formatPct(crecFacturasCadam, { signed: true })}</strong> y las
             matriculaciones de nuestras marcas en CADAM —una fuente que no es
             nuestra—{" "}
             <strong>{formatPct(crecMatric, { signed: true })}</strong>.{" "}
@@ -270,7 +318,7 @@ export default async function OperacionPage({
                 que cuanto más cerca del último mes cerrado, más se abre la
                 brecha. Decirlo es más útil que redondear a "las dos dicen lo
                 mismo". */}
-            {Math.abs(crecFacturas - crecMatric) <= 0.2 ? (
+            {Math.abs(crecFacturasCadam - crecMatric) <= 0.2 ? (
               <>Dos caminos separados, la misma historia.</>
             ) : (
               <>
@@ -298,19 +346,23 @@ export default async function OperacionPage({
         />
         <KpiCard
           label="Matriculado (CADAM)"
-          value={formatUnidades(totalMatric)}
+          value={cadamDisponible ? formatUnidades(totalMatric) : "—"}
           valorAnimado={totalMatric}
           formato="unidades"
-          periodo={periodo}
-          tooltip="Marcas propias registradas por la DNRA en el mismo período. Es otro evento, no el mismo dato."
+          periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
+          tooltip={
+            cadamRecorta
+              ? `Marcas propias registradas por la DNRA hasta ${hastaCadam}, el último mes que CADAM publicó. Es otro evento, no el mismo dato.`
+              : "Marcas propias registradas por la DNRA en el mismo período. Es otro evento, no el mismo dato."
+          }
           tono="verde"
         />
         <KpiCard
           label="Participación de mercado"
-          value={formatPct(mercado ? totalMatric / mercado : 0)}
+          value={mercado ? formatPct(totalMatric / mercado) : "—"}
           valorAnimado={mercado ? totalMatric / mercado : 0}
           formato="porcentaje"
-          periodo={periodo}
+          periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
           tooltip={`${formatUnidades(totalMatric)} de ${formatUnidades(mercado)} matriculaciones del país. Se mide con CADAM, no con nuestras facturas: el denominador es el mercado.`}
           tono="tinta"
         />
@@ -383,7 +435,9 @@ export default async function OperacionPage({
               <TableRow>
                 <TableHead>Marca</TableHead>
                 <TableHead className="text-right">Facturado</TableHead>
-                <TableHead className="text-right">Matriculado</TableHead>
+                <TableHead className="text-right">
+                  Matriculado{cadamRecorta ? ` (hasta ${hastaCadam})` : ""}
+                </TableHead>
                 <TableHead className="text-right">Share</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Reservadas</TableHead>
@@ -647,6 +701,18 @@ export default async function OperacionPage({
             {String(detalle.unidades_leidas ?? "?")} unidades leídas de Cars,
             agregadas antes de salir de la máquina — el Advisor nunca recibe
             nombres, correos, teléfonos ni VIN de clientes.
+          </>
+        )}
+        {typeof detalle.vehiculos === "number" && (
+          <>
+            {" "}<strong>Una unidad es un vehículo, no una factura:</strong> de
+            esas {String(detalle.facturas_leidas)} facturas,{" "}
+            {String(detalle.vehiculos)} son vehículos distintos (1 VIN = 1
+            unidad, contado en su primera factura;{" "}
+            {String(detalle.facturas_repetidas ?? 0)} facturas repetían un VIN
+            ya contado — seña, saldo o accesorios en documentos aparte). Las{" "}
+            {String(detalle.usados_excluidos ?? 0)} facturas de LOCAL USADOS
+            quedan fuera: son usados de marcas propias, no 0km.
           </>
         )}
       </NotaDato>

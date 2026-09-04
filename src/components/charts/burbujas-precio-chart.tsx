@@ -198,7 +198,7 @@ export function BurbujasPrecioChart({
         </FilaChips>
       )}
       <p className="text-xs text-muted-foreground">
-        {visibles.length} versiones ·{" "}
+        {visibles.length} {porSegmento ? "versiones" : "modelos"} ·{" "}
         {formatUnidades(visibles.reduce((s, d) => s + d.unidades, 0))} u. facturadas en el
         período{marcasTodas.length > theme.series.length
           ? ` · en gris, las marcas fuera de las ${theme.series.length} de mayor volumen`
