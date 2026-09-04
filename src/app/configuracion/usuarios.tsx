@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
 import { cn } from "@/lib/utils";
+import { formatFecha } from "@/lib/format";
 import {
   accionBorrarUsuario, accionCambiarActivo, accionCambiarRol,
   accionCrearUsuario, accionResetearClave, type EstadoUsuarios,
@@ -194,7 +195,7 @@ function FilaUsuario({ usuario }: { usuario: Usuario }) {
         )}
         <span className="ml-auto text-[11px] text-muted-foreground">
           {usuario.ultimo_acceso
-            ? `entró ${new Date(usuario.ultimo_acceso).toLocaleDateString("es-PY")}`
+            ? `entró ${formatFecha(usuario.ultimo_acceso)}`
             : "nunca entró"}
         </span>
         <Button

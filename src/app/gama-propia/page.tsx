@@ -10,7 +10,7 @@ import {
   getGamaPropiaConPrecio, getGamaPropiaSinPrecio, getPeriodosPrecio, hayPrecios,
 } from "@/lib/cadam/precios";
 import { getGamaPropiaDesdeCars } from "@/lib/cadam/precios-cars";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 export default async function GamaPropiaPage({
@@ -56,7 +56,7 @@ export default async function GamaPropiaPage({
       <PageHeader
         titulo="Gama propia"
         descripcion={`Posicionamiento por precio de los modelos del grupo · matriculaciones · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · precios: ${fuentePrecio}${cars?.sincronizado ? ` (sinc. ${cars.sincronizado.slice(0, 16)})` : ""}.`}
+        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · precios: ${fuentePrecio}${cars?.sincronizado ? ` (sinc. ${formatFechaHora(cars.sincronizado)})` : ""}.`}
       />
 
       <FiltroPeriodo anios={cobertura.matriculacion.anios} mesMaximoPorAnio={mesMax} />

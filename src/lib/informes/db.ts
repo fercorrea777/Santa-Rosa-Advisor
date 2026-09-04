@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import { hoyEnAsuncion } from "@/lib/format";
 
 /**
  * Driver: `pg`, no `@vercel/postgres`.
@@ -48,15 +49,17 @@ export type DimensionInforme =
   // /api/informes-competencia/hermes.
   | "hermes_promos";
 
-/** Lunes de la semana actual (UTC), formato YYYY-MM-DD. Todas las filas de
- *  informes_competencia agrupan por esto, sea cual sea su origen. */
+/** Lunes de la semana actual en Asunción, formato YYYY-MM-DD. Todas las
+ *  filas de informes_competencia agrupan por esto, sea cual sea su origen.
+ *  Antes se calculaba en UTC: los domingos de 21:00 a 24:00 ya era lunes
+ *  allá y la semana cambiaba tres horas antes que acá. */
 export function lunesDeEstaSemana(): string {
-  const hoy = new Date();
+  const [a, m, d] = hoyEnAsuncion().split("-").map(Number);
+  const hoy = new Date(Date.UTC(a, m - 1, d)); // medianoche UTC de la fecha local
   const dia = hoy.getUTCDay(); // 0=domingo
   const offset = dia === 0 ? -6 : 1 - dia; // retrocede al lunes
-  const lunes = new Date(hoy);
-  lunes.setUTCDate(hoy.getUTCDate() + offset);
-  return lunes.toISOString().slice(0, 10);
+  hoy.setUTCDate(hoy.getUTCDate() + offset);
+  return hoy.toISOString().slice(0, 10);
 }
 
 export interface FilaInforme {

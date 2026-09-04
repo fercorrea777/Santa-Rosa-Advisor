@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { EntradaIndice } from "@/lib/informes/conocimiento";
+import { formatFecha } from "@/lib/format";
 
 /**
  * Que sabe el Copiloto sobre la competencia, y de cuando es.
@@ -94,7 +95,7 @@ export function ConocimientoPanel() {
                 Dato: <Antiguedad d={dias(d.fechado_en)} />
               </span>
               <span className="block text-muted-foreground">
-                Subido {new Date(d.actualizado_en).toLocaleDateString("es-PY")} ·{" "}
+                Subido {formatFecha(d.actualizado_en)} ·{" "}
                 {Math.round(d.caracteres / 1000)} k
               </span>
             </span>

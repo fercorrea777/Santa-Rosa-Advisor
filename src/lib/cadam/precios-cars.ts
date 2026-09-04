@@ -161,10 +161,13 @@ export async function getGamaPropiaDesdeCars(f: Filtro): Promise<GamaPropiaCars>
   // produccion POR UN TIMESTAMP DECORATIVO, con los 122 precios ya leidos y
   // descartados. Un dato cosmetico nunca puede tumbar al dato principal.
   try {
-    const s = await getPool().query<{ t: string }>(
-      `select max(actualizado_en)::text t from sincronizacion_propia`
+    // Como Date y no ::text: el texto salía en la zona del servidor (UTC,
+    // "15:42+00" para las 12:42 de acá) y la pantalla lo recortaba tal cual.
+    // ISO con Z deja que quien lo muestre elija la zona (formatFechaHora).
+    const s = await getPool().query<{ t: Date | null }>(
+      `select max(actualizado_en) t from sincronizacion_propia`
     );
-    sincronizado = s.rows[0]?.t ?? null;
+    sincronizado = s.rows[0]?.t ? s.rows[0].t.toISOString() : null;
   } catch {
     sincronizado = null; // se muestra sin fecha; los precios siguen estando
   }

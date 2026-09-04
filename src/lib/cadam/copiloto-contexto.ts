@@ -1,6 +1,7 @@
 import { getCobertura } from "./mercado";
 import { getParametros } from "./config";
 import type { EntradaIndice } from "@/lib/informes/conocimiento";
+import { hoyEnAsuncion } from "@/lib/format";
 
 /**
  * Contexto que recibe el copiloto: esquema real de la base y las reglas
@@ -245,7 +246,9 @@ export function armarSystemPrompt(
   // consultar: "no puedo darte cifras de 2026 porque todavia no ocurrio".
   // Verificado con gemma4-hermes el 02/09/2026 — con la fecha declarada,
   // llama a la herramienta sin chistar.
-  const hoy = new Date().toISOString().slice(0, 10);
+  // En hora de Asunción: en UTC, de 21:00 a 24:00 el Copiloto ya creía que
+  // era mañana y contaba un día de más en "hace N días".
+  const hoy = hoyEnAsuncion();
 
   const fuentes = conWeb
     ? `y herramientas de busqueda/lectura externa (web_search, web_fetch, ` +
