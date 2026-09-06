@@ -31,7 +31,24 @@ export interface Parametros {
     ranking_objetivo_2026: number | null;
     unidades_objetivo_mensual: number | null;
   };
+  /** Metas de VEHÍCULOS por marca y mes, cargadas desde Configuración:
+   *  { "2026": { "JETOUR": [ene, feb, ..., dic], ... } }. null = sin meta ese
+   *  mes. Se comparan contra lo facturado (Cars) en /operacion. */
+  metas_mensuales?: Record<string, Record<string, (number | null)[]>>;
   notas: string;
+}
+
+/** Metas del año por marca, siempre con 12 posiciones (null donde no hay). */
+export function getMetasMensuales(anio: number): Record<string, (number | null)[]> {
+  const crudo = getParametros().metas_mensuales?.[String(anio)] ?? {};
+  const salida: Record<string, (number | null)[]> = {};
+  for (const [marca, meses] of Object.entries(crudo)) {
+    salida[marca] = Array.from({ length: 12 }, (_, i) => {
+      const v = meses[i];
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
+    });
+  }
+  return salida;
 }
 
 /** Vendedores mayoristas, normalizados como los manda Hermes (mayúsculas,
@@ -79,14 +96,16 @@ export function getParametros(): Parametros {
  * escritura no deje un JSON truncado que tumbe TODA la app al siguiente
  * arranque (config.ts no tolera un parse fallido).
  */
-export function guardarParametros(cambios: {
-  metas: Parametros["metas"];
-  competidores_clave: string[];
-}): void {
+export function guardarParametros(
+  cambios: Partial<Pick<Parametros, "metas" | "competidores_clave" | "metas_mensuales">>
+): void {
   const ruta = resolverParametrosPath();
   const actual = JSON.parse(fs.readFileSync(ruta, "utf-8")) as Parametros;
-  actual.metas = cambios.metas;
-  actual.competidores_clave = cambios.competidores_clave;
+  // Solo lo que vino: cada formulario de Configuración guarda lo suyo y no
+  // pisa lo de los otros.
+  if (cambios.metas) actual.metas = cambios.metas;
+  if (cambios.competidores_clave) actual.competidores_clave = cambios.competidores_clave;
+  if (cambios.metas_mensuales) actual.metas_mensuales = cambios.metas_mensuales;
   const tmp = `${ruta}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(actual, null, 2) + "\n", "utf-8");
   fs.renameSync(tmp, ruta);

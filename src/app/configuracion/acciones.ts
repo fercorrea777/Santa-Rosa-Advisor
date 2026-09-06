@@ -1,7 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { getParametros, guardarParametros } from "@/lib/cadam/config";
+import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
+
+/** Una Server Action es un POST alcanzable desde afuera de su página: el
+ *  rol se vuelve a chequear acá, no solo en el proxy. Sin clave general
+ *  (tablero abierto) se deja pasar, como antes de que existiera el login. */
+export async function exigirAdminSiHayClave(): Promise<string | null> {
+  const clave = process.env.ADVISOR_CLAVE;
+  if (!clave) return null;
+  const store = await cookies();
+  const sesion = leerSesion(store.get(NOMBRE_COOKIE)?.value, clave);
+  if (!sesion) return "Sesión vencida. Volvé a entrar.";
+  if (sesion.rol !== "admin") return "Necesitás rol de administrador.";
+  return null;
+}
 
 /**
  * Server Action de la pantalla de Configuración.
@@ -32,6 +47,8 @@ export async function guardarConfiguracion(
   _prev: EstadoGuardado | null,
   form: FormData
 ): Promise<EstadoGuardado> {
+  const sinPermiso = await exigirAdminSiHayClave();
+  if (sinPermiso) return { ok: false, mensaje: sinPermiso };
   const participacion = numeroONull(form.get("participacion"));
   const ranking = numeroONull(form.get("ranking"));
   const unidades = numeroONull(form.get("unidades"));

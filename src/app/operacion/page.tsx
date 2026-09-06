@@ -12,7 +12,8 @@ import {
 import {
   getCobertura, getRankingMarcas, totalUnidades,
 } from "@/lib/cadam/mercado";
-import { getAsesoresMayoristasSet, getParametros } from "@/lib/cadam/config";
+import { getAsesoresMayoristasSet, getMetasMensuales, getParametros } from "@/lib/cadam/config";
+import { hoyEnAsuncion } from "@/lib/format";
 import {
   getEstadoSyncPropio, getStockPropio, getVentasAsesor, getVentasPropias,
   hayDatosPropios,
@@ -163,6 +164,39 @@ export default async function OperacionPage({
   const totalStock = stock.reduce((s, x) => s + x.unidades, 0);
   const totalReservadas = stock.reduce((s, x) => s + x.reservadas, 0);
 
+  // --- metas: vehículos por marca y mes, cargadas en Configuración -------
+  const metasAnio = getMetasMensuales(f.anio);
+  const hayMetas = Object.keys(metasAnio).length > 0;
+  const metaPeriodoDe = (marca: string) =>
+    (metasAnio[marca] ?? []).slice(f.mesDesde - 1, f.mesHasta).reduce((s: number, v) => s + (v ?? 0), 0);
+  const metaAnioDe = (marca: string) =>
+    (metasAnio[marca] ?? []).reduce((s: number, v) => s + (v ?? 0), 0);
+  const enMeses = (periodoTxt: string, anio: number, desde: number, hasta: number) => {
+    const [a, m] = periodoTxt.split("-").map(Number);
+    return a === anio && m >= desde && m <= hasta;
+  };
+  const sumaMeses = (marca: string, anio: number, desde: number, hasta: number) =>
+    ventasCrudas
+      .filter((v) => v.marca === marca && enMeses(v.periodo, anio, desde, hasta))
+      .reduce((s, v) => s + v.unidades, 0);
+  // Proyección de cierre de año, por marca: lo facturado hasta el último
+  // mes cerrado, más lo que el año pasado se vendió en los meses que
+  // faltan, escalado por cómo viene este año contra el pasado en los mismos
+  // meses (la estacionalidad la pone el año pasado, el nivel lo pone este).
+  // Solo para el año en curso: un año cerrado no se proyecta.
+  const hoyIso = hoyEnAsuncion();
+  const mesCerrado = Number(hoyIso.slice(5, 7)) - 1;
+  const proyectar = f.anio === Number(hoyIso.slice(0, 4)) && mesCerrado >= 1;
+  const proyeccionDe = (marca: string): number | null => {
+    if (!proyectar) return null;
+    const ytd = sumaMeses(marca, f.anio, 1, mesCerrado);
+    const lyYtd = sumaMeses(marca, f.anio - 1, 1, mesCerrado);
+    const lyResto = sumaMeses(marca, f.anio - 1, mesCerrado + 1, 12);
+    if (lyYtd > 0 && lyResto > 0) return Math.round(ytd + lyResto * (ytd / lyYtd));
+    return Math.round(ytd + (ytd / mesCerrado) * (12 - mesCerrado));
+  };
+  const metaTotal = (f.marca ? [f.marca] : propias).reduce((s, m) => s + metaPeriodoDe(m), 0);
+
   // --- tabla por marca: los tres números al lado, más el stock
   const meses = f.mesHasta - f.mesDesde + 1;
   const marcas = [...new Set([
@@ -193,6 +227,9 @@ export default async function OperacionPage({
         reservadas: st.reservadas,
         // null cuando el ritmo es tan bajo que el cociente no informa nada.
         mesesStock: ritmo >= RITMO_MINIMO ? st.total / ritmo : null,
+        meta: metaPeriodoDe(marca),
+        metaAnio: metaAnioDe(marca),
+        proyeccion: proyeccionDe(marca),
       };
     })
     .sort((a, b) => b.facturado - a.facturado);
@@ -386,7 +423,7 @@ export default async function OperacionPage({
         )}
       </NotaDato>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           label="Facturado"
           value={formatUnidades(totalFacturas)}
@@ -428,6 +465,23 @@ export default async function OperacionPage({
           tooltip={`${formatUnidades(totalReservadas)} reservadas. Incluye lo que está en viaje: ver el corte por estado.`}
           chipIcono="segmentos"
           chipTono="amber"
+        />
+        <KpiCard
+          label="Meta del período"
+          value={hayMetas && metaTotal ? formatPct(totalFacturas / metaTotal) : "—"}
+          valorAnimado={hayMetas && metaTotal ? totalFacturas / metaTotal : 0}
+          formato="porcentaje"
+          periodo={
+            hayMetas && metaTotal
+              ? `${formatUnidades(totalFacturas)} de ${formatUnidades(metaTotal)} · ${periodo}`
+              : "Sin metas cargadas"
+          }
+          tooltip={
+            hayMetas
+              ? "Vehículos facturados contra la meta cargada en Configuración para estos meses."
+              : "Cargá metas por marca y mes en Configuración para ver el cumplimiento acá."
+          }
+          tono="tinta"
         />
       </div>
 
@@ -649,6 +703,9 @@ export default async function OperacionPage({
             Los tres números al lado: lo que facturamos (Cars), lo que se
             matriculó (CADAM) y qué parte del mercado es eso. El stock y su
             cobertura son de hoy, no del período.
+            {hayMetas
+              ? " La meta sale de Configuración; la proyección de cierre de año toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año."
+              : " Cargá metas por marca y mes en Configuración y acá aparecen la meta, el cumplimiento y la proyección de cierre de año."}
           </p>
         </CardHeader>
         <CardContent>
@@ -664,6 +721,13 @@ export default async function OperacionPage({
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Reservadas</TableHead>
                 <TableHead className="text-right">Meses de stock</TableHead>
+                {hayMetas && (
+                  <>
+                    <TableHead className="text-right">Meta</TableHead>
+                    <TableHead className="text-right">Cumplimiento</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Proyección / meta año</TableHead>
+                  </>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -699,6 +763,29 @@ export default async function OperacionPage({
                   >
                     {r.mesesStock === null ? "—" : `${r.mesesStock.toFixed(1)}`}
                   </TableCell>
+                  {hayMetas && (
+                    <>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {r.meta ? formatUnidades(r.meta) : "—"}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums font-medium",
+                          r.meta && r.facturado / r.meta < 0.85 && "text-rose-600 dark:text-rose-400",
+                          r.meta && r.facturado / r.meta >= 1 && "text-emerald-700 dark:text-emerald-400"
+                        )}
+                      >
+                        {r.meta ? formatPct(r.facturado / r.meta) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground whitespace-nowrap">
+                        {r.proyeccion !== null && r.metaAnio
+                          ? `${formatUnidades(r.proyeccion)} / ${formatUnidades(r.metaAnio)}`
+                          : r.proyeccion !== null
+                            ? formatUnidades(r.proyeccion)
+                            : "—"}
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))}
               {resumenAjenas.marcas > 0 && (
@@ -716,6 +803,13 @@ export default async function OperacionPage({
                   </TableCell>
                   <TableCell className="text-right">—</TableCell>
                   <TableCell className="text-right">—</TableCell>
+                  {hayMetas && (
+                    <>
+                      <TableCell className="text-right">—</TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                    </>
+                  )}
                 </TableRow>
               )}
             </TableBody>
