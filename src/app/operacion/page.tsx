@@ -1034,7 +1034,7 @@ export default async function OperacionPage({
                 <TableHead className="text-right">Abiertos</TableHead>
                 <TableHead className="text-right">Convertidos</TableHead>
                 <TableHead className="text-right">Perdidos</TableHead>
-                <TableHead className="min-w-56">Por qué se perdieron</TableHead>
+                <TableHead>Por qué se perdieron</TableHead>
                 <TableHead className="text-right">
                   Negocios
                   <span className="block text-[10px] font-normal normal-case tracking-normal text-muted-foreground whitespace-nowrap">
@@ -1065,7 +1065,7 @@ export default async function OperacionPage({
                   <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatUnidades(r.ganados)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatUnidades(r.perdidos)}</TableCell>
-                  <TableCell className="text-xs font-normal text-muted-foreground">
+                  <TableCell className="max-w-72 whitespace-normal text-xs font-normal leading-snug text-muted-foreground">
                     {motivosTop(r).map(([m, n]) => `${m} ${formatUnidades(n)}`).join(" · ") || "—"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
@@ -1131,7 +1131,7 @@ export default async function OperacionPage({
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos + r.negAbiertos)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatUnidades(r.perdidos + r.negPerdidos)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="max-w-72 whitespace-normal text-xs leading-snug text-muted-foreground">
                       {motivosTop(r).map(([m, n]) => `${m} ${formatUnidades(n)}`).join(" · ") || "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
