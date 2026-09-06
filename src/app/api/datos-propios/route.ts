@@ -122,6 +122,8 @@ function validar(body: {
       const periodo = texto(a.periodo, 7);
       const marca = texto(a.marca);
       const asesor = texto(a.asesor, 120);
+      // Opcional: pushes anteriores al 06/09/2026 no la mandan.
+      const sucursal = texto(a.sucursal, 120) ?? "";
       const unidades = entero(a.unidades);
       if (!periodo || !RE_PERIODO.test(periodo)) {
         return { error: `asesores[${i}].periodo debe ser YYYY-MM` };
@@ -129,7 +131,7 @@ function validar(body: {
       if (!marca || !asesor || unidades === null) {
         return { error: `asesores[${i}]: marca, asesor y unidades son obligatorios` };
       }
-      asesores.push({ periodo, marca, asesor, unidades });
+      asesores.push({ periodo, marca, asesor, sucursal, unidades });
     }
   }
 

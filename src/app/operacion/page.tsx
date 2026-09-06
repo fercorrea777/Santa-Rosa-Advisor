@@ -12,12 +12,13 @@ import {
 import {
   getCobertura, getRankingMarcas, totalUnidades,
 } from "@/lib/cadam/mercado";
-import { getParametros } from "@/lib/cadam/config";
+import { getAsesoresMayoristasSet, getParametros } from "@/lib/cadam/config";
 import {
   getEstadoSyncPropio, getStockPropio, getVentasAsesor, getVentasPropias,
   hayDatosPropios,
 } from "@/lib/informes/propios";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
+import { calcularCobertura, etiquetaAccion, RITMO_MINIMO as RITMO_MINIMO_VERSION } from "@/lib/informes/cobertura";
 import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -235,8 +236,20 @@ export default async function OperacionPage({
     mesMax[a] = ultimoCars && a === ultimoCars.anio ? ultimoCars.mes : 12;
   }
 
-  // --- ranking de asesores: mismo período, ya filtrado por marca arriba
-  const asesoresPeriodo = asesoresCrudosF.filter((a) => enVentana(a.periodo, f.anio));
+  // --- ranking de asesores: mismo período, ya filtrado por marca arriba.
+  // Los MAYORISTAS (flotas, gerencia — lista en parametros.json) salen del
+  // ranking: son otro negocio y aplastan a cualquier asesor retail. Van en
+  // su propio cuadro, no desaparecen.
+  const mayoristas = getAsesoresMayoristasSet();
+  const asesoresTodos = asesoresCrudosF.filter((a) => enVentana(a.periodo, f.anio));
+  const asesoresPeriodo = asesoresTodos.filter((a) => !mayoristas.has(a.asesor));
+  const mayoristasPeriodo = [...asesoresTodos
+    .filter((a) => mayoristas.has(a.asesor))
+    .reduce((m, a) => m.set(a.asesor, (m.get(a.asesor) ?? 0) + a.unidades), new Map<string, number>())
+    .entries()]
+    .map(([asesor, unidades]) => ({ asesor, unidades }))
+    .sort((a, b) => b.unidades - a.unidades);
+  const unidadesMayoristas = mayoristasPeriodo.reduce((s, m) => s + m.unidades, 0);
   const rankingAsesores = [...asesoresPeriodo
     .reduce((m, a) => m.set(a.asesor, (m.get(a.asesor) ?? 0) + a.unidades), new Map<string, number>())
     .entries()]
@@ -274,6 +287,46 @@ export default async function OperacionPage({
   // como empresa.
   const noEsPersona = (nombre: string) =>
     nombre.startsWith("VENTAS ") || /\b(S\.?A\.?|S\.?R\.?L\.?)$/.test(nombre);
+
+  // --- pedido de stock: meses de stock por versión y qué hacer -----------
+  // Sobre el stock y las ventas ya filtrados por marca: si el gerente eligió
+  // JETOUR, las listas son de JETOUR.
+  const pedido = calcularCobertura(stock, ventas);
+  const versionesTabla = pedido.versiones
+    .filter((v) => v.libres + v.enViaje > 0 || v.ritmo > 0)
+    .sort((a, b) => b.libres - a.libres)
+    .slice(0, 40);
+  const mesesRitmoTxt = pedido.mesesRitmo
+    .map((p) => mesCorto(Number(p.slice(5, 7))))
+    .join(", ");
+
+  // --- sucursales: quién factura dónde --------------------------------------
+  const porSucursal = new Map<string, { unidades: number; asesores: Map<string, number> }>();
+  const unidadesPorAsesorSucursal = new Map<string, Map<string, number>>();
+  for (const a of asesoresPeriodo) {
+    const s = a.sucursal || "Sin sucursal";
+    const x = porSucursal.get(s) ?? { unidades: 0, asesores: new Map<string, number>() };
+    x.unidades += a.unidades;
+    x.asesores.set(a.asesor, (x.asesores.get(a.asesor) ?? 0) + a.unidades);
+    porSucursal.set(s, x);
+    const m = unidadesPorAsesorSucursal.get(a.asesor) ?? new Map<string, number>();
+    m.set(s, (m.get(s) ?? 0) + a.unidades);
+    unidadesPorAsesorSucursal.set(a.asesor, m);
+  }
+  const sucursales = [...porSucursal.entries()]
+    .map(([sucursal, x]) => {
+      const top = [...x.asesores.entries()].sort((a, b) => b[1] - a[1])[0];
+      return { sucursal, unidades: x.unidades, asesores: x.asesores.size, top };
+    })
+    .sort((a, b) => b.unidades - a.unidades);
+  // La sucursal "principal" de cada asesor: donde más facturó en el período.
+  const sucursalDe = new Map(
+    [...unidadesPorAsesorSucursal.entries()].map(([asesor, m]) => [
+      asesor,
+      [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "",
+    ])
+  );
+  const haySucursal = sucursales.some((s) => s.sucursal !== "Sin sucursal");
 
   const detalle = (sync?.detalle ?? {}) as Record<string, unknown>;
 
@@ -377,6 +430,175 @@ export default async function OperacionPage({
           chipTono="amber"
         />
       </div>
+
+      <Seccion titulo="Pedido de stock" id="pedido">
+      <NotaDato>
+        <strong>Cómo leer esto.</strong> El <strong>ritmo</strong> es cuántos
+        autos por mes se vendieron de cada versión en los últimos tres meses
+        cerrados ({mesesRitmoTxt}); el mes en curso no entra porque está a
+        medias. <strong>Libres</strong> es lo que se puede entregar hoy, sin
+        las reservadas ni lo que está en viaje, en test drive o cortesía.{" "}
+        <strong>Meses de stock</strong> es libres dividido ritmo. Con menos de{" "}
+        {RITMO_MINIMO_VERSION} autos por mes no se calcula: el número no
+        significaría nada.
+      </NotaDato>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Qué pedir</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Versiones que se venden y tienen menos de un mes y medio de stock
+              libre, contando también lo que viene en viaje. Primero las que
+              más venden: son las que más duele no tener.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {pedido.pedir.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nada urgente: ninguna versión con ritmo tiene menos de un mes y
+                medio de stock.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Versión</TableHead>
+                    <TableHead className="text-right">Ritmo</TableHead>
+                    <TableHead className="text-right">Libres</TableHead>
+                    <TableHead className="text-right">En viaje</TableHead>
+                    <TableHead className="text-right">Meses</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pedido.pedir.slice(0, 12).map((v) => (
+                    <TableRow key={`${v.marca}|${v.version}`}>
+                      <TableCell>
+                        <span className="font-medium">{v.version}</span>
+                        <span className="block text-xs text-muted-foreground">{v.marca}</span>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)} /mes</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {v.enViaje ? formatUnidades(v.enViaje) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold text-rose-600 dark:text-rose-400">
+                        {v.meses === null ? "—" : v.meses.toFixed(1)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Qué empujar</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Versiones con más de seis meses de stock, o con cinco o más
+              unidades libres que casi no se mueven. Primero las que más plata
+              tienen parada. Acá va promoción, no pedido.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {pedido.empujar.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nada parado: ninguna versión pasa los seis meses de stock.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Versión</TableHead>
+                    <TableHead className="text-right">Libres</TableHead>
+                    <TableHead className="text-right">Ritmo</TableHead>
+                    <TableHead className="text-right">Meses</TableHead>
+                    <TableHead className="text-right">Precio lista</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pedido.empujar.slice(0, 12).map((v) => (
+                    <TableRow key={`${v.marca}|${v.version}`}>
+                      <TableCell>
+                        <span className="font-medium">{v.version}</span>
+                        <span className="block text-xs text-muted-foreground">{v.marca}</span>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)} /mes</TableCell>
+                      <TableCell className="text-right tabular-nums font-semibold text-amber-600 dark:text-amber-500">
+                        {v.meses === null ? "sin ritmo" : v.meses.toFixed(1)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {v.precio_usd ? `US$ ${formatUnidades(v.precio_usd)}` : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Stock y ritmo por versión</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Las {versionesTabla.length} versiones con más unidades libres. La
+            última columna dice qué hacer con cada una, en una palabra.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Marca</TableHead>
+                <TableHead>Versión</TableHead>
+                <TableHead className="text-right">Libres</TableHead>
+                <TableHead className="text-right">Reservadas</TableHead>
+                <TableHead className="text-right">En viaje</TableHead>
+                <TableHead className="text-right">Ritmo</TableHead>
+                <TableHead className="text-right">Meses</TableHead>
+                <TableHead>Qué hacer</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {versionesTabla.map((v) => (
+                <TableRow key={`${v.marca}|${v.version}`}>
+                  <TableCell className="font-medium">{v.marca}</TableCell>
+                  <TableCell>{v.version}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {v.reservadas ? formatUnidades(v.reservadas) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {v.enViaje ? formatUnidades(v.enViaje) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {v.ritmo > 0 ? `${v.ritmo.toFixed(1)} /mes` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {v.meses === null ? "—" : v.meses.toFixed(1)}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "font-medium",
+                      v.accion === "pedir" && "text-rose-600 dark:text-rose-400",
+                      v.accion === "empujar" && "text-amber-600 dark:text-amber-500",
+                      (v.accion === "ok" || v.accion === "llega") && "text-emerald-700 dark:text-emerald-400",
+                      v.accion === "sin ritmo" && "text-muted-foreground"
+                    )}
+                  >
+                    {etiquetaAccion(v.accion)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      </Seccion>
 
       <Seccion titulo="Cómo venimos">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -570,7 +792,50 @@ export default async function OperacionPage({
 
       </Seccion>
 
-      <Seccion titulo="Asesores">
+      {haySucursal && (
+        <Seccion titulo="Sucursales" id="sucursales">
+        <Card>
+          <CardHeader>
+            <CardTitle>Ventas por sucursal — {periodo}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Vehículos facturados desde cada local, cuántos asesores
+              facturaron algo ahí y quién más vendió. La sucursal es la que
+              Cars registra en la factura.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sucursal</TableHead>
+                  <TableHead className="text-right">Vehículos</TableHead>
+                  <TableHead className="text-right">% del total</TableHead>
+                  <TableHead className="text-right">Asesores</TableHead>
+                  <TableHead>Mejor asesor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sucursales.map((s) => (
+                  <TableRow key={s.sucursal}>
+                    <TableCell className="font-medium">{s.sucursal}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(s.unidades)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatPct(s.unidades / (unidadesConAsesor || 1))}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{s.asesores}</TableCell>
+                    <TableCell className={cn(s.top && noEsPersona(s.top[0]) && "italic text-muted-foreground")}>
+                      {s.top ? `${s.top[0]} · ${formatUnidades(s.top[1])}` : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        </Seccion>
+      )}
+
+      <Seccion titulo="Asesores" id="asesores">
       {asesoresPeriodo.length === 0 ? (
         <Card>
           <CardHeader>
@@ -587,11 +852,12 @@ export default async function OperacionPage({
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Ranking global — {periodo}</CardTitle>
+            <CardTitle>Ranking retail — {periodo}</CardTitle>
             <p className="text-xs text-muted-foreground">
               Los {Math.min(15, rankingAsesores.length)} de {rankingAsesores.length}{" "}
-              asesores con más unidades facturadas
-              {f.marca ? ` de ${f.marca}` : ""}.
+              asesores retail con más vehículos facturados
+              {f.marca ? ` de ${f.marca}` : ""}. Las ventas mayoristas van
+              aparte, más abajo.
             </p>
           </CardHeader>
           <CardContent>
@@ -600,7 +866,8 @@ export default async function OperacionPage({
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Asesor</TableHead>
-                  <TableHead className="text-right">Unidades</TableHead>
+                  {haySucursal && <TableHead>Sucursal</TableHead>}
+                  <TableHead className="text-right">Vehículos</TableHead>
                   <TableHead className="text-right">% del total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -614,6 +881,11 @@ export default async function OperacionPage({
                     >
                       {a.asesor}
                     </TableCell>
+                    {haySucursal && (
+                      <TableCell className="text-xs text-muted-foreground">
+                        {sucursalDe.get(a.asesor) || "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-right tabular-nums">
                       {formatUnidades(a.unidades)}
                     </TableCell>
@@ -669,21 +941,54 @@ export default async function OperacionPage({
         </Card>
       </div>
       )}
+      {mayoristasPeriodo.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ventas mayoristas — {periodo}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Flotas y ventas de gerencia. Es otro negocio: no compite con los
+              asesores retail y por eso no está en el ranking. La lista de
+              quiénes son mayoristas se edita en{" "}
+              <code>parametros.json</code> (<code>asesores_mayoristas</code>).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vendedor mayorista</TableHead>
+                  <TableHead className="text-right">Vehículos</TableHead>
+                  <TableHead className="text-right">% de lo facturado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {mayoristasPeriodo.map((m) => (
+                  <TableRow key={m.asesor}>
+                    <TableCell className="font-medium">{m.asesor}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(m.unidades)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatPct(m.unidades / (totalFacturas || 1))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
       <NotaDato>
         <strong>Esto es desempeño individual, no un dato de mercado.</strong>{" "}
         Sale de <code>Vendedor</code> en las facturas de Cars, agregado por
         Hermes antes de salir de la máquina — nunca viaja factura por
-        factura. Algunos nombres no son una persona (<em>VENTAS GERENCIA</em>,{" "}
-        <em>VENTAS GERENCIA EXTERNA</em> y alguna razón social): Cars los
-        carga en el mismo campo que un asesor real y no hay forma confiable
-        de distinguirlos acá, así que se muestran igual, en cursiva.
-        {unidadesConAsesor !== totalFacturas && (
-          <>
-            {" "}De las {formatUnidades(totalFacturas)} unidades facturadas del
-            período, {formatUnidades(unidadesConAsesor)} tienen un asesor
-            asignado; el resto llegó sin ese campo cargado en Cars.
-          </>
-        )}
+        factura. Una unidad es un vehículo (un VIN), contado en su primera
+        factura. De los {formatUnidades(totalFacturas)} vehículos del período:{" "}
+        <strong>{formatUnidades(unidadesConAsesor)} retail</strong> (el ranking),{" "}
+        <strong>{formatUnidades(unidadesMayoristas)} mayoristas</strong>
+        {totalFacturas - unidadesConAsesor - unidadesMayoristas > 0
+          ? ` y ${formatUnidades(totalFacturas - unidadesConAsesor - unidadesMayoristas)} sin vendedor cargado en Cars`
+          : ""}
+        . Si algún nombre en cursiva no es una persona (una razón social,
+        por ejemplo), Cars lo cargó en el mismo campo que a un asesor.
       </NotaDato>
       </Seccion>
 

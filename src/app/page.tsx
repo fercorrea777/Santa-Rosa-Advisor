@@ -7,6 +7,7 @@ import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { BarrasFiltroChart } from "@/components/charts/barras-filtro-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AccionesSemana } from "@/components/dashboard/acciones-semana";
 import {
   getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
   getSerieMensual, SEGMENTO_SIN_CLASIFICAR, TECNOLOGIAS,
@@ -110,6 +111,8 @@ export default async function InicioPage({
           { param: "tecnologia", label: "Tecnología", valores: [...TECNOLOGIAS] },
         ]}
       />
+
+      <AccionesSemana f={f} periodo={periodo} />
 
       {/* Grilla bento: el tamaño de cada tile lo decide la jerarquía del
           dato. Matriculaciones es LA métrica del negocio → tile 2×2 con su

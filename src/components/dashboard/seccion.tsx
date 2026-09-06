@@ -16,15 +16,20 @@
  */
 export function Seccion({
   titulo,
+  id,
   children,
 }: {
   titulo: string;
+  /** Ancla para enlazar desde otra pantalla (las tarjetas de acción de la
+   *  home apuntan a "/operacion#pedido"). `scroll-mt-20` deja el encabezado
+   *  debajo del header fijo al aterrizar. */
+  id?: string;
   /** Las tarjetas de la sección. Van adentro para que el espaciado entre el
    *  encabezado y su contenido lo decida este componente y no cada página. */
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4">
+    <section id={id} className="flex flex-col gap-4 scroll-mt-20">
       <h2 className="seccion-hd">{titulo}</h2>
       {children}
     </section>

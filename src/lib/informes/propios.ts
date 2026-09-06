@@ -83,6 +83,9 @@ export interface VentaAsesor {
    *  igual: adivinar cuales filtrar seria peor que mostrarlos y que se
    *  reconozcan a simple vista. */
   asesor: string;
+  /** Sucursal que facturo (LocalVend de Cars: "RENAULT SHOWROOM", "CDE
+   *  GWM"...). Vacio cuando Cars no lo trae. Desde el 06/09/2026. */
+  sucursal: string;
   unidades: number;
 }
 
@@ -120,8 +123,9 @@ export async function crearTablasPropias(): Promise<void> {
       periodo  text not null,
       marca    text not null,
       asesor   text not null,
+      sucursal text not null default '',
       unidades integer not null,
-      primary key (periodo, marca, asesor)
+      primary key (periodo, marca, asesor, sucursal)
     );
   `);
   await pool.query(`
@@ -141,12 +145,15 @@ export async function crearTablasPropias(): Promise<void> {
   // La clave primaria tambien cambia (se le suma `version`): sin eso, dos
   // versiones del mismo modelo chocan y el insert falla. Se borra y se
   // recrea en vez de intentar alterarla, que Postgres no permite.
-  for (const [tabla, clave] of [
-    ["venta_propia", "periodo, marca, modelo, version"],
-    ["stock_propio", "marca, modelo, version, estado"],
+  // venta_asesor suma `sucursal` (06/09/2026) con el mismo mecanismo: la
+  // columna se agrega si falta y la clave primaria se recrea si no coincide.
+  for (const [tabla, clave, columna] of [
+    ["venta_propia", "periodo, marca, modelo, version", "version"],
+    ["stock_propio", "marca, modelo, version, estado", "version"],
+    ["venta_asesor", "periodo, marca, asesor, sucursal", "sucursal"],
   ] as const) {
     await pool.query(
-      `alter table ${tabla} add column if not exists version text not null default ''`
+      `alter table ${tabla} add column if not exists ${columna} text not null default ''`
     );
     const { rows } = await pool.query<{ cols: string }>(
       `select string_agg(a.attname, ', ' order by k.ord) cols
@@ -211,9 +218,11 @@ export async function guardarDatosPropios(params: {
       await cliente.query("delete from venta_asesor");
       for (const a of params.asesores) {
         await cliente.query(
-          `insert into venta_asesor (periodo, marca, asesor, unidades)
-           values ($1, $2, $3, $4)`,
-          [a.periodo, a.marca, a.asesor, a.unidades]
+          `insert into venta_asesor (periodo, marca, asesor, sucursal, unidades)
+           values ($1, $2, $3, $4, $5)
+           on conflict (periodo, marca, asesor, sucursal)
+             do update set unidades = venta_asesor.unidades + excluded.unidades`,
+          [a.periodo, a.marca, a.asesor, a.sucursal ?? "", a.unidades]
         );
       }
     }
@@ -254,7 +263,7 @@ export async function getStockPropio(): Promise<StockPropio[]> {
 export async function getVentasAsesor(): Promise<VentaAsesor[]> {
   try {
     const { rows } = await getPool().query<VentaAsesor>(
-      `select periodo, marca, asesor, unidades from venta_asesor
+      `select periodo, marca, asesor, sucursal, unidades from venta_asesor
        order by periodo desc, unidades desc`
     );
     return rows;

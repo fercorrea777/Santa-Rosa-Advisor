@@ -19,6 +19,11 @@ export interface MarcaPropia {
 
 export interface Parametros {
   marcas_propias: MarcaPropia[];
+  /** Vendedores de Cars que son ventas MAYORISTAS (flotas, gerencia), no
+   *  retail. Salen del ranking de asesores y van en su propio cuadro.
+   *  Nombres tal cual los escribe Cars, en mayúsculas. Opcional: si falta,
+   *  todos cuentan como retail. */
+  asesores_mayoristas?: string[];
   segmento_seguimiento: string;
   competidores_clave: string[];
   metas: {
@@ -27,6 +32,16 @@ export interface Parametros {
     unidades_objetivo_mensual: number | null;
   };
   notas: string;
+}
+
+/** Vendedores mayoristas, normalizados como los manda Hermes (mayúsculas,
+ *  un solo espacio). Ver Parametros.asesores_mayoristas. */
+export function getAsesoresMayoristasSet(): Set<string> {
+  return new Set(
+    (getParametros().asesores_mayoristas ?? []).map((a) =>
+      a.toUpperCase().replace(/\s+/g, " ").trim()
+    )
+  );
 }
 
 let cached: Parametros | null = null;

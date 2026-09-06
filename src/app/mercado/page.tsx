@@ -8,6 +8,7 @@ import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { Seccion } from "@/components/dashboard/seccion";
+import { AccionesSemana } from "@/components/dashboard/acciones-semana";
 import {
   getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
   getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
@@ -144,6 +145,10 @@ export default async function MercadoPage({
 
       {/* 5 columnas en lg (era 4): con la tarjeta de marcas propias, un
           grid de 4 dejaba la quinta sola en una segunda fila. */}
+      {/* Lo primero después del filtro: qué hacer esta semana. Las cifras
+          del mercado vienen después; el gerente entra a decidir, no a mirar. */}
+      <AccionesSemana f={f} periodo={periodo} />
+
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Matriculaciones"
