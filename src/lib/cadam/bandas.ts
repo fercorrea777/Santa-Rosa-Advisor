@@ -101,7 +101,15 @@ function normalizar(s: string): string {
  * se saca para que la familia sea la primera palabra real.
  */
 function nombreParaCruce(nombre: string, marca: string): string {
-  let n = normalizar(nombre).replace(/(?<=[A-Z0-9])-(?=[A-Z0-9])/g, "");
+  let n = normalizar(nombre)
+    .replace(/(?<=[A-Z0-9])-(?=[A-Z0-9])/g, "")
+    // "RAV 4" (Datacar) es "RAV4" (CADAM): un código corto de letras seguido
+    // de un número de una o dos cifras es una sola palabra.
+    .replace(/\b([A-Z]{2,4}) (\d{1,2})\b/g, "$1$2")
+    // Lynk & Co: Datacar escribe "06+", CADAM "6". El "+" y el cero adelante
+    // no son parte del nombre.
+    .replace(/\+/g, "")
+    .replace(/\b0+(\d)/g, "$1");
   const m = normalizar(marca);
   while (m && (n === m || n.startsWith(m + " "))) n = n.slice(m.length).trim();
   return n;

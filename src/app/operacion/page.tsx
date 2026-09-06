@@ -462,16 +462,12 @@ export default async function OperacionPage({
 
   // --- sucursales: quién factura dónde --------------------------------------
   const porSucursal = new Map<string, { unidades: number; asesores: Map<string, number> }>();
-  const unidadesPorAsesorSucursal = new Map<string, Map<string, number>>();
   for (const a of asesoresPeriodo) {
     const s = a.sucursal || "Sin sucursal";
     const x = porSucursal.get(s) ?? { unidades: 0, asesores: new Map<string, number>() };
     x.unidades += a.unidades;
     x.asesores.set(a.asesor, (x.asesores.get(a.asesor) ?? 0) + a.unidades);
     porSucursal.set(s, x);
-    const m = unidadesPorAsesorSucursal.get(a.asesor) ?? new Map<string, number>();
-    m.set(s, (m.get(s) ?? 0) + a.unidades);
-    unidadesPorAsesorSucursal.set(a.asesor, m);
   }
   const sucursales = [...porSucursal.entries()]
     .map(([sucursal, x]) => {
@@ -479,14 +475,20 @@ export default async function OperacionPage({
       return { sucursal, unidades: x.unidades, asesores: x.asesores.size, top };
     })
     .sort((a, b) => b.unidades - a.unidades);
-  // La sucursal "principal" de cada asesor: donde más facturó en el período.
-  const sucursalDe = new Map(
-    [...unidadesPorAsesorSucursal.entries()].map(([asesor, m]) => [
-      asesor,
-      [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "",
-    ])
-  );
   const haySucursal = sucursales.some((s) => s.sucursal !== "Sin sucursal");
+  // Las MARCAS que factura cada asesor, de la que más vende a la que menos.
+  // Va en el ranking en lugar de la sucursal: la sucursal la carga Cars y a
+  // veces está mal (06/09/2026); la marca sale de la factura y no falla.
+  const unidadesPorAsesorMarca = new Map<string, Map<string, number>>();
+  for (const a of asesoresPeriodo) {
+    const m = unidadesPorAsesorMarca.get(a.asesor) ?? new Map<string, number>();
+    m.set(a.marca, (m.get(a.marca) ?? 0) + a.unidades);
+    unidadesPorAsesorMarca.set(a.asesor, m);
+  }
+  const marcasDe = (asesor: string): string[] =>
+    [...(unidadesPorAsesorMarca.get(asesor) ?? new Map<string, number>()).entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([marca]) => marca);
 
   // --- leads de Bitrix por asesor, mismo período. Se cruzan por NOMBRE
   // normalizado (mayúsculas, sin acentos): Cars y Bitrix escriben distinto
@@ -1307,7 +1309,7 @@ export default async function OperacionPage({
                 <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Asesor</TableHead>
-                  {haySucursal && <TableHead>Sucursal</TableHead>}
+                  <TableHead>Marca</TableHead>
                   <TableHead className="text-right">Vehículos</TableHead>
                   <TableHead className="text-right">% del total</TableHead>
                   {hayLeads && (
@@ -1329,11 +1331,17 @@ export default async function OperacionPage({
                     >
                       {a.asesor}
                     </TableCell>
-                    {haySucursal && (
-                      <TableCell className="text-xs text-muted-foreground">
-                        {sucursalDe.get(a.asesor) || "—"}
-                      </TableCell>
-                    )}
+                    <TableCell
+                      className="text-xs text-muted-foreground"
+                      title={
+                        marcasDe(a.asesor).length > 1
+                          ? `Factura ${marcasDe(a.asesor).length} marcas, de la que más vende a la que menos.`
+                          : undefined
+                      }
+                    >
+                      {marcasDe(a.asesor).slice(0, 3).join(" · ") || "—"}
+                      {marcasDe(a.asesor).length > 3 ? ` +${marcasDe(a.asesor).length - 3}` : ""}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatUnidades(a.unidades)}
                     </TableCell>
