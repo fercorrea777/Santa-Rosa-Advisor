@@ -25,6 +25,15 @@ import { tokens } from "../informes/segmento-version";
  * el más barato — es el "desde" de la familia, que es lo que corresponde
  * cuando CADAM agrupó varias versiones bajo un nombre. Nunca se separa
  * letra de número: "T2" no es ["T", "2"].
+ *
+ * RIVALES: TODO EL TIPO, NO SOLO LA BANDA (06/09/2026). La primera versión
+ * listaba como rivales solo a los del mismo casillero (mismo tipo Y misma
+ * banda). Para la L200 —US$ 23.674 de lista— eso mostraba Montana, Toro,
+ * Himla y Hunter, y dejaba afuera a Hilux, D-Max, Frontier, BT-50 y Ranger,
+ * que están una banda más arriba y son contra quienes se pelea de verdad.
+ * El comprador de una pick-up compara pick-ups, no bandas. Ahora el rival
+ * es cualquiera del mismo tipo de vehículo; la banda se muestra al lado y
+ * los de la misma banda se marcan, pero nadie queda afuera.
  */
 
 export interface Banda {
@@ -48,6 +57,11 @@ export function bandaDe(precio: number | null): string {
   return BANDAS.find((b) => precio >= b.desde && precio < b.hasta)?.clave ?? SIN_PRECIO;
 }
 
+/** "b3" -> "21.000 a 28.000"; la clave de sin precio vuelve tal cual. */
+export function etiquetaBanda(clave: string): string {
+  return BANDAS.find((b) => b.clave === clave)?.etiqueta ?? clave;
+}
+
 export interface PrecioCandidato {
   marca: string;
   nombre: string;
@@ -58,6 +72,8 @@ export interface ModeloConBanda {
   marca: string;
   modelo: string;
   segmento: string;
+  /** "ICE", "PHEV", "ICE+PHEV"... según CADAM; undefined si no la informa. */
+  tecnologia?: string;
   unidades: number;
   esPropia: boolean;
   precio: number | null;
@@ -122,6 +138,7 @@ export function asignarPrecios(
       marca: m.marca,
       modelo: m.modelo ?? m.marca,
       segmento: m.segmento ?? "",
+      tecnologia: m.tecnologia,
       unidades: m.unidades,
       esPropia: m.esPropia,
       precio,
@@ -168,42 +185,105 @@ export interface Rival {
   modelo: string;
   unidades: number;
   precio: number | null;
+  banda: string;
+  tecnologia?: string;
+  /** Misma banda de precio que nuestro modelo: el rival más directo. */
+  mismaBanda: boolean;
   deltaShare: number | null;
 }
 
-/**
- * Para cada modelo NUESTRO: los rivales que juegan en su mismo segmento y
- * banda, del que más vende al que menos. Es "contra quién compite este
- * auto", en la lectura más simple que existe: mismo tipo, mismo precio.
- */
-export function rivalesDirectos(modelos: ModeloConBanda[], porModelo = 4) {
-  const propios = modelos.filter((m) => m.esPropia && m.segmento).sort((a, b) => b.unidades - a.unidades);
-  return propios.map((p) => {
-    const rivales: Rival[] = modelos
-      .filter((m) => !m.esPropia && m.segmento === p.segmento && m.banda === p.banda && m.banda !== SIN_PRECIO)
-      .sort((a, b) => b.unidades - a.unidades)
-      .slice(0, porModelo)
-      .map((m) => ({ marca: m.marca, modelo: m.modelo, unidades: m.unidades, precio: m.precio, deltaShare: m.deltaShare }));
-    return { propio: p, rivales };
-  });
+export interface Duelo {
+  propio: ModeloConBanda;
+  /** TODOS los rivales del mismo tipo de vehículo, del que más vende al que
+   *  menos. Sin recorte: quien dibuja decide cuántos mostrar de entrada. */
+  rivales: Rival[];
+  /** Unidades del tipo entero en el período (rivales + nuestras marcas). */
+  unidadesTipo: number;
+  /** Cuántos rivales comparten la banda de nuestro modelo. */
+  enMismaBanda: number;
 }
 
 /**
- * Precio relativo de cada modelo nuestro contra la MEDIANA de los rivales
- * de su mismo segmento y banda. Positivo = estamos más caros.
+ * Para cada modelo NUESTRO: todos los rivales de su mismo tipo de vehículo,
+ * del que más vende al que menos, con su banda al lado. Nuestros propios
+ * modelos (de cualquier marca del grupo) no son rivales entre sí.
  */
-export function precioRelativo(modelos: ModeloConBanda[]) {
+export function rivalesDirectos(modelos: ModeloConBanda[]): Duelo[] {
+  const propios = modelos.filter((m) => m.esPropia && m.segmento).sort((a, b) => b.unidades - a.unidades);
+  const porSegmento = new Map<string, ModeloConBanda[]>();
+  for (const m of modelos) {
+    if (!m.segmento) continue;
+    const lista = porSegmento.get(m.segmento) ?? [];
+    lista.push(m);
+    porSegmento.set(m.segmento, lista);
+  }
+  return propios.map((p) => {
+    const delTipo = porSegmento.get(p.segmento) ?? [];
+    const rivales: Rival[] = delTipo
+      .filter((m) => !m.esPropia)
+      .sort((a, b) => b.unidades - a.unidades)
+      .map((m) => ({
+        marca: m.marca,
+        modelo: m.modelo,
+        unidades: m.unidades,
+        precio: m.precio,
+        banda: m.banda,
+        tecnologia: m.tecnologia,
+        mismaBanda: p.banda !== SIN_PRECIO && m.banda === p.banda,
+        deltaShare: m.deltaShare,
+      }));
+    return {
+      propio: p,
+      rivales,
+      unidadesTipo: delTipo.reduce((s, m) => s + m.unidades, 0),
+      enMismaBanda: rivales.filter((r) => r.mismaBanda).length,
+    };
+  });
+}
+
+function mediana(valores: number[]): number | null {
+  if (valores.length < 2) return null;
+  const v = [...valores].sort((a, b) => a - b);
+  return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
+}
+
+export interface PrecioRelativo {
+  propio: ModeloConBanda;
+  /** Contra los rivales de su misma banda. Positivo = estamos más caros. */
+  medianaBanda: number | null;
+  diferenciaBanda: number | null;
+  rivalesBanda: number;
+  /** Contra TODOS los rivales con precio de su tipo de vehículo. */
+  medianaTipo: number | null;
+  diferenciaTipo: number | null;
+  rivalesTipo: number;
+}
+
+/**
+ * Precio relativo de cada modelo nuestro: contra la mediana de los rivales
+ * de su misma banda (los que el comprador compara centavo a centavo) y
+ * contra la mediana de todo su tipo de vehículo (dónde queda en la góndola
+ * completa). Cada mediana necesita al menos dos rivales con precio.
+ */
+export function precioRelativo(modelos: ModeloConBanda[]): PrecioRelativo[] {
   const propios = modelos.filter((m) => m.esPropia && m.precio && m.segmento);
   return propios
     .map((p) => {
-      const precios = modelos
-        .filter((m) => !m.esPropia && m.segmento === p.segmento && m.banda === p.banda && m.precio)
-        .map((m) => m.precio as number)
-        .sort((a, b) => a - b);
-      if (precios.length < 2) return { propio: p, mediana: null, diferencia: null, rivalesConPrecio: precios.length };
-      const mediana = precios.length % 2 ? precios[(precios.length - 1) / 2]
-        : (precios[precios.length / 2 - 1] + precios[precios.length / 2]) / 2;
-      return { propio: p, mediana, diferencia: (p.precio as number) / mediana - 1, rivalesConPrecio: precios.length };
+      const delTipo = modelos.filter((m) => !m.esPropia && m.segmento === p.segmento && m.precio);
+      const preciosTipo = delTipo.map((m) => m.precio as number);
+      const preciosBanda = delTipo.filter((m) => m.banda === p.banda).map((m) => m.precio as number);
+      const medianaTipo = mediana(preciosTipo);
+      const medianaBanda = mediana(preciosBanda);
+      const precio = p.precio as number;
+      return {
+        propio: p,
+        medianaBanda,
+        diferenciaBanda: medianaBanda ? precio / medianaBanda - 1 : null,
+        rivalesBanda: preciosBanda.length,
+        medianaTipo,
+        diferenciaTipo: medianaTipo ? precio / medianaTipo - 1 : null,
+        rivalesTipo: preciosTipo.length,
+      };
     })
     .sort((a, b) => b.propio.unidades - a.propio.unidades);
 }

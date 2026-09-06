@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { getMarcasPropiasSet } from "./config";
+import { normalizarTecnologias } from "../informes/segmento-version";
 
 /**
  * Consultas sobre las tablas row-level de CADAM (v_matriculacion,
@@ -341,7 +342,8 @@ function armarRanking(
       marca: r.marca,
       modelo: r.modelo,
       segmento: r.segmento,
-      tecnologia: r.tecnologia ?? undefined,
+      // "ICE,PHEV" -> "ICE+PHEV", en el orden fijo de las tecnologías.
+      tecnologia: r.tecnologia ? normalizarTecnologias(r.tecnologia) : undefined,
       unidades: r.unidades,
       participacion: partActual,
       variacion: baseDisponible && antes ? variacion(r.unidades, antes) : null,
@@ -406,10 +408,12 @@ function rankingPorColumna(
   const actual = db
     .prepare(
       // tecnologia solo existe en matriculacion; en importacion la columna
-      // no esta y el MIN() rompería la consulta.
+      // no esta y el GROUP_CONCAT() rompería la consulta. Se traen TODAS las
+      // tecnologías de la familia ("ICE,PHEV"), no la mínima: un T2 vende
+      // naftero y enchufable, y decir solo "ICE" escondía la mitad.
       `SELECT marca || ' ' || ${columna} clave, marca, ${columna} modelo,
               MIN(segmento) segmento,
-              ${fuente === "matriculacion" ? "MIN(tecnologia) tecnologia," : "NULL tecnologia,"}
+              ${fuente === "matriculacion" ? "GROUP_CONCAT(DISTINCT tecnologia) tecnologia," : "NULL tecnologia,"}
               SUM(unidades) unidades
        FROM ${vista(fuente)} WHERE ${w.sql}
        GROUP BY marca, ${columna} HAVING unidades > 0
@@ -465,6 +469,48 @@ export interface FilaDimension {
   /** Diferencia de participacion en puntos porcentuales. Una marca puede
    *  crecer en unidades y perder market share (spec sec. 17). */
   deltaParticipacion: number | null;
+}
+
+export interface CeldaSegmentoTecnologia {
+  segmento: string;
+  /** Código ("ICE", "PHEV"...) o "Sin dato" cuando CADAM no la informa. */
+  tecnologia: string;
+  mercado: number;
+  propias: number;
+}
+
+/**
+ * Mercado por SEGMENTO × TECNOLOGÍA, con cuánto de cada casillero es de las
+ * marcas propias. Solo matriculación: importación no trae tecnología.
+ *
+ * El filtro de tecnología se ignora a propósito —es la dimensión de las
+ * columnas, mismo criterio que getPorDimension—; el de segmento sí se
+ * respeta, para poder mirar un solo tipo de vehículo.
+ */
+export function getMapaSegmentoTecnologia(f: Filtro): CeldaSegmentoTecnologia[] {
+  const propias = [...getMarcasPropiasSet()];
+  const fSinTec: Filtro = { ...f };
+  delete fSinTec.tecnologia;
+  const w = where("matriculacion", fSinTec);
+  // Los placeholders del CASE van ANTES de los del WHERE en el texto de la
+  // consulta, y better-sqlite3 los llena en ese orden.
+  const enPropias = propias.length ? `marca IN (${propias.map(() => "?").join(",")})` : "0";
+  const filas = getDb()
+    .prepare(
+      `SELECT segmento, tecnologia, SUM(unidades) mercado,
+              SUM(CASE WHEN ${enPropias} THEN unidades ELSE 0 END) propias
+       FROM ${vista("matriculacion")} WHERE ${w.sql}
+       GROUP BY segmento, tecnologia HAVING mercado > 0`
+    )
+    .all(...propias, ...w.args) as {
+    segmento: string | null; tecnologia: string | null; mercado: number; propias: number;
+  }[];
+  return filas.map((r) => ({
+    segmento: r.segmento ?? SEGMENTO_SIN_CLASIFICAR,
+    tecnologia: normalizarTecnologias(r.tecnologia),
+    mercado: r.mercado,
+    propias: r.propias,
+  }));
 }
 
 export function getPorDimension(
