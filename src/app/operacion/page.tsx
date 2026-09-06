@@ -20,6 +20,7 @@ import {
 } from "@/lib/informes/propios";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import { calcularCobertura, etiquetaAccion, RITMO_MINIMO as RITMO_MINIMO_VERSION } from "@/lib/informes/cobertura";
+import { getLeadsAsesor, normalizarNombre } from "@/lib/informes/leads-asesor";
 import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -60,11 +61,12 @@ export default async function OperacionPage({
     );
   }
 
-  const [ventasCrudas, stockCrudo, asesoresCrudos, sync] = await Promise.all([
+  const [ventasCrudas, stockCrudo, asesoresCrudos, sync, leadsCrudos] = await Promise.all([
     getVentasPropias(),
     getStockPropio(),
     getVentasAsesor(),
     getEstadoSyncPropio(),
+    getLeadsAsesor(),
   ]);
 
   // --- período: lo manda CARS, no CADAM -------------------------------
@@ -365,6 +367,22 @@ export default async function OperacionPage({
   );
   const haySucursal = sucursales.some((s) => s.sucursal !== "Sin sucursal");
 
+  // --- leads de Bitrix por asesor, mismo período. Se cruzan por NOMBRE
+  // normalizado (mayúsculas, sin acentos): Cars y Bitrix escriben distinto
+  // y no comparten un id. Un asesor sin leads en Bitrix muestra "—", no 0:
+  // puede que el CRM lo tenga con otro nombre.
+  const leadsPeriodo = leadsCrudos.filter((l) => enVentana(l.periodo, f.anio));
+  const leadsPorAsesor = new Map<string, { leads: number; sinContacto: number }>();
+  for (const l of leadsPeriodo) {
+    const k = normalizarNombre(l.asesor);
+    const x = leadsPorAsesor.get(k) ?? { leads: 0, sinContacto: 0 };
+    x.leads += l.leads;
+    x.sinContacto += l.sin_contacto;
+    leadsPorAsesor.set(k, x);
+  }
+  const hayLeads = leadsPeriodo.length > 0;
+  const leadsDe = (asesor: string) => leadsPorAsesor.get(normalizarNombre(asesor));
+
   const detalle = (sync?.detalle ?? {}) as Record<string, unknown>;
 
   return (
@@ -469,7 +487,9 @@ export default async function OperacionPage({
         <KpiCard
           label="Meta del período"
           value={hayMetas && metaTotal ? formatPct(totalFacturas / metaTotal) : "—"}
-          valorAnimado={hayMetas && metaTotal ? totalFacturas / metaTotal : 0}
+          // Sin meta no hay número que animar: con 0 la tarjeta mostraba
+          // "0.0%", que se lee como "no vendimos nada".
+          valorAnimado={hayMetas && metaTotal ? totalFacturas / metaTotal : undefined}
           formato="porcentaje"
           periodo={
             hayMetas && metaTotal
@@ -963,6 +983,13 @@ export default async function OperacionPage({
                   {haySucursal && <TableHead>Sucursal</TableHead>}
                   <TableHead className="text-right">Vehículos</TableHead>
                   <TableHead className="text-right">% del total</TableHead>
+                  {hayLeads && (
+                    <>
+                      <TableHead className="text-right">Leads</TableHead>
+                      <TableHead className="text-right">Sin contactar</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Lead → venta</TableHead>
+                    </>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -986,6 +1013,27 @@ export default async function OperacionPage({
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatPct(a.unidades / unidadesConAsesor)}
                     </TableCell>
+                    {hayLeads && (() => {
+                      const l = leadsDe(a.asesor);
+                      return (
+                        <>
+                          <TableCell className="text-right tabular-nums">{l ? formatUnidades(l.leads) : "—"}</TableCell>
+                          <TableCell
+                            className={cn(
+                              "text-right tabular-nums",
+                              l && l.leads && l.sinContacto / l.leads > 0.3
+                                ? "font-medium text-rose-600 dark:text-rose-400"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            {l ? formatUnidades(l.sinContacto) : "—"}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {l && l.leads ? formatPct(a.unidades / l.leads) : "—"}
+                          </TableCell>
+                        </>
+                      );
+                    })()}
                   </TableRow>
                 ))}
               </TableBody>
