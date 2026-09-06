@@ -54,6 +54,7 @@ import { NOMBRE_COOKIE, leerSesion } from "@/lib/auth/sesion";
 const SIN_PUERTA = new Set([
   "/api/conocimiento-competencia",
   "/api/datos-propios",
+  "/api/precios-competencia",
   "/api/informes-competencia/hermes",
 ]);
 
