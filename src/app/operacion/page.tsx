@@ -22,6 +22,10 @@ import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import { calcularCobertura, etiquetaAccion, RITMO_MINIMO as RITMO_MINIMO_VERSION } from "@/lib/informes/cobertura";
 import { getLeadsAsesor, normalizarNombre } from "@/lib/informes/leads-asesor";
 import { getPautaMarca } from "@/lib/informes/pauta-marca";
+import {
+  getActualizacionDemandaBitrix, getDemandaBitrix, type DemandaBitrix,
+} from "@/lib/informes/demanda-bitrix";
+import { tokens as tokensNombre } from "@/lib/informes/segmento-version";
 import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -62,13 +66,17 @@ export default async function OperacionPage({
     );
   }
 
-  const [ventasCrudas, stockCrudo, asesoresCrudos, sync, leadsCrudos, pautaCruda] = await Promise.all([
+  const [
+    ventasCrudas, stockCrudo, asesoresCrudos, sync, leadsCrudos, pautaCruda, demandaCruda, demandaFecha,
+  ] = await Promise.all([
     getVentasPropias(),
     getStockPropio(),
     getVentasAsesor(),
     getEstadoSyncPropio(),
     getLeadsAsesor(),
     getPautaMarca(),
+    getDemandaBitrix(),
+    getActualizacionDemandaBitrix(),
   ]);
 
   // --- período: lo manda CARS, no CADAM -------------------------------
@@ -345,6 +353,105 @@ export default async function OperacionPage({
   // Sobre el stock y las ventas ya filtrados por marca: si el gerente eligió
   // JETOUR, las listas son de JETOUR.
   const pedido = calcularCobertura(stock, ventas);
+
+  // --- demanda de Bitrix (leads y negocios) del período, por marca y modelo.
+  // Es lo que Cars no puede decir: cuánta demanda entró, cuánta sigue
+  // abierta y cuánta se perdió, y por qué. Solo conteos; la marca y el
+  // modelo vienen deducidos por Hermes (ver lib/informes/demanda-bitrix).
+  const demandaPeriodo = demandaCruda.filter(
+    (d) => enVentana(d.periodo, f.anio) && (!f.marca || d.marca === f.marca)
+  );
+  const hayDemanda = demandaPeriodo.length > 0;
+  /** Motivos que no son demanda perdida sino basura del CRM: un lead
+   *  duplicado o de spam no se "perdió", nunca fue un comprador. */
+  const noEraDemanda = (motivo: string) => /spam|falso|duplicad|repetid|incontactable/i.test(motivo);
+  type ResumenDemanda = {
+    leads: number; abiertos: number; ganados: number; perdidos: number; descartados: number;
+    negocios: number; negAbiertos: number; negGanados: number; negPerdidos: number;
+    motivos: Map<string, number>;
+  };
+  const resumenVacio = (): ResumenDemanda => ({
+    leads: 0, abiertos: 0, ganados: 0, perdidos: 0, descartados: 0,
+    negocios: 0, negAbiertos: 0, negGanados: 0, negPerdidos: 0, motivos: new Map(),
+  });
+  const sumarDemanda = (r: ResumenDemanda, d: DemandaBitrix) => {
+    if (d.origen === "lead") {
+      r.leads += d.cantidad;
+      if (d.estado === "abierto") r.abiertos += d.cantidad;
+      else if (d.estado === "ganado") r.ganados += d.cantidad;
+      else if (noEraDemanda(d.motivo)) r.descartados += d.cantidad;
+      else r.perdidos += d.cantidad;
+    } else {
+      r.negocios += d.cantidad;
+      if (d.estado === "abierto") r.negAbiertos += d.cantidad;
+      else if (d.estado === "ganado") r.negGanados += d.cantidad;
+      else r.negPerdidos += d.cantidad;
+    }
+    if (d.estado === "perdido" && d.motivo && !noEraDemanda(d.motivo)) {
+      r.motivos.set(d.motivo, (r.motivos.get(d.motivo) ?? 0) + d.cantidad);
+    }
+  };
+  const demandaTotal = resumenVacio();
+  const demandaPorMarca = new Map<string, ResumenDemanda>();
+  const demandaPorModelo = new Map<string, ResumenDemanda & { marca: string; modelo: string }>();
+  for (const d of demandaPeriodo) {
+    sumarDemanda(demandaTotal, d);
+    const m = demandaPorMarca.get(d.marca) ?? resumenVacio();
+    sumarDemanda(m, d);
+    demandaPorMarca.set(d.marca, m);
+    if (d.modelo) {
+      const k = `${d.marca}|${d.modelo}`;
+      const x = demandaPorModelo.get(k) ?? { ...resumenVacio(), marca: d.marca, modelo: d.modelo };
+      sumarDemanda(x, d);
+      demandaPorModelo.set(k, x);
+    }
+  }
+  const motivosTop = (r: ResumenDemanda, n = 3) =>
+    [...r.motivos.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
+  const facturadoPorMarca = new Map<string, number>();
+  for (const v of facturasPeriodo) {
+    facturadoPorMarca.set(v.marca, (facturadoPorMarca.get(v.marca) ?? 0) + v.unidades);
+  }
+  const filasDemandaMarca = [...demandaPorMarca.entries()]
+    .map(([marca, r]) => ({ marca, ...r, facturado: facturadoPorMarca.get(marca) ?? 0 }))
+    .sort((a, b) => b.leads + b.negocios - (a.leads + a.negocios));
+  // Bitrix da la familia ("T2", "L200", "JOLION"); Cars la escribe a su
+  // manera ("L200 TRITON", "HAVAL JOLION"). Coinciden si la palabra de
+  // Bitrix está entre las del modelo de Cars, sin separar letra de número.
+  const coincideFamilia = (familia: string, modeloCars: string) => tokensNombre(modeloCars).includes(familia);
+  const facturadoDeModelo = (marca: string, familia: string) =>
+    facturasPeriodo
+      .filter((v) => v.marca === marca && coincideFamilia(familia, v.modelo))
+      .reduce((s, v) => s + v.unidades, 0);
+  const libresDeModelo = (marca: string, familia: string) =>
+    pedido.versiones
+      .filter((v) => v.marca === marca && coincideFamilia(familia, v.modelo))
+      .reduce((s, v) => s + v.libres, 0);
+  const senalDemanda = (r: ResumenDemanda, libres: number) => {
+    const suma = (re: RegExp) =>
+      [...r.motivos.entries()].filter(([m]) => re.test(m)).reduce((s, [, n]) => s + n, 0);
+    const porStock = suma(/stock/i);
+    const porPrecio = suma(/precio|competencia/i);
+    const abiertos = r.abiertos + r.negAbiertos;
+    if (porStock > 0 && libres === 0) return { texto: "Pedir: se perdió por falta de stock y hoy no hay libres", tono: "pedir" };
+    if (porStock > 0) return { texto: `Se perdió ${porStock} ${porStock === 1 ? "vez" : "veces"} por stock; hoy hay ${libres} libres`, tono: "ok" };
+    if (abiertos >= 5 && libres >= 5) return { texto: "Empujar: hay demanda abierta y stock para entregar", tono: "empujar" };
+    if (porPrecio >= 3) return { texto: "Revisar precio: se pierde por precio o competencia", tono: "precio" };
+    return null;
+  };
+  const filasDemandaModelo = [...demandaPorModelo.values()]
+    .map((r) => {
+      const libres = libresDeModelo(r.marca, r.modelo);
+      return { ...r, facturado: facturadoDeModelo(r.marca, r.modelo), libres, senal: senalDemanda(r, libres) };
+    })
+    .sort((a, b) => b.leads + b.negocios - (a.leads + a.negocios))
+    .slice(0, 25);
+  const leadsConModelo = demandaPeriodo
+    .filter((d) => d.origen === "lead" && d.modelo)
+    .reduce((s, d) => s + d.cantidad, 0);
+  const negociosConModelo = demandaPeriodo
+    .filter((d) => d.origen === "negocio" && d.modelo)
+    .reduce((s, d) => s + d.cantidad, 0);
   const versionesTabla = pedido.versiones
     .filter((v) => v.libres + v.enViaje > 0 || v.ritmo > 0)
     .sort((a, b) => b.libres - a.libres)
@@ -891,6 +998,168 @@ export default async function OperacionPage({
         </CardContent>
       </Card>
 
+      </Seccion>
+
+      <Seccion titulo="Demanda que no cerró" id="demanda">
+      {!hayDemanda ? (
+        <Card>
+          <CardContent>
+            <EmptyState
+              title="Todavía no hay demanda de Bitrix"
+              description="Se agrega el 06/09/2026: hace falta que Hermes corra advisor-demanda-bitrix.py. Si ya pasaron unas horas, revisá ese trabajo."
+            />
+          </CardContent>
+        </Card>
+      ) : (
+      <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Por marca — {periodo}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Leads de Bitrix creados en el período: cuántos siguen abiertos,
+            cuántos se convirtieron en negociación y cuántos se perdieron, con
+            los motivos que más se repiten. «Leads por vehículo» es cuántos
+            leads entraron por cada vehículo facturado en Cars: si sube, la
+            demanda se está desaprovechando. Los negocios (oportunidades ya
+            calificadas) van aparte.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Marca</TableHead>
+                <TableHead className="text-right">Leads</TableHead>
+                <TableHead className="text-right">Abiertos</TableHead>
+                <TableHead className="text-right">Convertidos</TableHead>
+                <TableHead className="text-right">Perdidos</TableHead>
+                <TableHead>Por qué se perdieron</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Negocios (abiertos / ganados / perdidos)</TableHead>
+                <TableHead className="text-right">Facturado</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Leads por vehículo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...filasDemandaMarca, { marca: "Total", ...demandaTotal, facturado: totalFacturas }].map((r, i) => (
+                <TableRow key={r.marca} className={cn(i === filasDemandaMarca.length && "font-medium")}>
+                  <TableCell className="font-medium">{r.marca}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatUnidades(r.leads)}
+                    {r.descartados > 0 && (
+                      <span className="block text-[11px] font-normal text-muted-foreground whitespace-nowrap">
+                        {formatUnidades(r.descartados)} descartados
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatUnidades(r.ganados)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatUnidades(r.perdidos)}</TableCell>
+                  <TableCell className="text-xs font-normal text-muted-foreground">
+                    {motivosTop(r).map(([m, n]) => `${m} ${formatUnidades(n)}`).join(" · ") || "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {r.negocios ? `${r.negAbiertos} / ${r.negGanados} / ${r.negPerdidos}` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {r.facturado && r.leads ? (r.leads / r.facturado).toFixed(1).replace(".", ",") : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Por modelo — {periodo}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Solo la demanda que nombra el modelo: Bitrix no tiene campo de
+            modelo en los leads, así que se lee del título o de la campaña
+            cuando lo dicen ({formatPct(leadsConModelo / (demandaTotal.leads || 1))} de los
+            leads del período) y del producto cargado en los negocios
+            ({formatPct(negociosConModelo / (demandaTotal.negocios || 1))} de los negocios).
+            Se cruza con lo facturado en Cars y con el stock libre de hoy
+            para decir qué hacer.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {filasDemandaModelo.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Ningún lead ni negocio del período nombra el modelo.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Modelo</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Demanda</TableHead>
+                  <TableHead className="text-right">Abiertos</TableHead>
+                  <TableHead className="text-right">Perdidos</TableHead>
+                  <TableHead>Por qué se perdieron</TableHead>
+                  <TableHead className="text-right">Facturado</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Libres hoy</TableHead>
+                  <TableHead>Qué hacer</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filasDemandaModelo.map((r) => (
+                  <TableRow key={`${r.marca}|${r.modelo}`}>
+                    <TableCell>
+                      <span className="font-medium">{r.modelo}</span>
+                      <span className="block text-xs text-muted-foreground">{r.marca}</span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatUnidades(r.leads + r.negocios)}
+                      <span className="block text-[11px] text-muted-foreground whitespace-nowrap">
+                        {formatUnidades(r.leads)} leads · {formatUnidades(r.negocios)} neg.
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos + r.negAbiertos)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(r.perdidos + r.negPerdidos)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {motivosTop(r).map(([m, n]) => `${m} ${formatUnidades(n)}`).join(" · ") || "—"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(r.libres)}</TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-xs",
+                        r.senal?.tono === "pedir" && "font-medium text-amber-600 dark:text-amber-500",
+                        r.senal?.tono === "empujar" && "font-medium text-emerald-700 dark:text-emerald-400",
+                        r.senal?.tono === "precio" && "font-medium text-amber-600 dark:text-amber-500",
+                        (!r.senal || r.senal.tono === "ok") && "text-muted-foreground"
+                      )}
+                    >
+                      {r.senal?.texto ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <NotaDato>
+        <strong>Esto es demanda registrada en el CRM, no mercado.</strong>{" "}
+        Sale de Bitrix por mes de creación, agregado por Hermes antes de
+        salir de su máquina: ningún dato del cliente llega acá. «Abierto»,
+        «convertido» y «perdido» son la semántica de cada estado de Bitrix;
+        el motivo es el nombre del estado o de la etapa de pérdida. Los
+        descartados (spam, datos falsos, duplicados, incontactables) no
+        cuentan como demanda perdida: nunca fueron un comprador. La marca de
+        interés está cargada en dos de cada tres leads; cuando falta, se lee
+        del título. Bitrix reclasifica hacia atrás, así que estas cifras
+        cambian con cada push
+        {demandaFecha ? ` (último: ${formatFechaHora(demandaFecha)})` : ""}.
+      </NotaDato>
+      </>
+      )}
       </Seccion>
 
       <Seccion titulo="Stock">
