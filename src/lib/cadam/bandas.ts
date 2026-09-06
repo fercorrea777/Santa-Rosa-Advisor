@@ -89,6 +89,25 @@ function normalizar(s: string): string {
 }
 
 /**
+ * Nombre listo para cruzar: sin el guion de los códigos de modelo y sin la
+ * marca repetida adelante.
+ *
+ * CADAM escribe "CX30", "TCROSS", "XTRAIL EPOWER", "HRV"; Datacar, "CX-30",
+ * "T-CROSS", "X-TRAIL E-POWER", "HR-V". Partir por guion daba ["CX","30"]
+ * contra ["CX30"] y Mazda, Volkswagen, Nissan y Honda quedaban sin precio
+ * teniéndolo (06/09/2026: 199 CX30, 305 T-Cross, 173 CX5, 72 X-Trail). El
+ * guion entre letra y número o entre letras se borra en las dos fuentes.
+ * Y CADAM a veces repite la marca en el modelo ("MG MG ZS", "BYD BYD"):
+ * se saca para que la familia sea la primera palabra real.
+ */
+function nombreParaCruce(nombre: string, marca: string): string {
+  let n = normalizar(nombre).replace(/(?<=[A-Z0-9])-(?=[A-Z0-9])/g, "");
+  const m = normalizar(marca);
+  while (m && (n === m || n.startsWith(m + " "))) n = n.slice(m.length).trim();
+  return n;
+}
+
+/**
  * Le pone precio (y banda) a cada modelo de CADAM con los candidatos de su
  * marca. `fuente` etiqueta de dónde salió, para decirlo en pantalla.
  */
@@ -102,7 +121,8 @@ export function asignarPrecios(
   for (const grupo of candidatos) {
     for (const c of grupo.lista) {
       const marca = normalizar(c.marca);
-      const cand: Cand = { tokens: tokens(c.nombre), nombre: normalizar(c.nombre), precio: c.precio, fuente: grupo.fuente };
+      const nombreC = nombreParaCruce(c.nombre, marca);
+      const cand: Cand = { tokens: tokens(nombreC), nombre: nombreC, precio: c.precio, fuente: grupo.fuente };
       const lista = porMarca.get(marca) ?? [];
       lista.push(cand);
       porMarca.set(marca, lista);
@@ -114,7 +134,7 @@ export function asignarPrecios(
 
   return modelos.map((m) => {
     const marca = normalizar(m.marca);
-    const nombre = normalizar(m.modelo ?? "");
+    const nombre = nombreParaCruce(m.modelo ?? "", marca);
     let elegido: Cand | undefined = exacto.get(`${marca}|${nombre}`);
     if (!elegido) {
       const tm = tokens(nombre);
