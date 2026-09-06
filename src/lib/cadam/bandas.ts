@@ -104,8 +104,9 @@ function nombreParaCruce(nombre: string, marca: string): string {
   let n = normalizar(nombre)
     .replace(/(?<=[A-Z0-9])-(?=[A-Z0-9])/g, "")
     // "RAV 4" (Datacar) es "RAV4" (CADAM): un código corto de letras seguido
-    // de un número de una o dos cifras es una sola palabra.
-    .replace(/\b([A-Z]{2,4}) (\d{1,2})\b/g, "$1$2")
+    // de un número de una o dos cifras SUELTO es una sola palabra. Suelto:
+    // "TERA 1.0 MPI" no es "TERA1", ese 1 es la cilindrada.
+    .replace(/\b([A-Z]{2,4}) (\d{1,2})(?=\s|$)/g, "$1$2")
     // Lynk & Co: Datacar escribe "06+", CADAM "6". El "+" y el cero adelante
     // no son parte del nombre.
     .replace(/\+/g, "")
@@ -147,9 +148,13 @@ export function asignarPrecios(
     if (!elegido) {
       const tm = tokens(nombre);
       const deLaMarca = porMarca.get(marca) ?? [];
+      // Palabras en común DISTINTAS: "RANGER RAPTOR NUEVA RANGER RAPTOR"
+      // repite RANGER y contaba dos contra el "RANGER XL" que contaba una,
+      // y la Ranger quedaba con el precio de la Raptor (US$ 84.150 en vez
+      // de 36.810). A igual cantidad, el más barato: el "desde".
       const puntuar = (lista: Cand[]) =>
         lista
-          .map((c) => ({ c, comunes: c.tokens.filter((t) => tm.includes(t)).length }))
+          .map((c) => ({ c, comunes: new Set(c.tokens.filter((t) => tm.includes(t))).size }))
           .sort((a, b) => b.comunes - a.comunes || a.c.precio - b.c.precio);
       // Primero, misma familia (primera palabra igual).
       elegido = puntuar(deLaMarca.filter((c) => c.tokens[0] === tm[0])).find((x) => x.comunes > 0)?.c;
