@@ -471,45 +471,46 @@ export interface FilaDimension {
   deltaParticipacion: number | null;
 }
 
-export interface CeldaSegmentoTecnologia {
+export interface ModeloTecnologia {
+  marca: string;
+  modelo: string;
   segmento: string;
   /** Código ("ICE", "PHEV"...) o "Sin dato" cuando CADAM no la informa. */
   tecnologia: string;
-  mercado: number;
-  propias: number;
+  unidades: number;
+  esPropia: boolean;
 }
 
 /**
- * Mercado por SEGMENTO × TECNOLOGÍA, con cuánto de cada casillero es de las
- * marcas propias. Solo matriculación: importación no trae tecnología.
+ * Unidades por MODELO × TECNOLOGÍA. Solo matriculación: importación no
+ * trae tecnología. Quien dibuja agrupa por clase (clases.ts): la clase no
+ * está en la base, así que el corte se hace afuera, modelo por modelo.
  *
  * El filtro de tecnología se ignora a propósito —es la dimensión de las
  * columnas, mismo criterio que getPorDimension—; el de segmento sí se
  * respeta, para poder mirar un solo tipo de vehículo.
  */
-export function getMapaSegmentoTecnologia(f: Filtro): CeldaSegmentoTecnologia[] {
-  const propias = [...getMarcasPropiasSet()];
+export function getModelosPorTecnologia(f: Filtro): ModeloTecnologia[] {
+  const propias = getMarcasPropiasSet();
   const fSinTec: Filtro = { ...f };
   delete fSinTec.tecnologia;
   const w = where("matriculacion", fSinTec);
-  // Los placeholders del CASE van ANTES de los del WHERE en el texto de la
-  // consulta, y better-sqlite3 los llena en ese orden.
-  const enPropias = propias.length ? `marca IN (${propias.map(() => "?").join(",")})` : "0";
   const filas = getDb()
     .prepare(
-      `SELECT segmento, tecnologia, SUM(unidades) mercado,
-              SUM(CASE WHEN ${enPropias} THEN unidades ELSE 0 END) propias
+      `SELECT marca, modelo_base modelo, MIN(segmento) segmento, tecnologia, SUM(unidades) unidades
        FROM ${vista("matriculacion")} WHERE ${w.sql}
-       GROUP BY segmento, tecnologia HAVING mercado > 0`
+       GROUP BY marca, modelo_base, tecnologia HAVING unidades > 0`
     )
-    .all(...propias, ...w.args) as {
-    segmento: string | null; tecnologia: string | null; mercado: number; propias: number;
+    .all(...w.args) as {
+    marca: string; modelo: string | null; segmento: string | null; tecnologia: string | null; unidades: number;
   }[];
   return filas.map((r) => ({
+    marca: r.marca,
+    modelo: r.modelo ?? r.marca,
     segmento: r.segmento ?? SEGMENTO_SIN_CLASIFICAR,
     tecnologia: normalizarTecnologias(r.tecnologia),
-    mercado: r.mercado,
-    propias: r.propias,
+    unidades: r.unidades,
+    esPropia: propias.has(r.marca),
   }));
 }
 
