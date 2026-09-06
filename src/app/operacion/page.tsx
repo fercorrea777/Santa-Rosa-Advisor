@@ -1009,7 +1009,9 @@ export default async function OperacionPage({
           </CardContent>
         </Card>
       ) : (
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <>
+        {/* A lo ancho: con las columnas de leads son ocho columnas y a media
+            pantalla la tabla se corta y hay que arrastrarla. */}
         <Card>
           <CardHeader>
             <CardTitle>Ranking retail — {periodo}</CardTitle>
@@ -1094,6 +1096,7 @@ export default async function OperacionPage({
           </CardContent>
         </Card>
 
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>El mejor de cada marca — {periodo}</CardTitle>
@@ -1134,8 +1137,6 @@ export default async function OperacionPage({
             </Table>
           </CardContent>
         </Card>
-      </div>
-      )}
       {mayoristasPeriodo.length > 0 && (
         <Card>
           <CardHeader>
@@ -1170,6 +1171,9 @@ export default async function OperacionPage({
             </Table>
           </CardContent>
         </Card>
+      )}
+        </div>
+      </>
       )}
       <NotaDato>
         <strong>Esto es desempeño individual, no un dato de mercado.</strong>{" "}
