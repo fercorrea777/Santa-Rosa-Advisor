@@ -1034,10 +1034,20 @@ export default async function OperacionPage({
                 <TableHead className="text-right">Abiertos</TableHead>
                 <TableHead className="text-right">Convertidos</TableHead>
                 <TableHead className="text-right">Perdidos</TableHead>
-                <TableHead>Por qué se perdieron</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Negocios (abiertos / ganados / perdidos)</TableHead>
+                <TableHead className="min-w-56">Por qué se perdieron</TableHead>
+                <TableHead className="text-right">
+                  Negocios
+                  <span className="block text-[10px] font-normal normal-case tracking-normal text-muted-foreground whitespace-nowrap">
+                    abiertos / ganados / perdidos
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">Facturado</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Leads por vehículo</TableHead>
+                <TableHead className="text-right">
+                  Leads
+                  <span className="block text-[10px] font-normal normal-case tracking-normal text-muted-foreground whitespace-nowrap">
+                    por vehículo
+                  </span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
