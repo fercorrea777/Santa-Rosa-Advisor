@@ -46,7 +46,7 @@ function normalizar(s: string): string {
  *  palabra sea la familia de verdad. */
 const PREFIJOS = new Set(["NEW", "NUEVO", "NUEVA", "ALL", "THE"]);
 
-function tokens(s: string): string[] {
+export function tokens(s: string): string[] {
   const t = normalizar(s).split(/[\s\-/.]+/).filter(Boolean);
   while (t.length > 1 && PREFIJOS.has(t[0])) t.shift();
   return t;

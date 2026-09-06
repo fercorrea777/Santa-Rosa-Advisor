@@ -48,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/market-share", label: "Market Share", icono: "market-share", implementado: true },
       { href: "/brecha", label: "Import. vs matric.", icono: "brecha", implementado: true },
       { href: "/bubble-chart", label: "Bubble chart", icono: "bubble", implementado: true },
+      { href: "/mapa", label: "Dónde competir", icono: "market-share", implementado: true },
       { href: "/gama-propia", label: "Gama propia", icono: "gama", implementado: true },
       { href: "/operacion", label: "Nuestra operación", icono: "operacion", implementado: true },
     ],

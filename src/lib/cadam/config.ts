@@ -44,14 +44,23 @@ export function getAsesoresMayoristasSet(): Set<string> {
   );
 }
 
-let cached: Parametros | null = null;
+let cached: { mtimeMs: number; valor: Parametros } | null = null;
 
+/**
+ * Cache por fecha de modificación del archivo. En producción el archivo
+ * vive en un volumen (/datos/parametros.json) que Hermes reemplaza sin
+ * redeploy; con un cache de por vida, agregar `asesores_mayoristas` el
+ * 06/09/2026 no se vio hasta reiniciar el contenedor. Un stat por
+ * request es despreciable frente a todo lo demás que hace la página.
+ */
 export function getParametros(): Parametros {
-  if (!cached) {
-    const raw = fs.readFileSync(resolverParametrosPath(), "utf-8");
-    cached = JSON.parse(raw) as Parametros;
+  const ruta = resolverParametrosPath();
+  const mtimeMs = fs.statSync(ruta).mtimeMs;
+  if (!cached || cached.mtimeMs !== mtimeMs) {
+    const raw = fs.readFileSync(ruta, "utf-8");
+    cached = { mtimeMs, valor: JSON.parse(raw) as Parametros };
   }
-  return cached;
+  return cached.valor;
 }
 
 /**
