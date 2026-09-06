@@ -21,6 +21,7 @@ import {
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import { calcularCobertura, etiquetaAccion, RITMO_MINIMO as RITMO_MINIMO_VERSION } from "@/lib/informes/cobertura";
 import { getLeadsAsesor, normalizarNombre } from "@/lib/informes/leads-asesor";
+import { getPautaMarca } from "@/lib/informes/pauta-marca";
 import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -61,12 +62,13 @@ export default async function OperacionPage({
     );
   }
 
-  const [ventasCrudas, stockCrudo, asesoresCrudos, sync, leadsCrudos] = await Promise.all([
+  const [ventasCrudas, stockCrudo, asesoresCrudos, sync, leadsCrudos, pautaCruda] = await Promise.all([
     getVentasPropias(),
     getStockPropio(),
     getVentasAsesor(),
     getEstadoSyncPropio(),
     getLeadsAsesor(),
+    getPautaMarca(),
   ]);
 
   // --- período: lo manda CARS, no CADAM -------------------------------
@@ -199,6 +201,17 @@ export default async function OperacionPage({
   };
   const metaTotal = (f.marca ? [f.marca] : propias).reduce((s, m) => s + metaPeriodoDe(m), 0);
 
+  // --- pauta de Meta por marca, mismo período (la marca sale del nombre de
+  // la cuenta publicitaria; VARIAS y RENEW no se reparten, van al total).
+  const pautaPeriodo = pautaCruda.filter((p) => enVentana(p.periodo, f.anio));
+  const hayPauta = pautaPeriodo.length > 0;
+  const pautaDe = (marca: string) =>
+    pautaPeriodo.filter((p) => p.marca === marca).reduce((s, p) => s + p.gasto_usd, 0);
+  const pautaTotal = pautaPeriodo.reduce((s, p) => s + p.gasto_usd, 0);
+  const pautaSinMarca = pautaPeriodo
+    .filter((p) => !propias.includes(p.marca))
+    .reduce((s, p) => s + p.gasto_usd, 0);
+
   // --- tabla por marca: los tres números al lado, más el stock
   const meses = f.mesHasta - f.mesDesde + 1;
   const marcas = [...new Set([
@@ -232,6 +245,7 @@ export default async function OperacionPage({
         meta: metaPeriodoDe(marca),
         metaAnio: metaAnioDe(marca),
         proyeccion: proyeccionDe(marca),
+        pauta: pautaDe(marca),
       };
     })
     .sort((a, b) => b.facturado - a.facturado);
@@ -726,6 +740,16 @@ export default async function OperacionPage({
             {hayMetas
               ? " La meta sale de Configuración; la proyección de cierre de año toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año."
               : " Cargá metas por marca y mes en Configuración y acá aparecen la meta, el cumplimiento y la proyección de cierre de año."}
+            {hayPauta && (
+              <>
+                {" "}La pauta es el gasto en Meta de las cuentas de cada marca en el período
+                (US$ {formatUnidades(Math.round(pautaTotal))} en total
+                {pautaSinMarca > 0
+                  ? `, de los cuales US$ ${formatUnidades(Math.round(pautaSinMarca))} en cuentas de usados o de varias marcas, que no se reparten`
+                  : ""}
+                ); «pauta por vehículo» es ese gasto dividido lo facturado — no es una atribución, es un costo promedio.
+              </>
+            )}
           </p>
         </CardHeader>
         <CardContent>
@@ -746,6 +770,12 @@ export default async function OperacionPage({
                     <TableHead className="text-right">Meta</TableHead>
                     <TableHead className="text-right">Cumplimiento</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Proyección / meta año</TableHead>
+                  </>
+                )}
+                {hayPauta && (
+                  <>
+                    <TableHead className="text-right whitespace-nowrap">Pauta Meta (US$)</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Pauta por vehículo</TableHead>
                   </>
                 )}
               </TableRow>
@@ -806,6 +836,16 @@ export default async function OperacionPage({
                       </TableCell>
                     </>
                   )}
+                  {hayPauta && (
+                    <>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {r.pauta ? `US$ ${formatUnidades(Math.round(r.pauta))}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-medium">
+                        {r.pauta && r.facturado ? `US$ ${formatUnidades(Math.round(r.pauta / r.facturado))}` : "—"}
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))}
               {resumenAjenas.marcas > 0 && (
@@ -826,6 +866,12 @@ export default async function OperacionPage({
                   {hayMetas && (
                     <>
                       <TableCell className="text-right">—</TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                    </>
+                  )}
+                  {hayPauta && (
+                    <>
                       <TableCell className="text-right">—</TableCell>
                       <TableCell className="text-right">—</TableCell>
                     </>
@@ -1028,8 +1074,15 @@ export default async function OperacionPage({
                           >
                             {l ? formatUnidades(l.sinContacto) : "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {l && l.leads ? formatPct(a.unidades / l.leads) : "—"}
+                          <TableCell
+                            className="text-right tabular-nums"
+                            title={
+                              l && l.leads && (l.leads < 20 || a.unidades > l.leads)
+                                ? "Bitrix le asigna pocos leads a este asesor (los recibe quien califica): la conversión no se puede calcular con sentido."
+                                : undefined
+                            }
+                          >
+                            {l && l.leads >= 20 && a.unidades <= l.leads ? formatPct(a.unidades / l.leads) : "—"}
                           </TableCell>
                         </>
                       );
@@ -1131,6 +1184,17 @@ export default async function OperacionPage({
           : ""}
         . Si algún nombre en cursiva no es una persona (una razón social,
         por ejemplo), Cars lo cargó en el mismo campo que a un asesor.
+        {hayLeads && (
+          <>
+            {" "}<strong>Sobre los leads:</strong> son los de Bitrix, por
+            responsable y mes. El CRM le asigna la mayoría a quienes califican
+            (el equipo que llama primero), no a quien cierra, así que muchos
+            vendedores aparecen con pocos leads o ninguno. «Lead → venta» solo
+            se calcula cuando el asesor tiene al menos 20 leads asignados y no
+            vende más de lo que le asignan; si no, sería un porcentaje sin
+            sentido, y se muestra «—».
+          </>
+        )}
       </NotaDato>
       </Seccion>
 
