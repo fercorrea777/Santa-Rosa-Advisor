@@ -525,6 +525,12 @@ export interface Rival {
   tecnologia?: string;
   /** Misma banda de precio que nuestro modelo: el rival más directo. */
   mismaBanda: boolean;
+  /** Tiene precio en la MISMA CAJA que compara nuestro modelo (Fernando,
+   *  07/09/2026: un automático se compara con un automático). null cuando
+   *  nuestro modelo no tiene caja conocida y no hay con qué comparar. */
+  mismaCaja: boolean | null;
+  /** Su precio en esa caja, para verlo al lado del "desde". */
+  precioCaja: number | null;
   /** La clase del rival fue inferida por precio, no por catálogo. */
   claseInferida: boolean;
   deltaShare: number | null;
@@ -532,6 +538,9 @@ export interface Rival {
 
 export interface Duelo {
   propio: ModeloConBanda;
+  /** Con qué caja se compara este modelo: la que tiene (automático si tiene
+   *  las dos, que es lo que más se vende) o "desde" si no dice ninguna. */
+  caja: "AT" | "MT" | null;
   /** TODOS los rivales de la misma clase, del que más vende al que menos.
    *  Sin recorte: quien dibuja decide cuántos mostrar de entrada. */
   rivales: Rival[];
@@ -539,6 +548,8 @@ export interface Duelo {
   unidadesClase: number;
   /** Cuántos rivales comparten la banda de nuestro modelo. */
   enMismaBanda: number;
+  /** Cuántos tienen precio en la misma caja. */
+  enMismaCaja: number;
 }
 
 /**
@@ -557,27 +568,37 @@ export function rivalesDirectos(modelos: ModeloConBanda[]): Duelo[] {
   }
   return propios.map((p) => {
     const deLaClase = porClase.get(p.clase) ?? [];
+    // La caja de nuestro modelo: automático si lo tiene (es lo que más se
+    // vende), si no mecánico, si no ninguna.
+    const caja: "AT" | "MT" | null = p.precioAT ? "AT" : p.precioMT ? "MT" : null;
     const rivales: Rival[] = deLaClase
       .filter((m) => !m.esPropia)
       .sort((a, b) => b.unidades - a.unidades)
-      .map((m) => ({
-        marca: m.marca,
-        modelo: m.modelo,
-        unidades: m.unidades,
-        precio: m.precio,
-        precioMT: m.precioMT,
-        precioAT: m.precioAT,
-        banda: m.banda,
-        tecnologia: m.tecnologia,
-        mismaBanda: p.banda !== SIN_PRECIO && m.banda === p.banda,
-        claseInferida: m.claseOrigen !== "catalogo",
-        deltaShare: m.deltaShare,
-      }));
+      .map((m) => {
+        const precioCaja = caja === "AT" ? m.precioAT : caja === "MT" ? m.precioMT : null;
+        return {
+          marca: m.marca,
+          modelo: m.modelo,
+          unidades: m.unidades,
+          precio: m.precio,
+          precioMT: m.precioMT,
+          precioAT: m.precioAT,
+          banda: m.banda,
+          tecnologia: m.tecnologia,
+          mismaBanda: p.banda !== SIN_PRECIO && m.banda === p.banda,
+          mismaCaja: caja === null ? null : precioCaja !== null,
+          precioCaja,
+          claseInferida: m.claseOrigen !== "catalogo",
+          deltaShare: m.deltaShare,
+        };
+      });
     return {
       propio: p,
+      caja,
       rivales,
       unidadesClase: deLaClase.reduce((s, m) => s + m.unidades, 0),
       enMismaBanda: rivales.filter((r) => r.mismaBanda).length,
+      enMismaCaja: rivales.filter((r) => r.mismaCaja).length,
     };
   });
 }

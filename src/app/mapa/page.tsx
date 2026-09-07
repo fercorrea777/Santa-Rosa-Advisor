@@ -402,7 +402,10 @@ export default async function MapaPage({
             competencia en su misma clase, con unidades, precio de lista y
             motorización. Los de su misma banda de precio van marcados; los
             demás no quedan afuera: una pick-up mediana compite con todas las
-            pick-ups medianas, esté una banda arriba o abajo. Los primeros{" "}
+            pick-ups medianas, esté una banda arriba o abajo.{" "}
+            <strong>Misma caja</strong>: los que tienen versión de la misma
+            transmisión que la nuestra van primero, con su precio en esa caja;
+            los que no la dicen quedan atenuados. Los primeros{" "}
             {RIVALES_A_LA_VISTA} van a la vista; el resto, plegado.
           </p>
         </CardHeader>
@@ -423,8 +426,14 @@ export default async function MapaPage({
               </TableHeader>
               <TableBody>
                 {duelos.map((d) => {
-                  const aLaVista = d.rivales.slice(0, RIVALES_A_LA_VISTA);
-                  const plegados = d.rivales.slice(RIVALES_A_LA_VISTA);
+                  // Con la caja conocida, primero los que se comparan de
+                  // verdad (misma caja) y después el resto, sin perder el
+                  // orden por volumen dentro de cada grupo.
+                  const ordenados = d.caja
+                    ? [...d.rivales].sort((a, b) => Number(!!b.mismaCaja) - Number(!!a.mismaCaja))
+                    : d.rivales;
+                  const aLaVista = ordenados.slice(0, RIVALES_A_LA_VISTA);
+                  const plegados = ordenados.slice(RIVALES_A_LA_VISTA);
                   const parteDeLaClase = d.unidadesClase ? d.propio.unidades / d.unidadesClase : 0;
                   return (
                     <TableRow key={`${d.propio.marca}|${d.propio.modelo}`}>
@@ -462,15 +471,16 @@ export default async function MapaPage({
                               {d.rivales.length} {d.rivales.length === 1 ? "rival" : "rivales"} ·{" "}
                               {formatUnidades(d.unidadesClase)} u. en la clase
                               {d.propio.banda !== SIN_PRECIO ? ` · ${d.enMismaBanda} en su misma banda` : ""}
+                              {d.caja ? ` · ${d.enMismaCaja} con ${d.caja === "AT" ? "automático" : "mecánico"} como el nuestro` : ""}
                             </span>
-                            {aLaVista.map((r) => <LineaRival key={`${r.marca}|${r.modelo}`} r={r} />)}
+                            {aLaVista.map((r) => <LineaRival key={`${r.marca}|${r.modelo}`} r={r} caja={d.caja} />)}
                             {plegados.length > 0 && (
                               <details className="mt-1">
                                 <summary className="cursor-pointer text-[11px] font-medium text-primary">
                                   Ver {plegados.length} más
                                 </summary>
                                 <div className="mt-1">
-                                  {plegados.map((r) => <LineaRival key={`${r.marca}|${r.modelo}`} r={r} />)}
+                                  {plegados.map((r) => <LineaRival key={`${r.marca}|${r.modelo}`} r={r} caja={d.caja} />)}
                                 </div>
                               </details>
                             )}
@@ -640,9 +650,9 @@ function Casillero({ l, tipo }: { l: LecturaCasillero; tipo: "entrar" | "defende
 /** Un rival en la lista: marca y modelo, unidades, precio y motorización.
  *  Los de la misma banda que nuestro modelo llevan la marca al lado; los
  *  que entraron a la clase por precio y no por catálogo, también. */
-function LineaRival({ r }: { r: Rival }) {
+function LineaRival({ r, caja }: { r: Rival; caja: "AT" | "MT" | null }) {
   return (
-    <span className="block">
+    <span className={cn("block", caja && r.mismaCaja === false && "opacity-60")}>
       <span className={cn(r.mismaBanda ? "font-semibold" : "font-medium")}>{r.marca} {r.modelo}</span>{" "}
       <span className="text-muted-foreground">
         · {formatUnidades(r.unidades)} u.
@@ -654,6 +664,22 @@ function LineaRival({ r }: { r: Rival }) {
       </span>
       {r.mismaBanda && (
         <span className="ml-1.5 rounded bg-primary/10 px-1 py-px text-[10px] font-medium text-primary">misma banda</span>
+      )}
+      {caja && r.mismaCaja && (
+        <span
+          className="ml-1.5 rounded bg-emerald-500/10 px-1 py-px text-[10px] font-medium text-emerald-700 dark:text-emerald-400"
+          title={`Tiene versión ${caja === "AT" ? "automática" : "mecánica"}, como el nuestro: US$ ${formatUnidades(r.precioCaja ?? 0)}`}
+        >
+          misma caja · {formatUnidades(r.precioCaja ?? 0)}
+        </span>
+      )}
+      {caja && r.mismaCaja === false && (
+        <span
+          className="ml-1.5 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground"
+          title={`Su nombre no dice si tiene ${caja === "AT" ? "automático" : "mecánico"}: no entra en la comparación por caja.`}
+        >
+          sin {caja}
+        </span>
       )}
       {r.claseInferida && (
         <span className="ml-1.5 rounded bg-muted px-1 py-px text-[10px] text-muted-foreground" title="No está en el catálogo de clases: se ubicó por precio.">clase por precio</span>
