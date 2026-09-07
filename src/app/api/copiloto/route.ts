@@ -9,6 +9,10 @@ import {
   getEstadoSyncPropio, getStockPropio, getVentasPropias,
 } from "@/lib/informes/propios";
 import {
+  anioActual, resumenAsesores, resumenDemanda, resumenPauta, resumenPedido, resumenRivales,
+} from "@/lib/informes/tablero";
+import { getCobertura } from "@/lib/cadam/mercado";
+import {
   modeloCopiloto, responderConGemma, type HerramientaLocal,
 } from "@/lib/copiloto/ollama";
 
@@ -296,8 +300,31 @@ const tLeerConocimientoCompetencia = (anotar: Anotar): HerramientaLocal => ({
  * X, se matricularon Y"— y para eso necesita las dos fuentes por separado,
  * con la advertencia de que NO miden lo mismo.
  */
-async function leerOperacionPropia(input: { que?: string }): Promise<string> {
+async function leerOperacionPropia(input: { que?: string; anio?: number }): Promise<string> {
   try {
+    // Los resúmenes del tablero (06/09/2026): asesores, demanda de Bitrix,
+    // pauta de Meta, rivales por clase y pedido de stock. Son los mismos
+    // cálculos que muestran /operacion y /mapa (lib/informes/tablero.ts),
+    // ya interpretados en código: el modelo cita, no recalcula.
+    const anio = input.anio ?? anioActual();
+    if (input.que === "asesores") return JSON.stringify(await resumenAsesores(anio));
+    if (input.que === "demanda") {
+      const d = await resumenDemanda(anio);
+      return JSON.stringify(d ?? { aviso: "Bitrix todavía no cargó leads ni negocios en el Advisor." });
+    }
+    if (input.que === "pauta") {
+      const p = await resumenPauta(anio);
+      return JSON.stringify(p ?? { aviso: "Meta todavía no cargó pauta en el Advisor." });
+    }
+    if (input.que === "pedido") return JSON.stringify(await resumenPedido());
+    if (input.que === "rivales") {
+      const cobertura = getCobertura();
+      const ultimo = cobertura.matriculacion.ultimo;
+      const f = ultimo && ultimo.anio === anio
+        ? { anio, mesDesde: 1, mesHasta: ultimo.mes }
+        : { anio, mesDesde: 1, mesHasta: 12 };
+      return JSON.stringify({ periodoCadam: f, ...(await resumenRivales(f)) });
+    }
     const [ventas, stock, sync] = await Promise.all([
       getVentasPropias(),
       getStockPropio(),
@@ -328,27 +355,43 @@ async function leerOperacionPropia(input: { que?: string }): Promise<string> {
 const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
   nombre: "leer_operacion_propia",
   descripcion:
-    "Datos de la operación de Santa Rosa que salen del API de Cars (el DMS " +
-    "de la casa), no de CADAM: unidades FACTURADAS por mes/marca/modelo, y " +
-    "el STOCK actual por marca/modelo/estado con su precio de lista en " +
-    "dólares. Usala para preguntas sobre cómo vamos NOSOTROS (cuánto " +
-    "vendimos, qué tenemos, cuánto stock queda de un modelo). Ojo: factura " +
-    "no es matriculación, y no hay importes de facturación disponibles.",
+    "Datos de la operación de Santa Rosa y del tablero comercial, no de " +
+    "CADAM. Elegí QUÉ: 'ventas' (vehículos FACTURADOS por mes/marca/modelo, " +
+    "API de Cars), 'stock' (stock actual por marca/modelo/estado con precio " +
+    "de lista en dólares), 'asesores' (ranking retail del año, mayoristas " +
+    "aparte, mejor asesor por marca), 'demanda' (leads y negocios de Bitrix " +
+    "por marca y modelo: abiertos, convertidos, perdidos y por qué), " +
+    "'pauta' (gasto en Meta por marca y pauta por vehículo facturado), " +
+    "'rivales' (para cada modelo nuestro: su clase —SUV chico, pick-up " +
+    "mediana…—, sus rivales directos con unidades y precio, y si estamos " +
+    "caros o baratos contra la clase) y 'pedido' (qué versiones pedir, cuáles " +
+    "empujar con promo y qué asesores dejaron de facturar). Ojo: factura no " +
+    "es matriculación, y no hay importes de facturación disponibles.",
   parametros: {
     type: "object",
     properties: {
       que: {
         type: "string",
-        enum: ["ventas", "stock", "todo"],
+        enum: ["ventas", "stock", "asesores", "demanda", "pauta", "rivales", "pedido", "todo"],
         description:
-          "Acotá a 'ventas' o 'stock' cuando alcance: 'todo' devuelve ~1.000 filas.",
+          "Qué resumen traer. Acotá siempre: 'todo' devuelve ventas y stock crudos (~1.000 filas).",
+      },
+      anio: {
+        type: "integer",
+        description: "Año para asesores, demanda, pauta y rivales. Por defecto, el año en curso.",
       },
     },
     additionalProperties: false,
   },
   ejecutar: (input) => {
-    anotar("Cars (DMS propio) — facturación y stock");
-    return leerOperacionPropia(input as { que?: string });
+    const que = (input as { que?: string }).que ?? "todo";
+    anotar(
+      que === "demanda" ? "Bitrix — leads y negocios"
+        : que === "pauta" ? "Meta — pauta por marca · Cars"
+        : que === "rivales" ? "CADAM · Cars · Datacar — rivales por clase"
+        : "Cars (DMS propio) — facturación y stock"
+    );
+    return leerOperacionPropia(input as { que?: string; anio?: number });
   },
 });
 

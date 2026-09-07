@@ -31,11 +31,11 @@ export default function CopilotoPage() {
         <TabsContent value="chat" className="flex min-h-0 flex-1 flex-col">
           <ChatCopiloto
             sugerencias={[
-              "¿Cómo viene JETOUR contra CHERY este año?",
-              "¿A qué precio está la competencia en SUV compactas?",
-              "¿Qué promociones tienen los rivales esta semana?",
-              "Top 5 modelos PHEV y quién los importa",
-              "¿En qué segmentos estamos más débiles?",
+              "¿Contra quién compite la X50 y a qué precio está cada rival?",
+              "¿Qué versiones hay que pedir y cuáles empujar con promo?",
+              "¿Qué marca pierde más leads y por qué?",
+              "¿Cuánto nos cuesta en pauta cada vehículo vendido, por marca?",
+              "¿Quiénes son los mejores asesores del año y de cada marca?",
               "¿Quién ganó y quién perdió market share este año?",
             ]}
           />

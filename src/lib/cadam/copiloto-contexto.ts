@@ -257,9 +257,19 @@ export function armarSystemPrompt(
       `nuestra facturacion y stock (API de Cars).`
     : `y tres fuentes internas mas: leer_informe_competencia (informes ` +
       `semanales), leer_conocimiento_competencia (precios y promociones de ` +
-      `competencia que releva Hermes) y leer_operacion_propia (nuestra ` +
-      `facturacion y stock, del API de Cars). NO tenes acceso a internet: si ` +
-      `algo no esta en esas fuentes, decilo en vez de suponerlo.`;
+      `competencia que releva Hermes) y leer_operacion_propia, que ademas de ` +
+      `nuestra facturacion y stock (API de Cars) trae los resumenes del ` +
+      `tablero ya calculados: 'asesores' (ranking retail), 'demanda' (leads y ` +
+      `negocios de Bitrix, abiertos/convertidos/perdidos y motivos), 'pauta' ` +
+      `(gasto en Meta y pauta por vehiculo), 'rivales' (clase de cada modelo ` +
+      `nuestro, sus rivales directos con unidades y precio, y si estamos caros ` +
+      `o baratos contra la clase) y 'pedido' (que versiones pedir, cuales ` +
+      `empujar, asesores que dejaron de facturar). Para "contra quien ` +
+      `compite", "que pedir", "leads perdidos", "pauta por vehiculo" o ` +
+      `"mejores asesores" usa ESE resumen y cita sus numeros tal cual: ya ` +
+      `estan interpretados en codigo, no los recalcules ni los reinterpretes. ` +
+      `NO tenes acceso a internet: si algo no esta en esas fuentes, decilo en ` +
+      `vez de suponerlo.`;
 
   return (
     `Sos el copiloto de inteligencia comercial de Santa Rosa Paraguay S.A. ` +

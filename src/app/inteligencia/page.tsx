@@ -7,6 +7,7 @@ import { ConocimientoPanel } from "@/components/copiloto/conocimiento-panel";
 import { Seccion } from "@/components/dashboard/seccion";
 import { getCobertura, getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { generarInforme, type Item, type Prioridad, type Tipo } from "@/lib/cadam/inteligencia";
+import { generarLecturaPropia } from "@/lib/informes/inteligencia-propia";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -38,7 +39,17 @@ export default async function InteligenciaPage({
   const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
   const opciones = getOpcionesFiltro();
-  const informe = generarInforme(f, periodo);
+  const deCadam = generarInforme(f, periodo);
+  // La otra mitad de la lectura: nuestra operación (Cars), la demanda de
+  // Bitrix, la pauta de Meta y el mercado por clase de vehículo. Mismo
+  // formato, mezclado en las mismas secciones: el gerente lee una sola lista.
+  const propia = await generarLecturaPropia(f, periodo);
+  const informe = {
+    ...deCadam,
+    resumen: [...deCadam.resumen, ...propia.resumen],
+    items: [...deCadam.items, ...propia.items],
+    advertencias: [...deCadam.advertencias, ...propia.advertencias],
+  };
 
   const mesMax: Record<number, number> = {};
   for (const a of cobertura.matriculacion.anios) {
@@ -50,8 +61,8 @@ export default async function InteligenciaPage({
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Centro de Inteligencia Comercial"
-        descripcion={`Lectura automática del período · ${periodo} vs. ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        descripcion={`Lectura automática del mercado (${periodo} vs. ${f.anio - 1}) y de nuestra operación al día de hoy.`}
+        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · Cars (stock y facturación) · Bitrix (demanda) · Meta (pauta) · Datacar (precios de la competencia) · catálogo de clases de vehículo.`}
       />
 
       <FiltroPeriodo
@@ -132,10 +143,12 @@ export default async function InteligenciaPage({
 
       <NotaDato>
         Estas {informe.items.length} lecturas salen de <strong>reglas y cálculos</strong>{" "}
-        sobre la base interna, sin inteligencia artificial externa. Cada punto muestra
-        la evidencia numérica de la que sale. Para evitar conclusiones falsas, las reglas{" "}
-        <strong>ignoran las bases menores a 30 unidades</strong>: un &ldquo;+800%&rdquo;
-        que va de 1 a 9 unidades no dice nada del mercado.
+        sobre las fuentes cargadas, sin inteligencia artificial externa. Cada punto muestra
+        la evidencia numérica de la que sale y, al pie, de qué fuente y período: las del
+        mercado (CADAM) cierran en el último mes publicado; las de nuestra operación (Cars,
+        Bitrix, Meta) llegan hasta hoy. Para evitar conclusiones falsas, las reglas{" "}
+        <strong>ignoran las bases chicas</strong>: un &ldquo;+800%&rdquo; que va de 1 a 9
+        unidades no dice nada del mercado.
       </NotaDato>
 
       {/* Fuentes externas: a diferencia de todo lo de arriba (reglas sobre
