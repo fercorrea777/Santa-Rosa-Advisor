@@ -19,8 +19,8 @@ export default function CopilotoPage() {
     <div className="flex h-full flex-col gap-5">
       <PageHeader
         titulo="Copiloto"
-        descripcion="Preguntale a los datos en lenguaje natural. Consulta él mismo las fuentes —CADAM, el relevamiento de competencia de Hermes y nuestra operación— y muestra abajo de cada respuesta cuáles abrió."
-        fuente={`CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · precios y promociones de competencia relevados por Hermes · facturación y stock del API de Cars. Sin acceso a internet.`}
+        descripcion="Preguntale a los datos en lenguaje natural. Consulta él mismo las fuentes —CADAM, el relevamiento de competencia de Hermes, nuestra operación, la demanda de Bitrix y la pauta de Meta— y muestra abajo de cada respuesta cuáles abrió."
+        fuente={`CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · precios y promociones de competencia relevados por Hermes · facturación, stock y asesores del API de Cars · leads y negocios de Bitrix · pauta de Meta · rivales por clase de vehículo. Sin acceso a internet.`}
       />
 
       <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col gap-3">

@@ -66,6 +66,18 @@ export async function getLeadsAsesor(): Promise<LeadsAsesor[]> {
   }
 }
 
+/** Cuándo fue el último push, o null: para «Estado de los datos». */
+export async function getActualizacionLeadsAsesor(): Promise<Date | null> {
+  try {
+    const { rows } = await getPool().query<{ fecha: Date | null }>(
+      `select max(actualizado_en) fecha from leads_asesor`
+    );
+    return rows[0]?.fecha ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Misma normalización que el pusher: MAYÚSCULAS, sin acentos, un espacio.
  *  Cars ya escribe así; Bitrix no siempre. */
 export function normalizarNombre(nombre: string): string {

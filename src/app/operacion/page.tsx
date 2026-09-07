@@ -517,7 +517,7 @@ export default async function OperacionPage({
         }.`}
         fuente={`Fuente: API de Cars (DMS propio)${
           sync ? ` · sincronizado ${formatFechaHora(sync.actualizado_en)}` : ""
-        }.`}
+        }${hayLeads || hayDemanda ? " · leads y demanda de Bitrix" : ""}${hayPauta ? " · pauta de Meta" : ""} · matriculaciones de CADAM.`}
       />
 
       <FiltroPeriodo

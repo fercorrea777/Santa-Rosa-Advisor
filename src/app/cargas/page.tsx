@@ -8,6 +8,10 @@ import {
 import { getArchivos, getCobertura } from "@/lib/cadam/mercado";
 import { getEstadoSyncPropio } from "@/lib/informes/propios";
 import { getIndiceConocimiento } from "@/lib/informes/conocimiento";
+import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
+import { getActualizacionDemandaBitrix, getDemandaBitrix } from "@/lib/informes/demanda-bitrix";
+import { getActualizacionLeadsAsesor } from "@/lib/informes/leads-asesor";
+import { getActualizacionPautaMarca, getPautaMarca } from "@/lib/informes/pauta-marca";
 import { formatUnidades } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -66,10 +70,24 @@ export default async function EstadoDatosPage() {
   // Las dos fuentes de Postgres pueden no estar (base caída, tablas sin
   // crear). Que la pantalla de estado se caiga por eso sería el colmo:
   // se degradan a "sin registro" y el resto sigue en pie.
-  const [sync, indice] = await Promise.all([
+  const [sync, indice, precios, demanda, demandaFecha, leadsFecha, pauta, pautaFecha] = await Promise.all([
     getEstadoSyncPropio().catch(() => null),
     getIndiceConocimiento().catch(() => []),
+    getPreciosCompetencia().catch(() => []),
+    getDemandaBitrix().catch(() => []),
+    getActualizacionDemandaBitrix().catch(() => null),
+    getActualizacionLeadsAsesor().catch(() => null),
+    getPautaMarca().catch(() => []),
+    getActualizacionPautaMarca().catch(() => null),
   ]);
+  const ultimoPrecio = precios.length
+    ? new Date(Math.max(...precios.map((p) => new Date(p.actualizado_en).getTime())))
+    : null;
+  const marcasConPrecio = new Set(precios.map((p) => p.marca)).size;
+  const leadsDemanda = demanda.filter((d) => d.origen === "lead").reduce((s, d) => s + d.cantidad, 0);
+  const negociosDemanda = demanda.filter((d) => d.origen === "negocio").reduce((s, d) => s + d.cantidad, 0);
+  const gastoPauta = pauta.reduce((s, p) => s + p.gasto_usd, 0);
+  const cuentasPauta = new Set(pauta.map((p) => p.marca)).size;
 
   const ultimoConocimiento = indice.length
     ? new Date(
@@ -117,6 +135,52 @@ export default async function EstadoDatosPage() {
       frioH: 96,
       motor: "Hermes · «Conocimiento de competencia», 08:15 diario",
     },
+    // Las cuatro fuentes que entraron el 06/09/2026: alimentan Dónde
+    // competir, Nuestra operación y el Centro de Inteligencia. Van con el
+    // job semanal del benchmark; siete días es lo normal, doce ya es que
+    // el lunes no corrió.
+    {
+      nombre: "Precios de la competencia (Datacar)",
+      detalle: precios.length
+        ? `${formatUnidades(precios.length)} precios de lista de ${marcasConPrecio} marcas · catálogo de terceros`
+        : "Sin precios cargados",
+      cadencia: "Semanal",
+      actualizado: ultimoPrecio,
+      tibioH: 8 * 24,
+      frioH: 12 * 24,
+      motor: "Hermes · «Benchmark competitivo», lunes 10:00",
+    },
+    {
+      nombre: "Demanda (Bitrix)",
+      detalle: demanda.length
+        ? `${formatUnidades(leadsDemanda)} leads y ${formatUnidades(negociosDemanda)} negocios del año, por marca, modelo, estado y motivo`
+        : "Sin demanda cargada",
+      cadencia: "Semanal",
+      actualizado: demandaFecha ? new Date(demandaFecha) : null,
+      tibioH: 8 * 24,
+      frioH: 12 * 24,
+      motor: "Hermes · «Benchmark competitivo», lunes 10:00",
+    },
+    {
+      nombre: "Leads por asesor (Bitrix)",
+      detalle: leadsFecha ? "Leads por responsable y mes, cruzados con Cars en el ranking de asesores" : "Sin leads cargados",
+      cadencia: "Semanal",
+      actualizado: leadsFecha ? new Date(leadsFecha) : null,
+      tibioH: 8 * 24,
+      frioH: 12 * 24,
+      motor: "Hermes · «Benchmark competitivo», lunes 10:00",
+    },
+    {
+      nombre: "Pauta (Meta)",
+      detalle: pauta.length
+        ? `US$ ${formatUnidades(Math.round(gastoPauta))} en el año, ${cuentasPauta} marcas · gasto por cuenta y mes`
+        : "Sin pauta cargada",
+      cadencia: "Semanal",
+      actualizado: pautaFecha ? new Date(pautaFecha) : null,
+      tibioH: 8 * 24,
+      frioH: 12 * 24,
+      motor: "Hermes · «Benchmark competitivo», lunes 10:00",
+    },
   ];
 
   const hayProblema = fuentes.some((f) => {
@@ -163,10 +227,10 @@ export default async function EstadoDatosPage() {
         <Card>
           <CardContent className="flex flex-col gap-3 text-sm">
             <p className="text-muted-foreground">
-              Las tres fuentes se actualizan solas desde los cron de Hermes, que
+              Todas las fuentes se actualizan solas desde los cron de Hermes, que
               corren en la máquina de Croman —no en este servidor— porque es
-              donde están las credenciales de CADAM y de Cars. El tablero es el
-              consumidor: nunca sale a buscar nada por su cuenta.
+              donde están las credenciales de CADAM, Cars, Bitrix y Meta. El
+              tablero es el consumidor: nunca sale a buscar nada por su cuenta.
             </p>
             <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-muted-foreground">
               <li>
@@ -184,6 +248,15 @@ export default async function EstadoDatosPage() {
                 <strong className="text-foreground">Competencia.</strong> Empuja el
                 vault de Hermes: benchmark de precios, battle cards y el scan
                 diario de promociones.
+              </li>
+              <li>
+                <strong className="text-foreground">Benchmark semanal.</strong> Los
+                lunes, un solo job lee el catálogo de Datacar (precios de lista de
+                la competencia), Bitrix (leads y negocios por marca, modelo, estado y
+                motivo; leads por asesor) y Meta (gasto por cuenta y mes), agrega
+                todo en la máquina y empuja sólo los conteos. Con eso viven Dónde
+                competir, la demanda y la pauta de Nuestra operación, y la mitad
+                del Centro de Inteligencia.
               </li>
             </ol>
             <p className="text-xs text-muted-foreground">

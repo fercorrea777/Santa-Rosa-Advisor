@@ -69,3 +69,15 @@ export async function getPautaMarca(): Promise<PautaMarca[]> {
     return [];
   }
 }
+
+/** Cuándo fue el último push, o null: para «Estado de los datos». */
+export async function getActualizacionPautaMarca(): Promise<Date | null> {
+  try {
+    const { rows } = await getPool().query<{ fecha: Date | null }>(
+      `select max(actualizado_en) fecha from pauta_marca`
+    );
+    return rows[0]?.fecha ?? null;
+  } catch {
+    return null;
+  }
+}
