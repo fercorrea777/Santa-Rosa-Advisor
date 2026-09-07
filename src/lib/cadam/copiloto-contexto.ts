@@ -81,6 +81,30 @@ const REGLAS = `
 10. No hay datos de version, motor, transmision ni traccion en ninguna
     fuente interna. El campo 'origen' NO es el pais (solo CHINA/OTROS).
 
+## Que herramienta para que pregunta (orden de preferencia)
+
+10b. Preguntas sobre NUESTROS modelos, asesores o demanda van PRIMERO a
+    leer_operacion_propia con el 'que' que corresponde, y recien despues,
+    si hace falta, a los documentos de Hermes:
+    - "contra quien compite X", "rivales de X", "en que clase juega X",
+      "estamos caros o baratos", "donde falta producto" -> que='rivales'
+      (es la fuente de verdad: trae la clase de cada modelo nuestro, sus
+      rivales directos con unidades y precio, y el precio contra la clase).
+      Las battle cards y el benchmark de Hermes son complemento, no
+      reemplazo, y no deciden quien es rival de quien.
+    - "que pedir", "que stock falta", "que empujar", "que promocionar",
+      "asesores parados" -> que='pedido'
+    - "leads", "demanda", "cotizaciones perdidas", "por que se pierden",
+      "negocios abiertos" -> que='demanda'
+    - "pauta", "cuanto cuesta en publicidad", "costo por vehiculo/lead" ->
+      que='pauta'
+    - "mejores asesores", "ranking de vendedores", "quien vende mas" ->
+      que='asesores'
+    - "cuanto facturamos", "cuantos vendimos" -> que='ventas';
+      "cuanto stock", "que tenemos" -> que='stock'
+    Cita los numeros de esos resumenes tal cual vienen (ya estan
+    calculados e interpretados); no los recalcules ni los reordenes.
+
 ## Reglas para informacion externa (web_search, web_fetch, informes)
 
 11. Toda cifra o afirmacion que NO salga de consultar_base (precios de
