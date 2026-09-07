@@ -264,9 +264,17 @@ export interface LecturaCasillero {
   rivales: ModeloConBanda[];
   /** Nuestros modelos en el casillero. */
   propios: ModeloConBanda[];
-  /** Mediana de precio, adentro del casillero. Positivo = estamos caros. */
+  /**
+   * Mediana de precio adentro del casillero. Acá alcanza UN precio: el
+   * casillero es una lista corta y concreta, y decir "—" mientras la tabla
+   * de abajo muestra el precio de nuestro único modelo es mentirle al que
+   * mira. Cuántos precios la sostienen va al lado, en `nPrecios*`.
+   */
   precioNuestro: number | null;
   precioRival: number | null;
+  nPreciosNuestros: number;
+  nPreciosRivales: number;
+  /** Positivo = estamos caros contra la mediana del casillero. */
   diferencia: number | null;
 }
 
@@ -275,8 +283,10 @@ export function lecturaCasillero(celda: Celda, totalMercado: number): LecturaCas
   const share = celda.mercado ? celda.propias / celda.mercado : 0;
   const rivales = celda.modelos.filter((m) => !m.esPropia);
   const propios = celda.modelos.filter((m) => m.esPropia);
-  const precioNuestro = mediana(propios.map((m) => m.precio).filter((p): p is number => !!p));
-  const precioRival = mediana(rivales.map((m) => m.precio).filter((p): p is number => !!p));
+  const preciosNuestros = propios.map((m) => m.precio).filter((p): p is number => !!p);
+  const preciosRivales = rivales.map((m) => m.precio).filter((p): p is number => !!p);
+  const precioNuestro = medianaDe(preciosNuestros);
+  const precioRival = medianaDe(preciosRivales);
   const pesa = peso >= PESO_RELEVANTE;
   const accion: AccionCasillero | null =
     pesa && share < SHARE_AUSENTE ? "entrar"
@@ -285,8 +295,17 @@ export function lecturaCasillero(celda: Celda, totalMercado: number): LecturaCas
       : null;
   return {
     celda, peso, share, accion, rivales, propios, precioNuestro, precioRival,
+    nPreciosNuestros: preciosNuestros.length,
+    nPreciosRivales: preciosRivales.length,
     diferencia: precioNuestro && precioRival ? precioNuestro / precioRival - 1 : null,
   };
+}
+
+/** Mediana con un solo valor permitido: el de una lista de uno es ese. */
+function medianaDe(valores: number[]): number | null {
+  if (!valores.length) return null;
+  const v = [...valores].sort((a, b) => a - b);
+  return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
 }
 
 export interface Rival {

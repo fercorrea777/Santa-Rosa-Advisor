@@ -44,9 +44,12 @@ export interface CeldaMapa {
   modelos: ModeloCasillero[];
   /** Cuántos modelos hay en total (los mostrados pueden ser menos). */
   modelosTotal: number;
-  /** Medianas de precio dentro del casillero. */
+  /** Medianas de precio dentro del casillero, con cuántos precios las
+   *  sostienen: una "mediana" de un solo precio se dice, no se disfraza. */
   precioNuestro: number | null;
   precioRival: number | null;
+  nPreciosNuestros: number;
+  nPreciosRivales: number;
 }
 
 export interface ColumnaMapa {
@@ -305,15 +308,23 @@ function DetalleCasillero({
                 <Cifra
                   titulo="Precio de los rivales"
                   valor={celda.precioRival ? `US$ ${formatUnidades(Math.round(celda.precioRival))}` : "—"}
-                  pie="mediana del casillero"
+                  pie={
+                    celda.nPreciosRivales === 0
+                      ? "ninguno con precio cargado"
+                      : celda.nPreciosRivales === 1
+                        ? "el único rival con precio"
+                        : `mediana de ${celda.nPreciosRivales} precios`
+                  }
                 />
                 <Cifra
                   titulo="Nuestro precio"
                   valor={celda.precioNuestro ? `US$ ${formatUnidades(Math.round(celda.precioNuestro))}` : "—"}
                   pie={
                     dif === null
-                      ? "sin comparación"
-                      : `${dif > 0 ? "+" : ""}${(dif * 100).toFixed(0).replace("-", "−")} % contra la mediana`
+                      ? celda.nPreciosNuestros === 0
+                        ? "no tenemos modelo con precio acá"
+                        : "sin rivales con precio para comparar"
+                      : `${dif > 0 ? "+" : ""}${(dif * 100).toFixed(0).replace("-", "−")} % contra los rivales`
                   }
                 />
               </div>
@@ -330,12 +341,18 @@ function DetalleCasillero({
                     <strong>Acá hay que entrar.</strong> Es uno de los casilleros grandes del mercado
                     ({formatPct(peso)} de todo lo que se vendió en el mapa) y nosotros tenemos{" "}
                     {formatPct(share)}.{" "}
-                    {celda.precioRival ? (
+                    {celda.precioRival && celda.nPreciosRivales >= 2 ? (
                       <>
                         El comprador de este casillero paga alrededor de{" "}
                         <strong>US$ {formatUnidades(Math.round(celda.precioRival))}</strong>: entrar significa
                         traer un modelo a ese precio, o acercar el nuestro. Un modelo bueno al precio
                         equivocado no compite acá.
+                      </>
+                    ) : celda.precioRival ? (
+                      <>
+                        El único rival con precio cargado está en{" "}
+                        <strong>US$ {formatUnidades(Math.round(celda.precioRival))}</strong>: alcanza como
+                        referencia, no como el precio del casillero.
                       </>
                     ) : (
                       <>No hay precios de rivales cargados en este casillero, así que no se puede decir a qué precio se compra.</>
@@ -346,7 +363,12 @@ function DetalleCasillero({
                     <strong>Acá mandamos y hay que defenderlo.</strong> El casillero pesa{" "}
                     {formatPct(peso)} del mapa y {formatPct(share)} es nuestro. Lo que se cuida es el
                     stock —quedarse sin unidades acá es regalar participación— y el precio.{" "}
-                    {dif !== null && brecha !== null && dif <= -0.05 ? (
+                    {dif !== null && celda.nPreciosRivales < 2 ? (
+                      <>
+                        Hay un solo rival con precio cargado en el casillero: no alcanza para decir si
+                        estamos caros o baratos.
+                      </>
+                    ) : dif !== null && brecha !== null && dif <= -0.05 ? (
                       <>
                         Estamos <strong>US$ {formatUnidades(Math.round(brecha))} por debajo</strong> de la
                         mediana del casillero y aun así lideramos: hay espacio de precio, sobre todo si el

@@ -149,6 +149,7 @@ export default async function MapaPage({
       fila: c.clase, columna: c.banda, mercado: c.mercado, propias: c.propias,
       modelos: c.modelos.slice(0, MAX_MODELOS).map(aModelo), modelosTotal: c.modelos.length,
       precioNuestro: l.precioNuestro, precioRival: l.precioRival,
+      nPreciosNuestros: l.nPreciosNuestros, nPreciosRivales: l.nPreciosRivales,
     };
   });
 
@@ -210,6 +211,7 @@ export default async function MapaPage({
         fila: clase, columna: tec, mercado: c.mercado, propias: c.propias,
         modelos: c.modelos.slice(0, MAX_MODELOS).map(aModelo), modelosTotal: c.modelos.length,
         precioNuestro: l.precioNuestro, precioRival: l.precioRival,
+        nPreciosNuestros: l.nPreciosNuestros, nPreciosRivales: l.nPreciosRivales,
       });
     }
   }
