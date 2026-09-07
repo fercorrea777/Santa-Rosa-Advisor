@@ -239,15 +239,26 @@ export function armarMapa(modelos: ModeloConBanda[]) {
  * oportunidad y uno oscuro de 20 tampoco es una fortaleza. La acción sale
  * de cruzar CUÁNTO PESA el casillero en el mercado con CUÁNTO es nuestro.
  *
- *   pesa y no estamos   -> entrar   (falta producto o falta precio)
- *   pesa y mandamos     -> defender (cuidar stock y precio, acá se gana)
- *   chico y mandamos    -> nicho    (rinde, pero no mueve la aguja)
- *   el resto            -> nada que decir
+ *   pesa en el mercado y no estamos   -> entrar
+ *   pesa en NUESTRO negocio y mandamos -> defender
+ *   el resto                          -> nada que decir
+ *
+ * LAS DOS VARAS NO SON LA MISMA, Y ESO IMPORTA. "Entrar" se mide contra el
+ * mercado: un casillero que mueve el 13% de todo lo que se vendió y donde
+ * tenemos el 0,6% es una oportunidad, aunque para nosotros hoy no exista.
+ * "Defender" NO se puede medir así: el grupo tiene el 5,9% del mercado
+ * paraguayo, con lo cual jamás va a tener el 20% de un casillero que pese el
+ * 3% del mercado, y con esa vara la mitad "fuerte" del mapa quedaba siempre
+ * vacía (06/09/2026). Lo que hay que defender es donde está NUESTRO volumen
+ * y además mandamos: 248 unidades de las 1.990 del período, con el 48% del
+ * casillero, es una fortaleza aunque el casillero sea chico para el mercado.
  */
-export type AccionCasillero = "entrar" | "defender" | "nicho";
+export type AccionCasillero = "entrar" | "defender";
 
 /** Un casillero "pesa" cuando es al menos esto del mercado del mapa. */
 export const PESO_RELEVANTE = 0.03;
+/** ...y pesa para nosotros cuando es al menos esto de lo que vendemos. */
+export const PESO_PROPIO = 0.05;
 /** Debajo de esta participación, no estamos en el casillero. */
 export const SHARE_AUSENTE = 0.05;
 /** Desde esta participación, mandamos. */
@@ -257,6 +268,8 @@ export interface LecturaCasillero {
   celda: Celda;
   /** Qué parte del mercado del mapa es este casillero. */
   peso: number;
+  /** Qué parte de NUESTRO volumen del mapa sale de este casillero. */
+  pesoPropio: number;
   /** Qué parte del casillero es nuestra. */
   share: number;
   accion: AccionCasillero | null;
@@ -278,8 +291,13 @@ export interface LecturaCasillero {
   diferencia: number | null;
 }
 
-export function lecturaCasillero(celda: Celda, totalMercado: number): LecturaCasillero {
+export function lecturaCasillero(
+  celda: Celda,
+  totalMercado: number,
+  totalPropias = 0
+): LecturaCasillero {
   const peso = totalMercado ? celda.mercado / totalMercado : 0;
+  const pesoPropio = totalPropias ? celda.propias / totalPropias : 0;
   const share = celda.mercado ? celda.propias / celda.mercado : 0;
   const rivales = celda.modelos.filter((m) => !m.esPropia);
   const propios = celda.modelos.filter((m) => m.esPropia);
@@ -287,14 +305,12 @@ export function lecturaCasillero(celda: Celda, totalMercado: number): LecturaCas
   const preciosRivales = rivales.map((m) => m.precio).filter((p): p is number => !!p);
   const precioNuestro = medianaDe(preciosNuestros);
   const precioRival = medianaDe(preciosRivales);
-  const pesa = peso >= PESO_RELEVANTE;
   const accion: AccionCasillero | null =
-    pesa && share < SHARE_AUSENTE ? "entrar"
-      : pesa && share >= SHARE_FUERTE ? "defender"
-      : !pesa && share >= SHARE_FUERTE && celda.propias >= 20 ? "nicho"
+    peso >= PESO_RELEVANTE && share < SHARE_AUSENTE ? "entrar"
+      : pesoPropio >= PESO_PROPIO && share >= SHARE_FUERTE ? "defender"
       : null;
   return {
-    celda, peso, share, accion, rivales, propios, precioNuestro, precioRival,
+    celda, peso, pesoPropio, share, accion, rivales, propios, precioNuestro, precioRival,
     nPreciosNuestros: preciosNuestros.length,
     nPreciosRivales: preciosRivales.length,
     diferencia: precioNuestro && precioRival ? precioNuestro / precioRival - 1 : null,

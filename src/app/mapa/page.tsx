@@ -9,8 +9,8 @@ import {
   getCobertura, getModelosPorTecnologia, getPorDimension, getRankingModelos, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
 import {
-  armarMapa, asignarPrecios, BANDAS, etiquetaBanda, lecturaCasillero, PESO_RELEVANTE, precioRelativo,
-  rivalesDirectos, SHARE_AUSENTE, SHARE_FUERTE, SIN_PRECIO,
+  armarMapa, asignarPrecios, BANDAS, etiquetaBanda, lecturaCasillero, PESO_PROPIO, PESO_RELEVANTE,
+  precioRelativo, rivalesDirectos, SHARE_AUSENTE, SHARE_FUERTE, SIN_PRECIO,
   type LecturaCasillero, type ModeloConBanda, type PrecioCandidato, type Rival,
 } from "@/lib/cadam/bandas";
 import { MapaClases, type CeldaMapa } from "@/components/dashboard/mapa-clases";
@@ -124,9 +124,10 @@ export default async function MapaPage({
   // efectivamente dibujado, igual que en la tabla.
   const celdasDibujadas = [...mapa.celdas.values()].filter((c) => clasesMapa.includes(c.clase));
   const totalDibujado = celdasDibujadas.reduce((s, c) => s + c.mercado, 0);
+  const totalPropiasDibujado = celdasDibujadas.reduce((s, c) => s + c.propias, 0);
   const lecturas = celdasDibujadas
     .filter((c) => c.banda !== SIN_PRECIO)
-    .map((c) => lecturaCasillero(c, totalDibujado));
+    .map((c) => lecturaCasillero(c, totalDibujado, totalPropiasDibujado));
   const paraEntrar = lecturas
     .filter((l) => l.accion === "entrar")
     .sort((a, b) => b.celda.mercado - a.celda.mercado);
@@ -144,7 +145,7 @@ export default async function MapaPage({
     esPropia: m.esPropia,
   });
   const celdasBanda: CeldaMapa[] = celdasDibujadas.map((c) => {
-    const l = lecturaCasillero(c, totalDibujado);
+    const l = lecturaCasillero(c, totalDibujado, totalPropiasDibujado);
     return {
       fila: c.clase, columna: c.banda, mercado: c.mercado, propias: c.propias,
       modelos: c.modelos.slice(0, MAX_MODELOS).map(aModelo), modelosTotal: c.modelos.length,
@@ -339,11 +340,13 @@ export default async function MapaPage({
         <CardHeader>
           <CardTitle>Qué hacer en cada casillero marcado — {periodo}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Los casilleros del mapa de precios que piden una decisión: los que
-            pesan al menos {formatPct(PESO_RELEVANTE)} del mercado y donde
-            tenemos menos de {formatPct(SHARE_AUSENTE)} (entrar) o más de{" "}
-            {formatPct(SHARE_FUERTE)} (defender). Con quién se lo lleva, a qué
-            precio y qué margen de precio hay.
+            Los casilleros del mapa de precios que piden una decisión.{" "}
+            <strong>Entrar</strong>: pesan al menos {formatPct(PESO_RELEVANTE)} del
+            mercado y tenemos menos de {formatPct(SHARE_AUSENTE)}.{" "}
+            <strong>Defender</strong>: de ahí sale al menos {formatPct(PESO_PROPIO)} de
+            todo lo que vendemos y tenemos más de {formatPct(SHARE_FUERTE)} del
+            casillero. Con quién se lo lleva, a qué precio y qué margen de precio
+            hay. Tocá cualquier casillero del mapa para ver la comparativa entera.
           </p>
         </CardHeader>
         <CardContent>

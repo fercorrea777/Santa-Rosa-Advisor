@@ -63,8 +63,11 @@ export interface ColumnaMapa {
 export const tinte = (share: number) =>
   share > 0 ? `color-mix(in oklch, var(--primary) ${Math.min(45, Math.round(share * 150))}%, transparent)` : undefined;
 
-/** Un casillero "pesa" cuando es al menos esto del mapa dibujado. */
+/** Mismas varas que lecturaCasillero (bandas.ts). "Entrar" se mide contra el
+ *  mercado; "defender", contra nuestro propio volumen: el grupo tiene ~6% del
+ *  mercado y con una sola vara la mitad fuerte del mapa quedaba vacía. */
 const PESO_RELEVANTE = 0.03;
+const PESO_PROPIO = 0.05;
 const SHARE_AUSENTE = 0.05;
 const SHARE_FUERTE = 0.2;
 
@@ -88,14 +91,15 @@ export function MapaClases({
   const porClave = new Map(celdas.map((c) => [`${c.fila}|${c.columna}`, c]));
   const celda = (f: string, c: string) => porClave.get(`${f}|${c}`);
   const totalMapa = celdas.reduce((s, c) => s + c.mercado, 0);
+  const totalPropias = celdas.reduce((s, c) => s + c.propias, 0);
 
   const accionDe = (x: CeldaMapa, col: ColumnaMapa): AccionCasillero | null => {
     if (col.sinAccion) return null;
     const peso = totalMapa ? x.mercado / totalMapa : 0;
-    if (peso < PESO_RELEVANTE) return null;
+    const pesoPropio = totalPropias ? x.propias / totalPropias : 0;
     const share = x.mercado ? x.propias / x.mercado : 0;
-    if (share < SHARE_AUSENTE) return "entrar";
-    if (share >= SHARE_FUERTE) return "defender";
+    if (peso >= PESO_RELEVANTE && share < SHARE_AUSENTE) return "entrar";
+    if (pesoPropio >= PESO_PROPIO && share >= SHARE_FUERTE) return "defender";
     return null;
   };
 
@@ -210,6 +214,7 @@ export function MapaClases({
         columna={columnas.find((c) => c.clave === abierto?.columna)}
         accion={abierto ? accionDe(abierto, columnas.find((c) => c.clave === abierto.columna) ?? { clave: "", etiqueta: "" }) : null}
         peso={abierto && totalMapa ? abierto.mercado / totalMapa : 0}
+        pesoPropio={abierto && totalPropias ? abierto.propias / totalPropias : 0}
         nombreColumna={nombreColumna}
         periodo={periodo}
         onClose={() => setAbierto(null)}
@@ -253,6 +258,7 @@ function DetalleCasillero({
   columna,
   accion,
   peso,
+  pesoPropio,
   nombreColumna,
   periodo,
   onClose,
@@ -261,6 +267,7 @@ function DetalleCasillero({
   columna: ColumnaMapa | undefined;
   accion: AccionCasillero | null;
   peso: number;
+  pesoPropio: number;
   nombreColumna: string;
   periodo: string;
   onClose: () => void;
@@ -360,9 +367,10 @@ function DetalleCasillero({
                   </>
                 ) : accion === "defender" ? (
                   <>
-                    <strong>Acá mandamos y hay que defenderlo.</strong> El casillero pesa{" "}
-                    {formatPct(peso)} del mapa y {formatPct(share)} es nuestro. Lo que se cuida es el
-                    stock —quedarse sin unidades acá es regalar participación— y el precio.{" "}
+                    <strong>Acá mandamos y hay que defenderlo.</strong> De este casillero sale el{" "}
+                    {formatPct(pesoPropio)} de todo lo que vendemos en el mapa, y tenemos{" "}
+                    {formatPct(share)} de él. Lo que se cuida es el stock —quedarse sin unidades acá es
+                    regalar participación— y el precio.{" "}
                     {dif !== null && celda.nPreciosRivales < 2 ? (
                       <>
                         Hay un solo rival con precio cargado en el casillero: no alcanza para decir si
@@ -388,8 +396,10 @@ function DetalleCasillero({
                 ) : (
                   <>
                     <strong>Casillero para mirar, no para actuar todavía.</strong> Pesa {formatPct(peso)} del
-                    mapa y tenemos {formatPct(share)}: ni es lo bastante grande como para que valga la pena
-                    entrar, ni tenemos una posición que haya que defender. La comparativa está abajo igual.
+                    mercado del mapa, de acá sale el {formatPct(pesoPropio)} de lo que vendemos y tenemos{" "}
+                    {formatPct(share)} de él: ni es lo bastante grande como para justificar entrar, ni
+                    concentra tanto de nuestro volumen como para llamarlo fortaleza. La comparativa está
+                    abajo igual.
                   </>
                 )}
               </p>
