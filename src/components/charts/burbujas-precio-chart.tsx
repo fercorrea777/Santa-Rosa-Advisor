@@ -101,9 +101,10 @@ export function BurbujasPrecioChart({
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
-  const [abierto, setAbierto] = React.useState<
-    { detalle: DetalleModelo; version: { nombre: string; precio: number; unidades: number } } | null
-  >(null);
+  const [abierto, setAbierto] = React.useState<{
+    detalle: DetalleModelo;
+    version: { nombre: string; precio: number; unidades: number; familia?: string };
+  } | null>(null);
 
   const porSegmento = columna === "segmento";
   /** La columna de cada burbuja: su segmento, o su marca en la vista vieja. */
@@ -459,7 +460,10 @@ export function BurbujasPrecioChart({
           detalles
             ? {
                 click: (p: {
-                  data?: { claveDetalle?: string; name?: string; unidades?: number; value?: number[] };
+                  data?: {
+                    claveDetalle?: string; name?: string; unidades?: number;
+                    familia?: string; value?: number[];
+                  };
                 }) => {
                   const k = p?.data?.claveDetalle;
                   const d = k ? detalles[k] : undefined;
@@ -470,6 +474,7 @@ export function BurbujasPrecioChart({
                       nombre: p.data?.name ?? d.modelo,
                       precio: p.data?.value?.[1] ?? 0,
                       unidades: p.data?.unidades ?? 0,
+                      familia: p.data?.familia,
                     },
                   });
                 },

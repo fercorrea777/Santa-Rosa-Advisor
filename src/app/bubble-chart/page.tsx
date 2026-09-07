@@ -189,17 +189,21 @@ export default async function BubbleChartPage({
   // arrastra hasta doce rivales y el payload lo paga el navegador.
   const porClaveUniverso = new Map(universo.map((m) => [claveModelo(m.marca, m.modelo), m]));
   /** La familia de Cars ("L200 TRITON") contra el modelo de CADAM ("L200"):
-   *  se prueba la clave exacta y, si no, que la palabra de una esté en la
-   *  otra dentro de la misma marca. Mismo criterio que el resto del tablero. */
+   *  la clave exacta y, si no, el candidato de la misma marca que ARRANCA con
+   *  la misma palabra, el que más palabras comparta. Exigir la primera es lo
+   *  que evita que un "X200" cruce con cualquier cosa; aun así un "TANK 700"
+   *  que CADAM todavía no registró cae en otro TANK, y por eso la ficha de una
+   *  versión no afirma unidades del modelo (ver detalle-modelo.tsx). */
   const claveDeFamilia = (marca: string, familia: string): string | undefined => {
     const exacta = claveModelo(marca, familia);
     if (porClaveUniverso.has(exacta)) return exacta;
     const tf = tokens(familia);
-    const candidatos = universo.filter((m) => m.marca === marca);
-    const hallado =
-      candidatos.find((m) => tokens(m.modelo).some((t) => tf.includes(t))) ??
-      candidatos.find((m) => tf.some((t) => tokens(m.modelo).includes(t)));
-    return hallado ? claveModelo(hallado.marca, hallado.modelo) : undefined;
+    if (!tf.length) return undefined;
+    const hallado = universo
+      .filter((m) => m.marca === marca && tokens(m.modelo)[0] === tf[0])
+      .map((m) => ({ m, comunes: new Set(tokens(m.modelo).filter((t) => tf.includes(t))).size }))
+      .sort((a, b) => b.comunes - a.comunes || b.m.unidades - a.m.unidades)[0];
+    return hallado ? claveModelo(hallado.m.marca, hallado.m.modelo) : undefined;
   };
   const burbujasConClave = conSegmento.map((b) => ({
     ...b,

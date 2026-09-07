@@ -29,8 +29,8 @@ export function DetalleModeloDialog({
 }: {
   detalle: DetalleModelo | null;
   /** Cuando la burbuja es una VERSIÓN nuestra y no el modelo entero: su
-   *  nombre y su precio de lista, que es el que se compara. */
-  version?: { nombre: string; precio: number; unidades: number } | null;
+   *  nombre, su familia según Cars y su precio, que es el que se compara. */
+  version?: { nombre: string; precio: number; unidades: number; familia?: string } | null;
   periodo: string;
   onClose: () => void;
 }) {
@@ -57,8 +57,8 @@ export function DetalleModeloDialog({
                     <Dialog.Description className="text-xs text-muted-foreground">
                       {d.marca} · {d.clase}
                       {d.claseInferida ? " (clase por precio)" : ""}
+                      {version?.familia ? ` · familia ${version.familia}` : ""}
                       {d.tecnologia ? ` · ${d.tecnologia}` : ""} · {periodo}
-                      {version ? ` · versión de ${d.modelo}` : ""}
                     </Dialog.Description>
                   </div>
                   <Dialog.Close className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-muted">
@@ -72,14 +72,14 @@ export function DetalleModeloDialog({
                     valor={formatUnidades(version ? version.unidades : d.unidades)}
                     pie={version ? "unidades del período (Cars)" : `${formatPct(d.parteClase)} de su clase`}
                   />
+                  {/* Para una versión NO se muestran las unidades del modelo:
+                      la familia de Cars se cruza con la de CADAM por palabras
+                      y un "TANK 700" cae en el "TANK 400" del registro. La
+                      clase sí es correcta, y es lo que define al rival. */}
                   <Cifra
-                    titulo={version ? "Su familia en el mercado" : "Su clase"}
-                    valor={formatUnidades(version ? d.unidades : d.unidadesClase)}
-                    pie={
-                      version
-                        ? `${d.modelo} matriculó eso · ${formatPct(d.parteClase)} de la clase`
-                        : `${d.clase} en el período`
-                    }
+                    titulo="Su clase en el mercado"
+                    valor={formatUnidades(d.unidadesClase)}
+                    pie={`${d.clase} en el período`}
                   />
                   <Cifra
                     titulo="Precio de lista"
@@ -188,13 +188,23 @@ function Lectura({
   const esLider = !lider || d.unidades >= lider.unidades;
   return (
     <>
+      {/* De una VERSIÓN no se afirma cuánto vende ni cuánto creció: esas son
+          cifras del modelo en CADAM, y la versión es de Cars. Lo que sí vale
+          para las dos es contra quién compite y a qué precio. */}
       <strong>
-        {esLider
-          ? `Lidera ${d.clase.toLowerCase()}`
-          : `${formatPct(d.parteClase)} de ${d.clase.toLowerCase()}`}
-        .
+        {tieneVersion
+          ? `Compite en ${d.clase.toLowerCase()}.`
+          : esLider
+            ? `Lidera ${d.clase.toLowerCase()}.`
+            : `${formatPct(d.parteClase)} de ${d.clase.toLowerCase()}.`}
       </strong>{" "}
-      {lider && !esLider ? (
+      {tieneVersion && lider ? (
+        <>
+          El que más vende en esa clase es <strong>{lider.marca} {lider.modelo}</strong> con{" "}
+          {formatUnidades(lider.unidades)} unidades
+          {lider.precio ? ` a US$ ${formatUnidades(lider.precio)}` : ""}.{" "}
+        </>
+      ) : lider && !esLider ? (
         <>
           El que más vende en su clase es <strong>{lider.marca} {lider.modelo}</strong> con{" "}
           {formatUnidades(lider.unidades)} unidades
@@ -207,7 +217,7 @@ function Lectura({
           {lider.precio ? ` a US$ ${formatUnidades(lider.precio)}` : ""}.{" "}
         </>
       ) : null}
-      {d.variacion !== null && (
+      {!tieneVersion && d.variacion !== null && (
         <>
           Contra el mismo período del año pasado{" "}
           {d.variacion >= 0 ? "creció" : "cayó"} {formatPct(Math.abs(d.variacion))} (de{" "}

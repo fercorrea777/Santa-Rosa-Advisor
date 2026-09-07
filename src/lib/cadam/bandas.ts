@@ -123,6 +123,11 @@ function nombreParaCruce(nombre: string, marca: string): string {
     .replace(/\b0+(\d)/g, "$1");
   const m = normalizar(marca);
   while (m && (n === m || n.startsWith(m + " "))) n = n.slice(m.length).trim();
+  // HAVAL es la LÍNEA de GWM, no el modelo: CADAM registra "HAVAL JOLION" y
+  // "HAVAL H6 GT DELUXE PHEV", Cars vende "JOLION PRO HEV DELUXE" y "NEW H6
+  // HEV". Con el prefijo puesto no cruzan —comparten una sola palabra— y 180
+  // unidades nuestras quedaban sin precio de lista (06/09/2026).
+  if (m === "GREAT WALL" && n.startsWith("HAVAL ")) n = n.slice(6).trim();
   return n;
 }
 
