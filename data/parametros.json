@@ -54,6 +54,11 @@
       "marca_cadam": "JMEV",
       "grupo": "JMEV",
       "submarca": null
+    },
+    {
+      "marca_cadam": "XPENG",
+      "grupo": "Xpeng",
+      "submarca": null
     }
   ],
   "segmento_seguimiento": "livianos",

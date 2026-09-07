@@ -17,6 +17,33 @@ export interface MarcaPropia {
   submarca: string | null;
 }
 
+export interface GrupoPresupuesto {
+  /** Nombres CADAM. La primera lleva la fila en metas_mensuales. */
+  marcas: string[];
+  /** Hoja del Excel de la que salió ("Venta Unidades Jetour"). */
+  hoja: string;
+  /** Plan vigente, 12 enteros (enero a diciembre). */
+  plan: number[];
+  /** Columna P del Excel: presupuesto original del año. null si no está. */
+  presupuesto_anual: number | null;
+}
+
+export interface Presupuesto {
+  anio: number;
+  version: string;
+  archivo: string;
+  /** mtime del archivo, ISO. */
+  modificado: string;
+  /** Cuándo lo recibió el Advisor, ISO. */
+  cargado_en: string;
+  /** Último mes cerrado según el Excel (Hoja1!A3): hasta ahí el plan es el
+   *  real. null si el archivo no lo trae. */
+  real_hasta_mes: number | null;
+  /** Compilado!Total Unidades, para control. */
+  total_compilado: number;
+  grupos: GrupoPresupuesto[];
+}
+
 export interface Parametros {
   marcas_propias: MarcaPropia[];
   /** Vendedores de Cars que son ventas MAYORISTAS (flotas, gerencia), no
@@ -35,6 +62,12 @@ export interface Parametros {
    *  { "2026": { "JETOUR": [ene, feb, ..., dic], ... } }. null = sin meta ese
    *  mes. Se comparan contra lo facturado (Cars) en /operacion. */
   metas_mensuales?: Record<string, Record<string, (number | null)[]>>;
+  /** Presupuesto del año cargado desde el Excel de Finanzas por Hermes
+   *  (POST /api/presupuesto). `grupos` dice qué marcas comparten un plan
+   *  (GWM = GREAT WALL + HAVAL); el plan mensual de cada grupo también se
+   *  escribe en `metas_mensuales` bajo su primera marca, que es lo que
+   *  /operacion compara. El Excel manda: cada carga pisa el bloque entero. */
+  presupuesto?: Presupuesto;
   notas: string;
 }
 
@@ -49,6 +82,13 @@ export function getMetasMensuales(anio: number): Record<string, (number | null)[
     });
   }
   return salida;
+}
+
+/** El presupuesto cargado, solo si es del año pedido: otro año se trata
+ *  como ausente, no se prorratea ni se reusa. */
+export function getPresupuesto(anio: number): Presupuesto | null {
+  const p = getParametros().presupuesto;
+  return p && p.anio === anio && Array.isArray(p.grupos) ? p : null;
 }
 
 /** Vendedores mayoristas, normalizados como los manda Hermes (mayúsculas,
@@ -97,7 +137,7 @@ export function getParametros(): Parametros {
  * arranque (config.ts no tolera un parse fallido).
  */
 export function guardarParametros(
-  cambios: Partial<Pick<Parametros, "metas" | "competidores_clave" | "metas_mensuales">>
+  cambios: Partial<Pick<Parametros, "metas" | "competidores_clave" | "metas_mensuales" | "presupuesto">>
 ): void {
   const ruta = resolverParametrosPath();
   const actual = JSON.parse(fs.readFileSync(ruta, "utf-8")) as Parametros;
@@ -106,6 +146,7 @@ export function guardarParametros(
   if (cambios.metas) actual.metas = cambios.metas;
   if (cambios.competidores_clave) actual.competidores_clave = cambios.competidores_clave;
   if (cambios.metas_mensuales) actual.metas_mensuales = cambios.metas_mensuales;
+  if (cambios.presupuesto) actual.presupuesto = cambios.presupuesto;
   const tmp = `${ruta}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(actual, null, 2) + "\n", "utf-8");
   fs.renameSync(tmp, ruta);
