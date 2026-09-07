@@ -103,7 +103,7 @@ export function BurbujasPrecioChart({
   const sp = useSearchParams();
   const [abierto, setAbierto] = React.useState<{
     detalle: DetalleModelo;
-    version: { nombre: string; precio: number; unidades: number; familia?: string };
+    version: { nombre: string; precio: number; unidades: number; familia?: string } | null;
   } | null>(null);
 
   const porSegmento = columna === "segmento";
@@ -317,6 +317,9 @@ export function BurbujasPrecioChart({
     moneda: d.moneda,
     claveDetalle: d.claveDetalle,
     unidades: d.unidades,
+    // Si la burbuja es una VERSIÓN, la ficha compara el precio de esa
+    // versión; si es un modelo entero (gama propia), el del modelo.
+    esVersion: !!d.version,
     itemStyle: {
       color: colorDe(d.marca),
       opacity: 0.82,
@@ -462,7 +465,7 @@ export function BurbujasPrecioChart({
                 click: (p: {
                   data?: {
                     claveDetalle?: string; name?: string; unidades?: number;
-                    familia?: string; value?: number[];
+                    familia?: string; esVersion?: boolean; value?: number[];
                   };
                 }) => {
                   const k = p?.data?.claveDetalle;
@@ -470,12 +473,14 @@ export function BurbujasPrecioChart({
                   if (!d) return;
                   setAbierto({
                     detalle: d,
-                    version: {
-                      nombre: p.data?.name ?? d.modelo,
-                      precio: p.data?.value?.[1] ?? 0,
-                      unidades: p.data?.unidades ?? 0,
-                      familia: p.data?.familia,
-                    },
+                    version: p.data?.esVersion
+                      ? {
+                          nombre: p.data?.name ?? d.modelo,
+                          precio: p.data?.value?.[1] ?? 0,
+                          unidades: p.data?.unidades ?? 0,
+                          familia: p.data?.familia,
+                        }
+                      : null,
                   });
                 },
               }

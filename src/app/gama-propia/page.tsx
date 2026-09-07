@@ -5,11 +5,16 @@ import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { getCobertura } from "@/lib/cadam/mercado";
+import { getCobertura, getRankingModelos } from "@/lib/cadam/mercado";
 import {
   getGamaPropiaConPrecio, getGamaPropiaSinPrecio, getPeriodosPrecio, hayPrecios,
 } from "@/lib/cadam/precios";
 import { getGamaPropiaDesdeCars } from "@/lib/cadam/precios-cars";
+import {
+  asignarPrecios, claveModelo, detallesPorModelo, type PrecioCandidato,
+} from "@/lib/cadam/bandas";
+import { getStockPropio } from "@/lib/informes/propios";
+import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
@@ -50,6 +55,29 @@ export default async function GamaPropiaPage({
   const uConPrecio = conPrecio.reduce((s, d) => s + d.unidades, 0);
   const uSinPrecio = sinPrecio.reduce((s, d) => s + d.unidades, 0);
   const uTotal = uConPrecio + uSinPrecio;
+
+  // --- ficha de cada burbuja: contra quién compite ese modelo -------------
+  // Esta pantalla es de la gama PROPIA y lo dice: no compara contra la
+  // competencia. Pero la pregunta que sigue a ver un precio es contra quién
+  // juega, y eso ya está calculado en otra parte del tablero (clases.ts +
+  // precios de Datacar). Se abre al tocar la burbuja, sin cambiar la vista.
+  let preciosPropios: PrecioCandidato[] = [];
+  try {
+    preciosPropios = (await getStockPropio())
+      .filter((s) => s.precio_usd)
+      .map((s) => ({ marca: s.marca, nombre: s.version, precio: s.precio_usd as number }));
+  } catch {
+    preciosPropios = [];
+  }
+  const preciosRivales: PrecioCandidato[] = (await getPreciosCompetencia())
+    .map((p) => ({ marca: p.marca, nombre: p.version, precio: p.precio_usd }));
+  const universo = asignarPrecios(getRankingModelos("matriculacion", f, 3000), [
+    { fuente: "cars", lista: preciosPropios },
+    { fuente: "datacar", lista: preciosRivales },
+  ]);
+  const claves = new Set(conPrecio.map((d) => claveModelo(d.marca, d.modelo)));
+  const detalles = Object.fromEntries(detallesPorModelo(universo, claves));
+  const hayDetalles = Object.keys(detalles).length > 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -153,8 +181,23 @@ export default async function GamaPropiaPage({
                 punteada es el precio <strong>ponderado por unidades</strong>, no
                 el promedio simple: un modelo que vendió 3 no puede pesar lo
                 mismo que uno que vendió 300.
+                {hayDetalles && (
+                  <>
+                    {" "}<strong>Tocá una burbuja</strong> y se abre contra quién
+                    compite ese modelo: su clase de vehículo, los rivales que más
+                    venden ahí con su precio, y si estamos caros o baratos.
+                  </>
+                )}
               </p>
-              <BurbujasPrecioChart datos={conPrecio} columna="marca" />
+              <BurbujasPrecioChart
+                datos={conPrecio.map((d) => ({
+                  ...d,
+                  claveDetalle: claveModelo(d.marca, d.modelo),
+                }))}
+                columna="marca"
+                detalles={hayDetalles ? detalles : undefined}
+                periodo={periodo}
+              />
             </CardContent>
           </Card>
 
