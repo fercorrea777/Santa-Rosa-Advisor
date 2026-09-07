@@ -9,7 +9,7 @@ import {
   getEstadoSyncPropio, getStockPropio, getVentasPropias,
 } from "@/lib/informes/propios";
 import {
-  anioActual, resumenAsesores, resumenDemanda, resumenPauta, resumenPedido, resumenRivales,
+  anioActual, resumenAsesores, resumenDemanda, resumenPauta, resumenPedido, resumenPresupuesto, resumenRivales,
 } from "@/lib/informes/tablero";
 import { getCobertura } from "@/lib/cadam/mercado";
 import {
@@ -341,10 +341,13 @@ async function leerOperacionPropia(input: { que?: string; anio?: number }): Prom
     if (input.que === "stock") {
       return JSON.stringify({ stock, sincronizado: sync?.actualizado_en, aviso });
     }
+    // El presupuesto del año va con las ventas: plan vigente, presupuesto
+    // anual, % hecho y atrasados, ya calculados (tablero.ts).
+    const presupuesto = await resumenPresupuesto(anio);
     if (input.que === "ventas") {
-      return JSON.stringify({ ventas, sincronizado: sync?.actualizado_en, aviso });
+      return JSON.stringify({ ventas, presupuesto, sincronizado: sync?.actualizado_en, aviso });
     }
-    return JSON.stringify({ ventas, stock, sincronizado: sync?.actualizado_en, aviso });
+    return JSON.stringify({ ventas, stock, presupuesto, sincronizado: sync?.actualizado_en, aviso });
   } catch (e) {
     return JSON.stringify({
       error: `No se pudo leer la operación propia: ${(e as Error).message}`,
@@ -357,7 +360,8 @@ const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
   descripcion:
     "Datos de la operación de Santa Rosa y del tablero comercial, no de " +
     "CADAM. Elegí QUÉ: 'ventas' (vehículos FACTURADOS por mes/marca/modelo, " +
-    "API de Cars), 'stock' (stock actual por marca/modelo/estado con precio " +
+    "API de Cars; trae también el PRESUPUESTO del año por marca: plan " +
+    "vigente, presupuesto anual, % hecho y qué marcas van atrasadas), 'stock' (stock actual por marca/modelo/estado con precio " +
     "de lista en dólares), 'asesores' (ranking retail del año, mayoristas " +
     "aparte, mejor asesor por marca), 'demanda' (leads y negocios de Bitrix " +
     "por marca y modelo: abiertos, convertidos, perdidos y por qué), " +

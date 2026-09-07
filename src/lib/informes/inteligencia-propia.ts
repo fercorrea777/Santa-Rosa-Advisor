@@ -4,7 +4,8 @@ import { formatUnidades } from "@/lib/format";
 import { mesCorto } from "@/lib/periodo";
 import { hayDatosPropios } from "./propios";
 import {
-  anioActual, coincideFamilia, resumenDemanda, resumenPauta, resumenPedido, resumenRivales,
+  anioActual, coincideFamilia, resumenDemanda, resumenPauta, resumenPedido, resumenPresupuesto,
+  resumenRivales,
 } from "./tablero";
 
 /**
@@ -87,6 +88,33 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
     }
   } catch {
     advertencias.push("Cars no respondió: las lecturas de pedido de stock y asesores no se generan en esta corrida.");
+  }
+
+  // ------------------------------------ presupuesto (Excel de Finanzas)
+  try {
+    const pr = await resumenPresupuesto(anio);
+    if (pr) {
+      const periodo = `Plan ${pr.version} · facturado a ${mesCorto(pr.ultimoMesCerrado)} ${anio} (Cars)`;
+      if (pr.hechoTotal !== null) {
+        resumen.push(
+          `Presupuesto ${anio}: ${pct(pr.hechoTotal)} hecho a ${mesCorto(pr.ultimoMesCerrado)} ` +
+          `(${u(pr.facturadoYtd)} facturados; plan vigente ${u(pr.planTotal)}).`
+        );
+      }
+      if (pr.atrasados.length) {
+        items.push({
+          tipo: "riesgo",
+          titulo: `${pr.atrasados.length} ${pr.atrasados.length === 1 ? "marca va" : "marcas van"} por debajo del ritmo que pide el plan ${anio}`,
+          motivo: "El ritmo de los últimos tres meses cerrados no alcanza el que hace falta para llegar al plan del año en los meses que quedan.",
+          evidencia: pr.atrasados.slice(0, 4).map((a) => `${a.marcas.join(" + ")}: ${coma(a.ritmo)}/mes, pide ${coma(a.necesario)}`).join(" · "),
+          prioridad: pr.atrasados.some((a) => a.faltaPorMes >= 10) ? "alta" : "media",
+          impacto: "Plan comercial",
+          periodo,
+        });
+      }
+    }
+  } catch (e) {
+    advertencias.push(`Presupuesto: ${(e as Error).message}`);
   }
 
   // ------------------------------------------------------ Bitrix: demanda

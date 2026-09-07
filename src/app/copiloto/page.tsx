@@ -35,6 +35,7 @@ export default function CopilotoPage() {
               "¿Qué versiones hay que pedir y cuáles empujar con promo?",
               "¿Qué marca pierde más leads y por qué?",
               "¿Cuánto nos cuesta en pauta cada vehículo vendido, por marca?",
+              "¿Qué marcas van atrasadas contra el presupuesto 2026?",
               "¿Quiénes son los mejores asesores del año y de cada marca?",
               "¿Quién ganó y quién perdió market share este año?",
             ]}

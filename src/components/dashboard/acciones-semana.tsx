@@ -8,6 +8,7 @@ import {
 import { calcularCobertura, type CoberturaVersion } from "@/lib/informes/cobertura";
 import { formatUnidades } from "@/lib/format";
 import { mesCorto } from "@/lib/periodo";
+import { resumenPresupuesto } from "@/lib/informes/tablero";
 import { cn } from "@/lib/utils";
 
 /**
@@ -97,10 +98,19 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
   }
   const mesCerrado = acciones ? mesCorto(Number(acciones.ultimoMes.slice(5, 7))) : "";
 
+  // Presupuesto del año (Excel de Finanzas): qué marcas van más lento que
+  // el plan para lo que queda. null = no cargado o Cars caído.
+  let presupuesto: Awaited<ReturnType<typeof resumenPresupuesto>> = null;
+  try {
+    presupuesto = await resumenPresupuesto();
+  } catch {
+    presupuesto = null;
+  }
+
   return (
     <section aria-labelledby="acciones-titulo" className="flex flex-col gap-3">
       <h2 id="acciones-titulo" className="seccion-hd">Acciones de la semana</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <TarjetaAccion
           titulo="Pedir stock"
           numero={acciones ? acciones.pedir.length : null}
@@ -158,6 +168,28 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           )}
           href="/brecha"
           tono="tinta"
+        />
+        <TarjetaAccion
+          titulo="Atrasados contra el plan"
+          numero={presupuesto ? presupuesto.atrasados.length : null}
+          unidad="marcas"
+          vacio={
+            presupuesto
+              ? "Todas las marcas al ritmo del plan."
+              : "Sin presupuesto cargado: lo carga Hermes desde el Excel de Finanzas."
+          }
+          frase={
+            presupuesto
+              ? `van más lento que lo que pide el plan ${presupuesto.version} para lo que queda del año.`
+              : "van más lento que el plan del año."
+          }
+          items={
+            presupuesto?.atrasados
+              .slice(0, 3)
+              .map((a) => `${a.marcas.join(" + ")} · falta ${coma(a.faltaPorMes)}/mes`) ?? []
+          }
+          href={presupuesto ? "/operacion#marcas" : "/cargas"}
+          tono="rojo"
         />
       </div>
     </section>

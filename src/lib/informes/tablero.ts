@@ -1,11 +1,15 @@
 import { getRankingModelos, type Filtro } from "@/lib/cadam/mercado";
-import { getAsesoresMayoristasSet } from "@/lib/cadam/config";
+import { getAsesoresMayoristasSet, getPresupuesto } from "@/lib/cadam/config";
 import {
   asignarPrecios, armarMapa, etiquetaBanda, precioRelativo, rivalesDirectos, SIN_PRECIO,
   type PrecioCandidato,
 } from "@/lib/cadam/bandas";
 import { hoyEnAsuncion } from "@/lib/format";
 import { calcularCobertura } from "./cobertura";
+import {
+  atrasados, cumplimiento, facturadoEntre, planPeriodo, porcentajeHecho, ritmoNecesario,
+  ritmoUltimosMeses,
+} from "./presupuesto";
 import { getDemandaBitrix, type DemandaBitrix } from "./demanda-bitrix";
 import { getPautaMarca } from "./pauta-marca";
 import { getPreciosCompetencia } from "./precios-competencia";
@@ -332,5 +336,71 @@ export async function resumenPedido() {
       "Ritmo = promedio de los últimos tres meses cerrados. Libres = vendibles menos reservadas; en viaje aparte. " +
       "Pedir: menos de un mes y medio de stock contando lo que viene; empujar: más de seis meses o casi sin ritmo " +
       "con stock. Parado: vendía 3+ vehículos en los dos meses anteriores y 0 en el último cerrado.",
+  };
+}
+
+// ---------------------------------------------------------- presupuesto
+
+/**
+ * El presupuesto del año contra lo facturado, por grupo de marcas. Es lo
+ * mismo que muestra /operacion; acá para el inicio, el Centro de
+ * Inteligencia y el Copiloto. null si no hay presupuesto cargado para ese
+ * año o Cars no tiene facturas.
+ */
+export async function resumenPresupuesto(anio = anioActual()) {
+  const p = getPresupuesto(anio);
+  if (!p) return null;
+  const ventas = (await getVentasPropias()).filter((v) => enAnio(v.periodo, anio));
+  if (!ventas.length) return null;
+  const hoy = hoyEnAsuncion();
+  const ultimoMesCerrado = Number(hoy.slice(0, 4)) === anio ? Number(hoy.slice(5, 7)) - 1 : 12;
+  const grupos = p.grupos.map((g) => {
+    const facturadoYtd = facturadoEntre(ventas, g.marcas, anio, 1, ultimoMesCerrado);
+    const pp = planPeriodo(g.plan, 1, ultimoMesCerrado, p.real_hasta_mes);
+    const facturadoAbiertos = p.real_hasta_mes
+      ? facturadoYtd - facturadoEntre(ventas, g.marcas, anio, 1, Math.min(p.real_hasta_mes, ultimoMesCerrado))
+      : facturadoYtd;
+    const ritmo = redondear(ritmoUltimosMeses(ventas, g.marcas, anio, ultimoMesCerrado));
+    const necesario = ritmoNecesario(g.plan, facturadoYtd, ultimoMesCerrado);
+    return {
+      marcas: g.marcas,
+      etiqueta: g.marcas.join(" + "),
+      planAnio: g.plan.reduce((s, v) => s + v, 0),
+      presupuestoAnual: g.presupuesto_anual,
+      facturadoYtd,
+      hecho: porcentajeHecho(facturadoYtd, g.presupuesto_anual),
+      planAbiertosYtd: pp.planAbiertos,
+      facturadoAbiertosYtd: facturadoAbiertos,
+      cumplimientoYtd: cumplimiento(facturadoAbiertos, pp.planAbiertos, pp.abiertos),
+      ritmo,
+      necesario: necesario === null ? null : redondear(necesario),
+      atrasado: necesario !== null && ritmo < necesario,
+    };
+  });
+  const lista = atrasados(
+    p.grupos,
+    (marcas) => facturadoEntre(ventas, marcas, anio, 1, ultimoMesCerrado),
+    (marcas) => ritmoUltimosMeses(ventas, marcas, anio, ultimoMesCerrado),
+    ultimoMesCerrado
+  ).map((a) => ({
+    ...a, ritmo: redondear(a.ritmo), necesario: redondear(a.necesario), faltaPorMes: redondear(a.faltaPorMes),
+  }));
+  const conPpto = grupos.filter((g) => g.presupuestoAnual);
+  const presupuestoTotal = conPpto.reduce((s, g) => s + (g.presupuestoAnual ?? 0), 0);
+  return {
+    anio, version: p.version, archivo: p.archivo, modificado: p.modificado, cargadoEn: p.cargado_en,
+    realHastaMes: p.real_hasta_mes, ultimoMesCerrado,
+    planTotal: grupos.reduce((s, g) => s + g.planAnio, 0),
+    presupuestoTotal,
+    facturadoYtd: grupos.reduce((s, g) => s + g.facturadoYtd, 0),
+    hechoTotal: porcentajeHecho(conPpto.reduce((s, g) => s + g.facturadoYtd, 0), presupuestoTotal),
+    grupos,
+    atrasados: lista,
+    nota:
+      `Plan vigente = ejercicio de Finanzas ${p.version} mes a mes; hasta el mes ${p.real_hasta_mes ?? "—"} el plan ` +
+      "es el real, por eso el cumplimiento se mide solo sobre los meses siguientes. Presupuesto anual = cifra " +
+      "original del año, sin apertura mensual (Renault y Xpeng no la tienen). Facturado = vehículos de Cars " +
+      "hasta el último mes cerrado. 'Atrasado' = el ritmo de los últimos tres meses cerrados no alcanza el que " +
+      "pide el plan para lo que queda del año. Un grupo (GREAT WALL + HAVAL) es una sola meta.",
   };
 }
