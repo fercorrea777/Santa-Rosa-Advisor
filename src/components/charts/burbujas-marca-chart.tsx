@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
+import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
+import { claveModelo, type DetalleModelo } from "@/lib/cadam/bandas";
 import { formatUnidades } from "@/lib/format";
 
 export interface Burbuja {
@@ -34,9 +37,15 @@ export function BurbujasMarcaChart({
   datos,
   altura = 460,
   techo,
+  detalles,
+  periodo = "",
 }: {
   datos: Burbuja[];
   altura?: number;
+  /** Ficha de cada modelo, por `claveModelo(marca, modelo)`: al tocar una
+   *  burbuja se abre. Sin esto el gráfico sigue funcionando, sin clic. */
+  detalles?: Record<string, DetalleModelo>;
+  periodo?: string;
   /** Techo del eje de variación, en %. Llega por prop y no como constante
    *  exportada de acá: este módulo es "use client", y un Server Component que
    *  importara la constante recibiría la referencia de cliente en vez del
@@ -46,6 +55,7 @@ export function BurbujasMarcaChart({
 }) {
   const TECHO_VARIACION = techo;
   const theme = useChartTheme();
+  const [abierto, setAbierto] = useState<DetalleModelo | null>(null);
 
   if (!datos.length) {
     return (
@@ -107,6 +117,7 @@ export function BurbujasMarcaChart({
       anterior: d.unidadesAnterior,
       real,
       recortada,
+      clave: claveModelo(d.marca, d.modelo),
       symbol: recortada ? ("triangle" as const) : ("circle" as const),
       itemStyle: {
         color: colorDeMarca(d.marca),
@@ -206,5 +217,23 @@ export function BurbujasMarcaChart({
     ],
   };
 
-  return <EchartsAuto option={option} style={{ height: altura, width: "100%" }} />;
+  return (
+    <>
+      <EchartsAuto
+        option={option}
+        style={{ height: altura, width: "100%", cursor: detalles ? "pointer" : "default" }}
+        onEvents={
+          detalles
+            ? {
+                click: (p: { data?: { clave?: string } }) => {
+                  const d = p?.data?.clave ? detalles[p.data.clave] : undefined;
+                  if (d) setAbierto(d);
+                },
+              }
+            : undefined
+        }
+      />
+      <DetalleModeloDialog detalle={abierto} periodo={periodo} onClose={() => setAbierto(null)} />
+    </>
+  );
 }

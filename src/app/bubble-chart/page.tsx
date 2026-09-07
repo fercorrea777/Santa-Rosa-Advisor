@@ -10,8 +10,12 @@ import {
   getCobertura, getOpcionesFiltro, getRankingModelos, getRankingVersiones,
   type Fuente,
 } from "@/lib/cadam/mercado";
-import { getBurbujasVersion } from "@/lib/informes/propios";
-import { asignarSegmento, SIN_CLASIFICAR } from "@/lib/informes/segmento-version";
+import { getBurbujasVersion, getStockPropio } from "@/lib/informes/propios";
+import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
+import {
+  asignarPrecios, claveModelo, detallesPorModelo, type PrecioCandidato,
+} from "@/lib/cadam/bandas";
+import { asignarSegmento, SIN_CLASIFICAR, tokens } from "@/lib/informes/segmento-version";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
@@ -161,6 +165,56 @@ export default async function BubbleChartPage({
   const sinClasificar = conSegmento.filter((b) => b.segmento === SIN_CLASIFICAR);
   const unidadesSinClasificar = sinClasificar.reduce((s, b) => s + b.unidades, 0);
 
+  // --- fichas de modelo: contra quién compite cada burbuja ------------------
+  // El gráfico contesta "quién está dónde"; la ficha contesta la pregunta que
+  // sigue. Los rivales salen de la CLASE (clases.ts), igual que en «Dónde
+  // competir»: el segmento de CADAM pone una X50 al lado de una Fortuner.
+  let preciosPropios: PrecioCandidato[] = [];
+  try {
+    preciosPropios = (await getStockPropio())
+      .filter((s) => s.precio_usd)
+      .map((s) => ({ marca: s.marca, nombre: s.version, precio: s.precio_usd as number }));
+  } catch {
+    preciosPropios = [];
+  }
+  const preciosRivales: PrecioCandidato[] = (await getPreciosCompetencia())
+    .map((p) => ({ marca: p.marca, nombre: p.version, precio: p.precio_usd }));
+  const universo = asignarPrecios(modelos, [
+    { fuente: "cars", lista: preciosPropios },
+    { fuente: "datacar", lista: preciosRivales },
+  ]);
+
+  // Las claves que hacen falta: los modelos dibujados en el primer gráfico y
+  // las familias de nuestras versiones en el segundo. Nada más: cada ficha
+  // arrastra hasta doce rivales y el payload lo paga el navegador.
+  const porClaveUniverso = new Map(universo.map((m) => [claveModelo(m.marca, m.modelo), m]));
+  /** La familia de Cars ("L200 TRITON") contra el modelo de CADAM ("L200"):
+   *  se prueba la clave exacta y, si no, que la palabra de una esté en la
+   *  otra dentro de la misma marca. Mismo criterio que el resto del tablero. */
+  const claveDeFamilia = (marca: string, familia: string): string | undefined => {
+    const exacta = claveModelo(marca, familia);
+    if (porClaveUniverso.has(exacta)) return exacta;
+    const tf = tokens(familia);
+    const candidatos = universo.filter((m) => m.marca === marca);
+    const hallado =
+      candidatos.find((m) => tokens(m.modelo).some((t) => tf.includes(t))) ??
+      candidatos.find((m) => tf.some((t) => tokens(m.modelo).includes(t)));
+    return hallado ? claveModelo(hallado.marca, hallado.modelo) : undefined;
+  };
+  const burbujasConClave = conSegmento.map((b) => ({
+    ...b,
+    claveDetalle: claveDeFamilia(b.marca, b.modelo),
+  }));
+  const claves = new Set<string>([
+    ...visibles.map((m) => claveModelo(m.marca, m.modelo ?? m.marca)),
+    ...burbujasConClave.map((b) => b.claveDetalle).filter((k): k is string => !!k),
+  ]);
+  const detalles = Object.fromEntries(detallesPorModelo(universo, claves));
+  /** La clase de cada versión: la de su familia en CADAM. Es la columna del
+   *  gráfico de precios, en vez del segmento — misma razón que en el mapa. */
+  const claseDeBurbuja = (clave: string | undefined, b: { segmento: string }) =>
+    (clave ? detalles[clave]?.clase : undefined) ?? b.segmento;
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
@@ -219,7 +273,9 @@ export default async function BubbleChartPage({
             Eje Y = variación contra {f.anio - 1} · tamaño = unidades del período ·
             las marcas propias van primero, con borde y su nombre resaltado en el
             eje. Arriba de la línea del 0% crecen, abajo caen; el tamaño dice
-            cuánto pesa ese crecimiento.
+            cuánto pesa ese crecimiento. <strong>Tocá una burbuja</strong> y se
+            abre la ficha del modelo: su clase, contra quién compite, a qué
+            precio y cómo viene contra el año pasado.
             {recortadas.length > 0 && (
               <>
                 {" "}El eje corta en +{TECHO_VARIACION}%:{" "}
@@ -237,7 +293,12 @@ export default async function BubbleChartPage({
               </>
             )}
           </p>
-          <BurbujasMarcaChart datos={datos} techo={TECHO_VARIACION} />
+          <BurbujasMarcaChart
+            datos={datos}
+            techo={TECHO_VARIACION}
+            detalles={detalles}
+            periodo={periodo}
+          />
         </CardContent>
       </Card>
 
@@ -247,26 +308,34 @@ export default async function BubbleChartPage({
         <Seccion titulo="Posicionamiento por versión">
         <Card>
           <CardHeader>
-            <CardTitle>Bubble chart por segmento y versión</CardTitle>
+            <CardTitle>Bubble chart por clase y versión</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Una burbuja por versión · eje X = segmento · eje Y = precio de
-              lista · tamaño = unidades · color = marca. Lo que comparte columna
-              compite entre sí.
+              Una burbuja por versión · eje X = clase de vehículo · eje Y =
+              precio de lista · tamaño = unidades · color = marca. Lo que
+              comparte columna compite entre sí: la clase separa el SUV chico
+              del grande, cosa que el segmento de CADAM no hace.{" "}
+              <strong>Tocá una burbuja</strong> y se abre contra quién compite
+              esa versión, a qué precio está cada rival y si estamos caros o
+              baratos.
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <BurbujasPrecioChart
-              datos={conSegmento.map((b) => ({
+              datos={burbujasConClave.map((b) => ({
                 marca: b.marca,
                 familia: b.modelo,
                 version: b.version,
-                segmento: b.segmento,
+                segmento: claseDeBurbuja(b.claveDetalle, b),
                 tecnologia: b.tecnologia,
                 unidades: b.unidades,
                 precio: b.precio,
                 moneda: "US$",
+                claveDetalle: b.claveDetalle,
               }))}
               altura={520}
+              detalles={detalles}
+              periodo={periodo}
+              etiquetaColumna="Clase"
             />
             <NotaDato>
               El precio sale del <strong>API de Cars</strong>, que solo conoce

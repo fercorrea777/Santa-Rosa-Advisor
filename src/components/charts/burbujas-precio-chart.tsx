@@ -3,7 +3,9 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
+import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
+import type { DetalleModelo } from "@/lib/cadam/bandas";
 import { formatUnidades } from "@/lib/format";
 import {
   ORDEN_TECNOLOGIA, SIN_CLASIFICAR, SIN_DATO_TECNOLOGIA,
@@ -28,6 +30,8 @@ export interface BurbujaPrecio {
   unidades: number;
   precio: number;
   moneda: string;
+  /** Clave de la ficha del modelo al que pertenece (ver `detalles`). */
+  claveDetalle?: string;
 }
 
 /** Qué agrupa el eje X. `segmento` es el rediseño (bubble-chart);
@@ -78,15 +82,28 @@ export function BurbujasPrecioChart({
   datos,
   altura = 520,
   columna = "segmento",
+  detalles,
+  periodo = "",
+  etiquetaColumna = "Segmento",
 }: {
   datos: BurbujaPrecio[];
   altura?: number;
   columna?: ColumnaBurbujas;
+  /** Ficha del MODELO al que pertenece cada versión, por `d.claveDetalle`.
+   *  Al tocar la burbuja se abre: contra quién compite su familia y a qué
+   *  precio. Sin esto el gráfico anda igual, sin clic. */
+  detalles?: Record<string, DetalleModelo>;
+  periodo?: string;
+  /** Cómo se llama la columna en los chips: "Segmento" o "Clase". */
+  etiquetaColumna?: string;
 }) {
   const theme = useChartTheme();
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
+  const [abierto, setAbierto] = React.useState<
+    { detalle: DetalleModelo; version: { nombre: string; precio: number; unidades: number } } | null
+  >(null);
 
   const porSegmento = columna === "segmento";
   /** La columna de cada burbuja: su segmento, o su marca en la vista vieja. */
@@ -172,7 +189,7 @@ export function BurbujasPrecioChart({
         ))}
       </FilaChips>
       {porSegmento && (
-        <FilaChips label="Segmentos en este gráfico">
+        <FilaChips label={`${etiquetaColumna}s en este gráfico`}>
           {segmentosTodos.map((s) => (
             <Chip
               key={s}
@@ -203,6 +220,7 @@ export function BurbujasPrecioChart({
         período{marcasTodas.length > theme.series.length
           ? ` · en gris, las marcas fuera de las ${theme.series.length} de mayor volumen`
           : ""}
+        {detalles ? " · tocá una burbuja para ver contra quién compite" : ""}
       </p>
     </div>
   );
@@ -213,7 +231,7 @@ export function BurbujasPrecioChart({
         {chips}
         <p className="py-16 text-center text-sm text-muted-foreground">
           Ninguna versión cumple las dos selecciones a la vez. Prendé otra marca u
-          otro segmento.
+          otra {etiquetaColumna.toLowerCase()}.
         </p>
       </div>
     );
@@ -296,6 +314,8 @@ export function BurbujasPrecioChart({
     segmento: porSegmento ? colDe(d) : undefined,
     tecnologia: d.tecnologia,
     moneda: d.moneda,
+    claveDetalle: d.claveDetalle,
+    unidades: d.unidades,
     itemStyle: {
       color: colorDe(d.marca),
       opacity: 0.82,
@@ -431,7 +451,38 @@ export function BurbujasPrecioChart({
       {chips}
       {/* notMerge: al filtrar, las burbujas que salen tienen que DESAPARECER;
           con merge ECharts las deja dibujadas con los datos viejos. */}
-      <EchartsAuto option={option} notMerge style={{ height: altura, width: "100%" }} />
+      <EchartsAuto
+        option={option}
+        notMerge
+        style={{ height: altura, width: "100%", cursor: detalles ? "pointer" : "default" }}
+        onEvents={
+          detalles
+            ? {
+                click: (p: {
+                  data?: { claveDetalle?: string; name?: string; unidades?: number; value?: number[] };
+                }) => {
+                  const k = p?.data?.claveDetalle;
+                  const d = k ? detalles[k] : undefined;
+                  if (!d) return;
+                  setAbierto({
+                    detalle: d,
+                    version: {
+                      nombre: p.data?.name ?? d.modelo,
+                      precio: p.data?.value?.[1] ?? 0,
+                      unidades: p.data?.unidades ?? 0,
+                    },
+                  });
+                },
+              }
+            : undefined
+        }
+      />
+      <DetalleModeloDialog
+        detalle={abierto?.detalle ?? null}
+        version={abierto?.version ?? null}
+        periodo={periodo}
+        onClose={() => setAbierto(null)}
+      />
     </div>
   );
 }

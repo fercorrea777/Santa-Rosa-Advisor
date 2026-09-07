@@ -83,6 +83,8 @@ export interface ModeloConBanda {
   /** "ICE", "PHEV", "ICE+PHEV"... según CADAM; undefined si no la informa. */
   tecnologia?: string;
   unidades: number;
+  /** Del mismo período del año anterior. Para la ficha del modelo. */
+  unidadesAnterior?: number;
   esPropia: boolean;
   precio: number | null;
   /** De dónde salió el precio: "cars", "datacar"... o null. */
@@ -186,6 +188,7 @@ export function asignarPrecios(
       claseOrigen: clase.origen,
       tecnologia: m.tecnologia,
       unidades: m.unidades,
+      unidadesAnterior: m.unidadesAnterior,
       esPropia: m.esPropia,
       precio,
       fuentePrecio: elegido?.fuente ?? null,
@@ -322,6 +325,107 @@ function medianaDe(valores: number[]): number | null {
   if (!valores.length) return null;
   const v = [...valores].sort((a, b) => a - b);
   return v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2;
+}
+
+/**
+ * La ficha de un modelo para abrirla desde un gráfico: qué es, contra quién
+ * compite y a qué precio. Es lo mismo que muestra el detalle de un casillero
+ * del mapa, pero centrado en un modelo, para que una burbuja se pueda tocar
+ * y contestar "¿y este quién es?" sin cambiar de pantalla.
+ */
+export interface CompetidorModelo {
+  marca: string;
+  modelo: string;
+  unidades: number;
+  precio: number | null;
+  tecnologia?: string;
+  esPropia: boolean;
+}
+
+export interface DetalleModelo {
+  marca: string;
+  modelo: string;
+  clase: Clase;
+  claseInferida: boolean;
+  tecnologia?: string;
+  esPropia: boolean;
+  unidades: number;
+  unidadesAnterior: number;
+  variacion: number | null;
+  deltaShare: number | null;
+  precio: number | null;
+  banda: string;
+  /** La clase entera en el período, y qué parte de ella es este modelo. */
+  unidadesClase: number;
+  parteClase: number;
+  /** Mediana de precio de los OTROS de su clase, y cuántos la sostienen. */
+  medianaClase: number | null;
+  nPreciosClase: number;
+  diferencia: number | null;
+  /** Los que más venden en su clase, sin contarlo a él. */
+  competidores: CompetidorModelo[];
+  competidoresTotal: number;
+}
+
+export const claveModelo = (marca: string, modelo: string) =>
+  `${normalizar(marca)}|${normalizar(modelo)}`;
+
+/**
+ * Fichas de los modelos pedidos, con los rivales sacados del universo
+ * COMPLETO que se pase: la competencia de un modelo es el mercado, no lo que
+ * el gráfico haya decidido dibujar.
+ */
+export function detallesPorModelo(
+  universo: ModeloConBanda[],
+  claves: Set<string>,
+  topCompetidores = 12
+): Map<string, DetalleModelo> {
+  const porClase = new Map<string, ModeloConBanda[]>();
+  for (const m of universo) {
+    if (!m.clase) continue;
+    const lista = porClase.get(m.clase) ?? [];
+    lista.push(m);
+    porClase.set(m.clase, lista);
+  }
+  for (const lista of porClase.values()) lista.sort((a, b) => b.unidades - a.unidades);
+
+  const salida = new Map<string, DetalleModelo>();
+  for (const m of universo) {
+    const k = claveModelo(m.marca, m.modelo);
+    if (!claves.has(k) || salida.has(k)) continue;
+    const deLaClase = porClase.get(m.clase) ?? [];
+    const otros = deLaClase.filter((x) => claveModelo(x.marca, x.modelo) !== k);
+    const precios = otros.map((x) => x.precio).filter((p): p is number => !!p);
+    const medianaClase = medianaDe(precios);
+    salida.set(k, {
+      marca: m.marca,
+      modelo: m.modelo,
+      clase: m.clase,
+      claseInferida: m.claseOrigen !== "catalogo",
+      tecnologia: m.tecnologia,
+      esPropia: m.esPropia,
+      unidades: m.unidades,
+      unidadesAnterior: m.unidadesAnterior ?? 0,
+      variacion: m.variacion,
+      deltaShare: m.deltaShare,
+      precio: m.precio,
+      banda: m.banda,
+      unidadesClase: deLaClase.reduce((s, x) => s + x.unidades, 0),
+      parteClase: 0, // se completa abajo, con el total ya sumado
+      medianaClase,
+      nPreciosClase: precios.length,
+      diferencia: m.precio && medianaClase ? m.precio / medianaClase - 1 : null,
+      competidores: otros.slice(0, topCompetidores).map((x) => ({
+        marca: x.marca, modelo: x.modelo, unidades: x.unidades, precio: x.precio,
+        tecnologia: x.tecnologia, esPropia: x.esPropia,
+      })),
+      competidoresTotal: otros.length,
+    });
+  }
+  for (const d of salida.values()) {
+    d.parteClase = d.unidadesClase ? d.unidades / d.unidadesClase : 0;
+  }
+  return salida;
 }
 
 export interface Rival {
