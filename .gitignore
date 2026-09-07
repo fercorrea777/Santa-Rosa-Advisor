@@ -45,3 +45,6 @@ next-env.d.ts
 __pycache__/
 *.py[cod]
 .superpowers/
+
+# lo escribe la app (POST /api/batalla), no se versiona
+data/batalla.json

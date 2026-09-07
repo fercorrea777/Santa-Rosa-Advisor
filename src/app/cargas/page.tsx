@@ -14,6 +14,7 @@ import { getActualizacionLeadsAsesor } from "@/lib/informes/leads-asesor";
 import { getActualizacionPautaMarca, getPautaMarca } from "@/lib/informes/pauta-marca";
 import { formatUnidades, hoyEnAsuncion } from "@/lib/format";
 import { getPresupuesto } from "@/lib/cadam/config";
+import { getBatalla } from "@/lib/informes/batalla";
 import { mesCorto } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -92,6 +93,7 @@ export default async function EstadoDatosPage() {
   const cuentasPauta = new Set(pauta.map((p) => p.marca)).size;
   const anioHoy = Number(hoyEnAsuncion().slice(0, 4));
   const presupuesto = getPresupuesto(anioHoy);
+  const batalla = getBatalla();
   const planTotal = presupuesto ? presupuesto.grupos.reduce((s, g) => s + g.plan.reduce((a, b) => a + b, 0), 0) : 0;
   const pptoTotal = presupuesto ? presupuesto.grupos.reduce((s, g) => s + (g.presupuesto_anual ?? 0), 0) : 0;
 
@@ -199,6 +201,17 @@ export default async function EstadoDatosPage() {
       tibioH: 45 * 24,
       frioH: 90 * 24,
       motor: "Hermes · «Presupuesto (Excel Finanzas)», cada hora, notebook",
+    },
+    {
+      nombre: "Batalla por modelo (Excel de producto)",
+      detalle: batalla
+        ? `${batalla.modelos.length} modelos, ${batalla.modelos.reduce((s, m) => s + m.versiones.length, 0)} versiones rivales · ${batalla.archivo} (archivo del ${batalla.modificado.slice(0, 10)})`
+        : "Nunca cargado. Lo carga advisor-batalla.sh (Hermes, notebook) desde JETOUR_PY_BBCH_*.xlsx.",
+      cadencia: "cuando producto cambia la planilla (el cron mira cada hora)",
+      actualizado: batalla ? new Date(batalla.cargado_en) : null,
+      tibioH: 45 * 24,
+      frioH: 90 * 24,
+      motor: "Hermes · «Batalla por modelo (Excel producto)», cada hora, notebook",
     },
   ];
 

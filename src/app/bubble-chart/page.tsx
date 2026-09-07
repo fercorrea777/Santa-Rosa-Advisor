@@ -4,6 +4,8 @@ import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { BurbujasMarcaChart, type Burbuja } from "@/components/charts/burbujas-marca-chart";
 import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
+import { BatallaModeloChart } from "@/components/charts/batalla-modelo-chart";
+import { getBatalla } from "@/lib/informes/batalla";
 import { TablaVersiones } from "@/components/dashboard/tabla-versiones";
 import { Seccion } from "@/components/dashboard/seccion";
 import {
@@ -135,6 +137,8 @@ export default async function BubbleChartPage({
     `${f.anio}-${dd(f.mesHasta)}`
   ).catch(() => []);
   const propiasSet = getMarcasPropiasSet();
+  // La batalla por modelo del equipo de producto (Excel), si Hermes ya la cargó.
+  const batalla = getBatalla();
   // SOLO las marcas del grupo. El stock de Cars también tiene canje y usados
   // (BMW, KARRY, CHANGAN... con una unidad cada una): en la captura que
   // motivó el rediseño, esa cola ocupaba MEDIA PANTALLA con una burbuja
@@ -246,6 +250,29 @@ export default async function BubbleChartPage({
           />
         </div>
       </div>
+
+      <Seccion titulo="Batalla por modelo">
+        {batalla ? (
+          <>
+            <NotaDato>
+              El bubble chart del <strong>equipo de producto</strong>, tal cual está en su
+              planilla <em>{batalla.archivo}</em> (archivo del {batalla.modificado.slice(0, 10)}
+              , cargado el {batalla.cargado_en.slice(0, 10)}): por cada modelo nuestro, las
+              versiones rivales que ellos eligieron, con precio de lista, medidas y volumen.
+              Nada se cruza con CADAM ni con Datacar acá: se dibuja lo que dice el Excel, y
+              cuando el Excel cambia, Hermes lo vuelve a cargar.
+            </NotaDato>
+            <BatallaModeloChart modelos={batalla.modelos} propias={[...propiasSet]} />
+          </>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-sm text-muted-foreground">
+              Todavía no se cargó la planilla de producto (JETOUR_PY_BBCH_*.xlsx). La carga
+              Hermes desde la carpeta del tablero con <code>advisor-batalla.sh</code>.
+            </CardContent>
+          </Card>
+        )}
+      </Seccion>
 
       <NotaDato>
         El eje vertical es la <strong>variación %</strong>, no el precio: la base

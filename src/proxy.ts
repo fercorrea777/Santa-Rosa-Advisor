@@ -59,6 +59,7 @@ const SIN_PUERTA = new Set([
   "/api/pauta-marca",
   "/api/demanda-bitrix",
   "/api/presupuesto",
+  "/api/batalla",
   "/api/informes-competencia/hermes",
 ]);
 
