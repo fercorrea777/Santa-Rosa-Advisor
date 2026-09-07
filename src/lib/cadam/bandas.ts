@@ -233,6 +233,62 @@ export function armarMapa(modelos: ModeloConBanda[]) {
   };
 }
 
+/**
+ * Qué hacer en un casillero. El mapa tiñe según nuestra participación, pero
+ * un color no es una decisión: un casillero claro de 15 unidades no es una
+ * oportunidad y uno oscuro de 20 tampoco es una fortaleza. La acción sale
+ * de cruzar CUÁNTO PESA el casillero en el mercado con CUÁNTO es nuestro.
+ *
+ *   pesa y no estamos   -> entrar   (falta producto o falta precio)
+ *   pesa y mandamos     -> defender (cuidar stock y precio, acá se gana)
+ *   chico y mandamos    -> nicho    (rinde, pero no mueve la aguja)
+ *   el resto            -> nada que decir
+ */
+export type AccionCasillero = "entrar" | "defender" | "nicho";
+
+/** Un casillero "pesa" cuando es al menos esto del mercado del mapa. */
+export const PESO_RELEVANTE = 0.03;
+/** Debajo de esta participación, no estamos en el casillero. */
+export const SHARE_AUSENTE = 0.05;
+/** Desde esta participación, mandamos. */
+export const SHARE_FUERTE = 0.2;
+
+export interface LecturaCasillero {
+  celda: Celda;
+  /** Qué parte del mercado del mapa es este casillero. */
+  peso: number;
+  /** Qué parte del casillero es nuestra. */
+  share: number;
+  accion: AccionCasillero | null;
+  /** Los que más venden ahí y no son nuestros: qué habría que traer. */
+  rivales: ModeloConBanda[];
+  /** Nuestros modelos en el casillero. */
+  propios: ModeloConBanda[];
+  /** Mediana de precio, adentro del casillero. Positivo = estamos caros. */
+  precioNuestro: number | null;
+  precioRival: number | null;
+  diferencia: number | null;
+}
+
+export function lecturaCasillero(celda: Celda, totalMercado: number): LecturaCasillero {
+  const peso = totalMercado ? celda.mercado / totalMercado : 0;
+  const share = celda.mercado ? celda.propias / celda.mercado : 0;
+  const rivales = celda.modelos.filter((m) => !m.esPropia);
+  const propios = celda.modelos.filter((m) => m.esPropia);
+  const precioNuestro = mediana(propios.map((m) => m.precio).filter((p): p is number => !!p));
+  const precioRival = mediana(rivales.map((m) => m.precio).filter((p): p is number => !!p));
+  const pesa = peso >= PESO_RELEVANTE;
+  const accion: AccionCasillero | null =
+    pesa && share < SHARE_AUSENTE ? "entrar"
+      : pesa && share >= SHARE_FUERTE ? "defender"
+      : !pesa && share >= SHARE_FUERTE && celda.propias >= 20 ? "nicho"
+      : null;
+  return {
+    celda, peso, share, accion, rivales, propios, precioNuestro, precioRival,
+    diferencia: precioNuestro && precioRival ? precioNuestro / precioRival - 1 : null,
+  };
+}
+
 export interface Rival {
   marca: string;
   modelo: string;

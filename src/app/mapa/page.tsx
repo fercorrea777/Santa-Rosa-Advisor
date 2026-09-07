@@ -9,10 +9,12 @@ import {
   getCobertura, getModelosPorTecnologia, getPorDimension, getRankingModelos, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
 import {
-  armarMapa, asignarPrecios, BANDAS, etiquetaBanda, precioRelativo, rivalesDirectos, SIN_PRECIO,
-  type PrecioCandidato, type Rival,
+  armarMapa, asignarPrecios, BANDAS, etiquetaBanda, lecturaCasillero, PESO_RELEVANTE, precioRelativo,
+  rivalesDirectos, SHARE_AUSENTE, SHARE_FUERTE, SIN_PRECIO,
+  type LecturaCasillero, type ModeloConBanda, type PrecioCandidato, type Rival,
 } from "@/lib/cadam/bandas";
-import { claseDe, CLASES_ORDEN, ordenClase, SEGMENTO_DE_CLASE } from "@/lib/cadam/clases";
+import { MapaClases, type CeldaMapa } from "@/components/dashboard/mapa-clases";
+import { claseDe, ordenClase } from "@/lib/cadam/clases";
 import { SIN_DATO_TECNOLOGIA } from "@/lib/informes/segmento-version";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
@@ -109,31 +111,80 @@ export default async function MapaPage({
   const conClaseCatalogo = con.filter((m) => m.claseOrigen === "catalogo").reduce((s, m) => s + m.unidades, 0);
   const conClaseInferida = con.filter((m) => m.claseOrigen === "precio").reduce((s, m) => s + m.unidades, 0);
 
+  // La columna "sin precio" no lleva marca de acción: es un hueco de
+  // nuestros datos, no una posición del mercado. Lo mismo con "Sin dato" de
+  // motorización.
   const columnasBanda = [
     ...BANDAS.map((b) => ({ clave: b.clave, etiqueta: b.etiqueta })),
-    { clave: SIN_PRECIO, etiqueta: "Sin precio conocido" },
+    { clave: SIN_PRECIO, etiqueta: "Sin precio conocido", sinAccion: true },
   ];
+
+  // Qué hacer en cada casillero del mapa de precios: pesa y no estamos ->
+  // entrar; pesa y mandamos -> defender. El peso se mide sobre el mercado
+  // efectivamente dibujado, igual que en la tabla.
+  const celdasDibujadas = [...mapa.celdas.values()].filter((c) => clasesMapa.includes(c.clase));
+  const totalDibujado = celdasDibujadas.reduce((s, c) => s + c.mercado, 0);
+  const lecturas = celdasDibujadas
+    .filter((c) => c.banda !== SIN_PRECIO)
+    .map((c) => lecturaCasillero(c, totalDibujado));
+  const paraEntrar = lecturas
+    .filter((l) => l.accion === "entrar")
+    .sort((a, b) => b.celda.mercado - a.celda.mercado);
+  const paraDefender = lecturas
+    .filter((l) => l.accion === "defender")
+    .sort((a, b) => b.celda.propias - a.celda.propias);
+
+  // --- lo que viaja al navegador para el detalle al hacer clic. Se recortan
+  // los modelos por casillero: el detalle es para decidir, no un volcado de
+  // la base, y el peso de la página lo paga el gerente en su tablet.
+  const MAX_MODELOS = 20;
+  const aModelo = (m: ModeloConBanda) => ({
+    marca: m.marca, modelo: m.modelo, unidades: m.unidades, precio: m.precio,
+    tecnologia: m.tecnologia && m.tecnologia !== SIN_DATO_TECNOLOGIA ? m.tecnologia : undefined,
+    esPropia: m.esPropia,
+  });
+  const celdasBanda: CeldaMapa[] = celdasDibujadas.map((c) => {
+    const l = lecturaCasillero(c, totalDibujado);
+    return {
+      fila: c.clase, columna: c.banda, mercado: c.mercado, propias: c.propias,
+      modelos: c.modelos.slice(0, MAX_MODELOS).map(aModelo), modelosTotal: c.modelos.length,
+      precioNuestro: l.precioNuestro, precioRival: l.precioRival,
+    };
+  });
 
   // --- mapa por motorización: mismo dibujo, columnas = tecnologías de CADAM.
   // La clase de cada modelo es la misma que en el mapa de precios (con el
   // precio ya cruzado, para que la inferencia coincida).
   const clasePorModelo = new Map(conTodo.map((m) => [`${m.marca}|${m.modelo}`, m.clase]));
+  const precioPorModelo = new Map(conTodo.map((m) => [`${m.marca}|${m.modelo}`, m.precio]));
   const filasTec = getModelosPorTecnologia({ ...rango, segmento: f.segmento });
-  const tecPorClase = new Map<string, Map<string, { mercado: number; propias: number }>>();
+  type CeldaTec = { mercado: number; propias: number; modelos: ModeloConBanda[] };
+  const tecPorClase = new Map<string, Map<string, CeldaTec>>();
   const totalTecClase = new Map<string, number>();
   const codigosVistos = new Set<string>();
   for (const r of filasTec) {
     const clase = clasePorModelo.get(`${r.marca}|${r.modelo}`)
       ?? claseDe({ marca: r.marca, modelo: r.modelo, segmento: r.segmento }).clase;
     if (claseFiltro && clase !== claseFiltro) continue;
-    const fila = tecPorClase.get(clase) ?? new Map<string, { mercado: number; propias: number }>();
-    const celda = fila.get(r.tecnologia) ?? { mercado: 0, propias: 0 };
+    const fila = tecPorClase.get(clase) ?? new Map<string, CeldaTec>();
+    const celda = fila.get(r.tecnologia) ?? { mercado: 0, propias: 0, modelos: [] };
     celda.mercado += r.unidades;
     if (r.esPropia) celda.propias += r.unidades;
+    // El detalle del casillero necesita el modelo con su precio: la clase y
+    // el precio salen del mismo cruce que el mapa de arriba.
+    celda.modelos.push({
+      marca: r.marca, modelo: r.modelo, segmento: r.segmento, clase, claseOrigen: "catalogo",
+      tecnologia: r.tecnologia, unidades: r.unidades, esPropia: r.esPropia,
+      precio: precioPorModelo.get(`${r.marca}|${r.modelo}`) ?? null,
+      fuentePrecio: null, banda: "", deltaShare: null, variacion: null,
+    });
     fila.set(r.tecnologia, celda);
     tecPorClase.set(clase, fila);
     totalTecClase.set(clase, (totalTecClase.get(clase) ?? 0) + r.unidades);
     codigosVistos.add(r.tecnologia);
+  }
+  for (const fila of tecPorClase.values()) {
+    for (const c of fila.values()) c.modelos.sort((a, b) => b.unidades - a.unidades);
   }
   const clasesTec = [...totalTecClase.entries()]
     .filter(([, u]) => u >= MINIMO_CLASE)
@@ -145,8 +196,23 @@ export default async function MapaPage({
   const columnasTec = [
     ...TECNOLOGIAS.filter((t) => codigosVistos.has(t)).map((t) => ({ clave: t, etiqueta: t })),
     ...extras.map((t) => ({ clave: t, etiqueta: t })),
-    ...(codigosVistos.has(SIN_DATO_TECNOLOGIA) ? [{ clave: SIN_DATO_TECNOLOGIA, etiqueta: "Sin dato" }] : []),
+    ...(codigosVistos.has(SIN_DATO_TECNOLOGIA) ? [{ clave: SIN_DATO_TECNOLOGIA, etiqueta: "Sin dato", sinAccion: true }] : []),
   ];
+  // Mismo payload que el mapa de precios. El total va en 1 porque de esta
+  // lectura solo se usan las medianas de precio: el peso de cada casillero lo
+  // recalcula el componente sobre el mapa que dibuja.
+  const celdasTec: CeldaMapa[] = [];
+  for (const [clase, fila] of tecPorClase) {
+    if (!clasesTec.includes(clase)) continue;
+    for (const [tec, c] of fila) {
+      const l = lecturaCasillero({ clase, banda: tec, ...c }, 1);
+      celdasTec.push({
+        fila: clase, columna: tec, mercado: c.mercado, propias: c.propias,
+        modelos: c.modelos.slice(0, MAX_MODELOS).map(aModelo), modelosTotal: c.modelos.length,
+        precioNuestro: l.precioNuestro, precioRival: l.precioRival,
+      });
+    }
+  }
 
   const duelos = rivalesDirectos(con).filter((d) => d.propio.unidades >= 5).slice(0, 25);
   const relativos = precioRelativo(con)
@@ -158,10 +224,6 @@ export default async function MapaPage({
     claseFiltro ? `solo ${claseFiltro}` : null,
     f.tecnologia ? `solo ${f.tecnologia}` : null,
   ].filter(Boolean).join(" · ");
-
-  /** Cabecera de fila del mapa: la clase, y en chico el segmento de CADAM
-   *  cuando el nombre de la clase no lo dice solo. */
-  const etiquetaClase = (c: string) => ({ clase: c, segmento: SEGMENTO_DE_CLASE[c] });
 
   return (
     <div className="flex flex-col gap-5">
@@ -234,19 +296,12 @@ export default async function MapaPage({
           {clasesMapa.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Sin matriculaciones en este recorte.</p>
           ) : (
-            <TablaMapa
-              filas={clasesMapa.map(etiquetaClase)}
+            <MapaClases
+              filas={clasesMapa}
               columnas={columnasBanda}
-              celda={(c, b) => {
-                const x = mapa.celda(c, b);
-                return x
-                  ? {
-                      mercado: x.mercado,
-                      propias: x.propias,
-                      detalle: x.modelos.slice(0, 6).map((m) => `${m.marca} ${m.modelo}: ${formatUnidades(m.unidades)}`).join(" · "),
-                    }
-                  : undefined;
-              }}
+              celdas={celdasBanda}
+              nombreColumna="banda de precio"
+              periodo={periodo}
             />
           )}
         </CardContent>
@@ -267,11 +322,66 @@ export default async function MapaPage({
           {clasesTec.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Sin matriculaciones en este recorte.</p>
           ) : (
-            <TablaMapa
-              filas={clasesTec.map(etiquetaClase)}
+            <MapaClases
+              filas={clasesTec}
               columnas={columnasTec}
-              celda={(c, t) => tecPorClase.get(c)?.get(t)}
+              celdas={celdasTec}
+              nombreColumna="motorización"
+              periodo={periodo}
             />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Qué hacer en cada casillero marcado — {periodo}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Los casilleros del mapa de precios que piden una decisión: los que
+            pesan al menos {formatPct(PESO_RELEVANTE)} del mercado y donde
+            tenemos menos de {formatPct(SHARE_AUSENTE)} (entrar) o más de{" "}
+            {formatPct(SHARE_FUERTE)} (defender). Con quién se lo lleva, a qué
+            precio y qué margen de precio hay.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {paraEntrar.length === 0 && paraDefender.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Ningún casillero de este recorte cumple los cortes.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold">
+                  Dónde entrar{" "}
+                  <span className="font-normal text-muted-foreground">
+                    ({paraEntrar.length}) · el mercado compra y no estamos
+                  </span>
+                </h3>
+                {paraEntrar.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No hay casilleros grandes sin presencia nuestra.
+                  </p>
+                ) : (
+                  paraEntrar.map((l) => <Casillero key={`${l.celda.clase}|${l.celda.banda}`} l={l} tipo="entrar" />)
+                )}
+              </div>
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold">
+                  Dónde mandamos{" "}
+                  <span className="font-normal text-muted-foreground">
+                    ({paraDefender.length}) · cuidar stock y precio
+                  </span>
+                </h3>
+                {paraDefender.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Ningún casillero grande con participación nuestra alta.
+                  </p>
+                ) : (
+                  paraDefender.map((l) => <Casillero key={`${l.celda.clase}|${l.celda.banda}`} l={l} tipo="defender" />)
+                )}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -435,6 +545,77 @@ export default async function MapaPage({
   );
 }
 
+/**
+ * Un casillero que pide una decisión, en palabras de negocio: cuánto se
+ * vende ahí, quién se lo lleva (o con qué mandamos nosotros), a qué precio
+ * y qué margen de precio queda. La lectura de precio es la que el mapa solo
+ * no puede dar: dentro del mismo casillero, estar por debajo de la mediana
+ * es espacio para subir, y estar por encima mandando es que el precio no es
+ * la barrera.
+ */
+function Casillero({ l, tipo }: { l: LecturaCasillero; tipo: "entrar" | "defender" }) {
+  const entrar = tipo === "entrar";
+  const lista = (entrar ? l.rivales : l.propios).slice(0, 3);
+  const dif = l.diferencia;
+  const brecha = l.precioNuestro && l.precioRival ? Math.abs(l.precioNuestro - l.precioRival) : null;
+  return (
+    <div
+      className={cn(
+        "rounded-lg border-l-4 bg-muted/40 p-3",
+        entrar ? "border-l-amber-500" : "border-l-emerald-600"
+      )}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="text-sm font-medium">
+          {l.celda.clase} · US$ {etiquetaBanda(l.celda.banda)}
+        </span>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {formatUnidades(l.celda.mercado)} u. en el casillero ·{" "}
+          <strong className={cn("font-semibold", entrar ? "text-amber-600 dark:text-amber-500" : "text-emerald-700 dark:text-emerald-400")}>
+            {formatUnidades(l.celda.propias)} nuestras · {formatPct(l.share)}
+          </strong>
+        </span>
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{entrar ? "Se lo llevan:" : "Mandamos con:"}</span>{" "}
+        {lista.length === 0
+          ? "sin modelos con ventas en el casillero"
+          : lista
+              .map((m) => `${m.marca} ${m.modelo} ${formatUnidades(m.unidades)} u.${m.precio ? ` · US$ ${formatUnidades(m.precio)}` : ""}`)
+              .join(" · ")}
+        {(entrar ? l.rivales : l.propios).length > 3 ? ` · y ${(entrar ? l.rivales : l.propios).length - 3} más` : ""}
+      </p>
+      <p className="mt-1 text-xs">
+        {entrar ? (
+          l.precioRival ? (
+            <>
+              El casillero se paga alrededor de{" "}
+              <strong className="tabular-nums">US$ {formatUnidades(Math.round(l.precioRival))}</strong>. Para
+              entrar hace falta producto en ese precio, o bajar el nuestro hasta ahí.
+            </>
+          ) : (
+            <>Sin precios de rivales en el casillero: no se puede decir a qué precio se compra.</>
+          )
+        ) : dif !== null && brecha !== null && dif <= -0.05 ? (
+          <>
+            Estamos <strong className="tabular-nums">US$ {formatUnidades(Math.round(brecha))}</strong> por debajo de
+            la mediana del casillero y aun así mandamos: hay espacio de precio, sobre todo si el stock escasea.
+          </>
+        ) : dif !== null && dif >= 0.05 ? (
+          <>
+            Estamos <strong className="tabular-nums">US$ {formatUnidades(Math.round(brecha ?? 0))}</strong> por
+            encima de la mediana y mandamos igual: acá el precio no es la barrera, cuidar el stock.
+          </>
+        ) : dif !== null ? (
+          <>Estamos al precio del casillero: lo que decide es el stock y el seguimiento.</>
+        ) : (
+          <>Sin precios suficientes para comparar dentro del casillero.</>
+        )}
+      </p>
+    </div>
+  );
+}
+
 /** Un rival en la lista: marca y modelo, unidades, precio y motorización.
  *  Los de la misma banda que nuestro modelo llevan la marca al lado; los
  *  que entraron a la clase por precio y no por catálogo, también. */
@@ -474,118 +655,5 @@ function Diferencia({ valor }: { valor: number | null }) {
         {valor > 0.05 ? "más caro" : valor < -0.05 ? "más barato" : "parejo"}
       </span>
     </TableCell>
-  );
-}
-
-/**
- * El dibujo de los mapas: filas = clases de vehículo, columnas = bandas o
- * motorizaciones. En cada casillero, el mercado arriba y lo nuestro debajo
- * con su participación; el tinte acompaña a la cifra, nunca la reemplaza.
- */
-function TablaMapa({
-  filas,
-  columnas,
-  celda,
-}: {
-  filas: { clase: string; segmento?: string }[];
-  columnas: { clave: string; etiqueta: string }[];
-  celda: (fila: string, columna: string) => { mercado: number; propias: number; detalle?: string } | undefined;
-}) {
-  /** 0% nada; 30% o más, el tope. */
-  const tinte = (share: number) =>
-    share > 0 ? `color-mix(in oklch, var(--primary) ${Math.min(45, Math.round(share * 150))}%, transparent)` : undefined;
-
-  const totalColumna = new Map<string, { mercado: number; propias: number }>();
-  for (const fila of filas) {
-    for (const c of columnas) {
-      const x = celda(fila.clase, c.clave);
-      if (!x) continue;
-      const t = totalColumna.get(c.clave) ?? { mercado: 0, propias: 0 };
-      t.mercado += x.mercado;
-      t.propias += x.propias;
-      totalColumna.set(c.clave, t);
-    }
-  }
-  const esConocida = (c: string) => CLASES_ORDEN.includes(c);
-
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Clase</TableHead>
-            {columnas.map((c) => (
-              <TableHead key={c.clave} className="text-right whitespace-nowrap">{c.etiqueta}</TableHead>
-            ))}
-            <TableHead className="text-right">Total</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filas.map((fila) => {
-            const filaTotal = columnas.reduce(
-              (t, c) => {
-                const x = celda(fila.clase, c.clave);
-                return { mercado: t.mercado + (x?.mercado ?? 0), propias: t.propias + (x?.propias ?? 0) };
-              },
-              { mercado: 0, propias: 0 }
-            );
-            return (
-              <TableRow key={fila.clase}>
-                <TableCell className="font-medium whitespace-nowrap">
-                  {fila.clase}
-                  {!esConocida(fila.clase) && (
-                    <span className="block text-[11px] font-normal text-muted-foreground">sin clase: segmento de CADAM</span>
-                  )}
-                </TableCell>
-                {columnas.map((c) => {
-                  const x = celda(fila.clase, c.clave);
-                  const share = x && x.mercado ? x.propias / x.mercado : 0;
-                  return (
-                    <TableCell
-                      key={c.clave}
-                      className="text-right align-top"
-                      style={{ backgroundColor: tinte(share) }}
-                      title={x?.detalle}
-                    >
-                      {x ? (
-                        <>
-                          <span className="block tabular-nums font-semibold">{formatUnidades(x.mercado)}</span>
-                          <span className="block text-[11px] tabular-nums text-muted-foreground">
-                            {x.propias ? `${formatUnidades(x.propias)} nuestras · ${formatPct(share)}` : "—"}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">·</span>
-                      )}
-                    </TableCell>
-                  );
-                })}
-                <TableCell className="text-right align-top">
-                  <span className="block tabular-nums font-semibold">{formatUnidades(filaTotal.mercado)}</span>
-                  <span className="block text-[11px] tabular-nums text-muted-foreground">
-                    {filaTotal.propias ? `${formatUnidades(filaTotal.propias)} · ${formatPct(filaTotal.propias / filaTotal.mercado)}` : "—"}
-                  </span>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-          <TableRow className="font-medium">
-            <TableCell>Total</TableCell>
-            {columnas.map((c) => {
-              const t = totalColumna.get(c.clave);
-              return (
-                <TableCell key={c.clave} className="text-right align-top">
-                  <span className="block tabular-nums">{t ? formatUnidades(t.mercado) : "·"}</span>
-                  <span className="block text-[11px] tabular-nums text-muted-foreground">
-                    {t?.propias ? `${formatUnidades(t.propias)} · ${formatPct(t.propias / t.mercado)}` : "—"}
-                  </span>
-                </TableCell>
-              );
-            })}
-            <TableCell className="text-right" />
-          </TableRow>
-        </TableBody>
-      </Table>
-    </div>
   );
 }
