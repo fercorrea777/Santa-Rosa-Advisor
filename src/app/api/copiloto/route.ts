@@ -365,7 +365,8 @@ const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
     "CADAM. Elegí QUÉ: 'ventas' (vehículos FACTURADOS por mes/marca/modelo, " +
     "API de Cars), 'presupuesto' (el presupuesto del año por marca, del Excel " +
     "de Finanzas: plan vigente, presupuesto anual, % hecho, cumplimiento y qué " +
-    "marcas van atrasadas, ya calculado), 'stock' (stock actual por marca/modelo/estado con precio " +
+    "marcas van atrasadas, más los canales CDE y Wholesale contra su objetivo; " +
+    "ya calculado), 'stock' (stock actual por marca/modelo/estado con precio " +
     "de lista en dólares), 'asesores' (ranking retail del año, mayoristas " +
     "aparte, mejor asesor por marca), 'demanda' (leads y negocios de Bitrix " +
     "por marca y modelo: abiertos, convertidos, perdidos y por qué), " +

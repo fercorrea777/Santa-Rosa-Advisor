@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   getMarcasPropiasSet, getParametros, guardarParametros,
-  type GrupoPresupuesto, type Presupuesto,
+  type CanalPresupuesto, type GrupoPresupuesto, type Presupuesto,
 } from "@/lib/cadam/config";
 
 export const runtime = "nodejs";
@@ -111,12 +111,55 @@ export async function POST(request: Request) {
     grupos.push({ marcas, hoja, plan, presupuesto_anual: presupuestoAnual });
   }
 
+  // Canales (CDE, Wholesale): opcionales, mismo formato de 12 enteros.
+  const canales: CanalPresupuesto[] = [];
+  if (body.canales !== undefined) {
+    if (!Array.isArray(body.canales) || body.canales.length > 10) {
+      return malo("canales tiene que ser un array de hasta 10");
+    }
+    for (const [i, crudo] of body.canales.entries()) {
+      const c = crudo as Record<string, unknown>;
+      const canal = texto(c.canal, 20)?.toUpperCase();
+      if (canal !== "CDE" && canal !== "WHOLESALE") {
+        return malo(`canales[${i}]: canal tiene que ser CDE o WHOLESALE`);
+      }
+      if (canales.some((x) => x.canal === canal)) return malo(`canales[${i}]: ${canal} repetido`);
+      if (!Array.isArray(c.plan) || c.plan.length !== 12) {
+        return malo(`canales[${i}] (${canal}): plan tiene que tener exactamente 12 meses`);
+      }
+      const plan: number[] = [];
+      for (const [j, v] of c.plan.entries()) {
+        const n = entero(v, 0, MAX_UNIDADES);
+        if (n === null) return malo(`canales[${i}].plan[${j}]: "${String(v)}" no es un entero 0–${MAX_UNIDADES}`);
+        plan.push(n);
+      }
+      const realCrudo = Array.isArray(c.real) ? c.real : [];
+      const real: (number | null)[] = [];
+      for (let j = 0; j < 12; j++) {
+        const v = realCrudo[j];
+        if (v === null || v === undefined) {
+          real.push(null);
+          continue;
+        }
+        const n = entero(v, 0, MAX_UNIDADES);
+        if (n === null) return malo(`canales[${i}].real[${j}]: "${String(v)}" no es un entero 0–${MAX_UNIDADES} ni null`);
+        real.push(n);
+      }
+      let realHasta: number | null = null;
+      if (c.real_hasta_mes !== null && c.real_hasta_mes !== undefined) {
+        realHasta = entero(c.real_hasta_mes, 1, 12);
+        if (realHasta === null) return malo(`canales[${i}]: real_hasta_mes tiene que ser 1–12 o null`);
+      }
+      canales.push({ canal, hoja: texto(c.hoja) ?? canal, plan, real, real_hasta_mes: realHasta });
+    }
+  }
   const presupuesto: Presupuesto = {
     anio, version, archivo, modificado,
     cargado_en: new Date().toISOString(),
     real_hasta_mes: realHastaMes,
     total_compilado: totalCompilado,
     grupos,
+    canales,
   };
   // El plan de cada grupo va UNA vez, bajo su primera marca; las otras
   // quedan en null. Así la grilla y /operacion no cuentan una meta dos veces.

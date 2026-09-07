@@ -101,9 +101,11 @@ const REGLAS = `
     - "mejores asesores", "ranking de vendedores", "quien vende mas" ->
       que='asesores'
     - "presupuesto", "objetivo", "meta", "plan del año", "cumplimiento",
-      "atrasadas", "como vamos contra el plan" -> que='presupuesto' (plan
-      vigente, presupuesto anual, % hecho y atrasados por marca, ya
-      calculados: citalos, no los recalcules con las ventas crudas)
+      "atrasadas", "como vamos contra el plan", "CDE", "Wholesale",
+      "mayoristas contra objetivo" -> que='presupuesto' (plan vigente,
+      presupuesto anual, % hecho y atrasados por marca, y los canales CDE y
+      Wholesale con objetivo y real de Finanzas; ya calculados: citalos, no
+      los recalcules con las ventas crudas)
     - "cuanto facturamos", "cuantos vendimos" -> que='ventas';
       "cuanto stock", "que tenemos" -> que='stock'
     Cita los numeros de esos resumenes tal cual vienen (ya estan

@@ -272,6 +272,9 @@ export async function resumenRivales(f: Filtro) {
         unidadesClase: d.unidadesClase,
         precioUsd: d.propio.precio,
         banda: d.propio.banda === SIN_PRECIO ? null : etiquetaBanda(d.propio.banda),
+        // Con qué precio se comparó: AT contra AT, MT contra MT, o desde.
+        comparacion: r?.base ?? null,
+        precioComparadoUsd: r?.precioBase ?? null,
         medianaClaseUsd: r?.medianaClase ? Math.round(r.medianaClase) : null,
         diferenciaContraClasePct: r?.diferenciaClase != null ? redondear(100 * r.diferenciaClase) : null,
         rivalesEnClase: d.rivales.length,
@@ -387,6 +390,21 @@ export async function resumenPresupuesto(anio = anioActual()) {
   }));
   const conPpto = grupos.filter((g) => g.presupuestoAnual);
   const presupuestoTotal = conPpto.reduce((s, g) => s + (g.presupuestoAnual ?? 0), 0);
+  // Canales (CDE, Wholesale): objetivo y real de FINANZAS, del mismo Excel.
+  // Cars no entra acá: su sucursal no coincide con la definición de canal.
+  const canales = (p.canales ?? []).map((c) => {
+    const hasta = c.real_hasta_mes ?? 0;
+    const objetivoYtd = c.plan.slice(0, hasta).reduce((s, v) => s + v, 0);
+    const realYtd = c.real.slice(0, hasta).reduce<number>((s, v) => s + (v ?? 0), 0);
+    return {
+      canal: c.canal,
+      realHastaMes: c.real_hasta_mes,
+      objetivoYtd,
+      realYtd,
+      cumplimiento: objetivoYtd > 0 ? redondear(realYtd / objetivoYtd, 3) : null,
+      objetivoAnual: c.plan.reduce((s, v) => s + v, 0),
+    };
+  });
   return {
     anio, version: p.version, archivo: p.archivo, modificado: p.modificado, cargadoEn: p.cargado_en,
     realHastaMes: p.real_hasta_mes, ultimoMesCerrado,
@@ -396,11 +414,14 @@ export async function resumenPresupuesto(anio = anioActual()) {
     hechoTotal: porcentajeHecho(conPpto.reduce((s, g) => s + g.facturadoYtd, 0), presupuestoTotal),
     grupos,
     atrasados: lista,
+    canales,
     nota:
       `Plan vigente = ejercicio de Finanzas ${p.version} mes a mes; hasta el mes ${p.real_hasta_mes ?? "—"} el plan ` +
       "es el real, por eso el cumplimiento se mide solo sobre los meses siguientes. Presupuesto anual = cifra " +
       "original del año, sin apertura mensual (Renault y Xpeng no la tienen). Facturado = vehículos de Cars " +
       "hasta el último mes cerrado. 'Atrasado' = el ritmo de los últimos tres meses cerrados no alcanza el que " +
-      "pide el plan para lo que queda del año. Un grupo (GREAT WALL + HAVAL) es una sola meta.",
+      "pide el plan para lo que queda del año. Un grupo (GREAT WALL + HAVAL) es una sola meta. " +
+      "Canales (CDE = sucursal de Ciudad del Este, WHOLESALE = mayoristas): objetivo y real SEGÚN FINANZAS, " +
+      "del mismo Excel, hasta el mes que ellos cerraron; sus unidades ya están dentro de las marcas.",
   };
 }

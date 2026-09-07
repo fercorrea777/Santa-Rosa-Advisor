@@ -334,6 +334,24 @@ export default async function OperacionPage({
       }))
     : [];
   const referenciaMensual = presupuestoTotal > 0 ? presupuestoTotal / 12 : null;
+  // Canales presupuestados aparte (CDE, Wholesale): objetivo y real de
+  // FINANZAS, del mismo Excel. No se cruzan con Cars: ver la nota en pantalla.
+  const canales = (presupuesto?.canales ?? []).map((c) => {
+    const hasta = c.real_hasta_mes ?? 0;
+    const objetivoYtd = c.plan.slice(0, hasta).reduce((acc, v) => acc + v, 0);
+    const realYtd = c.real.slice(0, hasta).reduce<number>((acc, v) => acc + (v ?? 0), 0);
+    return {
+      canal: c.canal,
+      realHastaMes: c.real_hasta_mes,
+      objetivoYtd,
+      realYtd,
+      cumplimiento: objetivoYtd > 0 && hasta > 0 ? realYtd / objetivoYtd : null,
+      objetivoAnual: c.plan.reduce((acc, v) => acc + v, 0),
+      meses: c.plan.map((plan, i) => ({
+        mes: i + 1, plan, facturado: c.real[i] ?? 0, cerrado: false,
+      })),
+    };
+  });
 
   const ajenas = marcas.filter((m) => !esPropia(m));
   const resumenAjenas = {
@@ -1157,6 +1175,95 @@ export default async function OperacionPage({
       )}
 
       </Seccion>
+
+      {canales.length > 0 && (
+        <Seccion titulo="Canales que Finanzas presupuesta aparte" id="canales">
+          <NotaDato>
+            <strong>CDE</strong> (la sucursal de Ciudad del Este) y <strong>Wholesale</strong>{" "}
+            (ventas mayoristas) tienen su propio objetivo en el Excel de Finanzas. Sus unidades ya
+            están dentro de las marcas de arriba: es otro corte de lo mismo, no se suma. El real de
+            acá es <strong>el de Finanzas, del mismo Excel</strong>, hasta el mes que ellos cerraron:
+            la sucursal que anota Cars no coincide con esta definición de canal (CDE en Cars: 79
+            unidades en {f.anio}; Finanzas: {formatUnidades(canales[0].realYtd)} hasta{" "}
+            {canales[0].realHastaMes ? mesCorto(canales[0].realHastaMes) : "—"}).
+          </NotaDato>
+          <Card>
+            <CardHeader>
+              <CardTitle>Objetivo y real por canal — {f.anio}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Canal</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Objetivo a la fecha</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Real (Finanzas)</TableHead>
+                    <TableHead className="text-right">Cumplimiento</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Objetivo anual</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">% del año hecho</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {canales.map((c) => (
+                    <TableRow key={c.canal}>
+                      <TableCell className="font-medium">
+                        {c.canal === "CDE" ? "CDE (Ciudad del Este)" : "Wholesale (mayoristas)"}
+                        <span className="block text-[11px] font-normal text-muted-foreground">
+                          real hasta {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatUnidades(c.objetivoYtd)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatUnidades(c.realYtd)}</TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right tabular-nums font-medium",
+                          c.cumplimiento !== null && c.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
+                          c.cumplimiento !== null && c.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
+                        )}
+                      >
+                        {c.cumplimiento !== null ? formatPct(c.cumplimiento) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatUnidades(c.objetivoAnual)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {c.objetivoAnual ? formatPct(c.realYtd / c.objetivoAnual) : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {canales.map((c) => (
+              <Card key={c.canal}>
+                <CardHeader>
+                  <CardTitle>
+                    {c.canal === "CDE" ? "CDE" : "Wholesale"} — objetivo vs. real, mes a mes
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Objetivo del Excel ({presupuesto?.version}) y real de Finanzas hasta{" "}
+                    {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}; de ahí en adelante solo hay
+                    objetivo.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <PlanVsFacturadoChart
+                    meses={c.meses}
+                    referenciaMensual={null}
+                    altura={260}
+                    etiquetaPlan="Objetivo"
+                    etiquetaReal="Real (Finanzas)"
+                  />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </Seccion>
+      )}
 
       <Seccion titulo="Demanda que no cerró" id="demanda">
       {!hayDemanda ? (

@@ -192,7 +192,7 @@ export default async function EstadoDatosPage() {
     {
       nombre: `Presupuesto ${anioHoy} (Excel de Finanzas)`,
       detalle: presupuesto
-        ? `Plan ${presupuesto.version} · ${presupuesto.grupos.length} marcas o grupos · real hasta ${presupuesto.real_hasta_mes ? mesCorto(presupuesto.real_hasta_mes) : "—"} · plan ${formatUnidades(planTotal)} u. · presupuesto original ${formatUnidades(pptoTotal)} u. Renew (usados) y los canales CDE y Wholesale no entran todavía.`
+        ? `Plan ${presupuesto.version} · ${presupuesto.grupos.length} marcas o grupos · real hasta ${presupuesto.real_hasta_mes ? mesCorto(presupuesto.real_hasta_mes) : "—"} · plan ${formatUnidades(planTotal)} u. · presupuesto original ${formatUnidades(pptoTotal)} u.${presupuesto.canales?.length ? ` · canales ${presupuesto.canales.map((c) => c.canal).join(" y ")} con objetivo y real de Finanzas` : ""} Renew (usados) no entra.`
         : "Nunca cargado. Lo carga advisor-presupuesto.sh (Hermes, notebook) desde el Budget de Finanzas.",
       cadencia: "cuando Finanzas cambia el Excel (el cron mira cada hora)",
       actualizado: presupuesto ? new Date(presupuesto.cargado_en) : null,

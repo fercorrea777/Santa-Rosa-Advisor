@@ -28,6 +28,26 @@ export interface GrupoPresupuesto {
   presupuesto_anual: number | null;
 }
 
+/** Canal que Finanzas presupuesta aparte de las marcas: la sucursal de
+ *  Ciudad del Este y las ventas mayoristas. Sus unidades ya están dentro de
+ *  las marcas; es otro corte de lo mismo. El real sale de Cars: CDE por la
+ *  sucursal que facturó, Wholesale por los asesores mayoristas de
+ *  parametros.json. */
+export interface CanalPresupuesto {
+  canal: "CDE" | "WHOLESALE";
+  hoja: string;
+  /** Objetivo mensual, 12 enteros. Es el presupuesto puro: no se
+   *  reescribe con lo vendido. */
+  plan: number[];
+  /** Lo vendido según FINANZAS (el bloque REAL de la misma hoja), mes a
+   *  mes; null en los meses que todavía no cerraron. Es el real que vale
+   *  para el canal: la sucursal que anota Cars no coincide con la
+   *  definición de canal de Finanzas (CDE en Cars: 79 u. en 2026; Finanzas:
+   *  310 hasta agosto). */
+  real: (number | null)[];
+  real_hasta_mes: number | null;
+}
+
 export interface Presupuesto {
   anio: number;
   version: string;
@@ -42,6 +62,9 @@ export interface Presupuesto {
   /** Compilado!Total Unidades, para control. */
   total_compilado: number;
   grupos: GrupoPresupuesto[];
+  /** Desde el 07/09/2026 (segunda entrega). Opcional: un Excel sin las
+   *  hojas de canal carga igual. */
+  canales?: CanalPresupuesto[];
 }
 
 export interface Parametros {

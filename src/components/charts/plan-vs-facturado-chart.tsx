@@ -24,10 +24,16 @@ export function PlanVsFacturadoChart({
   meses,
   referenciaMensual,
   altura = 300,
+  etiquetaPlan = "Plan vigente",
+  etiquetaReal = "Facturado (Cars)",
 }: {
   meses: MesPlan[];
   referenciaMensual: number | null;
   altura?: number;
+  /** Nombres de las dos series en la leyenda: para los canales el real no
+   *  es de Cars sino de Finanzas, y el plan es un objetivo puro. */
+  etiquetaPlan?: string;
+  etiquetaReal?: string;
 }) {
   const theme = useChartTheme();
   const cerrados = meses.filter((m) => m.cerrado);
@@ -63,7 +69,7 @@ export function PlanVsFacturadoChart({
     },
     series: [
       {
-        name: "Plan vigente",
+        name: etiquetaPlan,
         type: "bar" as const,
         data: meses.map((m) => m.plan),
         itemStyle: { color: theme.axis, borderRadius: [4, 4, 0, 0] },
@@ -104,7 +110,7 @@ export function PlanVsFacturadoChart({
             : undefined,
       },
       {
-        name: "Facturado (Cars)",
+        name: etiquetaReal,
         type: "bar" as const,
         data: meses.map((m) => m.facturado),
         itemStyle: { color: theme.primary, borderRadius: [4, 4, 0, 0] },

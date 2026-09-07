@@ -101,6 +101,13 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
           `(${u(pr.facturadoYtd)} facturados; plan vigente ${u(pr.planTotal)}).`
         );
       }
+      for (const c of pr.canales) {
+        if (c.cumplimiento === null) continue;
+        resumen.push(
+          `${c.canal === "CDE" ? "CDE" : "Wholesale"} ${anio}: ${u(c.realYtd)} vendidos contra ${u(c.objetivoYtd)} de objetivo ` +
+          `a ${mesCorto(c.realHastaMes ?? 0)} (${pct(c.cumplimiento)}), según Finanzas; objetivo del año ${u(c.objetivoAnual)}.`
+        );
+      }
       if (pr.atrasados.length) {
         items.push({
           tipo: "riesgo",
