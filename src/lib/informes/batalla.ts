@@ -26,6 +26,11 @@ export interface VersionBatalla {
 }
 
 export interface ModeloBatalla {
+  /** Marca NUESTRA a la que pertenece el modelo (nombre CADAM), según el
+   *  archivo del que salió: un Excel por marca. */
+  marca_propia: string;
+  /** Archivo del que salió la hoja. */
+  archivo?: string;
   hoja: string;
   /** Nombre de la pestaña, limpio ("G700", "X70 Plus"): es el que vale. */
   modelo: string;
@@ -42,10 +47,19 @@ export interface ModeloBatalla {
   versiones: VersionBatalla[];
 }
 
+export interface ArchivoBatalla {
+  archivo: string;
+  modificado: string;
+  marca_propia: string;
+  modelos: number;
+}
+
 export interface Batalla {
+  /** Resumen ("15 archivos BBCH") — el detalle va en `archivos`. */
   archivo: string;
   modificado: string;
   cargado_en: string;
+  archivos?: ArchivoBatalla[];
   modelos: ModeloBatalla[];
 }
 

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { guardarBatalla, type Batalla, type ModeloBatalla, type VersionBatalla } from "@/lib/informes/batalla";
+import {
+  guardarBatalla, type ArchivoBatalla, type Batalla, type ModeloBatalla, type VersionBatalla,
+} from "@/lib/informes/batalla";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +16,7 @@ export const dynamic = "force-dynamic";
  *         versiones: [{marca, version, medidas, precio, matriculaciones, importaciones}] }] }
  */
 
-const MAX_MODELOS = 40;
+const MAX_MODELOS = 200;
 const MAX_VERSIONES = 400;
 
 function texto(v: unknown, max = 200): string {
@@ -91,6 +93,8 @@ export async function POST(request: Request) {
       if (!marcas.some((x) => x.marca === v.marca)) marcas.push({ marca: v.marca, color: null });
     }
     modelos.push({
+      marca_propia: texto(m.marca_propia, 60).toUpperCase() || "SIN MARCA",
+      archivo: texto(m.archivo, 200) || undefined,
       hoja: texto(m.hoja, 60) || modelo,
       modelo,
       modelo_celda: texto(m.modelo_celda, 60) || undefined,
@@ -102,7 +106,21 @@ export async function POST(request: Request) {
       versiones,
     });
   }
-  const batalla: Batalla = { archivo, modificado, cargado_en: new Date().toISOString(), modelos };
+  const archivos: ArchivoBatalla[] = (Array.isArray(body.archivos) ? body.archivos : [])
+    .slice(0, 50)
+    .map((x) => {
+      const a = x as Record<string, unknown>;
+      return {
+        archivo: texto(a.archivo, 200),
+        modificado: texto(a.modificado, 40),
+        marca_propia: texto(a.marca_propia, 60).toUpperCase() || "SIN MARCA",
+        modelos: entero(a.modelos, 0, 1000) ?? 0,
+      };
+    })
+    .filter((a) => a.archivo);
+  const batalla: Batalla = {
+    archivo, modificado, cargado_en: new Date().toISOString(), archivos, modelos,
+  };
   try {
     guardarBatalla(batalla);
   } catch (e) {

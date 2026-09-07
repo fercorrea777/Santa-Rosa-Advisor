@@ -205,8 +205,8 @@ export default async function EstadoDatosPage() {
     {
       nombre: "Batalla por modelo (Excel de producto)",
       detalle: batalla
-        ? `${batalla.modelos.length} modelos, ${batalla.modelos.reduce((s, m) => s + m.versiones.length, 0)} versiones rivales · ${batalla.archivo} (archivo del ${batalla.modificado.slice(0, 10)})`
-        : "Nunca cargado. Lo carga advisor-batalla.sh (Hermes, notebook) desde JETOUR_PY_BBCH_*.xlsx.",
+        ? `${batalla.modelos.length} modelos de ${new Set(batalla.modelos.map((m) => m.marca_propia)).size} marcas, ${batalla.modelos.reduce((s, m) => s + m.versiones.length, 0)} versiones rivales · ${batalla.archivos?.length ?? 1} archivos BBCH en la carpeta`
+        : "Nunca cargado. Lo carga advisor-batalla.sh (Hermes, notebook) desde los *BBCH*.xlsx de la carpeta.",
       cadencia: "cuando producto cambia la planilla (el cron mira cada hora)",
       actualizado: batalla ? new Date(batalla.cargado_en) : null,
       tibioH: 45 * 24,

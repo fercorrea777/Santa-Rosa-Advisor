@@ -38,31 +38,79 @@ export function BatallaModeloChart({
   /** Marcas del grupo (nombres CADAM), para resaltar las nuestras. */
   propias: string[];
 }) {
-  const [i, setI] = React.useState(0);
-  const m = modelos[Math.min(i, modelos.length - 1)];
+  // Dos niveles: la marca nuestra (un Excel por marca) y, adentro, sus
+  // modelos. Las marcas en el orden en que llegan (Jetour primero).
+  const marcasPropias = [...new Set(modelos.map((x) => x.marca_propia))];
+  const [marcaSel, setMarcaSel] = React.useState(marcasPropias[0] ?? "");
+  const [hojaSel, setHojaSel] = React.useState<string | null>(null);
+  // Qué marcas se ven en cada modelo (por hoja, así cambiar de pestaña no
+  // pierde lo elegido). Sin entrada = todas.
+  const [seleccion, setSeleccion] = React.useState<Record<string, string[]>>({});
+  const deLaMarca = modelos.filter((x) => x.marca_propia === (marcasPropias.includes(marcaSel) ? marcaSel : marcasPropias[0]));
+  const m = deLaMarca.find((x) => `${x.archivo}|${x.hoja}` === hojaSel) ?? deLaMarca[0];
   if (!m) return null;
+  const claveDe = (x: ModeloBatalla) => `${x.archivo}|${x.hoja}`;
   return (
     <div className="flex flex-col gap-4">
+      {marcasPropias.length > 1 && (
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Marca propia">
+          {marcasPropias.map((marca) => {
+            const activa = marca === m.marca_propia;
+            const n = modelos.filter((x) => x.marca_propia === marca).length;
+            return (
+              <button
+                key={marca}
+                type="button"
+                role="tab"
+                aria-selected={activa}
+                onClick={() => {
+                  setMarcaSel(marca);
+                  setHojaSel(null);
+                }}
+                className={cn(
+                  "rounded-md border px-3 py-1.5 text-sm font-medium pointer-coarse:min-h-11",
+                  activa
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {marca}
+                <span className={cn("ml-1.5 text-xs font-normal", activa ? "opacity-80" : "text-muted-foreground")}>
+                  {n}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Modelo">
-        {modelos.map((x, k) => (
-          <button
-            key={x.hoja}
-            type="button"
-            role="tab"
-            aria-selected={k === i}
-            onClick={() => setI(k)}
-            className={cn(
-              "rounded-md border px-3 py-1.5 text-sm pointer-coarse:min-h-11",
-              k === i
-                ? "border-primary bg-primary text-primary-foreground"
-                : "bg-background text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {x.modelo}
-          </button>
-        ))}
+        {deLaMarca.map((x) => {
+          const activa = claveDe(x) === claveDe(m);
+          return (
+            <button
+              key={claveDe(x)}
+              type="button"
+              role="tab"
+              aria-selected={activa}
+              onClick={() => setHojaSel(claveDe(x))}
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-sm pointer-coarse:min-h-11",
+                activa
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "bg-background text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {x.modelo}
+            </button>
+          );
+        })}
       </div>
-      <Batalla modelo={m} propias={propias} />
+      <Batalla
+        modelo={m}
+        propias={propias}
+        visibles={seleccion[m.hoja] ?? m.marcas.map((x) => x.marca)}
+        onVisibles={(marcas) => setSeleccion((sel) => ({ ...sel, [m.hoja]: marcas }))}
+      />
     </div>
   );
 }
@@ -72,18 +120,42 @@ const esPropia = (marca: string, propias: string[]) => {
   return propias.includes(n) || (n === "GWM" && propias.includes("GREAT WALL"));
 };
 
-function Batalla({ modelo: m, propias }: { modelo: ModeloBatalla; propias: string[] }) {
+function Batalla({
+  modelo: m,
+  propias,
+  visibles,
+  onVisibles,
+}: {
+  modelo: ModeloBatalla;
+  propias: string[];
+  /** Marcas que se dibujan. Las demás quedan fuera del gráfico, del
+   *  ranking y de la tabla; el tamaño de las burbujas no cambia (la escala
+   *  es del modelo entero), así se puede comparar antes y después. */
+  visibles: string[];
+  onVisibles: (marcas: string[]) => void;
+}) {
   const theme = useChartTheme();
-  const marcas = m.marcas.map((x) => x.marca);
+  const todasLasMarcas = m.marcas.map((x) => x.marca);
+  const marcas = todasLasMarcas.filter((x) => visibles.includes(x));
   const indice = new Map(marcas.map((x, k) => [x, k]));
+  const versiones = m.versiones.filter((v) => visibles.includes(v.marca));
+  const nuestras = todasLasMarcas.filter((x) => esPropia(x, propias));
+  const alternar = (marca: string) => {
+    const siguiente = visibles.includes(marca)
+      ? visibles.filter((x) => x !== marca)
+      : [...visibles, marca];
+    // Nunca cero: un gráfico vacío no es un estado que alguien pida.
+    if (siguiente.length) onVisibles(todasLasMarcas.filter((x) => siguiente.includes(x)));
+  };
   const volumen = (v: { importaciones: number; matriculaciones: number }) =>
     m.tamano === "matriculaciones" ? v.matriculaciones : v.importaciones;
   const etiquetaVolumen = m.tamano === "matriculaciones" ? "matriculaciones" : "importaciones";
   const colorDe = (marca: string) => {
     const c = m.marcas.find((x) => x.marca === marca)?.color;
     if (c) return `#${c}`;
-    // Sin color en la planilla: uno de la paleta, estable por posición.
-    return theme.series[(indice.get(marca) ?? 0) % theme.series.length];
+    // Sin color en la planilla: uno de la paleta, estable por posición en la
+    // planilla (no en el filtro: sacar una marca no repinta a las demás).
+    return theme.series[Math.max(0, todasLasMarcas.indexOf(marca)) % theme.series.length];
   };
   const totalPorMarca = new Map<string, number>();
   for (const v of m.versiones) {
@@ -97,7 +169,7 @@ function Batalla({ modelo: m, propias }: { modelo: ModeloBatalla; propias: strin
   // los costados, en orden fijo, para que no se tapen del todo.
   const desplazamientos = [0, -0.22, 0.22, -0.11, 0.11, -0.3, 0.3, -0.05, 0.05];
   const vistas = new Map<string, number>();
-  const puntos = m.versiones.map((v) => {
+  const puntos = versiones.map((v) => {
     const k = vistas.get(v.marca) ?? 0;
     vistas.set(v.marca, k + 1);
     const vol = volumen(v);
@@ -190,7 +262,7 @@ function Batalla({ modelo: m, propias }: { modelo: ModeloBatalla; propias: strin
 
   // Ranking por precio, de mayor a menor, con el volumen al lado: es el
   // gráfico de barras de la hoja X50.
-  const ranking = [...m.versiones].sort((a, b) => b.precio - a.precio);
+  const ranking = [...versiones].sort((a, b) => b.precio - a.precio);
   const optionRanking = {
     animationDuration: 500,
     grid: { left: 4, right: 110, top: 8, bottom: 24, containLabel: true },
@@ -231,12 +303,59 @@ function Batalla({ modelo: m, propias }: { modelo: ModeloBatalla; propias: strin
     ],
   };
 
-  const filas = [...m.versiones].sort(
+  const filas = [...versiones].sort(
     (a, b) => (indice.get(a.marca) ?? 0) - (indice.get(b.marca) ?? 0) || a.precio - b.precio
   );
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-1.5" aria-label="Marcas en este gráfico">
+        <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Marcas en este gráfico
+        </span>
+        <button
+          type="button"
+          onClick={() => onVisibles(todasLasMarcas)}
+          className="rounded-md border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground pointer-coarse:min-h-9"
+        >
+          Todas
+        </button>
+        {nuestras.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onVisibles(nuestras)}
+            title="Deja solo las marcas del grupo; después tocá las del mercado con las que querés comparar."
+            className="rounded-md border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground pointer-coarse:min-h-9"
+          >
+            Nuestras
+          </button>
+        )}
+        <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
+        {todasLasMarcas.map((marca) => {
+          const activa = visibles.includes(marca);
+          const propia = esPropia(marca, propias);
+          return (
+            <button
+              key={marca}
+              type="button"
+              aria-pressed={activa}
+              onClick={() => alternar(marca)}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs pointer-coarse:min-h-9",
+                activa ? "bg-background text-foreground" : "bg-muted/40 text-muted-foreground line-through",
+                propia && activa && "border-primary/60 font-medium"
+              )}
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ background: colorDe(marca), opacity: activa ? 1 : 0.35 }}
+              />
+              {marca}
+              {propia && <span className="text-[10px] text-primary">nuestra</span>}
+            </button>
+          );
+        })}
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>
@@ -246,8 +365,12 @@ function Batalla({ modelo: m, propias }: { modelo: ModeloBatalla; propias: strin
           <p className="text-xs text-muted-foreground">
             Una burbuja por versión rival, en la columna de su marca · eje Y = precio de
             lista (US$) · tamaño = {etiquetaVolumen} del período · al pie de cada columna, el
-            total de la marca. Es el gráfico del equipo de producto, tal cual está en su
-            planilla (hoja «{m.hoja}»
+            total de la marca.{" "}
+            {marcas.length < todasLasMarcas.length
+              ? `Se muestran ${marcas.length} de ${todasLasMarcas.length} marcas (${versiones.length} de ${m.versiones.length} versiones). `
+              : ""}
+            Es el gráfico del equipo de producto, tal cual está en su
+            planilla{m.archivo ? ` «${m.archivo}»` : ""} (hoja «{m.hoja}»
             {m.modelo_celda && m.modelo_celda.toUpperCase() !== m.modelo.toUpperCase()
               ? `, que en su celda de modelo dice «${m.modelo_celda}»`
               : ""}

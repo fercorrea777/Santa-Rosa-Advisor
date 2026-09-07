@@ -255,10 +255,11 @@ export default async function BubbleChartPage({
         {batalla ? (
           <>
             <NotaDato>
-              El bubble chart del <strong>equipo de producto</strong>, tal cual está en su
-              planilla <em>{batalla.archivo}</em> (archivo del {batalla.modificado.slice(0, 10)}
-              , cargado el {batalla.cargado_en.slice(0, 10)}): por cada modelo nuestro, las
-              versiones rivales que ellos eligieron, con precio de lista, medidas y volumen.
+              El bubble chart del <strong>equipo de producto</strong>, tal cual está en sus
+              planillas ({batalla.archivos?.length ?? 1} archivos, una por marca; cargados el{" "}
+              {batalla.cargado_en.slice(0, 10)}): por cada modelo nuestro, las versiones rivales
+              que ellos eligieron, con precio de lista, medidas y volumen. Cada hoja tiene su
+              propio período, que se muestra arriba del gráfico: no todas están al mismo mes.
               Nada se cruza con CADAM ni con Datacar acá: se dibuja lo que dice el Excel, y
               cuando el Excel cambia, Hermes lo vuelve a cargar.
             </NotaDato>
