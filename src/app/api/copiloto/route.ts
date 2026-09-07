@@ -317,6 +317,12 @@ async function leerOperacionPropia(input: { que?: string; anio?: number }): Prom
       return JSON.stringify(p ?? { aviso: "Meta todavía no cargó pauta en el Advisor." });
     }
     if (input.que === "pedido") return JSON.stringify(await resumenPedido());
+    if (input.que === "presupuesto") {
+      const pr = await resumenPresupuesto(anio);
+      return JSON.stringify(
+        pr ?? { aviso: "No hay presupuesto cargado para ese año, o Cars no tiene facturas." }
+      );
+    }
     if (input.que === "rivales") {
       const cobertura = getCobertura();
       const ultimo = cobertura.matriculacion.ultimo;
@@ -341,13 +347,10 @@ async function leerOperacionPropia(input: { que?: string; anio?: number }): Prom
     if (input.que === "stock") {
       return JSON.stringify({ stock, sincronizado: sync?.actualizado_en, aviso });
     }
-    // El presupuesto del año va con las ventas: plan vigente, presupuesto
-    // anual, % hecho y atrasados, ya calculados (tablero.ts).
-    const presupuesto = await resumenPresupuesto(anio);
     if (input.que === "ventas") {
-      return JSON.stringify({ ventas, presupuesto, sincronizado: sync?.actualizado_en, aviso });
+      return JSON.stringify({ ventas, sincronizado: sync?.actualizado_en, aviso });
     }
-    return JSON.stringify({ ventas, stock, presupuesto, sincronizado: sync?.actualizado_en, aviso });
+    return JSON.stringify({ ventas, stock, sincronizado: sync?.actualizado_en, aviso });
   } catch (e) {
     return JSON.stringify({
       error: `No se pudo leer la operación propia: ${(e as Error).message}`,
@@ -360,8 +363,9 @@ const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
   descripcion:
     "Datos de la operación de Santa Rosa y del tablero comercial, no de " +
     "CADAM. Elegí QUÉ: 'ventas' (vehículos FACTURADOS por mes/marca/modelo, " +
-    "API de Cars; trae también el PRESUPUESTO del año por marca: plan " +
-    "vigente, presupuesto anual, % hecho y qué marcas van atrasadas), 'stock' (stock actual por marca/modelo/estado con precio " +
+    "API de Cars), 'presupuesto' (el presupuesto del año por marca, del Excel " +
+    "de Finanzas: plan vigente, presupuesto anual, % hecho, cumplimiento y qué " +
+    "marcas van atrasadas, ya calculado), 'stock' (stock actual por marca/modelo/estado con precio " +
     "de lista en dólares), 'asesores' (ranking retail del año, mayoristas " +
     "aparte, mejor asesor por marca), 'demanda' (leads y negocios de Bitrix " +
     "por marca y modelo: abiertos, convertidos, perdidos y por qué), " +
@@ -376,7 +380,7 @@ const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
     properties: {
       que: {
         type: "string",
-        enum: ["ventas", "stock", "asesores", "demanda", "pauta", "rivales", "pedido", "todo"],
+        enum: ["ventas", "stock", "asesores", "demanda", "pauta", "rivales", "pedido", "presupuesto", "todo"],
         description:
           "Qué resumen traer. Acotá siempre: 'todo' devuelve ventas y stock crudos (~1.000 filas).",
       },

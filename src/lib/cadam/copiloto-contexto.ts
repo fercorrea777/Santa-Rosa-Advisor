@@ -100,9 +100,11 @@ const REGLAS = `
       que='pauta'
     - "mejores asesores", "ranking de vendedores", "quien vende mas" ->
       que='asesores'
-    - "cuanto facturamos", "cuantos vendimos", "presupuesto", "objetivo",
-      "meta", "plan", "cumplimiento", "atrasadas" -> que='ventas' (trae el
-      presupuesto del año por marca, ya calculado);
+    - "presupuesto", "objetivo", "meta", "plan del año", "cumplimiento",
+      "atrasadas", "como vamos contra el plan" -> que='presupuesto' (plan
+      vigente, presupuesto anual, % hecho y atrasados por marca, ya
+      calculados: citalos, no los recalcules con las ventas crudas)
+    - "cuanto facturamos", "cuantos vendimos" -> que='ventas';
       "cuanto stock", "que tenemos" -> que='stock'
     Cita los numeros de esos resumenes tal cual vienen (ya estan
     calculados e interpretados); no los recalcules ni los reordenes.
