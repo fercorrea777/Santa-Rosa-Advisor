@@ -6,8 +6,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { cn } from "@/lib/utils";
 import { formatPct, formatUnidades } from "@/lib/format";
+import {
+  claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha,
+} from "@/lib/cadam/bandas";
 import type { FilaRanking } from "@/lib/cadam/mercado";
 
 type Campo = "posicion" | "marca" | "modelo" | "segmento" | "unidades"
@@ -32,6 +36,9 @@ export function TablaRanking({
   notaVariacion,
   filtrarPor,
   etiquetaModelo = "Modelo",
+  fichas,
+  periodo = "",
+  fuente = "matriculacion",
 }: {
   filas: FilaRanking[];
   columnaClave?: string;
@@ -39,6 +46,12 @@ export function TablaRanking({
   mostrarSegmento?: boolean;
   nombreArchivo?: string;
   notaVariacion?: string;
+  /** Los modelos en plano: con esto cada fila se abre y muestra contra
+   *  quién compite. La ficha se arma en el navegador al tocar (ver
+   *  detalleDeFicha); sin esto, tabla normal. */
+  fichas?: ModeloFicha[];
+  periodo?: string;
+  fuente?: "matriculacion" | "importacion";
   /**
    * Si se pasa, cada fila filtra la pagina al hacerle clic. `marca` es el
    * parametro que recibe la columna de marca; `detalle` el de la columna
@@ -50,6 +63,19 @@ export function TablaRanking({
   const [orden, setOrden] = React.useState<{ campo: Campo; asc: boolean }>({
     campo: "posicion", asc: true,
   });
+  const [abierto, setAbierto] = React.useState<DetalleModelo | null>(null);
+  /** La ficha de una fila, si la hay. Las filas de MARCA no tienen: la ficha
+   *  es de un modelo (su clase, sus rivales), no de una marca entera. */
+  const clavesConFicha = React.useMemo(
+    () => new Set((fichas ?? []).map((x) => x.clave)),
+    [fichas]
+  );
+  const tieneFicha = (f: FilaRanking) =>
+    !!f.modelo && clavesConFicha.has(claveModelo(f.marca, f.modelo));
+  const abrirFicha = (f: FilaRanking) => {
+    if (!fichas || !f.modelo) return;
+    setAbierto(detalleDeFicha(fichas, claveModelo(f.marca, f.modelo)) ?? null);
+  };
   const [busqueda, setBusqueda] = React.useState("");
   const [tope, setTope] = React.useState<number>(20);
 
@@ -199,13 +225,16 @@ export function TablaRanking({
           de esto, la tabla de 6-8 columnas obligaba a deslizar el dedo para ver
           "Unidades" y "Marcas propias", que es justo lo que mas importa. */}
       <div className="flex flex-col divide-y sm:hidden">
-        {filtradas.map((f) => (
+        {filtradas.map((f) => {
+          const ficha = tieneFicha(f);
+          return (
           <div
             key={f.clave}
             className={cn(
               "flex flex-col gap-1.5 py-3",
               f.esPropia && "-mx-3 rounded-md bg-primary/5 px-3"
             )}
+            onClick={ficha ? () => abrirFicha(f) : undefined}
           >
             <div className="flex items-center justify-between gap-2">
               <span className="flex min-w-0 items-center gap-2">
@@ -254,7 +283,8 @@ export function TablaRanking({
               </span>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="hidden overflow-x-auto sm:block">
@@ -272,10 +302,17 @@ export function TablaRanking({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtradas.map((f) => (
+            {filtradas.map((f) => {
+              const ficha = tieneFicha(f);
+              return (
               <TableRow
                 key={f.clave}
-                className={cn(f.esPropia && "bg-primary/5 hover:bg-primary/10")}
+                className={cn(
+                  f.esPropia && "bg-primary/5 hover:bg-primary/10",
+                  ficha && "cursor-pointer"
+                )}
+                onClick={ficha ? () => abrirFicha(f) : undefined}
+                title={ficha ? `Ver contra quién compite ${f.modelo}` : undefined}
               >
                 <TableCell className="tabular-nums text-muted-foreground">{f.posicion}</TableCell>
                 <TableCell className="font-medium">
@@ -315,7 +352,8 @@ export function TablaRanking({
                   <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} />
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -323,7 +361,15 @@ export function TablaRanking({
       <p className="text-xs text-muted-foreground">
         Mostrando {filtradas.length} de {filas.length}.
         {notaVariacion ? ` ${notaVariacion}` : ""}
+        {fichas ? " Tocá una fila para ver contra quién compite ese modelo." : ""}
       </p>
+
+      <DetalleModeloDialog
+        detalle={abierto}
+        periodo={periodo}
+        fuente={fuente}
+        onClose={() => setAbierto(null)}
+      />
     </div>
   );
 }

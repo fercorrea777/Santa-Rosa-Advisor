@@ -25,6 +25,7 @@ export function DetalleModeloDialog({
   detalle,
   version,
   periodo,
+  fuente = "matriculacion",
   onClose,
 }: {
   detalle: DetalleModelo | null;
@@ -32,8 +33,12 @@ export function DetalleModeloDialog({
    *  nombre, su familia según Cars y su precio, que es el que se compara. */
   version?: { nombre: string; precio: number; unidades: number; familia?: string } | null;
   periodo: string;
+  /** De qué base salen las unidades. Importación y matriculación NO miden lo
+   *  mismo y la ficha no puede decir "matriculó" sobre un dato de aduana. */
+  fuente?: "matriculacion" | "importacion";
   onClose: () => void;
 }) {
+  const importacion = fuente === "importacion";
   const d = detalle;
   // El precio que se compara: el de la versión tocada si la hay, si no el
   // del modelo. Una familia con versiones de 20k y 35k no tiene "un" precio.
@@ -68,7 +73,7 @@ export function DetalleModeloDialog({
 
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <Cifra
-                    titulo={version ? "Facturó esta versión" : "Matriculó"}
+                    titulo={version ? "Facturó esta versión" : importacion ? "Importó" : "Matriculó"}
                     valor={formatUnidades(version ? version.unidades : d.unidades)}
                     pie={version ? "unidades del período (Cars)" : `${formatPct(d.parteClase)} de su clase`}
                   />
@@ -159,7 +164,9 @@ export function DetalleModeloDialog({
                   La clase (SUV chico, compacto, mediano, grande; pick-up compacta, mediana…) es un
                   catálogo propio sobre los nombres del mercado: CADAM solo distingue SUV, pick-up,
                   automóvil, camión, furgón y minibús, y eso pone a una X50 al lado de una Fortuner.
-                  Unidades: matriculaciones de CADAM del período. Precios: los nuestros del stock de
+                  Unidades: {importacion ? "importaciones" : "matriculaciones"} de CADAM del
+                  período{importacion ? " — lo importado se matricula dos o tres meses después" : ""}.
+                  Precios: los nuestros del stock de
                   Cars, los de la competencia del catálogo de Datacar — no es lista oficial, y lo que
                   no tiene precio no se adivina.
                 </p>

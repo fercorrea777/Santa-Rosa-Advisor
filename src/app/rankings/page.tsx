@@ -6,6 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   getCobertura, getOpcionesFiltro, getRankingMarcas, getRankingModelos, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
+import {
+  asignarPrecios, fichasDeModelos, type PrecioCandidato,
+} from "@/lib/cadam/bandas";
+import { getStockPropio } from "@/lib/informes/propios";
+import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 export default async function RankingsPage({
@@ -29,6 +34,32 @@ export default async function RankingsPage({
     mesMax[a] = a === cobertura.matriculacion.ultimo?.anio ? cobertura.matriculacion.ultimo.mes : 12;
   }
   const nota = `Variación y cambio de posición contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`;
+
+  // --- ficha de cada modelo, para abrirla desde su fila -------------------
+  // Un ranking dice quién vendió más; la pregunta que sigue es contra quién
+  // compite ese modelo y a qué precio, y eso ya está calculado (clases.ts +
+  // precios de Cars y Datacar). Las filas de MARCA no llevan ficha: la ficha
+  // es de un modelo, no de una marca entera.
+  let preciosPropios: PrecioCandidato[] = [];
+  try {
+    preciosPropios = (await getStockPropio())
+      .filter((s) => s.precio_usd)
+      .map((s) => ({ marca: s.marca, nombre: s.version, precio: s.precio_usd as number }));
+  } catch {
+    preciosPropios = [];
+  }
+  const preciosRivales: PrecioCandidato[] = (await getPreciosCompetencia())
+    .map((p) => ({ marca: p.marca, nombre: p.version, precio: p.precio_usd }));
+  const listasPrecio = [
+    { fuente: "cars", lista: preciosPropios },
+    { fuente: "datacar", lista: preciosRivales },
+  ];
+  // Una ficha por fuente: los rivales de un modelo importado son los otros
+  // modelos importados, no los matriculados. Son dos mediciones distintas.
+  const fichasDe = (filas: typeof modelosMat) =>
+    fichasDeModelos(asignarPrecios(filas, listasPrecio));
+  const fichasMat = fichasDe(modelosMat);
+  const fichasImp = fichasDe(modelosImp);
 
   return (
     <div className="flex flex-col gap-5">
@@ -87,6 +118,8 @@ export default async function RankingsPage({
           <Panel titulo={`Modelos por matriculación (${modelosMat.length})`}>
             <TablaRanking filas={modelosMat} mostrarModelo mostrarSegmento
               notaVariacion={nota}
+              fichas={fichasMat}
+              periodo={periodo}
               nombreArchivo={`ranking-modelos-matriculacion-${f.anio}`} />
           </Panel>
         </TabsContent>
@@ -95,6 +128,9 @@ export default async function RankingsPage({
           <Panel titulo={`Modelos por importación (${modelosImp.length})`}>
             <TablaRanking filas={modelosImp} mostrarModelo mostrarSegmento
               notaVariacion={nota}
+              fichas={fichasImp}
+              periodo={periodo}
+              fuente="importacion"
               nombreArchivo={`ranking-modelos-importacion-${f.anio}`} />
           </Panel>
         </TabsContent>

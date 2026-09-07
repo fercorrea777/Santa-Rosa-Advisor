@@ -4,7 +4,9 @@ import { useState } from "react";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { claveModelo, type DetalleModelo } from "@/lib/cadam/bandas";
+import {
+  claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha,
+} from "@/lib/cadam/bandas";
 import { formatUnidades } from "@/lib/format";
 
 export interface Burbuja {
@@ -37,14 +39,14 @@ export function BurbujasMarcaChart({
   datos,
   altura = 460,
   techo,
-  detalles,
+  fichas,
   periodo = "",
 }: {
   datos: Burbuja[];
   altura?: number;
-  /** Ficha de cada modelo, por `claveModelo(marca, modelo)`: al tocar una
-   *  burbuja se abre. Sin esto el gráfico sigue funcionando, sin clic. */
-  detalles?: Record<string, DetalleModelo>;
+  /** Los modelos en plano: al tocar una burbuja se arma su ficha en el
+   *  navegador (detalleDeFicha). Sin esto el gráfico anda igual, sin clic. */
+  fichas?: ModeloFicha[];
   periodo?: string;
   /** Techo del eje de variación, en %. Llega por prop y no como constante
    *  exportada de acá: este módulo es "use client", y un Server Component que
@@ -221,12 +223,12 @@ export function BurbujasMarcaChart({
     <>
       <EchartsAuto
         option={option}
-        style={{ height: altura, width: "100%", cursor: detalles ? "pointer" : "default" }}
+        style={{ height: altura, width: "100%", cursor: fichas ? "pointer" : "default" }}
         onEvents={
-          detalles
+          fichas
             ? {
                 click: (p: { data?: { clave?: string } }) => {
-                  const d = p?.data?.clave ? detalles[p.data.clave] : undefined;
+                  const d = p?.data?.clave ? detalleDeFicha(fichas, p.data.clave) : undefined;
                   if (d) setAbierto(d);
                 },
               }

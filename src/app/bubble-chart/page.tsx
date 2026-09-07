@@ -13,7 +13,7 @@ import {
 import { getBurbujasVersion, getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import {
-  asignarPrecios, claveModelo, detallesPorModelo, type PrecioCandidato,
+  asignarPrecios, claveModelo, fichasDeModelos, type PrecioCandidato,
 } from "@/lib/cadam/bandas";
 import { asignarSegmento, SIN_CLASIFICAR, tokens } from "@/lib/informes/segmento-version";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
@@ -209,15 +209,12 @@ export default async function BubbleChartPage({
     ...b,
     claveDetalle: claveDeFamilia(b.marca, b.modelo),
   }));
-  const claves = new Set<string>([
-    ...visibles.map((m) => claveModelo(m.marca, m.modelo ?? m.marca)),
-    ...burbujasConClave.map((b) => b.claveDetalle).filter((k): k is string => !!k),
-  ]);
-  const detalles = Object.fromEntries(detallesPorModelo(universo, claves));
+  const fichas = fichasDeModelos(universo);
+  const clasePorClave = new Map(fichas.map((x) => [x.clave, x.clase]));
   /** La clase de cada versión: la de su familia en CADAM. Es la columna del
    *  gráfico de precios, en vez del segmento — misma razón que en el mapa. */
   const claseDeBurbuja = (clave: string | undefined, b: { segmento: string }) =>
-    (clave ? detalles[clave]?.clase : undefined) ?? b.segmento;
+    (clave ? clasePorClave.get(clave) : undefined) ?? b.segmento;
 
   return (
     <div className="flex flex-col gap-5">
@@ -300,7 +297,7 @@ export default async function BubbleChartPage({
           <BurbujasMarcaChart
             datos={datos}
             techo={TECHO_VARIACION}
-            detalles={detalles}
+            fichas={fichas}
             periodo={periodo}
           />
         </CardContent>
@@ -337,7 +334,7 @@ export default async function BubbleChartPage({
                 claveDetalle: b.claveDetalle,
               }))}
               altura={520}
-              detalles={detalles}
+              fichas={fichas}
               periodo={periodo}
               etiquetaColumna="Clase"
             />

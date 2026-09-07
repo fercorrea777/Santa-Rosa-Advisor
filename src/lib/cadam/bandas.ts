@@ -376,33 +376,39 @@ export const claveModelo = (marca: string, modelo: string) =>
   `${normalizar(marca)}|${normalizar(modelo)}`;
 
 /**
- * Fichas de los modelos pedidos, con los rivales sacados del universo
- * COMPLETO que se pase: la competencia de un modelo es el mercado, no lo que
- * el gráfico haya decidido dibujar.
+ * Un modelo, plano, para viajar al navegador.
+ *
+ * POR QUÉ PLANO Y NO LA FICHA ARMADA. La ficha lleva hasta doce rivales
+ * adentro, y en un ranking de 500 modelos eso repite cada rival decenas de
+ * veces: la página pasó de 550 KB a 2,2 MB (06/09/2026). Con la lista plana
+ * viaja cada modelo UNA vez y la ficha se arma en el navegador, solo para
+ * el que se toca. La cuenta es la misma; lo que cambia es qué se manda.
  */
-export function detallesPorModelo(
-  universo: ModeloConBanda[],
-  claves: Set<string>,
-  topCompetidores = 12
-): Map<string, DetalleModelo> {
-  const porClase = new Map<string, ModeloConBanda[]>();
-  for (const m of universo) {
-    if (!m.clase) continue;
-    const lista = porClase.get(m.clase) ?? [];
-    lista.push(m);
-    porClase.set(m.clase, lista);
-  }
-  for (const lista of porClase.values()) lista.sort((a, b) => b.unidades - a.unidades);
+export interface ModeloFicha {
+  clave: string;
+  marca: string;
+  modelo: string;
+  clase: Clase;
+  claseInferida: boolean;
+  tecnologia?: string;
+  esPropia: boolean;
+  unidades: number;
+  unidadesAnterior: number;
+  variacion: number | null;
+  deltaShare: number | null;
+  precio: number | null;
+  banda: string;
+}
 
-  const salida = new Map<string, DetalleModelo>();
+export function fichasDeModelos(universo: ModeloConBanda[]): ModeloFicha[] {
+  const vistos = new Set<string>();
+  const salida: ModeloFicha[] = [];
   for (const m of universo) {
-    const k = claveModelo(m.marca, m.modelo);
-    if (!claves.has(k) || salida.has(k)) continue;
-    const deLaClase = porClase.get(m.clase) ?? [];
-    const otros = deLaClase.filter((x) => claveModelo(x.marca, x.modelo) !== k);
-    const precios = otros.map((x) => x.precio).filter((p): p is number => !!p);
-    const medianaClase = medianaDe(precios);
-    salida.set(k, {
+    const clave = claveModelo(m.marca, m.modelo);
+    if (!m.clase || vistos.has(clave)) continue;
+    vistos.add(clave);
+    salida.push({
+      clave,
       marca: m.marca,
       modelo: m.modelo,
       clase: m.clase,
@@ -415,22 +421,50 @@ export function detallesPorModelo(
       deltaShare: m.deltaShare,
       precio: m.precio,
       banda: m.banda,
-      unidadesClase: deLaClase.reduce((s, x) => s + x.unidades, 0),
-      parteClase: 0, // se completa abajo, con el total ya sumado
-      medianaClase,
-      nPreciosClase: precios.length,
-      diferencia: m.precio && medianaClase ? m.precio / medianaClase - 1 : null,
-      competidores: otros.slice(0, topCompetidores).map((x) => ({
-        marca: x.marca, modelo: x.modelo, unidades: x.unidades, precio: x.precio,
-        tecnologia: x.tecnologia, esPropia: x.esPropia,
-      })),
-      competidoresTotal: otros.length,
     });
   }
-  for (const d of salida.values()) {
-    d.parteClase = d.unidadesClase ? d.unidades / d.unidadesClase : 0;
-  }
   return salida;
+}
+
+/** La ficha de UN modelo, armada al momento de tocarlo. */
+export function detalleDeFicha(
+  fichas: ModeloFicha[],
+  clave: string,
+  topCompetidores = 12
+): DetalleModelo | undefined {
+  const m = fichas.find((x) => x.clave === clave);
+  if (!m) return undefined;
+  const deLaClase = fichas.filter((x) => x.clase === m.clase);
+  const otros = deLaClase
+    .filter((x) => x.clave !== clave)
+    .sort((a, b) => b.unidades - a.unidades);
+  const precios = otros.map((x) => x.precio).filter((p): p is number => !!p);
+  const medianaClase = medianaDe(precios);
+  const unidadesClase = deLaClase.reduce((s, x) => s + x.unidades, 0);
+  return {
+    marca: m.marca,
+    modelo: m.modelo,
+    clase: m.clase,
+    claseInferida: m.claseInferida,
+    tecnologia: m.tecnologia,
+    esPropia: m.esPropia,
+    unidades: m.unidades,
+    unidadesAnterior: m.unidadesAnterior,
+    variacion: m.variacion,
+    deltaShare: m.deltaShare,
+    precio: m.precio,
+    banda: m.banda,
+    unidadesClase,
+    parteClase: unidadesClase ? m.unidades / unidadesClase : 0,
+    medianaClase,
+    nPreciosClase: precios.length,
+    diferencia: m.precio && medianaClase ? m.precio / medianaClase - 1 : null,
+    competidores: otros.slice(0, topCompetidores).map((x) => ({
+      marca: x.marca, modelo: x.modelo, unidades: x.unidades, precio: x.precio,
+      tecnologia: x.tecnologia, esPropia: x.esPropia,
+    })),
+    competidoresTotal: otros.length,
+  };
 }
 
 export interface Rival {

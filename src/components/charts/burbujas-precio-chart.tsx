@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import type { DetalleModelo } from "@/lib/cadam/bandas";
+import { detalleDeFicha, type DetalleModelo, type ModeloFicha } from "@/lib/cadam/bandas";
 import { formatUnidades } from "@/lib/format";
 import {
   ORDEN_TECNOLOGIA, SIN_CLASIFICAR, SIN_DATO_TECNOLOGIA,
@@ -30,7 +30,7 @@ export interface BurbujaPrecio {
   unidades: number;
   precio: number;
   moneda: string;
-  /** Clave de la ficha del modelo al que pertenece (ver `detalles`). */
+  /** Clave del modelo al que pertenece, para armar su ficha (ver `fichas`). */
   claveDetalle?: string;
 }
 
@@ -82,17 +82,17 @@ export function BurbujasPrecioChart({
   datos,
   altura = 520,
   columna = "segmento",
-  detalles,
+  fichas,
   periodo = "",
   etiquetaColumna = "Segmento",
 }: {
   datos: BurbujaPrecio[];
   altura?: number;
   columna?: ColumnaBurbujas;
-  /** Ficha del MODELO al que pertenece cada versión, por `d.claveDetalle`.
-   *  Al tocar la burbuja se abre: contra quién compite su familia y a qué
+  /** Los modelos en plano. Al tocar una burbuja se arma la ficha del modelo
+   *  al que pertenece (`d.claveDetalle`): contra quién compite y a qué
    *  precio. Sin esto el gráfico anda igual, sin clic. */
-  detalles?: Record<string, DetalleModelo>;
+  fichas?: ModeloFicha[];
   periodo?: string;
   /** Cómo se llama la columna en los chips: "Segmento" o "Clase". */
   etiquetaColumna?: string;
@@ -221,7 +221,7 @@ export function BurbujasPrecioChart({
         período{marcasTodas.length > theme.series.length
           ? ` · en gris, las marcas fuera de las ${theme.series.length} de mayor volumen`
           : ""}
-        {detalles ? " · tocá una burbuja para ver contra quién compite" : ""}
+        {fichas ? " · tocá una burbuja para ver contra quién compite" : ""}
       </p>
     </div>
   );
@@ -458,9 +458,9 @@ export function BurbujasPrecioChart({
       <EchartsAuto
         option={option}
         notMerge
-        style={{ height: altura, width: "100%", cursor: detalles ? "pointer" : "default" }}
+        style={{ height: altura, width: "100%", cursor: fichas ? "pointer" : "default" }}
         onEvents={
-          detalles
+          fichas
             ? {
                 click: (p: {
                   data?: {
@@ -469,7 +469,7 @@ export function BurbujasPrecioChart({
                   };
                 }) => {
                   const k = p?.data?.claveDetalle;
-                  const d = k ? detalles[k] : undefined;
+                  const d = k ? detalleDeFicha(fichas, k) : undefined;
                   if (!d) return;
                   setAbierto({
                     detalle: d,

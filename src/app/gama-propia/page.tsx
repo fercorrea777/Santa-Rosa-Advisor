@@ -11,7 +11,7 @@ import {
 } from "@/lib/cadam/precios";
 import { getGamaPropiaDesdeCars } from "@/lib/cadam/precios-cars";
 import {
-  asignarPrecios, claveModelo, detallesPorModelo, type PrecioCandidato,
+  asignarPrecios, claveModelo, fichasDeModelos, type PrecioCandidato,
 } from "@/lib/cadam/bandas";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
@@ -75,9 +75,8 @@ export default async function GamaPropiaPage({
     { fuente: "cars", lista: preciosPropios },
     { fuente: "datacar", lista: preciosRivales },
   ]);
-  const claves = new Set(conPrecio.map((d) => claveModelo(d.marca, d.modelo)));
-  const detalles = Object.fromEntries(detallesPorModelo(universo, claves));
-  const hayDetalles = Object.keys(detalles).length > 0;
+  const fichas = fichasDeModelos(universo);
+  const hayDetalles = fichas.length > 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -195,7 +194,7 @@ export default async function GamaPropiaPage({
                   claveDetalle: claveModelo(d.marca, d.modelo),
                 }))}
                 columna="marca"
-                detalles={hayDetalles ? detalles : undefined}
+                fichas={hayDetalles ? fichas : undefined}
                 periodo={periodo}
               />
             </CardContent>
