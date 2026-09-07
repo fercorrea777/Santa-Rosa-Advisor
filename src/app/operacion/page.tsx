@@ -23,7 +23,9 @@ import {
   hayDatosPropios,
 } from "@/lib/informes/propios";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
-import { calcularCobertura, etiquetaAccion, RITMO_MINIMO as RITMO_MINIMO_VERSION } from "@/lib/informes/cobertura";
+import {
+  calcularCobertura, estadosDesconocidos, etiquetaAccion, RITMO_MINIMO as RITMO_MINIMO_VERSION,
+} from "@/lib/informes/cobertura";
 import { getLeadsAsesor, normalizarNombre } from "@/lib/informes/leads-asesor";
 import { getPautaMarca } from "@/lib/informes/pauta-marca";
 import {
@@ -1329,6 +1331,14 @@ export default async function OperacionPage({
       </Seccion>
 
       <Seccion titulo="Stock">
+      {estadosDesconocidos(stockCrudo).length > 0 && (
+        <NotaDato>
+          Estados de Cars que la regla de stock no conoce:{" "}
+          <strong>{estadosDesconocidos(stockCrudo).join(", ")}</strong>. Cuentan como
+          en piso hasta que alguien los clasifique en <code>cobertura.ts</code>
+          (en piso, en viaje o no vendible).
+        </NotaDato>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>Stock por modelo — hoy</CardTitle>

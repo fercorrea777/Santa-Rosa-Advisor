@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { getRankingMarcas, getRankingModelos, type Filtro } from "@/lib/cadam/mercado";
-import { getAsesoresMayoristasSet, getMarcasPropiasSet } from "@/lib/cadam/config";
+import { getAsesoresMayoristasSet, getMarcasPropiasSet, getPresupuesto } from "@/lib/cadam/config";
 import {
   getStockPropio, getVentasAsesor, getVentasPropias, hayDatosPropios,
 } from "@/lib/informes/propios";
 import { calcularCobertura, type CoberturaVersion } from "@/lib/informes/cobertura";
 import { formatUnidades } from "@/lib/format";
 import { mesCorto } from "@/lib/periodo";
-import { resumenPresupuesto } from "@/lib/informes/tablero";
+import { anioActual, resumenPresupuesto } from "@/lib/informes/tablero";
 import { cn } from "@/lib/utils";
 
 /**
@@ -106,6 +106,7 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
   } catch {
     presupuesto = null;
   }
+  const hayPresupuestoCargado = getPresupuesto(anioActual()) !== null;
 
   return (
     <section aria-labelledby="acciones-titulo" className="flex flex-col gap-3">
@@ -176,7 +177,9 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           vacio={
             presupuesto
               ? "Todas las marcas al ritmo del plan."
-              : "Sin presupuesto cargado: lo carga Hermes desde el Excel de Finanzas."
+              : hayPresupuestoCargado
+                ? "Hay presupuesto cargado pero Cars no respondió: sin facturas no hay ritmo que comparar."
+                : "Sin presupuesto cargado: lo carga Hermes desde el Excel de Finanzas."
           }
           frase={
             presupuesto

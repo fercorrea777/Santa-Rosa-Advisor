@@ -13,9 +13,13 @@ import type { StockPropio, VentaPropia } from "@/lib/informes/propios";
  *  - Ritmo: autos por mes, promedio de los ÚLTIMOS TRES MESES CERRADOS. El
  *    mes en curso no entra: a mitad de mes tiene la mitad de las ventas y
  *    haría parecer que todo se vende más lento.
- *  - Libres: unidades vendibles hoy, sin las reservadas. "Vendible" es todo
- *    estado menos EN VIAJE (todavía no llegó), TEST DRIVE, CORTESÍA y NO
- *    DISPONIBLE (no se pueden entregar).
+ *  - Libres: unidades vendibles hoy, sin las reservadas. "Vendible" es lo
+ *    que está EN PISO (DESPACHADO, SIN DESPACHAR, CONSIGNADO, DISPONIBLE,
+ *    STOCK CDE); EN VIAJE y LANZAMIENTO todavía no llegaron; TEST DRIVE,
+ *    CORTESÍA y NO DISPONIBLE están físicamente pero no se pueden entregar.
+ *    Es la misma regla que usa el press semanal (Croman, 07/09/2026). Un
+ *    estado que no está en ninguna lista cuenta como en piso y se REPORTA
+ *    (estadosDesconocidos), no se descarta en silencio.
  *  - Meses de stock: libres ÷ ritmo. Con ritmo menor a RITMO_MINIMO no se
  *    calcula: 12 unidades a 1 por mes son "12 meses" y también podrían irse
  *    todas la semana que viene.
@@ -33,8 +37,20 @@ export const PEDIR_ANTES_DE = 1.5;
 export const EMPUJAR_DESDE = 6;
 export const LIBRES_MINIMAS_EMPUJAR = 5;
 
-const EN_VIAJE = new Set(["EN VIAJE"]);
+const EN_PISO = new Set(["DESPACHADO", "SIN DESPACHAR", "CONSIGNADO", "DISPONIBLE", "STOCK CDE"]);
+const EN_VIAJE = new Set(["EN VIAJE", "LANZAMIENTO"]);
 const NO_VENDIBLE = new Set(["TEST DRIVE", "CORTESÍA", "CORTESIA", "NO DISPONIBLE"]);
+
+/** Estados de Cars que la regla no conoce. Cuentan como en piso mientras
+ *  alguien no los clasifique acá; se muestran para que eso pase. */
+export function estadosDesconocidos(stock: StockPropio[]): string[] {
+  const vistos = new Set<string>();
+  for (const s of stock) {
+    const e = s.estado.toUpperCase();
+    if (!EN_PISO.has(e) && !EN_VIAJE.has(e) && !NO_VENDIBLE.has(e)) vistos.add(e);
+  }
+  return [...vistos].sort();
+}
 
 export type Accion = "pedir" | "llega" | "empujar" | "ok" | "sin ritmo";
 
