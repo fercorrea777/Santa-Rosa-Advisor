@@ -68,8 +68,11 @@ const REGLAS: Regla[] = [
   { marca: /^CHERY$/, nombre: /^(T2|T4|TIGGO 2|TIGGO 4)/, clase: "SUV chico" },
   { marca: /^CHERY$/, nombre: /^(T8|T9|TIGGO 8|TIGGO 9)/, clase: "SUV mediano" },
   { marca: /^JETOUR$/, nombre: /^X50/, clase: "SUV chico" },
-  { marca: /^JETOUR$/, nombre: /^DASHING/, clase: "SUV compacto" },
-  { marca: /^JETOUR$/, nombre: /^(T1|T2|X70|X90)/, segmento: SUV, clase: "SUV mediano" },
+  // T2 y X70 (y X70 Plus) van con los compactos por decisión de Croman
+  // (06/09/2026): por precio y por cliente pelean con Corolla Cross,
+  // Sportage y Tucson, aunque midan 4,75–4,8 m. T1 y X90 quedan medianos.
+  { marca: /^JETOUR$/, nombre: /^(DASHING|T2|X70)/, clase: "SUV compacto" },
+  { marca: /^JETOUR$/, nombre: /^(T1|X90)/, segmento: SUV, clase: "SUV mediano" },
   { marca: /^JETOUR$/, nombre: /^G700/, segmento: SUV, clase: "SUV grande" },
   { marca: /^SOUEAST$/, nombre: /^S06/, clase: "SUV compacto" },
   { marca: /^SOUEAST$/, nombre: /^(S07|S08|S09)/, segmento: SUV, clase: "SUV mediano" },
