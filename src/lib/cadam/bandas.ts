@@ -3,6 +3,7 @@ import type { FilaRanking } from "./mercado";
 // alias de tsconfig) contra datos reales antes de cada cambio.
 import { tokens } from "../informes/segmento-version";
 import { claseDe, ordenClase, type Clase, type OrigenClase } from "./clases";
+import { transmisionDe } from "../informes/transmision";
 
 /**
  * Mapa del mercado por CLASE × BANDA DE PRECIO: cuánto vende el mercado en
@@ -87,6 +88,12 @@ export interface ModeloConBanda {
   unidadesAnterior?: number;
   esPropia: boolean;
   precio: number | null;
+  /** "Desde" mecánico y "desde" automático de la misma familia, leídos del
+   *  nombre de cada versión (Fernando, 07/09/2026: comparar el desde de uno
+   *  con el desde del otro no es justo si uno es MT y el otro AT). null si
+   *  ninguna versión con precio dice su transmisión. */
+  precioMT: number | null;
+  precioAT: number | null;
   /** De dónde salió el precio: "cars", "datacar"... o null. */
   fuentePrecio: string | null;
   banda: string;
@@ -183,6 +190,20 @@ export function asignarPrecios(
       }
     }
     const precio = elegido?.precio ?? null;
+    // Precio por transmisión: entre los candidatos de la misma FAMILIA
+    // (primera palabra), el más barato que diga MT y el más barato que diga
+    // AT / CVT / DCT o sea híbrido o eléctrico. Lo que no dice nada cuenta
+    // para el "desde" y para ninguno de los dos.
+    const familiaTok = elegido?.tokens[0] ?? tokens(nombre)[0];
+    const familia = familiaTok
+      ? (porMarca.get(marca) ?? []).filter((c) => c.tokens[0] === familiaTok)
+      : [];
+    const masBarato = (t: "MT" | "AT") =>
+      familia
+        .filter((c) => transmisionDe(c.nombre) === t)
+        .reduce<number | null>((min, c) => (min === null || c.precio < min ? c.precio : min), null);
+    const precioMT = masBarato("MT");
+    const precioAT = masBarato("AT");
     const segmento = m.segmento ?? "";
     const clase = claseDe({ marca: m.marca, modelo: m.modelo ?? m.marca, segmento, precio });
     return {
@@ -196,6 +217,8 @@ export function asignarPrecios(
       unidadesAnterior: m.unidadesAnterior,
       esPropia: m.esPropia,
       precio,
+      precioMT,
+      precioAT,
       fuentePrecio: elegido?.fuente ?? null,
       banda: bandaDe(precio),
       deltaShare: m.deltaShare,
@@ -343,6 +366,8 @@ export interface CompetidorModelo {
   modelo: string;
   unidades: number;
   precio: number | null;
+  precioMT: number | null;
+  precioAT: number | null;
   tecnologia?: string;
   esPropia: boolean;
 }
@@ -359,6 +384,8 @@ export interface DetalleModelo {
   variacion: number | null;
   deltaShare: number | null;
   precio: number | null;
+  precioMT: number | null;
+  precioAT: number | null;
   banda: string;
   /** La clase entera en el período, y qué parte de ella es este modelo. */
   unidadesClase: number;
@@ -367,6 +394,12 @@ export interface DetalleModelo {
   medianaClase: number | null;
   nPreciosClase: number;
   diferencia: number | null;
+  /** Lo mismo, pero mecánico contra mecánico y automático contra
+   *  automático: la comparación justa (Fernando, 07/09/2026). */
+  medianaClaseMT: number | null;
+  nPreciosMT: number;
+  medianaClaseAT: number | null;
+  nPreciosAT: number;
   /** Los que más venden en su clase, sin contarlo a él. */
   competidores: CompetidorModelo[];
   competidoresTotal: number;
@@ -397,6 +430,8 @@ export interface ModeloFicha {
   variacion: number | null;
   deltaShare: number | null;
   precio: number | null;
+  precioMT: number | null;
+  precioAT: number | null;
   banda: string;
 }
 
@@ -420,6 +455,8 @@ export function fichasDeModelos(universo: ModeloConBanda[]): ModeloFicha[] {
       variacion: m.variacion,
       deltaShare: m.deltaShare,
       precio: m.precio,
+      precioMT: m.precioMT,
+      precioAT: m.precioAT,
       banda: m.banda,
     });
   }
@@ -440,6 +477,8 @@ export function detalleDeFicha(
     .sort((a, b) => b.unidades - a.unidades);
   const precios = otros.map((x) => x.precio).filter((p): p is number => !!p);
   const medianaClase = medianaDe(precios);
+  const preciosMT = otros.map((x) => x.precioMT).filter((p): p is number => !!p);
+  const preciosAT = otros.map((x) => x.precioAT).filter((p): p is number => !!p);
   const unidadesClase = deLaClase.reduce((s, x) => s + x.unidades, 0);
   return {
     marca: m.marca,
@@ -453,14 +492,21 @@ export function detalleDeFicha(
     variacion: m.variacion,
     deltaShare: m.deltaShare,
     precio: m.precio,
+    precioMT: m.precioMT,
+    precioAT: m.precioAT,
     banda: m.banda,
     unidadesClase,
     parteClase: unidadesClase ? m.unidades / unidadesClase : 0,
     medianaClase,
     nPreciosClase: precios.length,
     diferencia: m.precio && medianaClase ? m.precio / medianaClase - 1 : null,
+    medianaClaseMT: medianaDe(preciosMT),
+    nPreciosMT: preciosMT.length,
+    medianaClaseAT: medianaDe(preciosAT),
+    nPreciosAT: preciosAT.length,
     competidores: otros.slice(0, topCompetidores).map((x) => ({
       marca: x.marca, modelo: x.modelo, unidades: x.unidades, precio: x.precio,
+      precioMT: x.precioMT, precioAT: x.precioAT,
       tecnologia: x.tecnologia, esPropia: x.esPropia,
     })),
     competidoresTotal: otros.length,
@@ -472,6 +518,9 @@ export interface Rival {
   modelo: string;
   unidades: number;
   precio: number | null;
+  /** "Desde" mecánico y automático (ver ModeloConBanda). */
+  precioMT: number | null;
+  precioAT: number | null;
   banda: string;
   tecnologia?: string;
   /** Misma banda de precio que nuestro modelo: el rival más directo. */
@@ -516,6 +565,8 @@ export function rivalesDirectos(modelos: ModeloConBanda[]): Duelo[] {
         modelo: m.modelo,
         unidades: m.unidades,
         precio: m.precio,
+        precioMT: m.precioMT,
+        precioAT: m.precioAT,
         banda: m.banda,
         tecnologia: m.tecnologia,
         mismaBanda: p.banda !== SIN_PRECIO && m.banda === p.banda,
@@ -539,6 +590,11 @@ function mediana(valores: number[]): number | null {
 
 export interface PrecioRelativo {
   propio: ModeloConBanda;
+  /** Con qué precio se compara: automático contra automático si nuestro
+   *  modelo tiene versión AT y hay al menos dos rivales con AT; si no,
+   *  mecánico; si no, el "desde" de cada uno (Fernando, 07/09/2026). */
+  base: "AT" | "MT" | "desde";
+  precioBase: number;
   /** Contra los rivales de su misma clase. Positivo = estamos más caros. */
   medianaClase: number | null;
   diferenciaClase: number | null;
@@ -557,16 +613,31 @@ export interface PrecioRelativo {
  */
 export function precioRelativo(modelos: ModeloConBanda[]): PrecioRelativo[] {
   const propios = modelos.filter((m) => m.esPropia && m.precio && m.clase);
+  const rivales = modelos.filter((m) => !m.esPropia);
+  const preciosDe = (lista: ModeloConBanda[], base: "AT" | "MT" | "desde") =>
+    lista
+      .map((m) => (base === "AT" ? m.precioAT : base === "MT" ? m.precioMT : m.precio))
+      .filter((v): v is number => !!v);
   return propios
     .map((p) => {
-      const conPrecio = modelos.filter((m) => !m.esPropia && m.precio);
-      const preciosTipo = conPrecio.filter((m) => m.segmento === p.segmento).map((m) => m.precio as number);
-      const preciosClase = conPrecio.filter((m) => m.clase === p.clase).map((m) => m.precio as number);
+      // Mecánico con mecánico, automático con automático; "desde" contra
+      // "desde" solo cuando no hay con qué.
+      const deLaClase = rivales.filter((m) => m.clase === p.clase);
+      const base: "AT" | "MT" | "desde" =
+        p.precioAT && preciosDe(deLaClase, "AT").length >= 2
+          ? "AT"
+          : p.precioMT && preciosDe(deLaClase, "MT").length >= 2
+            ? "MT"
+            : "desde";
+      const precio = (base === "AT" ? p.precioAT : base === "MT" ? p.precioMT : p.precio) as number;
+      const preciosTipo = preciosDe(rivales.filter((m) => m.segmento === p.segmento), base);
+      const preciosClase = preciosDe(deLaClase, base);
       const medianaTipo = mediana(preciosTipo);
       const medianaClase = mediana(preciosClase);
-      const precio = p.precio as number;
       return {
         propio: p,
+        base,
+        precioBase: precio,
         medianaClase,
         diferenciaClase: medianaClase ? precio / medianaClase - 1 : null,
         rivalesClase: preciosClase.length,

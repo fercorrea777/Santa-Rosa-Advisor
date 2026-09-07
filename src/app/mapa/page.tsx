@@ -178,6 +178,7 @@ export default async function MapaPage({
       marca: r.marca, modelo: r.modelo, segmento: r.segmento, clase, claseOrigen: "catalogo",
       tecnologia: r.tecnologia, unidades: r.unidades, esPropia: r.esPropia,
       precio: precioPorModelo.get(`${r.marca}|${r.modelo}`) ?? null,
+      precioMT: null, precioAT: null,
       fuentePrecio: null, banda: "", deltaShare: null, variacion: null,
     });
     fila.set(r.tecnologia, celda);
@@ -417,7 +418,7 @@ export default async function MapaPage({
                   <TableHead>Nuestro modelo</TableHead>
                   <TableHead className="text-right">Vendidos</TableHead>
                   <TableHead className="text-right">Precio</TableHead>
-                  <TableHead>Rivales de su clase (unidades · precio · motorización)</TableHead>
+                  <TableHead>Rivales de su clase (unidades · precio desde, MT y AT · motorización)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -446,6 +447,11 @@ export default async function MapaPage({
                         <span className="block text-[11px] text-muted-foreground whitespace-nowrap">
                           {d.propio.banda === SIN_PRECIO ? "sin banda" : etiquetaBanda(d.propio.banda)}
                         </span>
+                        {(d.propio.precioMT || d.propio.precioAT) && (
+                          <span className="block text-[11px] text-muted-foreground whitespace-nowrap">
+                            {[d.propio.precioMT ? `MT ${formatUnidades(d.propio.precioMT)}` : null, d.propio.precioAT ? `AT ${formatUnidades(d.propio.precioAT)}` : null].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs align-top">
                         {d.rivales.length === 0 ? (
@@ -490,7 +496,11 @@ export default async function MapaPage({
             misma clase (los que el comprador compara de verdad) y contra la
             mediana de todo su tipo de vehículo. Positivo = más caro que la
             mitad de esos rivales. Cada mediana necesita al menos dos rivales
-            con precio.
+            con precio. <strong>Misma transmisión:</strong> se compara el
+            «desde» automático nuestro con el «desde» automático de los rivales
+            (o mecánico con mecánico), leído del nombre de cada versión; solo
+            cuando no hay con qué, «desde» contra «desde». Comparar el mecánico
+            de uno con el automático del otro no es justo.
           </p>
         </CardHeader>
         <CardContent>
@@ -505,7 +515,7 @@ export default async function MapaPage({
                 <TableRow>
                   <TableHead>Nuestro modelo</TableHead>
                   <TableHead className="text-right">Vendidos</TableHead>
-                  <TableHead className="text-right">Nuestro precio</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Nuestro precio (misma transmisión)</TableHead>
                   <TableHead className="text-right whitespace-nowrap">Mediana de su clase</TableHead>
                   <TableHead className="text-right">Diferencia</TableHead>
                   <TableHead className="text-right whitespace-nowrap">Mediana de todo el tipo</TableHead>
@@ -522,11 +532,17 @@ export default async function MapaPage({
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{formatUnidades(p.propio.unidades)}</TableCell>
-                    <TableCell className="text-right tabular-nums">US$ {formatUnidades(p.propio.precio as number)}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      US$ {formatUnidades(p.precioBase)}
+                      <span className="block text-[11px] text-muted-foreground">
+                        {p.base === "AT" ? "automático" : p.base === "MT" ? "mecánico" : "desde"}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {p.medianaClase ? `US$ ${formatUnidades(Math.round(p.medianaClase))}` : "—"}
                       <span className="block text-[11px] text-muted-foreground">
                         {p.rivalesClase} {p.rivalesClase === 1 ? "rival" : "rivales"} con precio
+                        {p.base !== "desde" ? ` ${p.base}` : ""}
                       </span>
                     </TableCell>
                     <Diferencia valor={p.diferenciaClase} />
@@ -631,6 +647,9 @@ function LineaRival({ r }: { r: Rival }) {
       <span className="text-muted-foreground">
         · {formatUnidades(r.unidades)} u.
         {r.precio ? ` · US$ ${formatUnidades(r.precio)}` : " · sin precio"}
+        {r.precioMT || r.precioAT
+          ? ` (${[r.precioMT ? `MT ${formatUnidades(r.precioMT)}` : null, r.precioAT ? `AT ${formatUnidades(r.precioAT)}` : null].filter(Boolean).join(" · ")})`
+          : ""}
         {r.tecnologia && r.tecnologia !== SIN_DATO_TECNOLOGIA ? ` · ${r.tecnologia}` : ""}
       </span>
       {r.mismaBanda && (

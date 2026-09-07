@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/table";
 import type { DetalleModelo } from "@/lib/cadam/bandas";
 import { formatPct, formatUnidades } from "@/lib/format";
+import { transmisionDe } from "@/lib/informes/transmision";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,11 +41,16 @@ export function DetalleModeloDialog({
 }) {
   const importacion = fuente === "importacion";
   const d = detalle;
-  // El precio que se compara: el de la versión tocada si la hay, si no el
-  // del modelo. Una familia con versiones de 20k y 35k no tiene "un" precio.
-  const precio = version?.precio ?? d?.precio ?? null;
-  const dif = precio && d?.medianaClase ? precio / d.medianaClase - 1 : null;
-  const brecha = precio && d?.medianaClase ? Math.abs(precio - d.medianaClase) : null;
+  // QUÉ PRECIO SE COMPARA CON QUÉ. Mecánico con mecánico y automático con
+  // automático (Fernando, 07/09/2026): el "desde" de un modelo suele ser su
+  // versión mecánica y el del rival la automática, y esa cuenta no es justa.
+  // Para una versión, su transmisión sale de su nombre; para un modelo se
+  // toma el automático (es lo que más se vende) y, si no lo hay, el
+  // mecánico. Solo cuando ninguna versión dice su transmisión se cae al
+  // "desde" contra "desde", y se avisa.
+  const base = comparacion(d, version);
+  const dif = base.nuestro && base.mediana ? base.nuestro / base.mediana - 1 : null;
+  const brecha = base.nuestro && base.mediana ? Math.abs(base.nuestro - base.mediana) : null;
 
   return (
     <Dialog.Root open={!!d} onOpenChange={(abierto) => !abierto && onClose()}>
@@ -87,25 +93,34 @@ export function DetalleModeloDialog({
                     pie={`${d.clase} en el período`}
                   />
                   <Cifra
-                    titulo="Precio de lista"
-                    valor={precio ? `US$ ${formatUnidades(precio)}` : "—"}
-                    pie={version ? "de esta versión" : "del modelo"}
+                    titulo={`Precio ${base.etiqueta}`}
+                    valor={base.nuestro ? `US$ ${formatUnidades(base.nuestro)}` : "—"}
+                    pie={
+                      version
+                        ? `de esta versión (${base.etiqueta})`
+                        : [
+                            d.precioMT ? `MT desde ${formatUnidades(d.precioMT)}` : null,
+                            d.precioAT ? `AT desde ${formatUnidades(d.precioAT)}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || (d.precio ? "desde, sin transmisión en el nombre" : "sin precio")
+                    }
                   />
                   <Cifra
-                    titulo="Precio de su clase"
-                    valor={d.medianaClase ? `US$ ${formatUnidades(Math.round(d.medianaClase))}` : "—"}
+                    titulo={`Su clase, ${base.etiqueta}`}
+                    valor={base.mediana ? `US$ ${formatUnidades(Math.round(base.mediana))}` : "—"}
                     pie={
-                      d.nPreciosClase === 0
-                        ? "sin rivales con precio"
-                        : d.nPreciosClase === 1
-                          ? "el único rival con precio"
-                          : `mediana de ${d.nPreciosClase} rivales`
+                      base.n === 0
+                        ? `sin rivales con precio ${base.etiqueta}`
+                        : base.n === 1
+                          ? `el único rival con precio ${base.etiqueta}`
+                          : `mediana de ${base.n} rivales, ${base.etiqueta}`
                     }
                   />
                 </div>
 
                 <p className="mt-4 rounded-lg border-l-4 border-l-primary/60 bg-muted/40 p-3 text-sm leading-relaxed">
-                  <Lectura d={d} dif={dif} brecha={brecha} tieneVersion={!!version} />
+                  <Lectura d={d} dif={dif} brecha={brecha} tieneVersion={!!version} base={base} />
                 </p>
               </div>
 
@@ -132,7 +147,9 @@ export function DetalleModeloDialog({
                           <TableHead>Modelo</TableHead>
                           <TableHead className="text-right">Unidades</TableHead>
                           <TableHead className="text-right whitespace-nowrap">% de la clase</TableHead>
-                          <TableHead className="text-right">Precio</TableHead>
+                          <TableHead className="text-right">Desde</TableHead>
+                          <TableHead className="text-right">MT</TableHead>
+                          <TableHead className="text-right">AT</TableHead>
                           <TableHead>Motorización</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -153,6 +170,12 @@ export function DetalleModeloDialog({
                             <TableCell className="text-right tabular-nums">
                               {c.precio ? `US$ ${formatUnidades(c.precio)}` : "—"}
                             </TableCell>
+                            <TableCell className={cn("text-right tabular-nums", base.etiqueta === "mecánico" && "font-medium")}>
+                              {c.precioMT ? formatUnidades(c.precioMT) : "—"}
+                            </TableCell>
+                            <TableCell className={cn("text-right tabular-nums", base.etiqueta === "automático" && "font-medium")}>
+                              {c.precioAT ? formatUnidades(c.precioAT) : "—"}
+                            </TableCell>
                             <TableCell className="text-xs text-muted-foreground">{c.tecnologia ?? "—"}</TableCell>
                           </TableRow>
                         ))}
@@ -168,7 +191,10 @@ export function DetalleModeloDialog({
                   período{importacion ? " — lo importado se matricula dos o tres meses después" : ""}.
                   Precios: los nuestros del stock de
                   Cars, los de la competencia del catálogo de Datacar — no es lista oficial, y lo que
-                  no tiene precio no se adivina.
+                  no tiene precio no se adivina. <strong>MT</strong> y <strong>AT</strong> son el
+                  «desde» mecánico y automático de cada familia, leídos del nombre de la versión (MT,
+                  AT, CVT, DCT; un híbrido o eléctrico es automático): así se compara mecánico con
+                  mecánico. Lo que no dice su transmisión queda en «—» y no entra en esa cuenta.
                 </p>
               </div>
             </>
@@ -185,11 +211,13 @@ function Lectura({
   dif,
   brecha,
   tieneVersion,
+  base,
 }: {
   d: DetalleModelo;
   dif: number | null;
   brecha: number | null;
   tieneVersion: boolean;
+  base: Comparacion;
 }) {
   const lider = d.competidores[0];
   const esLider = !lider || d.unidades >= lider.unidades;
@@ -231,22 +259,37 @@ function Lectura({
           {formatUnidades(d.unidadesAnterior)} a {formatUnidades(d.unidades)}).{" "}
         </>
       )}
-      {dif === null || d.nPreciosClase < 2 ? (
-        <>No hay precios suficientes en la clase para decir si está caro o barato.</>
+      {dif === null || base.n < 2 ? (
+        <>
+          No hay precios suficientes {base.justa ? `en ${base.etiqueta} ` : ""}en la clase para decir
+          si está caro o barato.
+        </>
       ) : dif >= 0.05 ? (
         <>
-          {tieneVersion ? "Esta versión está" : "Está"}{" "}
+          {tieneVersion ? "Esta versión está" : `En ${base.etiqueta}, está`}{" "}
           <strong>US$ {formatUnidades(Math.round(brecha ?? 0))} por encima</strong> de la mediana de su
-          clase: el precio juega en contra y hay que compensarlo con producto o financiación.
+          clase ({base.n} rivales{base.justa ? ` con ${base.etiqueta}` : ", desde contra desde"}): el
+          precio juega en contra y hay que compensarlo con producto o financiación.
         </>
       ) : dif <= -0.05 ? (
         <>
-          {tieneVersion ? "Esta versión está" : "Está"}{" "}
+          {tieneVersion ? "Esta versión está" : `En ${base.etiqueta}, está`}{" "}
           <strong>US$ {formatUnidades(Math.round(brecha ?? 0))} por debajo</strong> de la mediana de su
-          clase: el precio es un argumento a favor{esLider ? " y hay espacio si el stock escasea" : ", así que lo que falta es presencia o producto"}.
+          clase ({base.n} rivales{base.justa ? ` con ${base.etiqueta}` : ", desde contra desde"}): el
+          precio es un argumento a favor{esLider ? " y hay espacio si el stock escasea" : ", así que lo que falta es presencia o producto"}.
         </>
       ) : (
-        <>Está al precio de su clase: lo que decide es el stock, la pauta y el seguimiento.</>
+        <>
+          {base.justa ? `En ${base.etiqueta}, está` : "Está"} al precio de su clase: lo que decide es
+          el stock, la pauta y el seguimiento.
+        </>
+      )}
+      {!base.justa && base.n >= 2 && (
+        <>
+          {" "}
+          Ninguna versión con precio dice si es mecánica o automática, así que acá se comparó el
+          «desde» de cada uno.
+        </>
       )}
     </>
   );
@@ -260,4 +303,34 @@ function Cifra({ titulo, valor, pie }: { titulo: string; valor: string; pie: str
       <span className="block text-[11px] text-muted-foreground">{pie}</span>
     </div>
   );
+}
+
+/** Contra qué se compara el precio: mecánico con mecánico, automático con
+ *  automático; el "desde" solo si ninguna versión dice su transmisión. */
+interface Comparacion {
+  etiqueta: "mecánico" | "automático" | "desde";
+  nuestro: number | null;
+  mediana: number | null;
+  n: number;
+  /** true cuando la comparación es por transmisión (la justa). */
+  justa: boolean;
+}
+
+function comparacion(
+  d: DetalleModelo | null,
+  version?: { nombre: string; precio: number } | null
+): Comparacion {
+  if (!d) return { etiqueta: "desde", nuestro: null, mediana: null, n: 0, justa: false };
+  const mt: Comparacion = { etiqueta: "mecánico", nuestro: d.precioMT, mediana: d.medianaClaseMT, n: d.nPreciosMT, justa: true };
+  const at: Comparacion = { etiqueta: "automático", nuestro: d.precioAT, mediana: d.medianaClaseAT, n: d.nPreciosAT, justa: true };
+  const desde: Comparacion = { etiqueta: "desde", nuestro: d.precio, mediana: d.medianaClase, n: d.nPreciosClase, justa: false };
+  if (version) {
+    const t = transmisionDe(version.nombre);
+    if (t === "MT") return { ...mt, nuestro: version.precio };
+    if (t === "AT") return { ...at, nuestro: version.precio };
+    return { ...desde, nuestro: version.precio };
+  }
+  if (d.precioAT && d.nPreciosAT >= 1) return at;
+  if (d.precioMT && d.nPreciosMT >= 1) return mt;
+  return desde;
 }
