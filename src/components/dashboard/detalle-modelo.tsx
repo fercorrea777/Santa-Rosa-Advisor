@@ -325,7 +325,7 @@ function comparacion(
   const at: Comparacion = { etiqueta: "automático", nuestro: d.precioAT, mediana: d.medianaClaseAT, n: d.nPreciosAT, justa: true };
   const desde: Comparacion = { etiqueta: "desde", nuestro: d.precio, mediana: d.medianaClase, n: d.nPreciosClase, justa: false };
   if (version) {
-    const t = transmisionDe(version.nombre);
+    const t = transmisionDe(version.nombre, d.marca);
     if (t === "MT") return { ...mt, nuestro: version.precio };
     if (t === "AT") return { ...at, nuestro: version.precio };
     return { ...desde, nuestro: version.precio };

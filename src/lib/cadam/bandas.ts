@@ -200,7 +200,7 @@ export function asignarPrecios(
       : [];
     const masBarato = (t: "MT" | "AT") =>
       familia
-        .filter((c) => transmisionDe(c.nombre) === t)
+        .filter((c) => transmisionDe(c.nombre, marca) === t)
         .reduce<number | null>((min, c) => (min === null || c.precio < min ? c.precio : min), null);
     const precioMT = masBarato("MT");
     const precioAT = masBarato("AT");
