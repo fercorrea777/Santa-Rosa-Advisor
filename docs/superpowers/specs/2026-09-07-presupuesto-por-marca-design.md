@@ -326,10 +326,20 @@ navegador, como el resto del Advisor.
 
 ## 9. Fuera de alcance
 
-Canales CDE y Wholesale (segunda entrega, con su regla de qué sucursal y qué
-asesor cuenta en cada canal); ventas USD, costo y margen; Renew (usados);
-historia de versiones del plan (si se pide, se migra el bloque a una tabla
-Postgres versionada).
+Ventas USD, costo y margen; Renew (usados); historia de versiones del plan
+(si se pide, se migra el bloque a una tabla Postgres versionada).
+
+## 9b. Segunda entrega: canales CDE y Wholesale (07/09/2026, misma tarde)
+
+Entró con otra regla que la prevista. Se iba a calcular el real por canal
+desde Cars (sucursal para CDE, asesores mayoristas para Wholesale), pero
+las definiciones no coinciden: la sucursal de Cars da 79 unidades de CDE en
+2026 y Finanzas cuenta 310 hasta agosto; los mayoristas de Cars suman 446 a
+julio y Finanzas 293. Comparar el objetivo de Finanzas contra otra
+definición diría cualquier cosa. Se toma el REAL DE FINANZAS del bloque
+derecho de las mismas hojas (hasta el mes del título «ENE AGO»), viaja en
+`presupuesto.canales[].real`, y la pantalla dice de dónde sale. Cars no
+entra en los canales.
 
 ## 10. Archivos que se tocan
 
