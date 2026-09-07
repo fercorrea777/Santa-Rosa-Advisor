@@ -6,6 +6,7 @@ import { EditorMetasMensuales } from "./metas";
 import { CatalogoTransmision } from "./transmision";
 import { getPeriodoInfo } from "@/lib/cadam/queries";
 import { listarUsuarios, type Usuario } from "@/lib/auth/usuarios";
+import { getVentasPropias } from "@/lib/informes/propios";
 import { EditorConfiguracion } from "./editor";
 import { PanelUsuarios } from "./usuarios";
 
@@ -18,6 +19,20 @@ export default async function ConfiguracionPage() {
   const info = getPeriodoInfo();
   const anioMetas = Number(hoyEnAsuncion().slice(0, 4));
   const presupuesto = getPresupuesto(anioMetas);
+  // Lo facturado en Cars por marca y mes del año, para verlo debajo de cada
+  // meta. Si Cars no responde, la grilla sale sin esa línea.
+  let facturado: Record<string, number[]> | null = null;
+  try {
+    facturado = {};
+    for (const v of await getVentasPropias()) {
+      if (!v.periodo.startsWith(`${anioMetas}-`)) continue;
+      const mes = Number(v.periodo.slice(5, 7));
+      const fila = (facturado[v.marca] ??= Array(12).fill(0));
+      fila[mes - 1] += v.unidades;
+    }
+  } catch {
+    facturado = null;
+  }
 
   // Los usuarios viven en Postgres y el resto de esta pantalla no. Si la base
   // no responde, se muestra el aviso SOLO en esa tarjeta: metas y
@@ -72,6 +87,8 @@ export default async function ConfiguracionPage() {
         anios={[anioMetas - 1, anioMetas, anioMetas + 1]}
         marcas={parametros.marcas_propias.map((m) => m.marca_cadam)}
         metas={getMetasMensuales(anioMetas)}
+        grupos={presupuesto?.grupos.map((g) => g.marcas) ?? []}
+        facturado={facturado}
         presupuesto={
           presupuesto
             ? {

@@ -21,11 +21,21 @@ export function EditorMetasMensuales({
   marcas,
   metas,
   presupuesto = null,
+  grupos = [],
+  facturado = null,
 }: {
   anio: number;
   anios: number[];
   marcas: string[];
   metas: Record<string, (number | null)[]>;
+  /** Marcas que comparten UNA meta (GREAT WALL + HAVAL, LEAPMOTOR + JMEV):
+   *  así las presupuesta Finanzas. La fila es el grupo y la meta se guarda
+   *  bajo la primera marca, que es lo que /operacion compara. */
+  grupos?: string[][];
+  /** Lo facturado en Cars por marca y mes del año, para verlo debajo de
+   *  cada meta. null = Cars no respondió. Contra esto se compara la meta:
+   *  ventas propias, no matriculaciones del mercado. */
+  facturado?: Record<string, number[]> | null;
   /** De dónde salió lo cargado, cuando vino del Excel de Finanzas por
    *  Hermes: versión, archivo, fechas y el presupuesto anual por marca
    *  (bajo la primera marca de cada grupo). null = grilla a mano. */
@@ -41,6 +51,22 @@ export function EditorMetasMensuales({
     guardarMetasMensuales,
     null
   );
+  // Una fila por grupo presupuestado; el resto, una fila por marca. La
+  // meta de un grupo vive bajo su primera marca (la que guarda el form).
+  const filas: { clave: string; etiqueta: string; marca: string; marcas: string[]; conjunta: boolean }[] = [];
+  const enGrupo = new Set<string>();
+  for (const g of grupos) {
+    if (!g.length || !marcas.includes(g[0])) continue;
+    filas.push({ clave: g.join("+"), etiqueta: g.join(" + "), marca: g[0], marcas: g, conjunta: g.length > 1 });
+    for (const m of g) enGrupo.add(m);
+  }
+  for (const m of marcas) {
+    if (!enGrupo.has(m)) filas.push({ clave: m, etiqueta: m, marca: m, marcas: [m], conjunta: false });
+  }
+  const vendido = (fila: { marcas: string[] }, i: number) =>
+    facturado ? fila.marcas.reduce((s, m) => s + (facturado[m]?.[i] ?? 0), 0) : null;
+  const vendidoAnio = (fila: { marcas: string[] }) =>
+    facturado ? MESES.reduce((s, _, i) => s + (vendido(fila, i) ?? 0), 0) : null;
   const [valores, setValores] = React.useState<Record<string, string>>(() => {
     const v: Record<string, string> = {};
     for (const m of marcas) {
@@ -53,8 +79,9 @@ export function EditorMetasMensuales({
     return Number.isFinite(n) ? n : 0;
   };
   const totalFila = (m: string) => MESES.reduce((s, _, i) => s + num(valores[`${m}|${i + 1}`] ?? ""), 0);
-  const totalCol = (i: number) => marcas.reduce((s, m) => s + num(valores[`${m}|${i + 1}`] ?? ""), 0);
-  const totalAnio = marcas.reduce((s, m) => s + totalFila(m), 0);
+  const totalCol = (i: number) => filas.reduce((s, f) => s + num(valores[`${f.marca}|${i + 1}`] ?? ""), 0);
+  const totalAnio = filas.reduce((s, f) => s + totalFila(f.marca), 0);
+  const vendidoCol = (i: number) => (facturado ? filas.reduce((s, f) => s + (vendido(f, i) ?? 0), 0) : null);
 
   return (
     <form action={enviar} className="flex flex-col gap-4">
@@ -62,9 +89,10 @@ export function EditorMetasMensuales({
         <CardHeader>
           <CardTitle className="text-base">Metas de vehículos por marca y mes</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Contra esto se compara lo facturado en Nuestra operación, mes a mes
-            y en el año. Dejá vacío lo que no tenga meta: la app muestra
-            «sin meta», nunca un cero.
+            Contra esto se compara lo facturado en Cars (Nuestra operación), mes
+            a mes y en el año: ventas propias, no matriculaciones del mercado.
+            {facturado ? " Debajo de cada meta, en gris, lo facturado ese mes." : ""} Dejá
+            vacío lo que no tenga meta: la app muestra «sin meta», nunca un cero.
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -103,13 +131,20 @@ export function EditorMetasMensuales({
                 </tr>
               </thead>
               <tbody>
-                {marcas.map((m) => (
-                  <tr key={m} className="border-t">
-                    <td className="py-1 pr-2 font-medium whitespace-nowrap">{m}</td>
+                {filas.map((f) => {
+                  const m = f.marca;
+                  return (
+                  <tr key={f.clave} className="border-t">
+                    <td className="py-1 pr-2 font-medium whitespace-nowrap">
+                      {f.etiqueta}
+                      {f.conjunta && (
+                        <span className="block text-[10px] font-normal text-muted-foreground">meta conjunta</span>
+                      )}
+                    </td>
                     {MESES.map((_, i) => {
                       const k = `${m}|${i + 1}`;
                       return (
-                        <td key={k} className="px-0.5 py-1">
+                        <td key={k} className="px-0.5 py-1 align-top">
                           <input
                             name={`m_${m}_${i + 1}`}
                             type="text"
@@ -120,26 +155,45 @@ export function EditorMetasMensuales({
                             // el ancho de la tarjeta sin scroll, si no la columna
                             // "Año" queda cortada en el borde.
                             className="input-base w-11 rounded-md border bg-background px-1 py-1 text-right tabular-nums"
-                            aria-label={`${m} ${MESES[i]}`}
+                            aria-label={`${f.etiqueta} ${MESES[i]}`}
                           />
+                          {facturado && (
+                            <span
+                              className="block pr-1 text-right text-[10px] tabular-nums text-muted-foreground"
+                              title={`Facturado en Cars, ${MESES[i]} ${anio}`}
+                            >
+                              {vendido(f, i) || "·"}
+                            </span>
+                          )}
                         </td>
                       );
                     })}
-                    <td className="py-1 pl-2 text-right tabular-nums font-medium">
+                    <td className="py-1 pl-2 text-right tabular-nums font-medium align-top">
                       {totalFila(m) ? totalFila(m).toLocaleString("es-PY") : "—"}
+                      {facturado && (
+                        <span className="block text-[10px] font-normal text-muted-foreground">
+                          {(vendidoAnio(f) ?? 0).toLocaleString("es-PY")} fact.
+                        </span>
+                      )}
                     </td>
                     {presupuesto && (
-                      <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground">
+                      <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground align-top">
                         {presupuesto.anual[m] ? presupuesto.anual[m]?.toLocaleString("es-PY") : "—"}
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
                 <tr className="border-t font-medium">
                   <td className="py-1 pr-2">Total</td>
                   {MESES.map((_, i) => (
-                    <td key={i} className="px-0.5 py-1 text-right tabular-nums">
+                    <td key={i} className="px-0.5 py-1 text-right tabular-nums align-top">
                       {totalCol(i) ? totalCol(i).toLocaleString("es-PY") : "—"}
+                      {facturado && (
+                        <span className="block text-[10px] font-normal text-muted-foreground">
+                          {vendidoCol(i) || "·"}
+                        </span>
+                      )}
                     </td>
                   ))}
                   <td className="py-1 pl-2 text-right tabular-nums">
