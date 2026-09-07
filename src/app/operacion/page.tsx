@@ -12,7 +12,11 @@ import {
 import {
   getCobertura, getRankingMarcas, totalUnidades,
 } from "@/lib/cadam/mercado";
-import { getAsesoresMayoristasSet, getMetasMensuales, getParametros } from "@/lib/cadam/config";
+import { getAsesoresMayoristasSet, getMetasMensuales, getParametros, getPresupuesto } from "@/lib/cadam/config";
+import {
+  cumplimiento, facturadoEntre, planPeriodo, porcentajeHecho,
+} from "@/lib/informes/presupuesto";
+import { PlanVsFacturadoChart } from "@/components/charts/plan-vs-facturado-chart";
 import { hoyEnAsuncion } from "@/lib/format";
 import {
   getEstadoSyncPropio, getStockPropio, getVentasAsesor, getVentasPropias,
@@ -176,21 +180,17 @@ export default async function OperacionPage({
   const totalStock = stock.reduce((s, x) => s + x.unidades, 0);
   const totalReservadas = stock.reduce((s, x) => s + x.reservadas, 0);
 
-  // --- metas: vehículos por marca y mes, cargadas en Configuración -------
+  // --- metas: plan vigente por marca y mes (Excel de Finanzas vía Hermes, o
+  // la grilla de Configuración) y presupuesto anual original -------------
   const metasAnio = getMetasMensuales(f.anio);
   const hayMetas = Object.keys(metasAnio).length > 0;
-  const metaPeriodoDe = (marca: string) =>
-    (metasAnio[marca] ?? []).slice(f.mesDesde - 1, f.mesHasta).reduce((s: number, v) => s + (v ?? 0), 0);
-  const metaAnioDe = (marca: string) =>
-    (metasAnio[marca] ?? []).reduce((s: number, v) => s + (v ?? 0), 0);
-  const enMeses = (periodoTxt: string, anio: number, desde: number, hasta: number) => {
-    const [a, m] = periodoTxt.split("-").map(Number);
-    return a === anio && m >= desde && m <= hasta;
-  };
-  const sumaMeses = (marca: string, anio: number, desde: number, hasta: number) =>
-    ventasCrudas
-      .filter((v) => v.marca === marca && enMeses(v.periodo, anio, desde, hasta))
-      .reduce((s, v) => s + v.unidades, 0);
+  const presupuesto = getPresupuesto(f.anio);
+  const hayPresupuesto = presupuesto !== null;
+  const realHastaMes = presupuesto?.real_hasta_mes ?? null;
+  // Siempre sobre TODAS las facturas, no las filtradas por marca: una fila
+  // de grupo (GREAT WALL + HAVAL) suma sus marcas aunque el filtro sea una.
+  const sumaMeses = (marcas: string[], anio: number, desde: number, hasta: number) =>
+    facturadoEntre(ventasCrudas, marcas, anio, desde, hasta);
   // Proyección de cierre de año, por marca: lo facturado hasta el último
   // mes cerrado, más lo que el año pasado se vendió en los meses que
   // faltan, escalado por cómo viene este año contra el pasado en los mismos
@@ -199,15 +199,17 @@ export default async function OperacionPage({
   const hoyIso = hoyEnAsuncion();
   const mesCerrado = Number(hoyIso.slice(5, 7)) - 1;
   const proyectar = f.anio === Number(hoyIso.slice(0, 4)) && mesCerrado >= 1;
-  const proyeccionDe = (marca: string): number | null => {
+  const proyeccionDe = (marcas: string[]): number | null => {
     if (!proyectar) return null;
-    const ytd = sumaMeses(marca, f.anio, 1, mesCerrado);
-    const lyYtd = sumaMeses(marca, f.anio - 1, 1, mesCerrado);
-    const lyResto = sumaMeses(marca, f.anio - 1, mesCerrado + 1, 12);
+    const ytd = sumaMeses(marcas, f.anio, 1, mesCerrado);
+    const lyYtd = sumaMeses(marcas, f.anio - 1, 1, mesCerrado);
+    const lyResto = sumaMeses(marcas, f.anio - 1, mesCerrado + 1, 12);
     if (lyYtd > 0 && lyResto > 0) return Math.round(ytd + lyResto * (ytd / lyYtd));
     return Math.round(ytd + (ytd / mesCerrado) * (12 - mesCerrado));
   };
-  const metaTotal = (f.marca ? [f.marca] : propias).reduce((s, m) => s + metaPeriodoDe(m), 0);
+  // Hasta dónde llega el "YTD" del presupuesto: el último mes cerrado del
+  // año en curso, o el año entero si el filtro es un año cerrado.
+  const hastaYtd = proyectar ? mesCerrado : 12;
 
   // --- pauta de Meta por marca, mismo período (la marca sale del nombre de
   // la cuenta publicitaria; VARIAS y RENEW no se reparten, van al total).
@@ -220,7 +222,10 @@ export default async function OperacionPage({
     .filter((p) => !propias.includes(p.marca))
     .reduce((s, p) => s + p.gasto_usd, 0);
 
-  // --- tabla por marca: los tres números al lado, más el stock
+  // --- unidades de la tabla: un GRUPO presupuestado (GWM = GREAT WALL +
+  // HAVAL, LEAPMOTOR + JMEV) es una fila, así lo presupuesta Finanzas; las
+  // marcas sin grupo, una fila cada una. Con el filtro de marca puesto se
+  // muestra solo la fila que la contiene.
   const meses = f.mesHasta - f.mesDesde + 1;
   const marcas = [...new Set([
     ...facturasPeriodo.map((v) => v.marca),
@@ -232,17 +237,62 @@ export default async function OperacionPage({
   // en la tabla eran 20 renglones de guiones que tapaban las 10 que importan.
   // Se resumen en una linea al pie, sin perderlas.
   const esPropia = (m: string) => propias.includes(m);
-  const filas = marcas
-    .filter(esPropia)
-    .map((marca) => {
-      const facturado = facturasPeriodo
-        .filter((v) => v.marca === marca)
-        .reduce((s, v) => s + v.unidades, 0);
-      const matriculado = matricPorMarca.get(marca) ?? 0;
-      const st = stockPorMarca.get(marca) ?? { total: 0, reservadas: 0 };
+  const grupos: { marcas: string[]; plan: number[] | null; presupuestoAnual: number | null }[] = [];
+  const enGrupo = new Set<string>();
+  for (const g of presupuesto?.grupos ?? []) {
+    grupos.push({ marcas: g.marcas, plan: g.plan, presupuestoAnual: g.presupuesto_anual });
+    for (const m of g.marcas) enGrupo.add(m);
+  }
+  for (const m of marcas) {
+    if (!esPropia(m) || enGrupo.has(m)) continue;
+    const meta = metasAnio[m];
+    grupos.push({
+      marcas: [m],
+      plan: meta?.some((v) => v !== null) ? meta.map((v) => v ?? 0) : null,
+      presupuestoAnual: null,
+    });
+  }
+  // Matriculaciones y stock por marca SIN el filtro de marca, para sumar
+  // grupos enteros (`matricPorMarca` y `stockPorMarca` sí están filtrados).
+  const matricTodas = new Map(
+    (cadamDisponible ? getRankingMarcas("matriculacion", { ...fCadam, marca: undefined }) : [])
+      .filter((r) => propias.includes(r.marca))
+      .map((r) => [r.marca, r.unidades])
+  );
+  const stockTodas = new Map<string, { total: number; reservadas: number }>();
+  for (const st of stockCrudo) {
+    const x = stockTodas.get(st.marca) ?? { total: 0, reservadas: 0 };
+    x.total += st.unidades;
+    x.reservadas += st.reservadas;
+    stockTodas.set(st.marca, x);
+  }
+  const filas = grupos
+    .filter((g) => !f.marca || g.marcas.includes(f.marca))
+    .map((g) => {
+      const facturado = sumaMeses(g.marcas, f.anio, f.mesDesde, f.mesHasta);
+      const matriculado = g.marcas.reduce((acc, m) => acc + (matricTodas.get(m) ?? 0), 0);
+      const st = g.marcas.reduce(
+        (acc, m) => {
+          const x = stockTodas.get(m);
+          return x ? { total: acc.total + x.total, reservadas: acc.reservadas + x.reservadas } : acc;
+        },
+        { total: 0, reservadas: 0 }
+      );
       const ritmo = meses > 0 ? facturado / meses : 0;
+      const pp = g.plan ? planPeriodo(g.plan, f.mesDesde, f.mesHasta, realHastaMes) : null;
+      // Facturado de los meses ABIERTOS del filtro: lo del período menos lo
+      // de los meses que el Excel ya cerró.
+      const facturadoAbiertos = pp
+        ? facturado -
+          (realHastaMes ? sumaMeses(g.marcas, f.anio, f.mesDesde, Math.min(realHastaMes, f.mesHasta)) : 0)
+        : 0;
+      const facturadoYtd = sumaMeses(g.marcas, f.anio, 1, hastaYtd);
       return {
-        marca,
+        clave: g.marcas.join("+"),
+        etiqueta: g.marcas.join(" + "),
+        marcas: g.marcas,
+        esGrupo: g.marcas.length > 1,
+        plan: g.plan,
         facturado,
         matriculado,
         share: mercado ? matriculado / mercado : 0,
@@ -250,13 +300,38 @@ export default async function OperacionPage({
         reservadas: st.reservadas,
         // null cuando el ritmo es tan bajo que el cociente no informa nada.
         mesesStock: ritmo >= RITMO_MINIMO ? st.total / ritmo : null,
-        meta: metaPeriodoDe(marca),
-        metaAnio: metaAnioDe(marca),
-        proyeccion: proyeccionDe(marca),
-        pauta: pautaDe(marca),
+        meta: pp?.plan ?? 0,
+        abiertos: pp?.abiertos ?? 0,
+        cumplimiento: pp ? cumplimiento(facturadoAbiertos, pp.planAbiertos, pp.abiertos) : null,
+        metaAnio: g.plan ? g.plan.reduce((acc, v) => acc + v, 0) : 0,
+        presupuestoAnual: g.presupuestoAnual,
+        facturadoYtd,
+        hecho: porcentajeHecho(facturadoYtd, g.presupuestoAnual),
+        proyeccion: proyeccionDe(g.marcas),
+        pauta: g.marcas.reduce((acc, m) => acc + pautaDe(m), 0),
       };
     })
     .sort((a, b) => b.facturado - a.facturado);
+  const conPresupuesto = filas.filter((r) => r.presupuestoAnual);
+  const presupuestoTotal = conPresupuesto.reduce((acc, r) => acc + (r.presupuestoAnual ?? 0), 0);
+  const hechoTotal = porcentajeHecho(
+    conPresupuesto.reduce((acc, r) => acc + r.facturadoYtd, 0),
+    presupuestoTotal
+  );
+  const planTotalAnio = filas.reduce((acc, r) => acc + r.metaAnio, 0);
+  const metaTotal = filas.reduce((acc, r) => acc + r.meta, 0);
+  const facturadoYtdTotal = filas.reduce((acc, r) => acc + r.facturadoYtd, 0);
+  // Plan vs facturado por mes, para el gráfico: solo las filas con plan.
+  const conPlan = filas.filter((r) => r.plan);
+  const mesesPlan = hayPresupuesto
+    ? Array.from({ length: 12 }, (_, i) => ({
+        mes: i + 1,
+        plan: conPlan.reduce((acc, r) => acc + (r.plan?.[i] ?? 0), 0),
+        facturado: conPlan.reduce((acc, r) => acc + sumaMeses(r.marcas, f.anio, i + 1, i + 1), 0),
+        cerrado: realHastaMes !== null && i + 1 <= realHastaMes,
+      }))
+    : [];
+  const referenciaMensual = presupuestoTotal > 0 ? presupuestoTotal / 12 : null;
 
   const ajenas = marcas.filter((m) => !esPropia(m));
   const resumenAjenas = {
@@ -608,21 +683,37 @@ export default async function OperacionPage({
           chipTono="amber"
         />
         <KpiCard
-          label="Meta del período"
-          value={hayMetas && metaTotal ? formatPct(totalFacturas / metaTotal) : "—"}
+          label={hayPresupuesto ? `Presupuesto ${f.anio}` : "Meta del período"}
+          value={
+            hayPresupuesto && hechoTotal !== null
+              ? formatPct(hechoTotal)
+              : hayMetas && metaTotal
+                ? formatPct(totalFacturas / metaTotal)
+                : "—"
+          }
           // Sin meta no hay número que animar: con 0 la tarjeta mostraba
           // "0.0%", que se lee como "no vendimos nada".
-          valorAnimado={hayMetas && metaTotal ? totalFacturas / metaTotal : undefined}
+          valorAnimado={
+            hayPresupuesto && hechoTotal !== null
+              ? hechoTotal
+              : hayMetas && metaTotal
+                ? totalFacturas / metaTotal
+                : undefined
+          }
           formato="porcentaje"
           periodo={
-            hayMetas && metaTotal
-              ? `${formatUnidades(totalFacturas)} de ${formatUnidades(metaTotal)} · ${periodo}`
-              : "Sin metas cargadas"
+            hayPresupuesto
+              ? `plan ${presupuesto.version}: ${formatUnidades(planTotalAnio)} · facturado a ${proyectar ? mesCorto(mesCerrado) : "dic"}: ${formatUnidades(facturadoYtdTotal)}`
+              : hayMetas && metaTotal
+                ? `${formatUnidades(totalFacturas)} de ${formatUnidades(metaTotal)} · ${periodo}`
+                : "Sin metas cargadas"
           }
           tooltip={
-            hayMetas
-              ? "Vehículos facturados contra la meta cargada en Configuración para estos meses."
-              : "Cargá metas por marca y mes en Configuración para ver el cumplimiento acá."
+            hayPresupuesto
+              ? `Qué parte del presupuesto original del año (${formatUnidades(presupuestoTotal)} u., solo las marcas que lo tienen) ya se facturó. El plan vigente es el ejercicio de Finanzas mes a mes.`
+              : hayMetas
+                ? "Vehículos facturados contra la meta cargada en Configuración para estos meses."
+                : "Cargá metas por marca y mes en Configuración para ver el cumplimiento acá."
           }
           tono="tinta"
         />
@@ -838,7 +929,7 @@ export default async function OperacionPage({
 
       </Seccion>
 
-      <Seccion titulo="Marca por marca">
+      <Seccion titulo="Marca por marca" id="marcas">
       <Card>
         <CardHeader>
           <CardTitle>Marca por marca — {periodo}</CardTitle>
@@ -846,9 +937,11 @@ export default async function OperacionPage({
             Los tres números al lado: lo que facturamos (Cars), lo que se
             matriculó (CADAM) y qué parte del mercado es eso. El stock y su
             cobertura son de hoy, no del período.
-            {hayMetas
-              ? " La meta sale de Configuración; la proyección de cierre de año toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año."
-              : " Cargá metas por marca y mes en Configuración y acá aparecen la meta, el cumplimiento y la proyección de cierre de año."}
+            {hayPresupuesto
+              ? ` El plan es el ejercicio de Finanzas (${presupuesto.version}, archivo del ${presupuesto.modificado.slice(0, 10)}); hasta ${realHastaMes ? mesCorto(realHastaMes) : "—"} el plan es el real, así que el cumplimiento se mide solo sobre los meses siguientes. El presupuesto anual es la cifra original del año, sin apertura mensual. La proyección de cierre toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año.`
+              : hayMetas
+                ? " La meta sale de Configuración; la proyección de cierre de año toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año."
+                : " Cargá metas por marca y mes en Configuración y acá aparecen la meta, el cumplimiento y la proyección de cierre de año."}
             {hayPauta && (
               <>
                 {" "}La pauta es el gasto en Meta de las cuentas de cada marca en el período
@@ -876,10 +969,18 @@ export default async function OperacionPage({
                 <TableHead className="text-right">Meses de stock</TableHead>
                 {hayMetas && (
                   <>
-                    <TableHead className="text-right">Meta</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Plan (período)</TableHead>
                     <TableHead className="text-right">Cumplimiento</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Proyección / meta año</TableHead>
                   </>
+                )}
+                {hayPresupuesto && (
+                  <>
+                    <TableHead className="text-right whitespace-nowrap">Presupuesto anual</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">% hecho</TableHead>
+                  </>
+                )}
+                {hayMetas && (
+                  <TableHead className="text-right whitespace-nowrap">Proyección / plan año</TableHead>
                 )}
                 {hayPauta && (
                   <>
@@ -891,8 +992,15 @@ export default async function OperacionPage({
             </TableHeader>
             <TableBody>
               {filas.map((r) => (
-                <TableRow key={r.marca}>
-                  <TableCell className="font-medium">{r.marca}</TableCell>
+                <TableRow key={r.clave}>
+                  <TableCell className="font-medium">
+                    {r.etiqueta}
+                    {r.esGrupo && (
+                      <span className="block text-[11px] font-normal text-muted-foreground">
+                        meta conjunta: así la presupuesta Finanzas
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {r.facturado ? formatUnidades(r.facturado) : "—"}
                   </TableCell>
@@ -926,24 +1034,44 @@ export default async function OperacionPage({
                     <>
                       <TableCell className="text-right tabular-nums text-muted-foreground">
                         {r.meta ? formatUnidades(r.meta) : "—"}
+                        {r.meta && r.abiertos === 0 ? (
+                          <span className="block text-[11px]">cerrado</span>
+                        ) : null}
                       </TableCell>
                       <TableCell
                         className={cn(
                           "text-right tabular-nums font-medium",
-                          r.meta && r.facturado / r.meta < 0.85 && "text-rose-600 dark:text-rose-400",
-                          r.meta && r.facturado / r.meta >= 1 && "text-emerald-700 dark:text-emerald-400"
+                          r.cumplimiento !== null && r.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
+                          r.cumplimiento !== null && r.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
                         )}
+                        title={
+                          r.meta && r.abiertos === 0
+                            ? "Todos los meses del filtro ya cerraron en el Excel: ahí el plan es el real."
+                            : undefined
+                        }
                       >
-                        {r.meta ? formatPct(r.facturado / r.meta) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground whitespace-nowrap">
-                        {r.proyeccion !== null && r.metaAnio
-                          ? `${formatUnidades(r.proyeccion)} / ${formatUnidades(r.metaAnio)}`
-                          : r.proyeccion !== null
-                            ? formatUnidades(r.proyeccion)
-                            : "—"}
+                        {r.cumplimiento !== null ? formatPct(r.cumplimiento) : "—"}
                       </TableCell>
                     </>
+                  )}
+                  {hayPresupuesto && (
+                    <>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {r.presupuestoAnual ? formatUnidades(r.presupuestoAnual) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums font-medium">
+                        {r.hecho !== null ? formatPct(r.hecho) : "—"}
+                      </TableCell>
+                    </>
+                  )}
+                  {hayMetas && (
+                    <TableCell className="text-right tabular-nums text-muted-foreground whitespace-nowrap">
+                      {r.proyeccion !== null && r.metaAnio
+                        ? `${formatUnidades(r.proyeccion)} / ${formatUnidades(r.metaAnio)}`
+                        : r.proyeccion !== null
+                          ? formatUnidades(r.proyeccion)
+                          : "—"}
+                    </TableCell>
                   )}
                   {hayPauta && (
                     <>
@@ -976,9 +1104,15 @@ export default async function OperacionPage({
                     <>
                       <TableCell className="text-right">—</TableCell>
                       <TableCell className="text-right">—</TableCell>
+                    </>
+                  )}
+                  {hayPresupuesto && (
+                    <>
+                      <TableCell className="text-right">—</TableCell>
                       <TableCell className="text-right">—</TableCell>
                     </>
                   )}
+                  {hayMetas && <TableCell className="text-right">—</TableCell>}
                   {hayPauta && (
                     <>
                       <TableCell className="text-right">—</TableCell>
@@ -999,6 +1133,26 @@ export default async function OperacionPage({
           )}
         </CardContent>
       </Card>
+
+      {hayPresupuesto && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Plan vs. facturado, mes a mes — {f.anio}
+              {f.marca ? ` · ${filas[0]?.etiqueta ?? f.marca}` : ""}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Barras: el plan vigente ({presupuesto.version}) y lo facturado en Cars, por
+              mes. Los meses sombreados ya cerraron en el Excel: ahí el plan es el real.
+              La línea punteada es el presupuesto anual dividido doce, solo como
+              referencia —Finanzas no presupuestó por mes—.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <PlanVsFacturadoChart meses={mesesPlan} referenciaMensual={referenciaMensual} />
+          </CardContent>
+        </Card>
+      )}
 
       </Seccion>
 
