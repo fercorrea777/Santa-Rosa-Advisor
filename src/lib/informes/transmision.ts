@@ -31,7 +31,7 @@ const ELECTRIFICADO =
   /^(HEV|PHEV|EV|EV\d|BEV|REEV|MHEV|EREV|DMI|HIBRIDO|HIBRIDA|ELECTRICO|ELECTRICA|EPOWER)$/;
 
 /** Marcas que solo venden eléctricos o híbridos enchufables: todo automático. */
-const MARCAS_ELECTRICAS = new Set([
+export const MARCAS_ELECTRICAS = new Set([
   "ZEEKR", "XPENG", "JMEV", "LEAPMOTOR", "BYD", "TESLA", "AVATR", "DEEPAL", "ICAUR", "AION",
   "NETA", "SERES", "ORA",
 ]);
@@ -47,7 +47,7 @@ const MARCAS_ELECTRICAS = new Set([
  * que traen las dos cajas según versión (Poer diesel, JAC T8) NO están: ahí
  * hace falta que el nombre lo diga.
  */
-const FAMILIAS: Record<string, Transmision> = {
+export const FAMILIAS: Record<string, Transmision> = {
   // Jetour: toda la gama con doble embrague o 8AT
   "JETOUR|X50": "AT", "JETOUR|DASHING": "AT", "JETOUR|X70": "AT", "JETOUR|X70PLUS": "AT",
   "JETOUR|T1": "AT", "JETOUR|T2": "AT", "JETOUR|G700": "AT", "JETOUR|X90": "AT",

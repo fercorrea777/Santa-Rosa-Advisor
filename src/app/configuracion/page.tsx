@@ -3,6 +3,7 @@ import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { getMetasMensuales, getParametros, getPresupuesto } from "@/lib/cadam/config";
 import { hoyEnAsuncion } from "@/lib/format";
 import { EditorMetasMensuales } from "./metas";
+import { CatalogoTransmision } from "./transmision";
 import { getPeriodoInfo } from "@/lib/cadam/queries";
 import { listarUsuarios, type Usuario } from "@/lib/auth/usuarios";
 import { EditorConfiguracion } from "./editor";
@@ -85,6 +86,8 @@ export default async function ConfiguracionPage() {
             : null
         }
       />
+
+      <CatalogoTransmision anio={anioMetas} />
 
       <NotaDato>
         Las <strong>marcas propias no se editan desde acá</strong>, a propósito:
