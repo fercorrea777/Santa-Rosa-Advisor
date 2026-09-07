@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
-import { getMetasMensuales, getParametros } from "@/lib/cadam/config";
+import { getMetasMensuales, getParametros, getPresupuesto } from "@/lib/cadam/config";
 import { hoyEnAsuncion } from "@/lib/format";
 import { EditorMetasMensuales } from "./metas";
 import { getPeriodoInfo } from "@/lib/cadam/queries";
@@ -16,6 +16,7 @@ export default async function ConfiguracionPage() {
   const parametros = getParametros();
   const info = getPeriodoInfo();
   const anioMetas = Number(hoyEnAsuncion().slice(0, 4));
+  const presupuesto = getPresupuesto(anioMetas);
 
   // Los usuarios viven en Postgres y el resto de esta pantalla no. Si la base
   // no responde, se muestra el aviso SOLO en esa tarjeta: metas y
@@ -70,6 +71,19 @@ export default async function ConfiguracionPage() {
         anios={[anioMetas - 1, anioMetas, anioMetas + 1]}
         marcas={parametros.marcas_propias.map((m) => m.marca_cadam)}
         metas={getMetasMensuales(anioMetas)}
+        presupuesto={
+          presupuesto
+            ? {
+                version: presupuesto.version,
+                archivo: presupuesto.archivo,
+                modificado: presupuesto.modificado,
+                cargado_en: presupuesto.cargado_en,
+                anual: Object.fromEntries(
+                  presupuesto.grupos.map((g) => [g.marcas[0], g.presupuesto_anual])
+                ),
+              }
+            : null
+        }
       />
 
       <NotaDato>

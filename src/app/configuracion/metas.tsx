@@ -20,11 +20,22 @@ export function EditorMetasMensuales({
   anios,
   marcas,
   metas,
+  presupuesto = null,
 }: {
   anio: number;
   anios: number[];
   marcas: string[];
   metas: Record<string, (number | null)[]>;
+  /** De dónde salió lo cargado, cuando vino del Excel de Finanzas por
+   *  Hermes: versión, archivo, fechas y el presupuesto anual por marca
+   *  (bajo la primera marca de cada grupo). null = grilla a mano. */
+  presupuesto?: {
+    version: string;
+    archivo: string;
+    modificado: string;
+    cargado_en: string;
+    anual: Record<string, number | null>;
+  } | null;
 }) {
   const [estado, enviar, pendiente] = useActionState<EstadoGuardado | null, FormData>(
     guardarMetasMensuales,
@@ -57,6 +68,15 @@ export function EditorMetasMensuales({
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          {presupuesto && (
+            <p className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
+              Cargado desde <em>{presupuesto.archivo}</em> (archivo del{" "}
+              {presupuesto.modificado.slice(0, 10)}, cargado el{" "}
+              {presupuesto.cargado_en.slice(0, 16).replace("T", " ")} UTC, versión{" "}
+              {presupuesto.version}). Lo que edites acá lo pisa la próxima carga del
+              Excel. El presupuesto anual es la cifra original del año y no se edita.
+            </p>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Año</span>
             <select name="anio" defaultValue={anio} className="input-base rounded-md border bg-background px-2 py-1">
@@ -77,6 +97,9 @@ export function EditorMetasMensuales({
                     <th key={m} className="px-0.5 py-1 text-right font-medium">{m}</th>
                   ))}
                   <th className="py-1 pl-2 text-right font-medium">Año</th>
+                  {presupuesto && (
+                    <th className="py-1 pl-2 text-right font-medium whitespace-nowrap">Ppto. anual</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -105,6 +128,11 @@ export function EditorMetasMensuales({
                     <td className="py-1 pl-2 text-right tabular-nums font-medium">
                       {totalFila(m) ? totalFila(m).toLocaleString("es-PY") : "—"}
                     </td>
+                    {presupuesto && (
+                      <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground">
+                        {presupuesto.anual[m] ? presupuesto.anual[m]?.toLocaleString("es-PY") : "—"}
+                      </td>
+                    )}
                   </tr>
                 ))}
                 <tr className="border-t font-medium">
@@ -117,6 +145,11 @@ export function EditorMetasMensuales({
                   <td className="py-1 pl-2 text-right tabular-nums">
                     {totalAnio ? totalAnio.toLocaleString("es-PY") : "—"}
                   </td>
+                  {presupuesto && (
+                    <td className="py-1 pl-2 text-right tabular-nums">
+                      {Object.values(presupuesto.anual).reduce((s: number, v) => s + (v ?? 0), 0).toLocaleString("es-PY")}
+                    </td>
+                  )}
                 </tr>
               </tbody>
             </table>

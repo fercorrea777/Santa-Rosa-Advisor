@@ -12,7 +12,9 @@ import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { getActualizacionDemandaBitrix, getDemandaBitrix } from "@/lib/informes/demanda-bitrix";
 import { getActualizacionLeadsAsesor } from "@/lib/informes/leads-asesor";
 import { getActualizacionPautaMarca, getPautaMarca } from "@/lib/informes/pauta-marca";
-import { formatUnidades } from "@/lib/format";
+import { formatUnidades, hoyEnAsuncion } from "@/lib/format";
+import { getPresupuesto } from "@/lib/cadam/config";
+import { mesCorto } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -88,6 +90,10 @@ export default async function EstadoDatosPage() {
   const negociosDemanda = demanda.filter((d) => d.origen === "negocio").reduce((s, d) => s + d.cantidad, 0);
   const gastoPauta = pauta.reduce((s, p) => s + p.gasto_usd, 0);
   const cuentasPauta = new Set(pauta.map((p) => p.marca)).size;
+  const anioHoy = Number(hoyEnAsuncion().slice(0, 4));
+  const presupuesto = getPresupuesto(anioHoy);
+  const planTotal = presupuesto ? presupuesto.grupos.reduce((s, g) => s + g.plan.reduce((a, b) => a + b, 0), 0) : 0;
+  const pptoTotal = presupuesto ? presupuesto.grupos.reduce((s, g) => s + (g.presupuesto_anual ?? 0), 0) : 0;
 
   const ultimoConocimiento = indice.length
     ? new Date(
@@ -180,6 +186,19 @@ export default async function EstadoDatosPage() {
       tibioH: 8 * 24,
       frioH: 12 * 24,
       motor: "Hermes · «Benchmark competitivo», lunes 10:00",
+    },
+    {
+      nombre: `Presupuesto ${anioHoy} (Excel de Finanzas)`,
+      detalle: presupuesto
+        ? `Plan ${presupuesto.version} · ${presupuesto.grupos.length} marcas o grupos · real hasta ${presupuesto.real_hasta_mes ? mesCorto(presupuesto.real_hasta_mes) : "—"} · plan ${formatUnidades(planTotal)} u. · presupuesto original ${formatUnidades(pptoTotal)} u. Renew (usados) y los canales CDE y Wholesale no entran todavía.`
+        : "Nunca cargado. Lo carga advisor-presupuesto.sh (Hermes, notebook) desde el Budget de Finanzas.",
+      cadencia: "cuando Finanzas cambia el Excel (el cron mira cada hora)",
+      actualizado: presupuesto ? new Date(presupuesto.cargado_en) : null,
+      // Un presupuesto se revisa cada uno o dos meses: no está viejo a las
+      // dos semanas como Cars.
+      tibioH: 45 * 24,
+      frioH: 90 * 24,
+      motor: "Hermes · «Presupuesto (Excel Finanzas)», cada hora, notebook",
     },
   ];
 
