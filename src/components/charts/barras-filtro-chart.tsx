@@ -1,7 +1,7 @@
 "use client";
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useFiltroUrl } from "@/lib/filtro-url";
 import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 
@@ -28,19 +28,14 @@ export function BarrasFiltroChart({
   altura?: number;
 }) {
   const theme = useChartTheme();
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
-  const activo = sp.get(param);
+  const { leer, alternar } = useFiltroUrl();
+  const activo = leer(param);
 
   const ordenados = [...datos].sort((a, b) => a.valor - b.valor); // asc: ECharts pinta de abajo hacia arriba
 
   const onClick = (p: { name?: string }) => {
     if (!p.name) return;
-    const q = new URLSearchParams(sp.toString());
-    if (activo === p.name) q.delete(param);
-    else q.set(param, p.name);
-    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+    alternar(param, p.name);
   };
 
   const option = {

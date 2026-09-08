@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useFiltroUrl } from "@/lib/filtro-url";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
@@ -98,9 +98,7 @@ export function BurbujasPrecioChart({
   etiquetaColumna?: string;
 }) {
   const theme = useChartTheme();
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
+  const { leer: leerParam, setParams, pendiente } = useFiltroUrl();
   const [abierto, setAbierto] = React.useState<{
     detalle: DetalleModelo;
     version: { nombre: string; precio: number; unidades: number; familia?: string } | null;
@@ -133,7 +131,7 @@ export function BurbujasPrecioChart({
 
   // --- selección, leída de la URL. Sin param = todas. ------------------------
   const leer = (param: string, todos: string[]) => {
-    const crudo = sp.get(param);
+    const crudo = leerParam(param);
     if (!crudo) return todos;
     const puestos = crudo.split(",").filter((v) => todos.includes(v));
     return puestos.length ? puestos : todos;
@@ -146,13 +144,10 @@ export function BurbujasPrecioChart({
 
   const escribir = React.useCallback(
     (param: string, valores: string[], todos: string[]) => {
-      const p = new URLSearchParams(sp.toString());
       // Todas puestas = sin param: la URL limpia es el estado por defecto.
-      if (valores.length === todos.length) p.delete(param);
-      else p.set(param, valores.join(","));
-      router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+      setParams({ [param]: valores.length === todos.length ? null : valores.join(",") });
     },
-    [pathname, router, sp]
+    [setParams]
   );
   const alternar = (param: string, actual: string[], todos: string[], v: string) => {
     const siguiente = actual.includes(v) ? actual.filter((x) => x !== v) : [...actual, v];
@@ -176,7 +171,10 @@ export function BurbujasPrecioChart({
   );
 
   const chips = (
-    <div className="flex flex-col gap-2">
+    <div
+      aria-busy={pendiente}
+      className={cn("flex flex-col gap-2 transition-opacity", pendiente && "opacity-70")}
+    >
       <FilaChips label="Marcas en este gráfico">
         {marcasTodas.map((m) => (
           <Chip

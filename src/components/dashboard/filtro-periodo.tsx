@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
+import { useFiltroUrl } from "@/lib/filtro-url";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -46,40 +46,9 @@ export function FiltroPeriodo({
    *  fuente): dos sticky anidados se pisan. */
   pegajoso?: boolean;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
-
-  // --- por qué el filtro "no se quedaba" -------------------------------
-  // Los <select> leían su valor de la URL, y la URL recién cambia cuando el
-  // Server Component termina de consultar la base y vuelve. Entre el clic y
-  // esa vuelta —medio segundo largo en Operación— el desplegable seguía
-  // mostrando el valor viejo: elegías HAVAL y volvía a "Todos" solo. No era
-  // que el filtro no se aplicara; era que no se veía aplicado.
-  //
-  // `tentativo` guarda lo que acabás de elegir y manda sobre la URL hasta
-  // que la URL trae lo mismo. El `useTransition` da el pendiente para
-  // apagar la barra mientras tanto, así se ve que está trabajando.
-  const [tentativo, setTentativo] = React.useState<Record<string, string>>({});
-  const [pendiente, iniciar] = React.useTransition();
-  const clave = sp.toString();
-  React.useEffect(() => {
-    setTentativo((t) => {
-      // Solo se sueltan las claves que la URL ya alcanzó. Si alguien mueve
-      // dos filtros seguidos, la vuelta del primero no puede borrar la
-      // elección del segundo, que todavía está viajando.
-      const quedan: Record<string, string> = {};
-      for (const [k, v] of Object.entries(t)) {
-        if ((sp.get(k) ?? "todos") !== v) quedan[k] = v;
-      }
-      return Object.keys(quedan).length === Object.keys(t).length ? t : quedan;
-    });
-    // `clave` es la URL serializada: cambia exactamente cuando hay que revisar.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clave]);
-
-  /** El valor a mostrar: lo recién elegido si todavía no llegó, si no la URL. */
-  const leer = (k: string) => tentativo[k] ?? sp.get(k);
+  // La mecánica de "que el filtro se quede quieto" vive en el hook: por qué
+  // hace falta está explicado ahí.
+  const { leer, setParams, pendiente } = useFiltroUrl();
 
   const anioActual = Number(leer("anio")) || anios[anios.length - 1];
   const topeMes = mesMaximoPorAnio[anioActual] ?? 12;
@@ -95,27 +64,6 @@ export function FiltroPeriodo({
     .map(Number)
     .filter((a) => anios.includes(a));
   const hasta = Math.min(Number(leer("hasta")) || topeMes, topeMes);
-
-  const setParams = React.useCallback(
-    (cambios: Record<string, string | number | null>) => {
-      const p = new URLSearchParams(sp.toString());
-      const recien: Record<string, string> = {};
-      for (const [k, v] of Object.entries(cambios)) {
-        if (v === null || v === "todos") {
-          p.delete(k);
-          recien[k] = "todos";
-        } else {
-          p.set(k, String(v));
-          recien[k] = String(v);
-        }
-      }
-      setTentativo((t) => ({ ...t, ...recien }));
-      iniciar(() => {
-        router.replace(`${pathname}?${p.toString()}`, { scroll: false });
-      });
-    },
-    [pathname, router, sp]
-  );
 
   return (
     // top-16 = los 56px del header de la app + 8px de aire. z-30 la deja por

@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
+import { useFiltroUrl } from "@/lib/filtro-url";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -25,21 +25,21 @@ export function SelectorAnios({
   mesDesde: number;
   mesHasta: number;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
+  const { leer, leerNum, setParams: set, pendiente } = useFiltroUrl();
 
-  const set = (cambios: Record<string, string | null>) => {
-    const p = new URLSearchParams(sp.toString());
-    for (const [k, v] of Object.entries(cambios)) {
-      if (v === null) p.delete(k);
-      else p.set(k, v);
-    }
-    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
-  };
+  // Los meses llegan como prop del servidor, así que acá se lee primero lo
+  // recién elegido: si no, el desplegable volvía al valor viejo hasta que la
+  // consulta terminaba.
+  const desde = leerNum("desde", mesDesde);
+  const hasta = leerNum("hasta", mesHasta);
+  const fuenteVista = (leer("fuente") ?? fuente) as "matriculacion" | "importacion";
+  const crudoAnios = leer("anios");
+  const aniosVista = crudoAnios
+    ? crudoAnios.split(",").map(Number).filter((a) => aniosDisponibles.includes(a))
+    : aniosSeleccionados;
 
   const toggleAnio = (a: number) => {
-    const actual = new Set(aniosSeleccionados);
+    const actual = new Set(aniosVista);
     if (actual.has(a)) {
       // Nunca dejar la seleccion vacia: el grafico quedaria sin nada.
       if (actual.size === 1) return;
@@ -51,7 +51,16 @@ export function SelectorAnios({
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border bg-card px-4 py-3">
+    <div
+      aria-busy={pendiente}
+      className="relative flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border bg-card px-4 py-3"
+    >
+      {pendiente && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
+        />
+      )}
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Fuente
@@ -64,7 +73,7 @@ export function SelectorAnios({
               onClick={() => set({ fuente: v, anios: null })}
               className={cn(
                 "h-8 rounded-md px-3 text-xs font-medium",
-                fuente === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                fuenteVista === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
               {v === "matriculacion" ? "Matriculación" : "Importación"}
@@ -79,7 +88,7 @@ export function SelectorAnios({
         </span>
         <div className="flex flex-wrap gap-1">
           {aniosDisponibles.map((a) => {
-            const activo = aniosSeleccionados.includes(a);
+            const activo = aniosVista.includes(a);
             return (
               <button
                 key={a}
@@ -107,11 +116,11 @@ export function SelectorAnios({
         <div className="flex items-center gap-1">
           <select
             className={selectCls}
-            value={mesDesde}
+            value={desde}
             aria-label="Mes desde"
             onChange={(e) => {
               const d = Number(e.target.value);
-              set({ desde: String(d), hasta: String(Math.max(d, mesHasta)) });
+              set({ desde: d, hasta: Math.max(d, hasta) });
             }}
           >
             {MESES_CORTOS.map((m, i) => (
@@ -121,15 +130,15 @@ export function SelectorAnios({
           <span className="text-xs text-muted-foreground">a</span>
           <select
             className={selectCls}
-            value={mesHasta}
+            value={hasta}
             aria-label="Mes hasta"
             onChange={(e) => set({ hasta: e.target.value })}
           >
             {MESES_CORTOS.map((m, i) => (
-              <option key={m} value={i + 1} disabled={i + 1 < mesDesde}>{m}</option>
+              <option key={m} value={i + 1} disabled={i + 1 < desde}>{m}</option>
             ))}
           </select>
-          {(mesDesde !== 1 || mesHasta !== 12) && (
+          {(desde !== 1 || hasta !== 12) && (
             <button
               type="button"
               onClick={() => set({ desde: null, hasta: null })}

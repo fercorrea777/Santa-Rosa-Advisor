@@ -1,7 +1,7 @@
 "use client";
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useFiltroUrl } from "@/lib/filtro-url";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { formatUnidades } from "@/lib/format";
 
@@ -50,10 +50,8 @@ export function DistribucionChart({
   paleta?: boolean;
 }) {
   const theme = useChartTheme();
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
-  const activo = param ? sp.get(param) : null;
+  const { leer, alternar } = useFiltroUrl();
+  const activo = param ? leer(param) : null;
 
   const ordenados = [...datos].sort((a, b) => b.valor - a.valor);
   const visibles = ordenados.slice(0, maximo);
@@ -72,10 +70,7 @@ export function DistribucionChart({
 
   const onClick = (p: { name?: string }) => {
     if (!param || !p.name || p.name.startsWith("Otros (")) return;
-    const q = new URLSearchParams(sp.toString());
-    if (activo === p.name) q.delete(param);
-    else q.set(param, p.name);
-    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+    alternar(param, p.name);
   };
 
   const pct = (v: number) => `${((v / total) * 100).toFixed(1)}%`;

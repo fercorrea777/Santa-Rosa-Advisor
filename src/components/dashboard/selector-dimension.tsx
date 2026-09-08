@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useFiltroUrl } from "@/lib/filtro-url";
 import { cn } from "@/lib/utils";
 
 /** Selector de fuente + dimension de analisis, escrito en la URL. */
@@ -13,21 +13,24 @@ export function SelectorDimension({
   dimensionActual: string;
   fuente: "matriculacion" | "importacion";
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
-
-  const set = (cambios: Record<string, string>) => {
-    const p = new URLSearchParams(sp.toString());
-    for (const [k, v] of Object.entries(cambios)) p.set(k, v);
-    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
-  };
+  const { leer, setParams: set, pendiente } = useFiltroUrl();
+  const fuenteVista = leer("fuente") ?? fuente;
+  const dimVista = leer("dim") ?? dimensionActual;
 
   return (
-    <div className="flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border bg-card px-4 py-3">
+    <div
+      aria-busy={pendiente}
+      className="relative flex flex-wrap items-end gap-x-6 gap-y-3 rounded-lg border bg-card px-4 py-3"
+    >
+      {pendiente && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
+        />
+      )}
       <Grupo label="Fuente">
         {(["matriculacion", "importacion"] as const).map((v) => (
-          <Boton key={v} activo={fuente === v} onClick={() => set({ fuente: v })}>
+          <Boton key={v} activo={fuenteVista === v} onClick={() => set({ fuente: v })}>
             {v === "matriculacion" ? "Matriculación" : "Importación"}
           </Boton>
         ))}
@@ -37,7 +40,7 @@ export function SelectorDimension({
         {dimensiones.map((d) => (
           <Boton
             key={d.valor}
-            activo={dimensionActual === d.valor}
+            activo={dimVista === d.valor}
             onClick={() => set({ dim: d.valor })}
           >
             {d.label}

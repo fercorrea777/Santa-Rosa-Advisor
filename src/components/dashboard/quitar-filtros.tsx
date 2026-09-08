@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useFiltroUrl } from "@/lib/filtro-url";
 
 /**
  * Vuelve la pantalla a su estado sin filtros.
@@ -13,17 +13,17 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
  * sacar para que el usuario sepa que esta por perder antes de tocarlo.
  */
 export function QuitarFiltros({ className }: { className?: string }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
+  const { puestos, limpiar } = useFiltroUrl();
 
-  const n = [...sp.keys()].length;
+  // `puestos` cuenta los filtros contando el clic que todavía viaja: sin eso,
+  // el botón tardaba media consulta en aparecer o en desaparecer.
+  const n = puestos.length;
   if (n === 0) return null;
 
   return (
     <button
       type="button"
-      onClick={() => router.replace(pathname, { scroll: false })}
+      onClick={limpiar}
       title="Volver a mostrar todos los datos, sin ningún filtro"
       className={
         "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 " +

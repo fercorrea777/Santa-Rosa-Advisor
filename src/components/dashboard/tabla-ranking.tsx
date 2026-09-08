@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useFiltroUrl } from "@/lib/filtro-url";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -79,41 +79,8 @@ export function TablaRanking({
   const [busqueda, setBusqueda] = React.useState("");
   const [tope, setTope] = React.useState<number>(20);
 
-  const router = useRouter();
-  const pathname = usePathname();
-  const sp = useSearchParams();
-
-  // Igual que la barra de filtros: la URL recien cambia cuando vuelve el
-  // Server Component, asi que sin esto la celda que tocaste no se marcaba
-  // hasta despues de la consulta y el clic parecia no haber pasado.
-  const [tentativo, setTentativo] = React.useState<Record<string, string | null>>({});
-  const [pendiente, iniciar] = React.useTransition();
-  const claveUrl = sp.toString();
-  React.useEffect(() => {
-    setTentativo((t) => {
-      const quedan: Record<string, string | null> = {};
-      for (const [k, v] of Object.entries(t)) {
-        if (sp.get(k) !== v) quedan[k] = v;
-      }
-      return Object.keys(quedan).length === Object.keys(t).length ? t : quedan;
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [claveUrl]);
-  /** El filtro puesto en ese parametro, contando el clic que todavia viaja. */
-  const filtroDe = (param: string) =>
-    param in tentativo ? tentativo[param] : sp.get(param);
-
-  /** Clic en una celda: pone (o quita) ese valor como filtro en la URL. */
-  const alternarFiltro = (param: string, valor: string) => {
-    const q = new URLSearchParams(sp.toString());
-    const quita = filtroDe(param) === valor;
-    if (quita) q.delete(param);
-    else q.set(param, valor);
-    setTentativo((t) => ({ ...t, [param]: quita ? null : valor }));
-    iniciar(() => {
-      router.replace(`${pathname}?${q.toString()}`, { scroll: false });
-    });
-  };
+  // La mecánica de "que el filtro se quede quieto" vive en el hook.
+  const { leer: filtroDe, alternar: alternarFiltro, pendiente } = useFiltroUrl();
 
   const filtradas = React.useMemo(() => {
     const q = busqueda.trim().toLowerCase();
