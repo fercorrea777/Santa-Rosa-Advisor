@@ -987,23 +987,24 @@ export default async function OperacionPage({
       <Card>
         <CardHeader>
           <CardTitle>Marca por marca — {periodo}</CardTitle>
+          {/* Lo que cada columna significa ya lo dice la columna (ver el
+              `nota` de cada TableHead). Acá queda SOLO lo que no entra en
+              cuatro palabras al lado de un rótulo: de dónde sale el plan, el
+              método de la proyección y los totales de pauta. Antes esto eran
+              ocho renglones que repetían la tabla entera. */}
           <p className="text-xs text-muted-foreground">
-            Los tres números al lado: lo que facturamos (Cars), lo que se
-            matriculó (CADAM) y qué parte del mercado es eso. El stock y su
-            cobertura son de hoy, no del período.
             {hayPresupuesto
-              ? ` El plan es el ejercicio de Finanzas (${presupuesto.version}, archivo del ${presupuesto.modificado.slice(0, 10)}); hasta ${realHastaMes ? mesCorto(realHastaMes) : "—"} el plan es el real, así que el cumplimiento se mide solo sobre los meses siguientes. El presupuesto anual es la cifra original del año, sin apertura mensual. La proyección de cierre toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año.`
+              ? `El plan es el ejercicio de Finanzas (${presupuesto.version}, archivo del ${presupuesto.modificado.slice(0, 10)}): hasta ${realHastaMes ? mesCorto(realHastaMes) : "—"} el plan ES el real, así que el cumplimiento se mide solo sobre los meses que siguen. La proyección toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año.`
               : hayMetas
-                ? " La meta sale de Configuración; la proyección de cierre de año toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año."
-                : " Cargá metas por marca y mes en Configuración y acá aparecen la meta, el cumplimiento y la proyección de cierre de año."}
+                ? "La meta sale de Configuración. La proyección toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año."
+                : "Cargá metas por marca y mes en Configuración y acá aparecen la meta, el cumplimiento y la proyección de cierre de año."}
             {hayPauta && (
               <>
-                {" "}La pauta es el gasto en Meta de las cuentas de cada marca en el período
-                (US$ {formatUnidades(Math.round(pautaTotal))} en total
+                {" "}Pauta del período: US$ {formatUnidades(Math.round(pautaTotal))} en total
                 {pautaSinMarca > 0
-                  ? `, de los cuales US$ ${formatUnidades(Math.round(pautaSinMarca))} en cuentas de usados o de varias marcas, que no se reparten`
+                  ? `, de los cuales US$ ${formatUnidades(Math.round(pautaSinMarca))} en cuentas de usados o de varias marcas, que no se reparten entre las filas`
                   : ""}
-                ); «pauta por vehículo» es ese gasto dividido lo facturado — no es una atribución, es un costo promedio.
+                .
               </>
             )}
           </p>
@@ -1319,15 +1320,12 @@ export default async function OperacionPage({
         <CardHeader>
           <CardTitle>Por marca — {periodo}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Leads de Bitrix creados en el período: cuántos siguen abiertos,
-            cuántos se convirtieron en negociación y cuántos se perdieron, con
-            los motivos que más se repiten. «Leads por vehículo» es cuántos
-            leads entraron por cada vehículo facturado en Cars: si sube, la
-            demanda se está desaprovechando. Los negocios (oportunidades ya
-            calificadas) van aparte. Lo facturado acá es <strong>solo retail</strong>:
-            las {formatUnidades(unidadesMayoristas)} unidades mayoristas del período
-            (flotas y ventas de gerencia) no las trajo ningún lead, y contarlas haría
-            parecer que la demanda se aprovecha mejor de lo que se aprovecha.
+            Leads de Bitrix creados en el período. Lo facturado acá es{" "}
+            <strong>solo retail</strong>: las{" "}
+            {formatUnidades(unidadesMayoristas)} unidades mayoristas del período
+            (flotas y ventas de gerencia) no las trajo ningún lead, y contarlas
+            haría parecer que la demanda se aprovecha mejor de lo que se
+            aprovecha.
           </p>
         </CardHeader>
         <CardContent>
