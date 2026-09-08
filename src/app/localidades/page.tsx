@@ -266,9 +266,9 @@ export default async function LocalidadesPage({
                 <TableHead>Localidad</TableHead>
                 <TableHead className="text-right" nota="matriculadas ahí en el período">Unidades</TableHead>
                 <TableHead className="text-right" nota="su parte del total del país">Participación</TableHead>
-                <TableHead className="text-right" nota="las del mismo período del año pasado">{anio - 1}</TableHead>
-                <TableHead className="text-right" nota="cuánto creció o cayó contra ese año">Variación</TableHead>
-                <TableHead className="text-right" nota="puntos de participación que ganó o perdió">Δ participación</TableHead>
+                <TableHead className="text-right" nota="el mismo período del año pasado">{anio - 1}</TableHead>
+                <TableHead className="text-right" nota="cuánto creció o cayó">Variación</TableHead>
+                <TableHead className="text-right" nota="puntos que ganó o perdió">Δ participación</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

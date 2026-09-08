@@ -423,7 +423,7 @@ export default async function MapaPage({
                   <TableHead>Nuestro modelo</TableHead>
                   <TableHead className="text-right" nota="matriculados en el período">Vendidos</TableHead>
                   <TableHead className="text-right" nota="el más barato de la gama">Precio</TableHead>
-                  <TableHead nota="los que se le cruzan al cliente: misma clase, precio parecido">
+                  <TableHead nota="los que se le cruzan al cliente en el salón">
                     Rivales de su clase (unidades · precio desde, MT y AT · motorización)
                   </TableHead>
                 </TableRow>
@@ -530,11 +530,11 @@ export default async function MapaPage({
                 <TableRow>
                   <TableHead>Nuestro modelo</TableHead>
                   <TableHead className="text-right" nota="matriculados en el período">Vendidos</TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="con la misma caja que se compara">Nuestro precio (misma transmisión)</TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="el del medio entre sus rivales de clase">Mediana de su clase</TableHead>
-                  <TableHead className="text-right" nota="cuánto más caro o barato que su clase">Diferencia</TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="el del medio de todo el tipo de vehículo">Mediana de todo el tipo</TableHead>
-                  <TableHead className="text-right" nota="cuánto más caro o barato que el tipo">Diferencia</TableHead>
+                  <TableHead className="text-right whitespace-nowrap" nota="con la caja que se compara">Nuestro precio (misma transmisión)</TableHead>
+                  <TableHead className="text-right whitespace-nowrap" nota="el del medio de su clase">Mediana de su clase</TableHead>
+                  <TableHead className="text-right" nota="más caro o barato que su clase">Diferencia</TableHead>
+                  <TableHead className="text-right whitespace-nowrap" nota="el del medio de todo el tipo">Mediana de todo el tipo</TableHead>
+                  <TableHead className="text-right" nota="más caro o barato que el tipo">Diferencia</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

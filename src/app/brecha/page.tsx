@@ -161,8 +161,8 @@ export default async function BrechaPage({
                   <TableHead>Mes</TableHead>
                   <TableHead className="text-right" nota="unidades que entraron al país">Importaciones</TableHead>
                   <TableHead className="text-right" nota="unidades que sacaron chapa">Matriculaciones</TableHead>
-                  <TableHead className="text-right" nota="lo que entró menos lo que se patentó">Diferencia</TableHead>
-                  <TableHead className="text-right" nota="qué parte de lo importado ya se patentó">Matric. / import.</TableHead>
+                  <TableHead className="text-right" nota="importado menos matriculado">Diferencia</TableHead>
+                  <TableHead className="text-right" nota="cuánto de lo importado ya se patentó">Matric. / import.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -264,7 +264,7 @@ function TablaBrechaMarcas({
                 <TableHead>Marca</TableHead>
                 <TableHead className="text-right" nota="unidades que entraron al país">Import.</TableHead>
                 <TableHead className="text-right" nota="unidades que sacaron chapa">Matric.</TableHead>
-                <TableHead className="text-right" nota="lo que entró menos lo que se patentó">Dif.</TableHead>
+                <TableHead className="text-right" nota="importado menos matriculado">Dif.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

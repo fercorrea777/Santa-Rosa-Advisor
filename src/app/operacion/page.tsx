@@ -803,7 +803,7 @@ export default async function OperacionPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Versión</TableHead>
-                    <TableHead className="text-right" nota="ventas por mes, últimos 3 cerrados">Ritmo</TableHead>
+                    <TableHead className="text-right" nota="ventas por mes, últimos 3 meses">Ritmo</TableHead>
                     <TableHead className="text-right" nota="entregables hoy, sin reservadas">Libres</TableHead>
                     <TableHead className="text-right" nota="compradas, todavía sin llegar">En viaje</TableHead>
                     <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
@@ -852,7 +852,7 @@ export default async function OperacionPage({
                   <TableRow>
                     <TableHead>Versión</TableHead>
                     <TableHead className="text-right" nota="entregables hoy, sin reservadas">Libres</TableHead>
-                    <TableHead className="text-right" nota="ventas por mes, últimos 3 cerrados">Ritmo</TableHead>
+                    <TableHead className="text-right" nota="ventas por mes, últimos 3 meses">Ritmo</TableHead>
                     <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
                     <TableHead className="text-right" nota="de lista en Cars, sin descuento">Precio lista</TableHead>
                   </TableRow>
@@ -898,9 +898,9 @@ export default async function OperacionPage({
                 <TableHead className="text-right" nota="entregables hoy, sin reservadas">Libres</TableHead>
                 <TableHead className="text-right" nota="con seña: no se ofrecen de nuevo">Reservadas</TableHead>
                 <TableHead className="text-right" nota="compradas, todavía sin llegar">En viaje</TableHead>
-                <TableHead className="text-right" nota="ventas por mes, últimos 3 cerrados">Ritmo</TableHead>
+                <TableHead className="text-right" nota="ventas por mes, últimos 3 meses">Ritmo</TableHead>
                 <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
-                <TableHead nota="la lectura de la fila, en una palabra">Qué hacer</TableHead>
+                <TableHead nota="la lectura de la fila">Qué hacer</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1016,33 +1016,33 @@ export default async function OperacionPage({
                 <TableHead className="text-right" nota="lo que vendimos nosotros, en Cars">Facturado</TableHead>
                 <TableHead
                   className="text-right"
-                  nota="lo que la marca patentó en todo el país (CADAM)"
+                  nota="chapas de la marca en todo el país"
                 >
                   Matriculado{cadamRecorta ? ` (hasta ${hastaCadam})` : ""}
                 </TableHead>
-                <TableHead className="text-right" nota="qué parte del mercado es ese matriculado">Share</TableHead>
+                <TableHead className="text-right" nota="su parte del mercado">Share</TableHead>
                 <TableHead className="text-right" nota="unidades de hoy, no del período">Stock</TableHead>
-                <TableHead className="text-right" nota="ya tienen dueño; están dentro del stock">Reservadas</TableHead>
-                <TableHead className="text-right" nota="cuánto dura el stock al ritmo de hoy">Meses de stock</TableHead>
+                <TableHead className="text-right" nota="con seña; van dentro del stock">Reservadas</TableHead>
+                <TableHead className="text-right" nota="meses que dura al ritmo de hoy">Meses de stock</TableHead>
                 {hayMetas && (
                   <>
-                    <TableHead className="text-right whitespace-nowrap" nota="lo que Finanzas planificó para estos meses">Plan (período)</TableHead>
+                    <TableHead className="text-right whitespace-nowrap" nota="lo planificado para estos meses">Plan (período)</TableHead>
                     <TableHead className="text-right" nota="facturado ÷ plan del período">Cumplimiento</TableHead>
                   </>
                 )}
                 {hayPresupuesto && (
                   <>
-                    <TableHead className="text-right whitespace-nowrap" nota="la cifra original del año, sin abrir por mes">Presupuesto anual</TableHead>
+                    <TableHead className="text-right whitespace-nowrap" nota="la cifra original del año">Presupuesto anual</TableHead>
                     <TableHead className="text-right whitespace-nowrap" nota="facturado ÷ presupuesto anual">% hecho</TableHead>
                   </>
                 )}
                 {hayMetas && (
-                  <TableHead className="text-right whitespace-nowrap" nota="cómo cerraría el año, contra el plan del año">Proyección / plan año</TableHead>
+                  <TableHead className="text-right whitespace-nowrap" nota="cierre estimado contra el plan">Proyección / plan año</TableHead>
                 )}
                 {hayPauta && (
                   <>
-                    <TableHead className="text-right whitespace-nowrap" nota="gasto en Meta de las cuentas de la marca">Pauta Meta (US$)</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="esa pauta ÷ lo facturado; es un promedio, no una atribución">Pauta por vehículo</TableHead>
+                    <TableHead className="text-right whitespace-nowrap" nota="gasto en Meta de la marca">Pauta Meta (US$)</TableHead>
+                    <TableHead className="text-right whitespace-nowrap" nota="pauta ÷ facturado; es un promedio">Pauta por vehículo</TableHead>
                   </>
                 )}
               </TableRow>
@@ -1233,8 +1233,8 @@ export default async function OperacionPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Canal</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="lo planificado hasta el mes que Finanzas cerró">Objetivo a la fecha</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="lo vendido según el Excel de Finanzas, no Cars">Real (Finanzas)</TableHead>
+                    <TableHead className="text-right whitespace-nowrap" nota="lo planificado hasta el mes cerrado">Objetivo a la fecha</TableHead>
+                    <TableHead className="text-right whitespace-nowrap" nota="lo vendido según Finanzas, no Cars">Real (Finanzas)</TableHead>
                     <TableHead className="text-right" nota="real ÷ objetivo a la fecha">Cumplimiento</TableHead>
                     <TableHead className="text-right whitespace-nowrap" nota="lo planificado para todo el año">Objetivo anual</TableHead>
                     <TableHead className="text-right whitespace-nowrap" nota="real ÷ objetivo anual">% del año hecho</TableHead>
@@ -1336,16 +1336,16 @@ export default async function OperacionPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Marca</TableHead>
-                <TableHead className="text-right" nota="consultas que entraron a Bitrix en el período">Leads</TableHead>
+                <TableHead className="text-right" nota="consultas que entraron a Bitrix">Leads</TableHead>
                 <TableHead className="text-right" nota="siguen sin cerrarse ni perderse">Abiertos</TableHead>
                 <TableHead className="text-right" nota="pasaron a negociación">Convertidos</TableHead>
                 <TableHead className="text-right" nota="se dieron de baja">Perdidos</TableHead>
                 <TableHead nota="los motivos que más se repiten">Por qué se perdieron</TableHead>
-                <TableHead className="text-right" nota="oportunidades ya calificadas: abiertos / ganados / perdidos">
+                <TableHead className="text-right" nota="ya calificados: abiertos / ganados / perdidos">
                   Negocios
                 </TableHead>
-                <TableHead className="text-right" nota="vendidos a clientes; sin flotas ni ventas de gerencia">Facturado retail</TableHead>
-                <TableHead className="text-right" nota="leads por vehículo retail; si sube, se desaprovecha la demanda">
+                <TableHead className="text-right" nota="sin flotas ni ventas de gerencia">Facturado retail</TableHead>
+                <TableHead className="text-right" nota="leads por vehículo retail: si sube, se desaprovecha">
                   Leads
                 </TableHead>
               </TableRow>
@@ -1415,9 +1415,9 @@ export default async function OperacionPage({
                   <TableHead className="text-right" nota="siguen sin cerrarse ni perderse">Abiertos</TableHead>
                   <TableHead className="text-right" nota="se dieron de baja">Perdidos</TableHead>
                   <TableHead nota="los motivos que más se repiten">Por qué se perdieron</TableHead>
-                  <TableHead className="text-right" nota="vendidos a clientes; sin flotas ni ventas de gerencia">Facturado retail</TableHead>
+                  <TableHead className="text-right" nota="sin flotas ni ventas de gerencia">Facturado retail</TableHead>
                   <TableHead className="text-right whitespace-nowrap" nota="entregables hoy, sin reservadas">Libres hoy</TableHead>
-                  <TableHead nota="la lectura de la fila, en una palabra">Qué hacer</TableHead>
+                  <TableHead nota="la lectura de la fila">Qué hacer</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1502,7 +1502,7 @@ export default async function OperacionPage({
                 <TableHead>Marca</TableHead>
                 <TableHead>Modelo</TableHead>
                 <TableHead className="text-right" nota="en stock hoy, todos los estados">Unidades</TableHead>
-                <TableHead className="text-right" nota="mediana de lista del modelo, en US$">Precio lista</TableHead>
+                <TableHead className="text-right" nota="mediana de lista, en US$">Precio lista</TableHead>
                 <TableHead nota="cómo está cada unidad en Cars">Estados</TableHead>
               </TableRow>
             </TableHeader>
@@ -1629,7 +1629,7 @@ export default async function OperacionPage({
                     <>
                       <TableHead className="text-right" nota="los que Bitrix le asignó">Leads</TableHead>
                       <TableHead className="text-right" nota="nadie los tocó todavía">Sin contactar</TableHead>
-                      <TableHead className="text-right whitespace-nowrap" nota="de sus leads, cuántos terminaron en venta">Lead → venta</TableHead>
+                      <TableHead className="text-right whitespace-nowrap" nota="cuántos de sus leads cerraron">Lead → venta</TableHead>
                     </>
                   )}
                 </TableRow>

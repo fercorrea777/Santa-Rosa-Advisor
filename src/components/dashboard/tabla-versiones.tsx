@@ -62,9 +62,9 @@ export function TablaVersiones({
             <TableHead>Marca</TableHead>
             <TableHead className="text-right" nota="las del período">Unidades</TableHead>
             <TableHead className="text-right" nota="su parte del mercado">Share</TableHead>
-            <TableHead className="text-right" nota="las del mismo período del año pasado">Año ant.</TableHead>
-            <TableHead className="text-right" nota="la parte que tenía el año pasado">Share ant.</TableHead>
-            <TableHead className="w-36 text-right" nota="puntos de share que ganó o perdió">Δ share</TableHead>
+            <TableHead className="text-right" nota="el mismo período del año pasado">Año ant.</TableHead>
+            <TableHead className="text-right" nota="la parte del año pasado">Share ant.</TableHead>
+            <TableHead className="w-36 text-right" nota="puntos que ganó o perdió">Δ share</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

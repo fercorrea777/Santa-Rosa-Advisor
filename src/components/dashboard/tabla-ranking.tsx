@@ -327,8 +327,8 @@ export function TablaRanking({
               {mostrarSegmento && th("segmento", "Segmento")}
               {th("unidades", "Unidades", true, "las del período")}
               {th("participacion", "Part.", true, "su parte del mercado")}
-              {th("variacion", "Var.", true, "contra el mismo período del año pasado")}
-              {th("cambioPosicion", "Pos.", true, "puestos que subió o bajó en el ranking")}
+              {th("variacion", "Var.", true, "contra el año pasado")}
+              {th("cambioPosicion", "Pos.", true, "puestos que subió o bajó")}
             </TableRow>
           </TableHeader>
           <TableBody>

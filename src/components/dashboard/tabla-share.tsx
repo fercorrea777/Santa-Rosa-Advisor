@@ -151,10 +151,10 @@ export function TablaShare({
               <TableHead className="w-10">#</TableHead>
               <TableHead>{etiqueta}</TableHead>
               <TableHead className="text-right" nota="las del período">Unidades</TableHead>
-              <TableHead className="text-right" nota="contra el mismo período del año pasado">Var. unidades</TableHead>
+              <TableHead className="text-right" nota="contra el año pasado">Var. unidades</TableHead>
               <TableHead className="text-right" nota="su parte del mercado">Participación</TableHead>
-              <TableHead className="text-right" nota="la parte que tenía el año pasado">Part. {anioAnterior}</TableHead>
-              <TableHead className="text-right" nota="puntos de participación que ganó o perdió">Δ participación</TableHead>
+              <TableHead className="text-right" nota="la parte del año pasado">Part. {anioAnterior}</TableHead>
+              <TableHead className="text-right" nota="puntos que ganó o perdió">Δ participación</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

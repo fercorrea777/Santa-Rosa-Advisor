@@ -139,7 +139,7 @@ export default async function SegmentosPage({
                   <TableHead className="text-right" nota="matriculadas en el período">Unidades</TableHead>
                   <TableHead className="text-right" nota="su parte del mercado">Participación</TableHead>
                   <TableHead className="text-right" nota="cuánto creció o cayó el segmento">Var. vs {f.anio - 1}</TableHead>
-                  <TableHead className="text-right" nota="puntos de participación que ganó o perdió">Δ participación</TableHead>
+                  <TableHead className="text-right" nota="puntos que ganó o perdió">Δ participación</TableHead>
                   <TableHead className="text-right" nota="cuánto de ese segmento es nuestro">Marcas propias</TableHead>
                 </TableRow>
               </TableHeader>

@@ -338,9 +338,9 @@ export default async function EstadoDatosPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Archivo</TableHead>
-                          <TableHead nota="qué informe creyó que era el parser">Detectado como</TableHead>
+                          <TableHead nota="qué informe creyó que era">Detectado como</TableHead>
                           <TableHead className="text-right" nota="renglones que traía el archivo">Filas leídas</TableHead>
-                          <TableHead className="text-right" nota="las que entraron; la resta son descartes">Filas cargadas</TableHead>
+                          <TableHead className="text-right" nota="las que entraron; el resto, descartes">Filas cargadas</TableHead>
                           <TableHead className="text-right" nota="vehículos que suman esas filas">Unidades</TableHead>
                         </TableRow>
                       </TableHeader>

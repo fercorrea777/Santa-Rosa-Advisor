@@ -387,10 +387,15 @@
   /* Encabezados de tabla con segundo renglón (`<TableHead nota="…">`).
      Si una sola columna trae nota, la fila entera crece y las que no la
      tienen quedan centradas contra el hueco: los rótulos dejan de compartir
-     línea de base y la fila se lee escalonada. Con esto todos apoyan abajo,
-     tengan nota o no. */
+     línea y la fila se lee escalonada.
+
+     Arriba y no abajo: apoyando abajo, lo que se alinea es el final de cada
+     bloque, y como las notas ocupan una, dos o tres líneas, cada rótulo
+     terminaba a una altura distinta. Alineando arriba, TODOS los rótulos
+     arrancan en la misma línea y la nota cuelga debajo. */
   thead tr:has(th[data-nota="si"]) th {
-    vertical-align: bottom;
+    vertical-align: top;
+    padding-top: 0.625rem;
     padding-bottom: 0.5rem;
   }
 

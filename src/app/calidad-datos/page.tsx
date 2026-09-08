@@ -127,10 +127,10 @@ export default function CalidadDatosPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Archivo</TableHead>
-                      <TableHead nota="qué informe creyó que era el parser">Tipo detectado</TableHead>
+                      <TableHead nota="qué informe creyó que era">Tipo detectado</TableHead>
                       <TableHead nota="el mes al que pertenece el dato">Snapshot</TableHead>
                       <TableHead className="text-right" nota="renglones que traía el archivo">Filas leídas</TableHead>
-                      <TableHead className="text-right" nota="las que entraron; la resta son descartes">Filas cargadas</TableHead>
+                      <TableHead className="text-right" nota="las que entraron; el resto, descartes">Filas cargadas</TableHead>
                       <TableHead className="text-right" nota="vehículos que suman esas filas">Unidades</TableHead>
                       <TableHead nota="cuándo lo procesamos nosotros">Fecha de carga</TableHead>
                     </TableRow>
