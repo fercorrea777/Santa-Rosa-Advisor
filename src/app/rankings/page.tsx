@@ -95,14 +95,20 @@ export default async function RankingsPage({
         </TabsList>
 
         <TabsContent value="marcas-mat">
-          <Panel titulo={`Marcas por matriculación (${marcasMat.length})`}>
+          <Panel
+            titulo={`Marcas por matriculación (${marcasMat.length})`}
+            nota="Las marcas ordenadas por chapas puestas. Tocá una y toda la pantalla queda filtrada por ella; tocala de nuevo y se quita."
+          >
             <TablaRanking filas={marcasMat} notaVariacion={nota}
               nombreArchivo={`ranking-marcas-matriculacion-${f.anio}`} />
           </Panel>
         </TabsContent>
 
         <TabsContent value="marcas-imp">
-          <Panel titulo={`Marcas por importación (${marcasImp.length})`}>
+          <Panel
+            titulo={`Marcas por importación (${marcasImp.length})`}
+            nota="Lo mismo, pero por unidades que entraron al país. Una marca puede liderar acá y todavía no aparecer en matriculación: es stock en camino."
+          >
             {(f.tecnologia || f.empresa) && (
               <NotaDato>
                 Los filtros de tecnología e importador solo aplican a
@@ -115,7 +121,10 @@ export default async function RankingsPage({
         </TabsContent>
 
         <TabsContent value="modelos-mat">
-          <Panel titulo={`Modelos por matriculación (${modelosMat.length})`}>
+          <Panel
+            titulo={`Modelos por matriculación (${modelosMat.length})`}
+            nota="Modelo por modelo, con su segmento. Tocá una fila y se abre contra quién compite ese modelo: su clase, sus rivales y a qué precio."
+          >
             <TablaRanking filas={modelosMat} mostrarModelo mostrarSegmento
               notaVariacion={nota}
               fichas={fichasMat}
@@ -125,7 +134,10 @@ export default async function RankingsPage({
         </TabsContent>
 
         <TabsContent value="modelos-imp">
-          <Panel titulo={`Modelos por importación (${modelosImp.length})`}>
+          <Panel
+            titulo={`Modelos por importación (${modelosImp.length})`}
+            nota="Los modelos por unidades importadas. Sirve para ver qué se está trayendo antes de que llegue al mercado."
+          >
             <TablaRanking filas={modelosImp} mostrarModelo mostrarSegmento
               notaVariacion={nota}
               fichas={fichasImp}
@@ -139,10 +151,15 @@ export default async function RankingsPage({
   );
 }
 
-function Panel({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Panel({
+  titulo, nota, children,
+}: { titulo: string; nota?: string; children: React.ReactNode }) {
   return (
     <Card className="mt-3">
-      <CardHeader><CardTitle>{titulo}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>{titulo}</CardTitle>
+        {nota ? <p className="text-xs text-muted-foreground">{nota}</p> : null}
+      </CardHeader>
       <CardContent className="flex flex-col gap-3">{children}</CardContent>
     </Card>
   );

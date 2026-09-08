@@ -221,7 +221,7 @@ export default async function GamaPropiaPage({
                     <TableRow>
                       <TableHead>Marca</TableHead>
                       <TableHead>Modelo</TableHead>
-                      <TableHead className="text-right">Unidades</TableHead>
+                      <TableHead className="text-right" nota="vendidas en el período, sin precio de lista">Unidades</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

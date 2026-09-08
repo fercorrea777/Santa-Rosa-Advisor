@@ -40,6 +40,11 @@ export default function CalidadDatosPage() {
         <Card>
           <CardHeader>
             <CardTitle>Validación contra el informe oficial de CADAM</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              El control más fuerte del pipeline: los datos fila por fila tienen
+              que reproducir exactamente los totales que CADAM publica en su
+              informe. Se comparan solo los meses que están en las dos fuentes.
+            </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {controles.map((c, i) => (
@@ -53,18 +58,20 @@ export default function CalidadDatosPage() {
                 <span>{c.mensaje}</span>
               </p>
             ))}
-            <p className="mt-1 text-xs text-muted-foreground">
-              Es el control más fuerte del pipeline: los datos row-level tienen que
-              reproducir exactamente los totales que publica CADAM en su informe
-              estadístico. Se comparan solo los meses presentes en ambas fuentes.
-            </p>
           </CardContent>
         </Card>
       )}
 
       {(errores.length > 0 || avisos.length > 0) && (
         <Card>
-          <CardHeader><CardTitle>Hallazgos</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Hallazgos</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Lo que no cerró al cargar, primero los errores y después los
+              avisos. Un error significa que ese dato no es confiable; un aviso,
+              que hay algo raro que conviene mirar.
+            </p>
+          </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {[...errores, ...avisos].map((l, i) => (
               <div key={i} className="flex items-start gap-2">

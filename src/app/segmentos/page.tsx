@@ -85,6 +85,11 @@ export default async function SegmentosPage({
           <CardTitle>
             Ranking de segmentos — matriculaciones
           </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Qué tipo de vehículo compra el paraguayo y cuánto de cada uno es
+            nuestro. Tocá un segmento y la pantalla se abre en ese: su
+            evolución, sus marcas y sus modelos.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col divide-y sm:hidden">
@@ -193,6 +198,10 @@ export default async function SegmentosPage({
               <CardTitle>
                 Evolución mensual — {seleccionado}, matriculaciones
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Una línea por año: dice si el segmento está creciendo o si solo
+                se movió con el mercado.
+              </p>
             </CardHeader>
             <CardContent><SerieAniosChart series={serie} /></CardContent>
           </Card>
@@ -201,6 +210,10 @@ export default async function SegmentosPage({
             <Card>
               <CardHeader>
                 <CardTitle>Marcas líderes en {seleccionado}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Contra quién se compite en ese segmento. Las marcas propias van
+                  resaltadas.
+                </p>
               </CardHeader>
               <CardContent>
                 <TablaRanking filas={marcasSeg} nombreArchivo={`segmento-${seleccionado}-marcas`} />
@@ -209,6 +222,10 @@ export default async function SegmentosPage({
             <Card>
               <CardHeader>
                 <CardTitle>Modelos líderes en {seleccionado}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Los modelos concretos que se llevan el segmento: es el nivel al
+                  que el cliente elige.
+                </p>
               </CardHeader>
               <CardContent>
                 <TablaRanking filas={modelosSeg} mostrarModelo

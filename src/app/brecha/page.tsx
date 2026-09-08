@@ -116,7 +116,14 @@ export default async function BrechaPage({
       <Seccion titulo="Evolución de la brecha"
         nota="Cuánto de lo que entra al país todavía no sacó chapa. Es stock que está en la calle de la competencia y todavía no se ve como venta.">
       <Card>
-        <CardHeader><CardTitle>Evolución de la brecha — {f.anio}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Evolución de la brecha — {f.anio}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Mes a mes: cuánto entró al país, cuánto sacó chapa y el hueco entre
+            las dos líneas. Ese hueco es stock que ya está acá y todavía no se
+            vendió.
+          </p>
+        </CardHeader>
         <CardContent>
           <BrechaChart
             meses={serie.map((p) => mesCorto(p.mes))}
@@ -128,7 +135,14 @@ export default async function BrechaPage({
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Detalle mensual</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Detalle mensual</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Los mismos meses en números, con qué parte de lo importado ya sacó
+            chapa. Arriba del 100% se está vendiendo stock viejo; muy abajo, se
+            está cargando stock.
+          </p>
+        </CardHeader>
         <CardContent>
           <div className="flex flex-col divide-y sm:hidden">
             {serie.map((p) => (

@@ -122,7 +122,7 @@ export function MapaClases({
               {columnas.map((c) => (
                 <TableHead key={c.clave} className="text-right whitespace-nowrap">{c.etiqueta}</TableHead>
               ))}
-              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right" nota="toda la clase, sumando las columnas">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

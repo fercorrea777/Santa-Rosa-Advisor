@@ -120,6 +120,11 @@ export default async function MarketSharePage({
             Participación por {DIMENSIONES[dimEfectiva].label.toLowerCase()} —{" "}
             {etiquetaFuente} ({filas.length})
           </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Unidades y parte del mercado de cada uno, contra el mismo período del
+            año pasado. La columna que importa es la última: los puntos de
+            participación que ganó o perdió.
+          </p>
         </CardHeader>
         <CardContent>
           <TablaShare

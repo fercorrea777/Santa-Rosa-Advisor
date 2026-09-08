@@ -487,19 +487,35 @@ export default async function CombustiblesPage({
                 Evolución histórica — {seleccionada} en matriculaciones (
                 {anios[0]}–{anios[anios.length - 1]})
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Una línea por año: dice si esa tecnología está creciendo de
+                verdad o si solo creció el mercado entero.
+              </p>
             </CardHeader>
             <CardContent><SerieAniosChart series={serie} altura={320} /></CardContent>
           </Card>
 
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle>Marcas líderes en {seleccionada}</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Marcas líderes en {seleccionada}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Quién se está quedando con esa tecnología. Las marcas propias
+                  van resaltadas.
+                </p>
+              </CardHeader>
               <CardContent>
                 <TablaRanking filas={marcasTec} nombreArchivo={`tecnologia-${seleccionada}-marcas`} />
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Modelos líderes en {seleccionada}</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Modelos líderes en {seleccionada}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Los modelos concretos que se venden con esa tecnología: es el
+                  nivel al que se arma una respuesta de producto.
+                </p>
+              </CardHeader>
               <CardContent>
                 <TablaRanking filas={modelosTec} mostrarModelo mostrarSegmento
                   nombreArchivo={`tecnologia-${seleccionada}-modelos`} />

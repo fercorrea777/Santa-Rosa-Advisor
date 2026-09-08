@@ -58,6 +58,11 @@ export default async function ConfiguracionPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Marcas propias</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Las marcas que la casa distribuye y con qué grupo las presupuesta
+            Finanzas. De esta lista sale qué filas van resaltadas en todo el
+            tablero y qué se cuenta como «nuestro».
+          </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {parametros.marcas_propias.map((m) => (
@@ -116,6 +121,10 @@ export default async function ConfiguracionPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Datos cargados</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Hasta qué informe de CADAM llegó la base y qué dos períodos compara
+            el tablero cuando dice «variación».
+          </p>
         </CardHeader>
         <CardContent className="text-sm">
           {info ? (

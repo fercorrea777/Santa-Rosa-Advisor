@@ -73,6 +73,11 @@ export default async function EvolucionPage({
             {fuente === "matriculacion" ? "Matriculaciones" : "Importaciones"} por mes
             {!anioCompleto && ` — ${etiquetaRango}`}
           </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Una línea por año, mes contra mes: sirve para ver la estacionalidad
+            del mercado y comparar el mismo mes entre años, no para leer el
+            total.
+          </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <SerieAniosChart series={series} altura={340} />

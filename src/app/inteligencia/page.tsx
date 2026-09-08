@@ -103,6 +103,11 @@ export default async function InteligenciaPage({
       <Card>
         <CardHeader>
           <CardTitle>Resumen ejecutivo</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Los puntos del período en orden de importancia. Salen calculados de
+            los mismos números del tablero: si algo no cierra con una pantalla,
+            es que cambió el dato, no la lectura.
+          </p>
         </CardHeader>
         <CardContent>
           <ul className="flex flex-col gap-2">
