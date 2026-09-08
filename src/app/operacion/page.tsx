@@ -1229,6 +1229,10 @@ export default async function OperacionPage({
           <Card>
             <CardHeader>
               <CardTitle>Objetivo y real por canal — {f.anio}</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Las dos cifras salen del mismo Excel de Finanzas, no de Cars, y
+                se miden hasta el mes que ellos cerraron.
+              </p>
             </CardHeader>
             <CardContent>
               <Table>

@@ -188,7 +188,13 @@ export default async function MercadoPage({
         nota="Cómo se mueve el mercado mes a mes, en chapas puestas y en unidades que entraron al país.">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>Evolución mensual — matriculaciones</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Evolución mensual — matriculaciones</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Chapas puestas por mes, una línea por año. Es el mercado que ya se
+              vendió.
+            </p>
+          </CardHeader>
           <CardContent>
             <SerieAniosChart series={serieMat} />
             {cobertura.mesesFaltantes.matriculacion.length > 0 && (
@@ -202,7 +208,13 @@ export default async function MercadoPage({
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Evolución mensual — importaciones</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Evolución mensual — importaciones</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Unidades que entraron al país por mes. Va adelante de la
+              matriculación: lo que sube acá se vende en los meses que siguen.
+            </p>
+          </CardHeader>
           <CardContent>
             {serieImp.length ? (
               <SerieAniosChart series={serieImp} />
