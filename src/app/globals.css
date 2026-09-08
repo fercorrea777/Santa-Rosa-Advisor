@@ -384,6 +384,16 @@
     background: var(--border);
   }
 
+  /* Encabezados de tabla con segundo renglón (`<TableHead nota="…">`).
+     Si una sola columna trae nota, la fila entera crece y las que no la
+     tienen quedan centradas contra el hueco: los rótulos dejan de compartir
+     línea de base y la fila se lee escalonada. Con esto todos apoyan abajo,
+     tengan nota o no. */
+  thead tr:has(th[data-nota="si"]) th {
+    vertical-align: bottom;
+    padding-bottom: 0.5rem;
+  }
+
   /* Cifra de telemetría: mono a peso alto. Los dígitos de JetBrains Mono se
      distinguen entre sí a distancia, que es lo que hace falta cuando esto se
      proyecta en la reunión. */

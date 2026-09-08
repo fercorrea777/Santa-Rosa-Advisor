@@ -94,8 +94,8 @@ export async function CatalogoTransmision({ anio }: { anio: number }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Marca</TableHead>
-                  <TableHead>Versión (como la escribe Cars)</TableHead>
-                  <TableHead className="text-right">Unidades {anio}</TableHead>
+                  <TableHead nota="el nombre no dice si es mecánico o automático">Versión (como la escribe Cars)</TableHead>
+                  <TableHead className="text-right" nota="facturadas sin poder clasificar la caja">Unidades {anio}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

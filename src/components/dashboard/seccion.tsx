@@ -16,10 +16,16 @@
  */
 export function Seccion({
   titulo,
+  nota,
   id,
   children,
 }: {
   titulo: string;
+  /** Una línea, en criollo, de qué trata la sección. El rótulo en mayúsculas
+   *  dice el tema; esto dice para qué sirve, que es lo que falta cuando
+   *  alguien entra a la pantalla por primera vez. Se omite donde el título ya
+   *  se explica solo ("Rankings", "Detalle"). */
+  nota?: string;
   /** Ancla para enlazar desde otra pantalla (las tarjetas de acción de la
    *  home apuntan a "/operacion#pedido"). `scroll-mt-20` deja el encabezado
    *  debajo del header fijo al aterrizar. */
@@ -30,7 +36,16 @@ export function Seccion({
 }) {
   return (
     <section id={id} className="flex flex-col gap-4 scroll-mt-20">
-      <h2 className="seccion-hd">{titulo}</h2>
+      {nota ? (
+        <div>
+          <h2 className="seccion-hd">{titulo}</h2>
+          <p className="mt-1.5 max-w-[85ch] text-[13px] leading-relaxed text-muted-foreground">
+            {nota}
+          </p>
+        </div>
+      ) : (
+        <h2 className="seccion-hd">{titulo}</h2>
+      )}
       {children}
     </section>
   );

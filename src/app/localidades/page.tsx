@@ -156,7 +156,8 @@ export default async function LocalidadesPage({
         />
       </div>
 
-      <Seccion titulo="Dónde se matricula">
+      <Seccion titulo="Dónde se matricula"
+        nota="En qué ciudades se pone la chapa. Dice dónde hay mercado que la casa todavía no atiende con un local.">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
@@ -263,11 +264,11 @@ export default async function LocalidadesPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Localidad</TableHead>
-                <TableHead className="text-right">Unidades</TableHead>
-                <TableHead className="text-right">Participación</TableHead>
-                <TableHead className="text-right">{anio - 1}</TableHead>
-                <TableHead className="text-right">Variación</TableHead>
-                <TableHead className="text-right">Δ participación</TableHead>
+                <TableHead className="text-right" nota="matriculadas ahí en el período">Unidades</TableHead>
+                <TableHead className="text-right" nota="su parte del total del país">Participación</TableHead>
+                <TableHead className="text-right" nota="las del mismo período del año pasado">{anio - 1}</TableHead>
+                <TableHead className="text-right" nota="cuánto creció o cayó contra ese año">Variación</TableHead>
+                <TableHead className="text-right" nota="puntos de participación que ganó o perdió">Δ participación</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

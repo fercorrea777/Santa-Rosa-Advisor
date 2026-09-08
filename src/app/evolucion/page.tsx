@@ -174,13 +174,13 @@ export default async function EvolucionPage({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Año</TableHead>
-                        <TableHead className="text-right">Meses con dato</TableHead>
-                        <TableHead className="text-right">Acumulado</TableHead>
-                        <TableHead className="text-right">Promedio mensual</TableHead>
-                        <TableHead className="text-right">Máximo</TableHead>
-                        <TableHead className="text-right">Mínimo</TableHead>
-                        <TableHead className="text-right">Var. vs año previo</TableHead>
-                        <TableHead className="text-right">Proyección cierre</TableHead>
+                        <TableHead className="text-right" nota="cuántos meses del año ya cargaron">Meses con dato</TableHead>
+                        <TableHead className="text-right" nota="todo lo del año, sumado">Acumulado</TableHead>
+                        <TableHead className="text-right" nota="acumulado ÷ meses con dato">Promedio mensual</TableHead>
+                        <TableHead className="text-right" nota="el mejor mes del año">Máximo</TableHead>
+                        <TableHead className="text-right" nota="el peor mes del año">Mínimo</TableHead>
+                        <TableHead className="text-right" nota="contra los mismos meses del año anterior">Var. vs año previo</TableHead>
+                        <TableHead className="text-right" nota="cómo cerraría el año a este ritmo">Proyección cierre</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

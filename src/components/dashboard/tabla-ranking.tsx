@@ -83,12 +83,36 @@ export function TablaRanking({
   const pathname = usePathname();
   const sp = useSearchParams();
 
+  // Igual que la barra de filtros: la URL recien cambia cuando vuelve el
+  // Server Component, asi que sin esto la celda que tocaste no se marcaba
+  // hasta despues de la consulta y el clic parecia no haber pasado.
+  const [tentativo, setTentativo] = React.useState<Record<string, string | null>>({});
+  const [pendiente, iniciar] = React.useTransition();
+  const claveUrl = sp.toString();
+  React.useEffect(() => {
+    setTentativo((t) => {
+      const quedan: Record<string, string | null> = {};
+      for (const [k, v] of Object.entries(t)) {
+        if (sp.get(k) !== v) quedan[k] = v;
+      }
+      return Object.keys(quedan).length === Object.keys(t).length ? t : quedan;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claveUrl]);
+  /** El filtro puesto en ese parametro, contando el clic que todavia viaja. */
+  const filtroDe = (param: string) =>
+    param in tentativo ? tentativo[param] : sp.get(param);
+
   /** Clic en una celda: pone (o quita) ese valor como filtro en la URL. */
   const alternarFiltro = (param: string, valor: string) => {
     const q = new URLSearchParams(sp.toString());
-    if (q.get(param) === valor) q.delete(param);
+    const quita = filtroDe(param) === valor;
+    if (quita) q.delete(param);
     else q.set(param, valor);
-    router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+    setTentativo((t) => ({ ...t, [param]: quita ? null : valor }));
+    iniciar(() => {
+      router.replace(`${pathname}?${q.toString()}`, { scroll: false });
+    });
   };
 
   const filtradas = React.useMemo(() => {
@@ -147,8 +171,8 @@ export function TablaRanking({
     URL.revokeObjectURL(url);
   };
 
-  const th = (campo: Campo, label: string, alinearDerecha = false) => (
-    <TableHead className={alinearDerecha ? "text-right" : undefined}>
+  const th = (campo: Campo, label: string, alinearDerecha = false, nota?: string) => (
+    <TableHead className={alinearDerecha ? "text-right" : undefined} nota={nota}>
       <button
         type="button"
         onClick={() =>
@@ -224,7 +248,10 @@ export function TablaRanking({
           abajo — no hay logica duplicada, solo una composicion distinta. Antes
           de esto, la tabla de 6-8 columnas obligaba a deslizar el dedo para ver
           "Unidades" y "Marcas propias", que es justo lo que mas importa. */}
-      <div className="flex flex-col divide-y sm:hidden">
+      <div
+        aria-busy={pendiente}
+        className={cn("flex flex-col divide-y transition-opacity sm:hidden", pendiente && "opacity-60")}
+      >
         {filtradas.map((f) => {
           const ficha = tieneFicha(f);
           return (
@@ -245,7 +272,7 @@ export function TablaRanking({
                   <Filtrable
                     param={filtrarPor?.marca}
                     valor={f.marca}
-                    activo={filtrarPor?.marca ? sp.get(filtrarPor.marca) === f.marca : false}
+                    activo={filtrarPor?.marca ? filtroDe(filtrarPor.marca) === f.marca : false}
                     onToggle={alternarFiltro}
                   />
                 </span>
@@ -261,7 +288,7 @@ export function TablaRanking({
                   <Filtrable
                     param={filtrarPor?.detalle}
                     valor={f.modelo ?? ""}
-                    activo={filtrarPor?.detalle ? sp.get(filtrarPor.detalle) === f.modelo : false}
+                    activo={filtrarPor?.detalle ? filtroDe(filtrarPor.detalle) === f.modelo : false}
                     onToggle={alternarFiltro}
                   />
                 )}
@@ -287,7 +314,10 @@ export function TablaRanking({
         })}
       </div>
 
-      <div className="hidden overflow-x-auto sm:block">
+      <div
+        aria-busy={pendiente}
+        className={cn("hidden overflow-x-auto transition-opacity sm:block", pendiente && "opacity-60")}
+      >
         <Table>
           <TableHeader>
             <TableRow>
@@ -295,10 +325,10 @@ export function TablaRanking({
               {th("marca", columnaClave)}
               {mostrarModelo && th("modelo", etiquetaModelo)}
               {mostrarSegmento && th("segmento", "Segmento")}
-              {th("unidades", "Unidades", true)}
-              {th("participacion", "Part.", true)}
-              {th("variacion", "Var.", true)}
-              {th("cambioPosicion", "Pos.", true)}
+              {th("unidades", "Unidades", true, "las del período")}
+              {th("participacion", "Part.", true, "su parte del mercado")}
+              {th("variacion", "Var.", true, "contra el mismo período del año pasado")}
+              {th("cambioPosicion", "Pos.", true, "puestos que subió o bajó en el ranking")}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -320,7 +350,7 @@ export function TablaRanking({
                     <Filtrable
                       param={filtrarPor?.marca}
                       valor={f.marca}
-                      activo={filtrarPor?.marca ? sp.get(filtrarPor.marca) === f.marca : false}
+                      activo={filtrarPor?.marca ? filtroDe(filtrarPor.marca) === f.marca : false}
                       onToggle={alternarFiltro}
                     />
                     {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
@@ -332,7 +362,7 @@ export function TablaRanking({
                       param={filtrarPor?.detalle}
                       valor={f.modelo ?? ""}
                       activo={
-                        filtrarPor?.detalle ? sp.get(filtrarPor.detalle) === f.modelo : false
+                        filtrarPor?.detalle ? filtroDe(filtrarPor.detalle) === f.modelo : false
                       }
                       onToggle={alternarFiltro}
                     />

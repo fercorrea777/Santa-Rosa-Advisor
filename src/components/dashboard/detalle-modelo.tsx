@@ -145,11 +145,11 @@ export function DetalleModeloDialog({
                       <TableHeader>
                         <TableRow>
                           <TableHead>Modelo</TableHead>
-                          <TableHead className="text-right">Unidades</TableHead>
-                          <TableHead className="text-right whitespace-nowrap">% de la clase</TableHead>
-                          <TableHead className="text-right">Desde</TableHead>
-                          <TableHead className="text-right">MT</TableHead>
-                          <TableHead className="text-right">AT</TableHead>
+                          <TableHead className="text-right" nota="las del período">Unidades</TableHead>
+                          <TableHead className="text-right whitespace-nowrap" nota="su parte de la clase">% de la clase</TableHead>
+                          <TableHead className="text-right" nota="la versión más barata, sea cual sea la caja">Desde</TableHead>
+                          <TableHead className="text-right" nota="la más barata con caja mecánica">MT</TableHead>
+                          <TableHead className="text-right" nota="la más barata con caja automática">AT</TableHead>
                           <TableHead>Motorización</TableHead>
                         </TableRow>
                       </TableHeader>

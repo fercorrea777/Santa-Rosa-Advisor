@@ -50,29 +50,69 @@ export function FiltroPeriodo({
   const pathname = usePathname();
   const sp = useSearchParams();
 
-  const anioActual = Number(sp.get("anio")) || anios[anios.length - 1];
+  // --- por qué el filtro "no se quedaba" -------------------------------
+  // Los <select> leían su valor de la URL, y la URL recién cambia cuando el
+  // Server Component termina de consultar la base y vuelve. Entre el clic y
+  // esa vuelta —medio segundo largo en Operación— el desplegable seguía
+  // mostrando el valor viejo: elegías HAVAL y volvía a "Todos" solo. No era
+  // que el filtro no se aplicara; era que no se veía aplicado.
+  //
+  // `tentativo` guarda lo que acabás de elegir y manda sobre la URL hasta
+  // que la URL trae lo mismo. El `useTransition` da el pendiente para
+  // apagar la barra mientras tanto, así se ve que está trabajando.
+  const [tentativo, setTentativo] = React.useState<Record<string, string>>({});
+  const [pendiente, iniciar] = React.useTransition();
+  const clave = sp.toString();
+  React.useEffect(() => {
+    setTentativo((t) => {
+      // Solo se sueltan las claves que la URL ya alcanzó. Si alguien mueve
+      // dos filtros seguidos, la vuelta del primero no puede borrar la
+      // elección del segundo, que todavía está viajando.
+      const quedan: Record<string, string> = {};
+      for (const [k, v] of Object.entries(t)) {
+        if ((sp.get(k) ?? "todos") !== v) quedan[k] = v;
+      }
+      return Object.keys(quedan).length === Object.keys(t).length ? t : quedan;
+    });
+    // `clave` es la URL serializada: cambia exactamente cuando hay que revisar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clave]);
+
+  /** El valor a mostrar: lo recién elegido si todavía no llegó, si no la URL. */
+  const leer = (k: string) => tentativo[k] ?? sp.get(k);
+
+  const anioActual = Number(leer("anio")) || anios[anios.length - 1];
   const topeMes = mesMaximoPorAnio[anioActual] ?? 12;
-  const desde = Math.min(Number(sp.get("desde")) || 1, topeMes);
+  const desde = Math.min(Number(leer("desde")) || 1, topeMes);
   // Mismo criterio que aniosDeSerie() del servidor: sin param, el año del
   // filtro y el anterior. Se replica acá porque este componente es de
   // cliente y no puede importar del módulo de servidor.
   const defectoAnios = [anioActual - 1, anioActual]
     .filter((a) => anios.includes(a))
     .join(",");
-  const crudoAnios = sp.get("anios");
+  const crudoAnios = leer("anios");
   const aniosPuestos = (crudoAnios ? crudoAnios.split(",") : defectoAnios.split(","))
     .map(Number)
     .filter((a) => anios.includes(a));
-  const hasta = Math.min(Number(sp.get("hasta")) || topeMes, topeMes);
+  const hasta = Math.min(Number(leer("hasta")) || topeMes, topeMes);
 
   const setParams = React.useCallback(
     (cambios: Record<string, string | number | null>) => {
       const p = new URLSearchParams(sp.toString());
+      const recien: Record<string, string> = {};
       for (const [k, v] of Object.entries(cambios)) {
-        if (v === null || v === "todos") p.delete(k);
-        else p.set(k, String(v));
+        if (v === null || v === "todos") {
+          p.delete(k);
+          recien[k] = "todos";
+        } else {
+          p.set(k, String(v));
+          recien[k] = String(v);
+        }
       }
-      router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+      setTentativo((t) => ({ ...t, ...recien }));
+      iniciar(() => {
+        router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+      });
     },
     [pathname, router, sp]
   );
@@ -87,11 +127,20 @@ export function FiltroPeriodo({
     // porque los campos se apilan. Fijarla ahí dejaría el teléfono con un
     // tercio muerto todo el tiempo. En móvil scrollea normal.
     <div
+      // aria-busy + el punto de abajo: el filtro tarda lo que tarda la
+      // consulta, y sin señal parecía que el clic se había perdido.
+      aria-busy={pendiente}
       className={cn(
-        "flex flex-wrap items-end gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-2.5",
+        "relative flex flex-wrap items-end gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-2.5",
         pegajoso && "sm:sticky sm:top-16 sm:z-30 sm:shadow-[var(--card-shadow)]"
       )}
     >
+      {pendiente && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
+        />
+      )}
       {aniosSerie && (
         <Campo label="Años en el gráfico">
           {/* Chips y no un <select multiple>: son cinco años y el multiple
@@ -178,7 +227,7 @@ export function FiltroPeriodo({
         <Campo key={o.param} label={o.label}>
           <select
             className={selectCls}
-            value={sp.get(o.param) ?? "todos"}
+            value={leer(o.param) ?? "todos"}
             onChange={(e) => setParams({ [o.param]: e.target.value })}
           >
             <option value="todos">Todos</option>
@@ -191,10 +240,14 @@ export function FiltroPeriodo({
 
       {/* Filtros aplicados haciendo clic en un grafico o en una fila del
           ranking: no tienen desplegable propio, asi que se muestran aca
-          como chips para que se vean y se puedan quitar. */}
-      {CHIPS.map(({ param, label }) => {
-        const valor = sp.get(param);
-        if (!valor) return null;
+          como chips para que se vean y se puedan quitar.
+
+          Los que SI tienen desplegable quedan afuera: en Operación, "marca"
+          salia dos veces —el select en HAVAL y al lado el chip "Marca:
+          HAVAL ✕"— y no habia forma de saber si eran un filtro o dos. */}
+      {CHIPS.filter(({ param }) => !opciones.some((o) => o.param === param)).map(({ param, label }) => {
+        const valor = leer(param);
+        if (!valor || valor === "todos") return null;
         return (
           <button
             key={param}

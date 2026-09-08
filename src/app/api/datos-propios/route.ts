@@ -37,6 +37,10 @@ export const dynamic = "force-dynamic";
  */
 
 const MAX_FILAS = 5_000;
+/** `asesores` abre por modelo desde el 08/09/2026 (periodo x marca x asesor x
+ *  sucursal x modelo): son ~4 veces mas filas que el corte viejo y el tope de
+ *  5.000 lo rechazaba entero. Sigue siendo agregado, no una fila por venta. */
+const MAX_FILAS_ASESORES = 40_000;
 const RE_PERIODO = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 function texto(v: unknown, max = 120): string | null {
@@ -65,9 +69,9 @@ function validar(body: {
   }
   if (
     body.ventas.length > MAX_FILAS || body.stock.length > MAX_FILAS ||
-    (Array.isArray(body.asesores) && body.asesores.length > MAX_FILAS)
+    (Array.isArray(body.asesores) && body.asesores.length > MAX_FILAS_ASESORES)
   ) {
-    return { error: `Máximo ${MAX_FILAS} filas por tabla` };
+    return { error: `Máximo ${MAX_FILAS} filas por tabla (${MAX_FILAS_ASESORES} en asesores)` };
   }
 
   const ventas: VentaPropia[] = [];
@@ -124,6 +128,9 @@ function validar(body: {
       const asesor = texto(a.asesor, 120);
       // Opcional: pushes anteriores al 06/09/2026 no la mandan.
       const sucursal = texto(a.sucursal, 120) ?? "";
+      // Opcional igual: sin modelo la fila sigue sirviendo para el ranking
+      // de asesores, solo no se puede descontar el mayorista por modelo.
+      const modelo = texto(a.modelo, 120) ?? "";
       const unidades = entero(a.unidades);
       if (!periodo || !RE_PERIODO.test(periodo)) {
         return { error: `asesores[${i}].periodo debe ser YYYY-MM` };
@@ -131,7 +138,7 @@ function validar(body: {
       if (!marca || !asesor || unidades === null) {
         return { error: `asesores[${i}]: marca, asesor y unidades son obligatorios` };
       }
-      asesores.push({ periodo, marca, asesor, sucursal, unidades });
+      asesores.push({ periodo, marca, asesor, sucursal, modelo, unidades });
     }
   }
 

@@ -251,7 +251,8 @@ export default async function BubbleChartPage({
         </div>
       </div>
 
-      <Seccion titulo="Batalla por modelo">
+      <Seccion titulo="Batalla por modelo"
+        nota="El cuadro que arma producto: cada modelo contra sus rivales de verdad, por precio y por volumen, con las medidas de cada versión.">
         {batalla ? (
           <>
             <NotaDato>
@@ -292,7 +293,8 @@ export default async function BubbleChartPage({
         {fueraDelTope} de marcas que no llegan al tope.
       </NotaDato>
 
-      <Seccion titulo="Posicionamiento por variación">
+      <Seccion titulo="Posicionamiento por variación"
+        nota="Qué modelos crecen y cuáles se caen, y con cuánto volumen: arriba a la derecha están los que crecen y ya pesan.">
       <Card>
         <CardHeader>
           <CardTitle>Crecimiento por modelo — {etiquetaFuente}</CardTitle>
@@ -334,7 +336,8 @@ export default async function BubbleChartPage({
       </Seccion>
 
       {ordenPrecio.length > 0 && (
-        <Seccion titulo="Posicionamiento por versión">
+        <Seccion titulo="Posicionamiento por versión"
+        nota="El mismo cruce de precio y volumen, pero versión por versión: es el nivel al que el cliente elige.">
         <Card>
           <CardHeader>
             <CardTitle>Bubble chart por clase y versión</CardTitle>

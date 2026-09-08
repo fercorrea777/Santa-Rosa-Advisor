@@ -247,7 +247,8 @@ export default async function EstadoDatosPage() {
         </NotaDato>
       )}
 
-      <Seccion titulo="Frescura por fuente">
+      <Seccion titulo="Frescura por fuente"
+        nota="Hasta qué mes llega cada fuente. Si una quedó vieja, todo lo que se lea de ella está incompleto.">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
           {fuentes.map((f) => (
             <TarjetaFuente key={f.nombre} fuente={f} />
@@ -255,7 +256,8 @@ export default async function EstadoDatosPage() {
         </div>
       </Seccion>
 
-      <Seccion titulo="Cómo llega el dato">
+      <Seccion titulo="Cómo llega el dato"
+        nota="Quién trae cada dato, cada cuánto y por dónde entra. Sirve para saber a qué trabajo mirar cuando algo no aparece.">
         <Card>
           <CardContent className="flex flex-col gap-3 text-sm">
             <p className="text-muted-foreground">
@@ -300,7 +302,8 @@ export default async function EstadoDatosPage() {
         </Card>
       </Seccion>
 
-      <Seccion titulo="Qué entró en cada snapshot">
+      <Seccion titulo="Qué entró en cada snapshot"
+        nota="Archivo por archivo: cuántas filas traía, cuántas entraron y cuántas se descartaron.">
         <Card>
           <CardContent className="flex flex-col gap-5 pt-6">
             {[...porSnapshot.entries()]
@@ -335,10 +338,10 @@ export default async function EstadoDatosPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Archivo</TableHead>
-                          <TableHead>Detectado como</TableHead>
-                          <TableHead className="text-right">Filas leídas</TableHead>
-                          <TableHead className="text-right">Filas cargadas</TableHead>
-                          <TableHead className="text-right">Unidades</TableHead>
+                          <TableHead nota="qué informe creyó que era el parser">Detectado como</TableHead>
+                          <TableHead className="text-right" nota="renglones que traía el archivo">Filas leídas</TableHead>
+                          <TableHead className="text-right" nota="las que entraron; la resta son descartes">Filas cargadas</TableHead>
+                          <TableHead className="text-right" nota="vehículos que suman esas filas">Unidades</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

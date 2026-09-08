@@ -286,7 +286,8 @@ export default async function MapaPage({
         )}
       </NotaDato>
 
-      <Seccion titulo="Los mapas" id="mapa">
+      <Seccion titulo="Los mapas"
+        nota="Dónde está la plata del mercado: cuántas unidades se venden en cada cruce de clase y precio, y en cuáles de esos casilleros estamos o no estamos." id="mapa">
       <Card>
         <CardHeader>
           <CardTitle>Mercado por clase y banda de precio — {periodo}</CardTitle>
@@ -393,7 +394,8 @@ export default async function MapaPage({
       </Card>
       </Seccion>
 
-      <Seccion titulo="Contra quién compite cada modelo nuestro" id="rivales">
+      <Seccion titulo="Contra quién compite cada modelo nuestro"
+        nota="Los rivales que se le cruzan al cliente en el salón: los de la misma clase, no los de la misma marca ni los del mismo segmento de CADAM." id="rivales">
       <Card>
         <CardHeader>
           <CardTitle>Rivales directos — los de su misma clase, del que más vende al que menos</CardTitle>
@@ -419,9 +421,11 @@ export default async function MapaPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Nuestro modelo</TableHead>
-                  <TableHead className="text-right">Vendidos</TableHead>
-                  <TableHead className="text-right">Precio</TableHead>
-                  <TableHead>Rivales de su clase (unidades · precio desde, MT y AT · motorización)</TableHead>
+                  <TableHead className="text-right" nota="matriculados en el período">Vendidos</TableHead>
+                  <TableHead className="text-right" nota="el más barato de la gama">Precio</TableHead>
+                  <TableHead nota="los que se le cruzan al cliente: misma clase, precio parecido">
+                    Rivales de su clase (unidades · precio desde, MT y AT · motorización)
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -497,7 +501,8 @@ export default async function MapaPage({
       </Card>
       </Seccion>
 
-      <Seccion titulo="Nuestro precio contra el mercado" id="precio-relativo">
+      <Seccion titulo="Nuestro precio contra el mercado"
+        nota="Si estamos caros o baratos, comparando siempre contra la misma caja: un automático contra automáticos, un mecánico contra mecánicos." id="precio-relativo">
       <Card>
         <CardHeader>
           <CardTitle>Estamos caros o baratos, modelo por modelo</CardTitle>
@@ -524,12 +529,12 @@ export default async function MapaPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Nuestro modelo</TableHead>
-                  <TableHead className="text-right">Vendidos</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Nuestro precio (misma transmisión)</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Mediana de su clase</TableHead>
-                  <TableHead className="text-right">Diferencia</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Mediana de todo el tipo</TableHead>
-                  <TableHead className="text-right">Diferencia</TableHead>
+                  <TableHead className="text-right" nota="matriculados en el período">Vendidos</TableHead>
+                  <TableHead className="text-right whitespace-nowrap" nota="con la misma caja que se compara">Nuestro precio (misma transmisión)</TableHead>
+                  <TableHead className="text-right whitespace-nowrap" nota="el del medio entre sus rivales de clase">Mediana de su clase</TableHead>
+                  <TableHead className="text-right" nota="cuánto más caro o barato que su clase">Diferencia</TableHead>
+                  <TableHead className="text-right whitespace-nowrap" nota="el del medio de todo el tipo de vehículo">Mediana de todo el tipo</TableHead>
+                  <TableHead className="text-right" nota="cuánto más caro o barato que el tipo">Diferencia</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

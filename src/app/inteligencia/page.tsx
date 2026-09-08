@@ -98,7 +98,8 @@ export default async function InteligenciaPage({
         })}
       </section>
 
-      <Seccion titulo="Lectura del período">
+      <Seccion titulo="Lectura del período"
+        nota="Lo que hay que saber del período, escrito. Sale de los mismos números del tablero, no de otra fuente.">
       <Card>
         <CardHeader>
           <CardTitle>Resumen ejecutivo</CardTitle>
@@ -156,7 +157,8 @@ export default async function InteligenciaPage({
           competencia, noticias, redes, tendencias globales. Mismo panel
           que la pestaña "Informes semanales" del Copiloto: una sola fuente
           de verdad para ese dato, no una segunda lectura de Postgres acá. */}
-      <Seccion titulo="Fuentes externas">
+      <Seccion titulo="Fuentes externas"
+        nota="Lo que se sabe de la competencia y del mercado por fuera de CADAM y de Cars: precios publicados, promociones y notas del monitoreo.">
       <Card>
         <CardHeader>
           <CardTitle>Mercado y competencia (fuentes externas)</CardTitle>

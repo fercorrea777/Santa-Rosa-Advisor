@@ -113,7 +113,8 @@ export default async function BrechaPage({
         />
       </section>
 
-      <Seccion titulo="Evolución de la brecha">
+      <Seccion titulo="Evolución de la brecha"
+        nota="Cuánto de lo que entra al país todavía no sacó chapa. Es stock que está en la calle de la competencia y todavía no se ve como venta.">
       <Card>
         <CardHeader><CardTitle>Evolución de la brecha — {f.anio}</CardTitle></CardHeader>
         <CardContent>
@@ -158,10 +159,10 @@ export default async function BrechaPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Mes</TableHead>
-                  <TableHead className="text-right">Importaciones</TableHead>
-                  <TableHead className="text-right">Matriculaciones</TableHead>
-                  <TableHead className="text-right">Diferencia</TableHead>
-                  <TableHead className="text-right">Matric. / import.</TableHead>
+                  <TableHead className="text-right" nota="unidades que entraron al país">Importaciones</TableHead>
+                  <TableHead className="text-right" nota="unidades que sacaron chapa">Matriculaciones</TableHead>
+                  <TableHead className="text-right" nota="lo que entró menos lo que se patentó">Diferencia</TableHead>
+                  <TableHead className="text-right" nota="qué parte de lo importado ya se patentó">Matric. / import.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -195,7 +196,8 @@ export default async function BrechaPage({
 
       </Seccion>
 
-      <Seccion titulo="Marcas que más se apartan">
+      <Seccion titulo="Marcas que más se apartan"
+        nota="Las marcas donde más se despega lo importado de lo matriculado: o están cargando stock, o lo están liquidando.">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <TablaBrechaMarcas
           titulo="Importan más de lo que matriculan"
@@ -260,9 +262,9 @@ function TablaBrechaMarcas({
             <TableHeader>
               <TableRow>
                 <TableHead>Marca</TableHead>
-                <TableHead className="text-right">Import.</TableHead>
-                <TableHead className="text-right">Matric.</TableHead>
-                <TableHead className="text-right">Dif.</TableHead>
+                <TableHead className="text-right" nota="unidades que entraron al país">Import.</TableHead>
+                <TableHead className="text-right" nota="unidades que sacaron chapa">Matric.</TableHead>
+                <TableHead className="text-right" nota="lo que entró menos lo que se patentó">Dif.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

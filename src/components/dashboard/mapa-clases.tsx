@@ -420,9 +420,9 @@ function DetalleCasillero({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Modelo</TableHead>
-                      <TableHead className="text-right">Unidades</TableHead>
-                      <TableHead className="text-right whitespace-nowrap">% del casillero</TableHead>
-                      <TableHead className="text-right">Precio</TableHead>
+                      <TableHead className="text-right" nota="las del período">Unidades</TableHead>
+                      <TableHead className="text-right whitespace-nowrap" nota="su parte de este casillero">% del casillero</TableHead>
+                      <TableHead className="text-right" nota="el más barato de la gama">Precio</TableHead>
                       <TableHead>Motorización</TableHead>
                     </TableRow>
                   </TableHeader>

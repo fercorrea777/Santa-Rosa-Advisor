@@ -65,21 +65,61 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({
+  className,
+  nota,
+  children,
+  ...props
+}: React.ComponentProps<"th"> & {
+  /**
+   * Segundo renglon del encabezado: que significa esa columna, en criollo y
+   * en minusculas. El rotulo en mayusculas nombra el dato ("CUMPLIMIENTO");
+   * esto dice como leerlo ("facturado sobre plan del periodo").
+   *
+   * Nace de un reclamo concreto: la explicacion de la tabla entera vivia en
+   * un parrafo de 8 renglones arriba, en letra chica, y para saber que era
+   * una columna habia que volver a leerlo entero y adivinar cual frase le
+   * tocaba. Al lado del rotulo no hay nada que adivinar.
+   *
+   * Va corto — cuatro o cinco palabras. Y solo donde hace falta: "MARCA" o
+   * "STOCK" no necesitan traduccion y una nota ahi es ruido.
+   */
+  nota?: string
+}) {
   return (
     <th
       data-slot="table-head"
+      // Lo lee globals.css para bajar TODOS los rotulos de la fila a la misma
+      // linea de base: si no, los que no tienen nota flotan al medio.
+      data-nota={nota ? "si" : undefined}
       // Los encabezados van chicos, en mayusculas y apagados A PROPOSITO:
       // en una tabla de datos el protagonista es el numero, no el rotulo.
       // Antes competian (mismo tamano y peso similar que las celdas) y la
       // tabla entera se leia "floja" — el reclamo fue que las letras se
       // veian poco.
       className={cn(
-        "h-10 px-2 text-left align-middle text-xs font-semibold uppercase tracking-wider whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "px-2 text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        // Con nota el alto fijo no alcanza y las columnas con y sin nota
+        // tienen que apoyar el rotulo en la misma linea de base: por eso
+        // align-bottom en toda la fila cuando alguna trae segundo renglon.
+        nota ? "h-auto py-2 align-bottom" : "h-10 align-middle",
         className
       )}
       {...props}
-    />
+    >
+      {nota ? (
+        <span className="block">
+          <span className="block">{children}</span>
+          {/* normal-case + tracking-normal: el rotulo grita en mayusculas,
+              la nota habla. font-normal para que no compita con el. */}
+          <span className="mt-1 block max-w-[22ch] text-[10px] leading-snug font-normal normal-case tracking-normal whitespace-normal opacity-75">
+            {nota}
+          </span>
+        </span>
+      ) : (
+        children
+      )}
+    </th>
   )
 }
 

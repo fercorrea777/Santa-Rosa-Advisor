@@ -78,6 +78,14 @@ export interface StockPropio {
 export interface VentaAsesor {
   periodo: string; // YYYY-MM
   marca: string;
+  /** Familia ("L200"). Vacio en pushes anteriores al 08/09/2026.
+   *
+   *  Esta aca por una razon concreta: sin el modelo, lo unico que se podia
+   *  descontar de las ventas mayoristas era el total de la marca. Y la
+   *  demanda de Bitrix se compara POR MODELO — un L200 que se fue en flota
+   *  no lo trajo ningun lead, y contarlo hacia parecer que la demanda se
+   *  aprovecha mucho mejor de lo que se aprovecha. */
+  modelo: string;
   /** Nombre tal cual lo escribe Cars. Incluye algunos que NO son una
    *  persona ("VENTAS GERENCIA", "VENTAS GERENCIA EXTERNA") — se mandan
    *  igual: adivinar cuales filtrar seria peor que mostrarlos y que se
@@ -124,8 +132,9 @@ export async function crearTablasPropias(): Promise<void> {
       marca    text not null,
       asesor   text not null,
       sucursal text not null default '',
+      modelo   text not null default '',
       unidades integer not null,
-      primary key (periodo, marca, asesor, sucursal)
+      primary key (periodo, marca, asesor, sucursal, modelo)
     );
   `);
   await pool.query(`
@@ -145,16 +154,19 @@ export async function crearTablasPropias(): Promise<void> {
   // La clave primaria tambien cambia (se le suma `version`): sin eso, dos
   // versiones del mismo modelo chocan y el insert falla. Se borra y se
   // recrea en vez de intentar alterarla, que Postgres no permite.
-  // venta_asesor suma `sucursal` (06/09/2026) con el mismo mecanismo: la
-  // columna se agrega si falta y la clave primaria se recrea si no coincide.
-  for (const [tabla, clave, columna] of [
-    ["venta_propia", "periodo, marca, modelo, version", "version"],
-    ["stock_propio", "marca, modelo, version, estado", "version"],
-    ["venta_asesor", "periodo, marca, asesor, sucursal", "sucursal"],
+  // venta_asesor suma `sucursal` (06/09/2026) y `modelo` (08/09/2026) con el
+  // mismo mecanismo: la columna se agrega si falta y la clave primaria se
+  // recrea si no coincide.
+  for (const [tabla, clave, columnas] of [
+    ["venta_propia", "periodo, marca, modelo, version", ["version"]],
+    ["stock_propio", "marca, modelo, version, estado", ["version"]],
+    ["venta_asesor", "periodo, marca, asesor, sucursal, modelo", ["sucursal", "modelo"]],
   ] as const) {
-    await pool.query(
-      `alter table ${tabla} add column if not exists ${columna} text not null default ''`
-    );
+    for (const columna of columnas) {
+      await pool.query(
+        `alter table ${tabla} add column if not exists ${columna} text not null default ''`
+      );
+    }
     const { rows } = await pool.query<{ cols: string }>(
       `select string_agg(a.attname, ', ' order by k.ord) cols
        from pg_constraint c
@@ -218,11 +230,11 @@ export async function guardarDatosPropios(params: {
       await cliente.query("delete from venta_asesor");
       for (const a of params.asesores) {
         await cliente.query(
-          `insert into venta_asesor (periodo, marca, asesor, sucursal, unidades)
-           values ($1, $2, $3, $4, $5)
-           on conflict (periodo, marca, asesor, sucursal)
+          `insert into venta_asesor (periodo, marca, asesor, sucursal, modelo, unidades)
+           values ($1, $2, $3, $4, $5, $6)
+           on conflict (periodo, marca, asesor, sucursal, modelo)
              do update set unidades = venta_asesor.unidades + excluded.unidades`,
-          [a.periodo, a.marca, a.asesor, a.sucursal ?? "", a.unidades]
+          [a.periodo, a.marca, a.asesor, a.sucursal ?? "", a.modelo ?? "", a.unidades]
         );
       }
     }
@@ -263,7 +275,7 @@ export async function getStockPropio(): Promise<StockPropio[]> {
 export async function getVentasAsesor(): Promise<VentaAsesor[]> {
   try {
     const { rows } = await getPool().query<VentaAsesor>(
-      `select periodo, marca, asesor, sucursal, unidades from venta_asesor
+      `select periodo, marca, asesor, sucursal, modelo, unidades from venta_asesor
        order by periodo desc, unidades desc`
     );
     return rows;

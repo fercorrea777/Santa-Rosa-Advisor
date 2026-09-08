@@ -185,10 +185,10 @@ export default async function CombustiblesPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Combustible</TableHead>
-                      <TableHead className="text-right">Unidades</TableHead>
-                      <TableHead className="text-right">Part.</TableHead>
-                      <TableHead className="text-right">Var.</TableHead>
-                      <TableHead className="text-right">Δ part.</TableHead>
+                      <TableHead className="text-right" nota="matriculadas en el período">Unidades</TableHead>
+                      <TableHead className="text-right" nota="su parte del mercado">Part.</TableHead>
+                      <TableHead className="text-right" nota="contra el mismo período del año pasado">Var.</TableHead>
+                      <TableHead className="text-right" nota="puntos de participación que ganó o perdió">Δ part.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -426,12 +426,12 @@ export default async function CombustiblesPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Tecnología</TableHead>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead className="text-right">Unidades</TableHead>
-                  <TableHead className="text-right">Participación</TableHead>
-                  <TableHead className="text-right">Var. vs {f.anio - 1}</TableHead>
-                  <TableHead className="text-right">Δ participación</TableHead>
-                  <TableHead className="text-right">Marcas propias</TableHead>
+                  <TableHead nota="cómo se agrupa: combustión, híbrido o eléctrico">Grupo</TableHead>
+                  <TableHead className="text-right" nota="matriculadas en el período">Unidades</TableHead>
+                  <TableHead className="text-right" nota="su parte del mercado">Participación</TableHead>
+                  <TableHead className="text-right" nota="cuánto creció o cayó la tecnología">Var. vs {f.anio - 1}</TableHead>
+                  <TableHead className="text-right" nota="puntos de participación que ganó o perdió">Δ participación</TableHead>
+                  <TableHead className="text-right" nota="cuánto de esa tecnología es nuestro">Marcas propias</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

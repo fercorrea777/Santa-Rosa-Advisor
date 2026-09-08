@@ -184,7 +184,8 @@ export default async function MercadoPage({
         />
       </section>
 
-      <Seccion titulo="Evolución del mercado">
+      <Seccion titulo="Evolución del mercado"
+        nota="Cómo se mueve el mercado mes a mes, en chapas puestas y en unidades que entraron al país.">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Evolución mensual — matriculaciones</CardTitle></CardHeader>
@@ -216,7 +217,8 @@ export default async function MercadoPage({
       </div>
       </Seccion>
 
-      <Seccion titulo="Segmentos y tecnología">
+      <Seccion titulo="Segmentos y tecnología"
+        nota="Qué tipo de vehículo y qué motorización está comprando el paraguayo, y para dónde se está moviendo.">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -283,7 +285,8 @@ export default async function MercadoPage({
       </div>
       </Seccion>
 
-      <Seccion titulo="Quién gana y quién pierde">
+      <Seccion titulo="Quién gana y quién pierde"
+        nota="Las marcas que más participación ganaron y las que más perdieron contra el año pasado.">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MoviminetoCard
           titulo={`Principales ganadores — ${etiquetaFuente}`}

@@ -412,10 +412,10 @@ function Batalla({
                 <TableRow>
                   <TableHead>Marca</TableHead>
                   <TableHead>Versión</TableHead>
-                  <TableHead>Medidas</TableHead>
-                  <TableHead className="text-right">Precio</TableHead>
-                  <TableHead className="text-right">Matric.</TableHead>
-                  <TableHead className="text-right">Import.</TableHead>
+                  <TableHead nota="largo × ancho × alto, en mm">Medidas</TableHead>
+                  <TableHead className="text-right" nota="el de la planilla de producto, en US$">Precio</TableHead>
+                  <TableHead className="text-right" nota="unidades que sacaron chapa">Matric.</TableHead>
+                  <TableHead className="text-right" nota="unidades que entraron al país">Import.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
