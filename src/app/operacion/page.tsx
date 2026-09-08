@@ -772,15 +772,16 @@ export default async function OperacionPage({
 
       <Seccion titulo="Pedido de stock"
         nota="Qué falta traer y qué hay que empujar con promoción, versión por versión. Sale de cruzar las unidades libres de hoy con lo que se vendió los últimos tres meses." id="pedido">
+      {/* Qué es cada columna lo dice la columna. Acá queda la letra chica:
+          qué meses entran en el ritmo, qué queda afuera de «libres» y desde
+          qué ritmo el cociente deja de significar algo. */}
       <NotaDato>
-        <strong>Cómo leer esto.</strong> El <strong>ritmo</strong> es cuántos
-        autos por mes se vendieron de cada versión en los últimos tres meses
-        cerrados ({mesesRitmoTxt}); el mes en curso no entra porque está a
-        medias. <strong>Libres</strong> es lo que se puede entregar hoy, sin
-        las reservadas ni lo que está en viaje, en test drive o cortesía.{" "}
-        <strong>Meses de stock</strong> es libres dividido ritmo. Con menos de{" "}
-        {RITMO_MINIMO_VERSION} autos por mes no se calcula: el número no
-        significaría nada.
+        El <strong>ritmo</strong> son los tres últimos meses cerrados
+        ({mesesRitmoTxt}): el mes en curso no entra porque está a medias.
+        De <strong>libres</strong> quedan afuera las reservadas, lo que está en
+        viaje y lo que anda en test drive o cortesía. Con menos de{" "}
+        {RITMO_MINIMO_VERSION} autos por mes no se calculan los meses de stock:
+        el número no significaría nada.
       </NotaDato>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
