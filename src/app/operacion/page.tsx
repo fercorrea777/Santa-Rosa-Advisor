@@ -1324,7 +1324,10 @@ export default async function OperacionPage({
             los motivos que más se repiten. «Leads por vehículo» es cuántos
             leads entraron por cada vehículo facturado en Cars: si sube, la
             demanda se está desaprovechando. Los negocios (oportunidades ya
-            calificadas) van aparte.
+            calificadas) van aparte. Lo facturado acá es <strong>solo retail</strong>:
+            las {formatUnidades(unidadesMayoristas)} unidades mayoristas del período
+            (flotas y ventas de gerencia) no las trajo ningún lead, y contarlas haría
+            parecer que la demanda se aprovecha mejor de lo que se aprovecha.
           </p>
         </CardHeader>
         <CardContent>
@@ -1341,8 +1344,8 @@ export default async function OperacionPage({
                 <TableHead className="text-right" nota="oportunidades ya calificadas: abiertos / ganados / perdidos">
                   Negocios
                 </TableHead>
-                <TableHead className="text-right" nota="vehículos vendidos de la marca, en Cars">Facturado</TableHead>
-                <TableHead className="text-right" nota="leads por vehículo facturado; si sube, se desaprovecha la demanda">
+                <TableHead className="text-right" nota="vendidos a clientes; sin flotas ni ventas de gerencia">Facturado retail</TableHead>
+                <TableHead className="text-right" nota="leads por vehículo retail; si sube, se desaprovecha la demanda">
                   Leads
                 </TableHead>
               </TableRow>
@@ -1412,7 +1415,7 @@ export default async function OperacionPage({
                   <TableHead className="text-right" nota="siguen sin cerrarse ni perderse">Abiertos</TableHead>
                   <TableHead className="text-right" nota="se dieron de baja">Perdidos</TableHead>
                   <TableHead nota="los motivos que más se repiten">Por qué se perdieron</TableHead>
-                  <TableHead className="text-right" nota="vehículos vendidos del modelo, en Cars">Facturado</TableHead>
+                  <TableHead className="text-right" nota="vendidos a clientes; sin flotas ni ventas de gerencia">Facturado retail</TableHead>
                   <TableHead className="text-right whitespace-nowrap" nota="entregables hoy, sin reservadas">Libres hoy</TableHead>
                   <TableHead nota="la lectura de la fila, en una palabra">Qué hacer</TableHead>
                 </TableRow>
