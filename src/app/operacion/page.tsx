@@ -1464,8 +1464,8 @@ export default async function OperacionPage({
       </Card>
       <NotaDato>
         <strong>Esto es demanda registrada en el CRM, no mercado.</strong>{" "}
-        Sale de Bitrix por mes de creación, agregado por Hermes antes de
-        salir de su máquina: ningún dato del cliente llega acá. «Abierto»,
+        Sale de Bitrix por mes de creación y se resume antes de salir de la
+        máquina donde se lee: ningún dato del cliente llega acá. «Abierto»,
         «convertido» y «perdido» son la semántica de cada estado de Bitrix;
         el motivo es el nombre del estado o de la etapa de pérdida. Los
         descartados (spam, datos falsos, duplicados, incontactables) no

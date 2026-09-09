@@ -20,7 +20,7 @@ import {
 import { asignarSegmento, SIN_CLASIFICAR, tokens } from "@/lib/informes/segmento-version";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 
 /** Unidades mínimas del período anterior para que un modelo entre al
  *  gráfico. Es lo que hace legible el eje, no un capricho: sobre los datos
@@ -225,7 +225,7 @@ export default async function BubbleChartPage({
       <PageHeader
         titulo="Bubble chart"
         descripcion={`Cada burbuja es un modelo, agrupado en la columna de su marca · ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       <div className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end sm:bg-background/85 sm:backdrop-blur-md">

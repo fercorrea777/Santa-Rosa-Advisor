@@ -9,7 +9,7 @@ const ETIQUETA_DIMENSION: Record<string, string> = {
   redes: "Redes sociales",
   tendencias: "Tendencias globales",
   resumen: "Resumen ejecutivo",
-  hermes_promos: "Promociones de competencia (Hermes)",
+  hermes_promos: "Promociones de la competencia",
 };
 
 export function InformesPanel() {

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { tipoArchivoLegible } from "@/lib/tipo-archivo";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Seccion } from "@/components/dashboard/seccion";
 import { Badge } from "@/components/ui/badge";
@@ -232,7 +233,7 @@ export default async function EstadoDatosPage() {
         descripcion="Qué tan fresco está cada dato del tablero y qué lo mantiene al día."
         fuente={
           cobertura.snapshot
-            ? `Snapshot activo: ${cobertura.snapshot} · cargado ${cobertura.fechaIngesta ?? "—"}.`
+            ? `Datos hasta ${etiquetaCorte(cobertura.snapshot)} · cargados el ${cobertura.fechaIngesta ?? "—"}.`
             : "Sin cargas registradas."
         }
       />
@@ -303,7 +304,7 @@ export default async function EstadoDatosPage() {
         </Card>
       </Seccion>
 
-      <Seccion titulo="Qué entró en cada snapshot"
+      <Seccion titulo="Qué entró en cada carga"
         nota="Archivo por archivo: cuántas filas traía, cuántas entraron y cuántas se descartaron.">
         <Card>
           <CardContent className="flex flex-col gap-5 pt-6">
@@ -312,7 +313,7 @@ export default async function EstadoDatosPage() {
               .map(([snap, arch]) => (
                 <div key={snap} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium tabular-nums">{snap}</span>
+                    <span className="text-sm font-medium">{etiquetaCorte(snap)}</span>
                     {snap === cobertura.snapshot && (
                       <Badge className="h-5 px-1.5 text-[10px]">activo</Badge>
                     )}
@@ -322,7 +323,7 @@ export default async function EstadoDatosPage() {
                       <div key={a.nombre} className="flex flex-col gap-1 py-2.5">
                         <div className="flex items-center justify-between gap-2">
                           <span className="min-w-0 truncate font-medium">{a.nombre}</span>
-                          <Badge variant="outline" className="shrink-0 font-normal">{a.tipo}</Badge>
+                          <Badge variant="outline" className="shrink-0 font-normal">{tipoArchivoLegible(a.tipo)}</Badge>
                         </div>
                         <div className="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
                           <span>{formatUnidades(a.filas_leidas)} leídas</span>

@@ -162,7 +162,7 @@ export default async function MercadoPage({
           value={formatUnidades(import_.valor)}
           variacion={import_.variacion}
           periodo={periodo}
-          tooltip="Unidades importadas (livianos, base row-level de CADAM). No incluye camiones, que se reportan aparte."
+          tooltip="Unidades importadas de vehículos livianos, una por una, según CADAM. No incluye camiones: se reportan aparte."
         />
         <KpiCard
           label="Diferencia import. − matric."

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { tipoArchivoLegible } from "@/lib/tipo-archivo";
 import { etiquetaCorte } from "@/lib/periodo";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -115,7 +116,7 @@ export default function CalidadDatosPage() {
                   <div key={`${a.snapshot}-${a.nombre}`} className="flex flex-col gap-1 py-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="min-w-0 truncate font-medium">{a.nombre}</span>
-                      <Badge variant="outline" className="shrink-0 font-normal">{a.tipo}</Badge>
+                      <Badge variant="outline" className="shrink-0 font-normal">{tipoArchivoLegible(a.tipo)}</Badge>
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <span>Datos de {etiquetaCorte(a.snapshot)} · cargado {a.fecha_ingesta}</span>
@@ -148,7 +149,7 @@ export default function CalidadDatosPage() {
                       <TableRow key={`${a.snapshot}-${a.nombre}`}>
                         <TableCell className="font-medium">{a.nombre}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="font-normal">{a.tipo}</Badge>
+                          <Badge variant="outline" className="font-normal">{tipoArchivoLegible(a.tipo)}</Badge>
                         </TableCell>
                         <TableCell className="tabular-nums text-muted-foreground">{a.snapshot}</TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">

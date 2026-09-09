@@ -8,7 +8,7 @@ import { Seccion } from "@/components/dashboard/seccion";
 import { getCobertura, getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { generarInforme, type Item, type Prioridad, type Tipo } from "@/lib/cadam/inteligencia";
 import { generarLecturaPropia } from "@/lib/informes/inteligencia-propia";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 const SECCIONES: { tipo: Tipo; titulo: string; descripcion: string; tono?: "azul" | "verde" | "ambar" }[] = [
@@ -62,7 +62,7 @@ export default async function InteligenciaPage({
       <PageHeader
         titulo="Centro de Inteligencia Comercial"
         descripcion={`Lectura automática del mercado (${periodo} vs. ${f.anio - 1}) y de nuestra operación al día de hoy.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · Cars (stock y facturación) · Bitrix (demanda) · Meta (pauta) · Datacar (precios de la competencia) · catálogo de clases de vehículo.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)} · Cars (stock y facturación) · Bitrix (demanda) · Meta (pauta) · Datacar (precios de la competencia) · catálogo de clases de vehículo.`}
       />
 
       <FiltroPeriodo
@@ -188,10 +188,10 @@ export default async function InteligenciaPage({
         <CardHeader>
           <CardTitle>Qué sabe el Copiloto de la competencia</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Base de conocimiento que mantiene Hermes y refresca todos los días:
-            precios públicos de la competencia, battle cards modelo a modelo,
-            scan de promociones y playbook de pauta. Acá va el inventario y su
-            antigüedad; el contenido lo lee el Copiloto cuando lo necesita.
+            Base de conocimiento que se refresca sola todos los días: precios
+            públicos de la competencia, comparativos modelo a modelo, relevamiento
+            de promociones y guía de pauta. Acá va el inventario y su antigüedad;
+            el contenido lo lee el Copiloto cuando lo necesita.
           </p>
         </CardHeader>
         <CardContent>
