@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { tipoArchivoLegible } from "@/lib/tipo-archivo";
+import { mensajeLegible, tipoArchivoLegible } from "@/lib/tipo-archivo";
 import { etiquetaCorte } from "@/lib/periodo";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +57,7 @@ export default function CalidadDatosPage() {
                 >
                   ✓
                 </span>
-                <span>{c.mensaje}</span>
+                <span>{mensajeLegible(c.mensaje)}</span>
               </p>
             ))}
           </CardContent>
@@ -89,7 +89,7 @@ export default function CalidadDatosPage() {
                   {l.nivel === "error" ? "✕" : "!"}
                 </span>
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-sm">{l.mensaje}</p>
+                  <p className="text-sm">{mensajeLegible(l.mensaje)}</p>
                   <p className="text-xs text-muted-foreground">
                     <code className="rounded bg-muted px-1 py-0.5">{l.categoria}</code>
                     {l.archivo && <> · {l.archivo}</>}
@@ -186,7 +186,7 @@ export default function CalidadDatosPage() {
               <p key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                 <span aria-hidden="true" className="mt-0.5 shrink-0">·</span>
                 <span>
-                  {l.mensaje}
+                  {mensajeLegible(l.mensaje)}
                   {l.n > 1 && <> — {formatUnidades(l.n)}</>}
                   {l.archivo && <> · {l.archivo}</>}
                 </span>

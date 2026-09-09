@@ -27,6 +27,22 @@ const TRADUCCIONES: [RegExp, string][] = [
   [/^localidad(es)?$/i, "Matriculaciones · por localidad"],
 ];
 
+/**
+ * Lo mismo, pero dentro de un mensaje.
+ *
+ * Los hallazgos de la carga los escribe ingest.py como texto libre
+ * («Detectado como importacion row-level (marca/modelo/segmento/dimensiones)»)
+ * y se guardan así en la base. Traducir la fila entera no alcanza: hay que
+ * reemplazar la descripción donde aparezca.
+ */
+export function mensajeLegible(texto: string | null | undefined): string {
+  if (!texto) return "";
+  return texto
+    .replace(/matriculaciones row-level \([^)]*\)/gi, "matriculaciones con detalle por vehículo")
+    .replace(/importacion(?:es)? row-level \([^)]*\)/gi, "importaciones con detalle por vehículo")
+    .replace(/\brow-level\b/gi, "con detalle por vehículo");
+}
+
 export function tipoArchivoLegible(tipo: string | null | undefined): string {
   if (!tipo) return "—";
   const limpio = tipo.trim();
