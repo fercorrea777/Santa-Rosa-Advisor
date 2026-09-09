@@ -1780,8 +1780,8 @@ export default async function OperacionPage({
       )}
       <NotaDato>
         <strong>Esto es desempeño individual, no un dato de mercado.</strong>{" "}
-        Sale de <code>Vendedor</code> en las facturas de Cars, agregado por
-        Hermes antes de salir de la máquina — nunca viaja factura por
+        Sale de <code>Vendedor</code> en las facturas de Cars, ya sumado por
+        vendedor antes de salir de la máquina — nunca viaja factura por
         factura. Una unidad es un vehículo (un VIN), contado en su primera
         factura. De los {formatUnidades(totalFacturas)} vehículos del período:{" "}
         <strong>{formatUnidades(unidadesConAsesor)} retail</strong> (el ranking),{" "}

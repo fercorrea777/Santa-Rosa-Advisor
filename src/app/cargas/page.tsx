@@ -351,7 +351,7 @@ export default async function EstadoDatosPage() {
                           <TableRow key={a.nombre}>
                             <TableCell className="font-medium">{a.nombre}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="font-normal">{a.tipo}</Badge>
+                              <Badge variant="outline" className="font-normal">{tipoArchivoLegible(a.tipo)}</Badge>
                             </TableCell>
                             <TableCell className="text-right tabular-nums text-muted-foreground">
                               {formatUnidades(a.filas_leidas)}

@@ -137,7 +137,7 @@ export default function CalidadDatosPage() {
                     <TableRow>
                       <TableHead>Archivo</TableHead>
                       <TableHead nota="qué informe creyó que era">Tipo detectado</TableHead>
-                      <TableHead nota="el mes al que pertenece el dato">Snapshot</TableHead>
+                      <TableHead nota="el mes al que pertenece el dato">Corte</TableHead>
                       <TableHead className="text-right" nota="renglones que traía el archivo">Filas leídas</TableHead>
                       <TableHead className="text-right" nota="las que entraron; el resto, descartes">Filas cargadas</TableHead>
                       <TableHead className="text-right" nota="vehículos que suman esas filas">Unidades</TableHead>
@@ -151,7 +151,7 @@ export default function CalidadDatosPage() {
                         <TableCell>
                           <Badge variant="outline" className="font-normal">{tipoArchivoLegible(a.tipo)}</Badge>
                         </TableCell>
-                        <TableCell className="tabular-nums text-muted-foreground">{a.snapshot}</TableCell>
+                        <TableCell className="text-muted-foreground">{etiquetaCorte(a.snapshot)}</TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">
                           {formatUnidades(a.filas_leidas)}
                         </TableCell>
