@@ -14,6 +14,21 @@ export function mesCorto(mes: number): string {
   return MESES_CORTOS[mes - 1] ?? String(mes);
 }
 
+/**
+ * El corte de datos, en criollo: '2026-08' -> 'Ago 2026'.
+ *
+ * El pie de cada pantalla decía «snapshot 2026-08». «Snapshot» es una palabra
+ * de máquina: nombra cómo se guarda el dato, no qué significa. Lo que el
+ * lector necesita saber es hasta cuándo llegan los números, y eso se dice
+ * «datos hasta Ago 2026».
+ */
+export function etiquetaCorte(periodo: string | null | undefined): string {
+  if (!periodo) return "—";
+  const [anio, mes] = periodo.split("-");
+  const m = mesCorto(Number(mes));
+  return anio && m ? `${m} ${anio}` : periodo;
+}
+
 /** 'Ene–Jun 2026' | 'Mayo 2026' */
 export function etiquetaPeriodo(anio: number, desde: number, hasta: number): string {
   if (desde === hasta) {

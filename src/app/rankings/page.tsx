@@ -11,7 +11,7 @@ import {
 } from "@/lib/cadam/bandas";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 
 export default async function RankingsPage({
   searchParams,
@@ -66,7 +66,7 @@ export default async function RankingsPage({
       <PageHeader
         titulo="Rankings"
         descripcion={`Marcas y modelos, matriculación e importación · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       <FiltroPeriodo

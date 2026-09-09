@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/dashboard/page-header";
+import { etiquetaCorte } from "@/lib/periodo";
 import { ChatCopiloto } from "@/components/copiloto/chat";
 import { InformesPanel } from "@/components/copiloto/informes-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,8 +20,8 @@ export default function CopilotoPage() {
     <div className="flex h-full flex-col gap-5">
       <PageHeader
         titulo="Copiloto"
-        descripcion="Preguntale a los datos en lenguaje natural. Consulta él mismo las fuentes —CADAM, el relevamiento de competencia de Hermes, nuestra operación, la demanda de Bitrix y la pauta de Meta— y muestra abajo de cada respuesta cuáles abrió."
-        fuente={`CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"} · precios y promociones de competencia relevados por Hermes · facturación, stock y asesores del API de Cars · leads y negocios de Bitrix · pauta de Meta · rivales por clase de vehículo. Sin acceso a internet.`}
+        descripcion="Preguntale a los datos en lenguaje natural. Consulta él mismo las fuentes —CADAM, el relevamiento de precios de la competencia, nuestra operación, la demanda de Bitrix y la pauta de Meta— y muestra abajo de cada respuesta cuáles abrió."
+        fuente={`CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)} · precios y promociones de la competencia relevados a diario · facturación, stock y asesores de Cars · leads y negocios de Bitrix · pauta de Meta · rivales por clase de vehículo. Sin acceso a internet.`}
       />
 
       <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col gap-3">

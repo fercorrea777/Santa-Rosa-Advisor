@@ -8,7 +8,7 @@ import {
 import { getCobertura, getSerieMensual, type Fuente } from "@/lib/cadam/mercado";
 import { serieAAnios, promedioMensual, proyeccionCierre } from "@/lib/serie";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { mesCorto, type SearchParams } from "@/lib/periodo";
+import { mesCorto, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 
 export default async function EvolucionPage({
   searchParams,
@@ -56,7 +56,7 @@ export default async function EvolucionPage({
       <PageHeader
         titulo="Evolución mensual"
         descripcion={`${etiquetaFuente[0].toUpperCase()}${etiquetaFuente.slice(1)} mes a mes entre años · ${etiquetaRango}. Acumulado, promedio, máximo, mínimo y proyección de cierre.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       <SelectorAnios

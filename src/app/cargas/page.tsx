@@ -15,7 +15,7 @@ import { getActualizacionPautaMarca, getPautaMarca } from "@/lib/informes/pauta-
 import { formatUnidades, hoyEnAsuncion } from "@/lib/format";
 import { getPresupuesto } from "@/lib/cadam/config";
 import { getBatalla } from "@/lib/informes/batalla";
-import { mesCorto } from "@/lib/periodo";
+import { mesCorto, etiquetaCorte } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -107,7 +107,7 @@ export default async function EstadoDatosPage() {
     {
       nombre: "CADAM / DNRA",
       detalle: cobertura.snapshot
-        ? `Snapshot ${cobertura.snapshot} · matriculaciones hasta ${
+        ? `Datos hasta ${etiquetaCorte(cobertura.snapshot)} · matriculaciones hasta ${
             cobertura.matriculacion.ultimo
               ? `${cobertura.matriculacion.ultimo.anio}-${String(cobertura.matriculacion.ultimo.mes).padStart(2, "0")}`
               : "—"
@@ -261,7 +261,8 @@ export default async function EstadoDatosPage() {
         <Card>
           <CardContent className="flex flex-col gap-3 text-sm">
             <p className="text-muted-foreground">
-              Todas las fuentes se actualizan solas desde los cron de Hermes, que
+              Todas las fuentes se actualizan solas desde los trabajos programados de Hermes
+          —el robot que corre las cargas—, que
               corren en la máquina de Croman —no en este servidor— porque es
               donde están las credenciales de CADAM, Cars, Bitrix y Meta. El
               tablero es el consumidor: nunca sale a buscar nada por su cuenta.

@@ -1472,7 +1472,7 @@ export default async function OperacionPage({
         cuentan como demanda perdida: nunca fueron un comprador. La marca de
         interés está cargada en dos de cada tres leads; cuando falta, se lee
         del título. Bitrix reclasifica hacia atrás, así que estas cifras
-        cambian con cada push
+        cambian en cada actualización
         {demandaFecha ? ` (último: ${formatFechaHora(demandaFecha)})` : ""}.
       </NotaDato>
       </>
@@ -1747,8 +1747,8 @@ export default async function OperacionPage({
             <p className="text-xs text-muted-foreground">
               Flotas y ventas de gerencia. Es otro negocio: no compite con los
               asesores retail y por eso no está en el ranking. La lista de
-              quiénes son mayoristas se edita en{" "}
-              <code>parametros.json</code> (<code>asesores_mayoristas</code>).
+              quiénes son mayoristas la mantiene Sistemas: hoy son Ventas
+              Gerencia, Ventas Gerencia Externa y Eduardo Vigorito.
             </p>
           </CardHeader>
           <CardContent>

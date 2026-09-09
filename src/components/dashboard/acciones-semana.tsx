@@ -179,7 +179,7 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
               ? "Todas las marcas al ritmo del plan."
               : hayPresupuestoCargado
                 ? "Hay presupuesto cargado pero Cars no respondió: sin facturas no hay ritmo que comparar."
-                : "Sin presupuesto cargado: lo carga Hermes desde el Excel de Finanzas."
+                : "Sin presupuesto cargado: se lee solo del Excel de Finanzas, una vez por hora."
           }
           frase={
             presupuesto

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { etiquetaCorte } from "@/lib/periodo";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,10 +23,10 @@ export default function CalidadDatosPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         titulo="Calidad de datos"
-        descripcion="Todo lo que el pipeline detectó al cargar los archivos: controles cruzados contra el informe oficial de CADAM, huecos, ambigüedades y valores sin clasificar."
+        descripcion="Todo lo que se detectó al cargar los archivos: controles cruzados contra el informe oficial de CADAM, huecos, ambigüedades y valores sin clasificar."
         fuente={
           cobertura.snapshot
-            ? `Snapshot ${cobertura.snapshot} · cargado ${cobertura.fechaIngesta ?? "—"}.`
+            ? `Datos hasta ${etiquetaCorte(cobertura.snapshot)} · cargados el ${cobertura.fechaIngesta ?? "—"}.`
             : "Todavía no hay ninguna carga registrada."
         }
       />
@@ -41,7 +42,7 @@ export default function CalidadDatosPage() {
           <CardHeader>
             <CardTitle>Validación contra el informe oficial de CADAM</CardTitle>
             <p className="text-xs text-muted-foreground">
-              El control más fuerte del pipeline: los datos fila por fila tienen
+              El control más fuerte que tenemos: los datos fila por fila tienen
               que reproducir exactamente los totales que CADAM publica en su
               informe. Se comparan solo los meses que están en las dos fuentes.
             </p>
@@ -117,7 +118,7 @@ export default function CalidadDatosPage() {
                       <Badge variant="outline" className="shrink-0 font-normal">{a.tipo}</Badge>
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Snapshot {a.snapshot} · {a.fecha_ingesta}</span>
+                      <span>Datos de {etiquetaCorte(a.snapshot)} · cargado {a.fecha_ingesta}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
                       <span>{formatUnidades(a.filas_leidas)} leídas</span>

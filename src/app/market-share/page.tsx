@@ -9,7 +9,7 @@ import {
   TECNOLOGIAS, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 
 const DIMENSIONES = {
   marca: { label: "Marca", col: "marca" },
@@ -80,7 +80,7 @@ export default async function MarketSharePage({
       <PageHeader
         titulo="Market Share"
         descripcion={`Participación por ${DIMENSIONES[dimEfectiva].label.toLowerCase()} sobre ${etiquetaFuente} · ${periodo} vs. ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       <SelectorDimension
@@ -161,12 +161,11 @@ export default async function MarketSharePage({
       </Card>
 
       <NotaDato>
-        La spec pide también market share por <strong>fabricante</strong> y{" "}
-        <strong>país de origen</strong>. Ninguno de los dos está en las fuentes
-        row-level: el campo <code>ORIGEN</code> de la base de importación es solo
-        un indicador <code>CHINA</code>/<code>OTROS</code>, no el país. El país
-        real aparece únicamente en el Cuadro 12 del informe de matriculación, y
-        solo acumulado por año.
+        Falta el market share por <strong>fabricante</strong> y por{" "}
+        <strong>país de origen</strong>. Ninguno de los dos viene en el detalle
+        por vehículo: la base de importación solo marca si es de China o no, no
+        el país. El país real aparece únicamente en el Cuadro 12 del informe de
+        matriculación, y solo acumulado por año.
       </NotaDato>
     </div>
   );

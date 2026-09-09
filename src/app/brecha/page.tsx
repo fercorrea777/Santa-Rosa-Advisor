@@ -15,8 +15,7 @@ import {
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { formatUnidades } from "@/lib/format";
 import {
-  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams,
-} from "@/lib/periodo";
+  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 
 export default async function BrechaPage({
   searchParams,
@@ -71,7 +70,7 @@ export default async function BrechaPage({
       <PageHeader
         titulo="Importaciones vs. matriculaciones"
         descripcion={`Brecha entre lo que entra al país y lo que se patenta · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       <FiltroPeriodo anios={cobertura.matriculacion.anios} mesMaximoPorAnio={mesMax} />

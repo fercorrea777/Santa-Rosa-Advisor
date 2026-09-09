@@ -262,7 +262,7 @@ export default async function BubbleChartPage({
               que ellos eligieron, con precio de lista, medidas y volumen. Cada hoja tiene su
               propio período, que se muestra arriba del gráfico: no todas están al mismo mes.
               Nada se cruza con CADAM ni con Datacar acá: se dibuja lo que dice el Excel, y
-              cuando el Excel cambia, Hermes lo vuelve a cargar.
+              cuando el Excel cambia, se vuelve a cargar solo.
             </NotaDato>
             <BatallaModeloChart modelos={batalla.modelos} propias={[...propiasSet]} />
           </>
@@ -374,7 +374,7 @@ export default async function BubbleChartPage({
               nuestra gama: por eso acá están nuestras marcas y no el mercado
               entero. CADAM no trae importes, así que no hay precio de
               competencia a nivel versión en ninguna fuente que tengamos —
-              lo público de la competencia vive en el benchmark de Hermes, que
+              lo público de la competencia sale del relevamiento de precios, que
               cubre pocos modelos. El <strong>segmento</strong> tampoco está en
               Cars: se cruza contra el nombre de la versión en CADAM, y lo que no
               cruza va a «Sin clasificar» en vez de adivinarse

@@ -14,7 +14,7 @@ import {
   getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getParametros } from "@/lib/cadam/config";
-import { aniosDeSerie, etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { aniosDeSerie, etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { serieAAnios } from "@/lib/serie";
 
@@ -112,7 +112,7 @@ export default async function MercadoPage({
       <PageHeader
         titulo="Resumen del mercado"
         descripcion={`Analizando ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       {/* El sticky va acá y no en FiltroPeriodo (de ahí el pegajoso={false}):

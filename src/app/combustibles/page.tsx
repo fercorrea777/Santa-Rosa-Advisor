@@ -21,7 +21,7 @@ import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 export default async function CombustiblesPage({
@@ -126,7 +126,7 @@ export default async function CombustiblesPage({
       <PageHeader
         titulo="Combustibles y tecnologías"
         descripcion={`Adopción por tecnología de propulsión sobre matriculaciones · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · snapshot ${cobertura.snapshot ?? "—"}.`}
+        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       <FiltroPeriodo

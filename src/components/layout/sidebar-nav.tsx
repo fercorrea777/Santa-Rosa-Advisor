@@ -103,7 +103,7 @@ export function SidebarNav({
                       key={item.href}
                       href={item.href}
                       onClick={onNavigate}
-                      title={item.label}
+                      title={item.pista ? `${item.label} — ${item.pista}` : item.label}
                       style={active ? undefined : { color: "var(--barra-muted)" }}
                       className={cn(
                         // apple-design §1: feedback de press instantáneo
