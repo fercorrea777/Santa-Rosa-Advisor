@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { Seccion } from "@/components/dashboard/seccion";
@@ -658,6 +659,7 @@ function Casillero({ l, tipo }: { l: LecturaCasillero; tipo: "entrar" | "defende
 function LineaRival({ r, caja }: { r: Rival; caja: "AT" | "MT" | null }) {
   return (
     <span className={cn("block", caja && r.mismaCaja === false && "opacity-60")}>
+      <LogoMarca marca={r.marca} className="mr-1.5 align-middle" />
       <span className={cn(r.mismaBanda ? "font-semibold" : "font-medium")}>{r.marca} {r.modelo}</span>{" "}
       <span className="text-muted-foreground">
         · {formatUnidades(r.unidades)} u.

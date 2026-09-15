@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Marca } from "@/components/dashboard/logo-marca";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
@@ -273,7 +274,7 @@ export default async function CombustiblesPage({
                               propias.has(m.marca) && "font-semibold text-primary"
                             )}
                           >
-                            {m.marca}
+                            <Marca marca={m.marca} />
                           </span>
                         </span>
                         <span className="shrink-0 tabular-nums text-muted-foreground">

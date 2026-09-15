@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Marca } from "@/components/dashboard/logo-marca";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
@@ -426,7 +427,7 @@ function MoviminetoCard({
               const delta = m.unidades - m.unidadesAnterior;
               return (
                 <li key={m.marca} className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="font-medium">{m.marca}</span>
+                  <Marca marca={m.marca} claseNombre="font-medium" />
                   <span className="flex items-baseline gap-3 tabular-nums">
                     <span className={positivo ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
                       {delta > 0 ? "+" : ""}{formatUnidades(delta)} u.

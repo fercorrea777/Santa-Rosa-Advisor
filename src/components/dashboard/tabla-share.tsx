@@ -5,6 +5,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { cn } from "@/lib/utils";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import type { FilaDimension } from "@/lib/cadam/mercado";
@@ -22,11 +23,15 @@ export interface FilaShare extends FilaDimension {
 export function TablaShare({
   filas,
   etiqueta,
+  logos = false,
   anioAnterior,
   nombreArchivo = "market-share",
 }: {
   filas: FilaShare[];
   etiqueta: string;
+  /** Poner el logo al lado de cada fila. Solo cuando la dimensión es la
+   *  marca: un segmento o una tecnología no tienen logo. */
+  logos?: boolean;
   anioAnterior: number;
   nombreArchivo?: string;
 }) {
@@ -183,6 +188,7 @@ export function TablaShare({
                           ⚠
                         </span>
                       )}
+                      {logos && <LogoMarca marca={f.valor} />}
                       {f.valor}
                       {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
                     </span>

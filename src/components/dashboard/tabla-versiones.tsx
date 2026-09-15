@@ -3,6 +3,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Marca } from "@/components/dashboard/logo-marca";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import type { FilaRanking } from "@/lib/cadam/mercado";
 
@@ -86,9 +87,10 @@ export function TablaVersiones({
                   {f.modelo ?? "—"}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">
-                  <span className={cn(f.esPropia && "font-semibold text-primary")}>
-                    {f.marca}
-                  </span>
+                  <Marca
+                    marca={f.marca}
+                    claseNombre={cn(f.esPropia && "font-semibold text-primary")}
+                  />
                   {f.esPropia && (
                     <Badge variant="outline" className="ml-1.5 text-[10px] font-normal">
                       propia

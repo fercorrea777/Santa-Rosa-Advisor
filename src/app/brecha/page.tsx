@@ -8,6 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { cn } from "@/lib/utils";
 import {
   getBrecha, getCobertura, getMarcasMatriculacionLivianos, getRankingMarcas,
@@ -256,6 +257,7 @@ function TablaBrechaMarcas({
                 r.esPropia && "-mx-3 rounded-md bg-primary/5 px-3")}
             >
               <span className="inline-flex min-w-0 items-center gap-2">
+                <LogoMarca marca={r.marca} />
                 <span className="truncate font-medium">{r.marca}</span>
                 {r.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propia</Badge>}
               </span>
@@ -285,6 +287,7 @@ function TablaBrechaMarcas({
                 <TableRow key={r.marca} className={r.esPropia ? "bg-primary/5" : undefined}>
                   <TableCell className="font-medium">
                     <span className="inline-flex items-center gap-2">
+                      <LogoMarca marca={r.marca} />
                       {r.marca}
                       {r.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
                     </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -74,6 +75,7 @@ export function BatallaModeloChart({
                     : "bg-background text-muted-foreground hover:text-foreground"
                 )}
               >
+                <LogoMarca marca={marca} className="mr-2 align-middle" />
                 {marca}
                 <span className={cn("ml-1.5 text-xs font-normal", activa ? "opacity-80" : "text-muted-foreground")}>
                   {n}
@@ -350,6 +352,7 @@ function Batalla({
                 className="inline-block h-2.5 w-2.5 rounded-full"
                 style={{ background: colorDe(marca), opacity: activa ? 1 : 0.35 }}
               />
+              <LogoMarca marca={marca} />
               {marca}
               {propia && <span className="text-[10px] text-primary">nuestra</span>}
             </button>
@@ -429,6 +432,7 @@ function Batalla({
                         className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full align-middle"
                         style={{ background: colorDe(v.marca) }}
                       />
+                      <LogoMarca marca={v.marca} className="mr-1.5 align-middle" />
                       {v.marca}
                     </TableCell>
                     <TableCell className="text-xs">{v.version}</TableCell>

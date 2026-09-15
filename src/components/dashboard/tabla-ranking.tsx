@@ -6,6 +6,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { cn } from "@/lib/utils";
 import { formatPct, formatUnidades } from "@/lib/format";
@@ -235,6 +236,7 @@ export function TablaRanking({
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                   {f.posicion}
                 </span>
+                <LogoMarca marca={f.marca} />
                 <span className="min-w-0 truncate font-medium">
                   <Filtrable
                     param={filtrarPor?.marca}
@@ -314,6 +316,7 @@ export function TablaRanking({
                 <TableCell className="tabular-nums text-muted-foreground">{f.posicion}</TableCell>
                 <TableCell className="font-medium">
                   <span className="inline-flex items-center gap-2">
+                    <LogoMarca marca={f.marca} />
                     <Filtrable
                       param={filtrarPor?.marca}
                       valor={f.marca}

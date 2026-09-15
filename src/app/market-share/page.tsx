@@ -130,6 +130,7 @@ export default async function MarketSharePage({
           <TablaShare
             filas={filas}
             etiqueta={DIMENSIONES[dimEfectiva].label}
+            logos={dimEfectiva === "marca"}
             anioAnterior={f.anio - 1}
             nombreArchivo={`market-share-${dimEfectiva}-${fuente}-${f.anio}`}
           />

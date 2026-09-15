@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Marca } from "@/components/dashboard/logo-marca";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
@@ -227,7 +228,7 @@ export default async function GamaPropiaPage({
                   <TableBody>
                     {sinPrecio.slice(0, 30).map((d) => (
                       <TableRow key={`${d.marca}-${d.modelo}`}>
-                        <TableCell>{d.marca}</TableCell>
+                        <TableCell><Marca marca={d.marca} /></TableCell>
                         <TableCell>{d.modelo}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatUnidades(d.unidades)}

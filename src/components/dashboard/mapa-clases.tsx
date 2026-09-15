@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { Dialog } from "@base-ui/react/dialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -431,7 +432,8 @@ function DetalleCasillero({
                       <TableRow key={`${m.marca}|${m.modelo}`} className={cn(m.esPropia && "bg-primary/5")}>
                         <TableCell>
                           <span className={cn("font-medium", m.esPropia && "text-primary")}>{m.modelo}</span>
-                          <span className="block text-xs text-muted-foreground">
+                          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <LogoMarca marca={m.marca} />
                             {m.marca}
                             {m.esPropia ? " · nuestra" : ""}
                           </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
+import { LogoMarca } from "@/components/dashboard/logo-marca";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -65,7 +66,8 @@ export function DetalleModeloDialog({
                     <Dialog.Title className="text-lg font-semibold">
                       {version ? version.nombre : d.modelo}
                     </Dialog.Title>
-                    <Dialog.Description className="text-xs text-muted-foreground">
+                    <Dialog.Description className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <LogoMarca marca={d.marca} />
                       {d.marca} · {d.clase}
                       {d.claseInferida ? " (clase por precio)" : ""}
                       {version?.familia ? ` · familia ${version.familia}` : ""}
@@ -158,7 +160,8 @@ export function DetalleModeloDialog({
                           <TableRow key={`${c.marca}|${c.modelo}`} className={cn(c.esPropia && "bg-primary/5")}>
                             <TableCell>
                               <span className={cn("font-medium", c.esPropia && "text-primary")}>{c.modelo}</span>
-                              <span className="block text-xs text-muted-foreground">
+                              <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <LogoMarca marca={c.marca} />
                                 {c.marca}
                                 {c.esPropia ? " · nuestra" : ""}
                               </span>

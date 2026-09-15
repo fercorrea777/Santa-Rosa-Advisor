@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LogoMarca, Marca } from "@/components/dashboard/logo-marca";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
@@ -815,7 +816,10 @@ export default async function OperacionPage({
                     <TableRow key={`${v.marca}|${v.version}`}>
                       <TableCell>
                         <span className="font-medium">{v.version}</span>
-                        <span className="block text-xs text-muted-foreground">{v.marca}</span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <LogoMarca marca={v.marca} />
+                          {v.marca}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)} /mes</TableCell>
                       <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
@@ -863,7 +867,10 @@ export default async function OperacionPage({
                     <TableRow key={`${v.marca}|${v.version}`}>
                       <TableCell>
                         <span className="font-medium">{v.version}</span>
-                        <span className="block text-xs text-muted-foreground">{v.marca}</span>
+                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <LogoMarca marca={v.marca} />
+                          {v.marca}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
                       <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)} /mes</TableCell>
@@ -907,7 +914,7 @@ export default async function OperacionPage({
             <TableBody>
               {versionesTabla.map((v) => (
                 <TableRow key={`${v.marca}|${v.version}`}>
-                  <TableCell className="font-medium">{v.marca}</TableCell>
+                  <TableCell className="font-medium"><Marca marca={v.marca} /></TableCell>
                   <TableCell>{v.version}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -1053,7 +1060,10 @@ export default async function OperacionPage({
               {filas.map((r) => (
                 <TableRow key={r.clave}>
                   <TableCell className="font-medium">
-                    {r.etiqueta}
+                    <span className="inline-flex items-center gap-2">
+                      {r.marcas.map((m) => <LogoMarca key={m} marca={m} />)}
+                      {r.etiqueta}
+                    </span>
                     {r.esGrupo && (
                       <span className="block text-[11px] font-normal text-muted-foreground">
                         meta conjunta: así la presupuesta Finanzas
@@ -1360,7 +1370,9 @@ export default async function OperacionPage({
                 mayorista: unidadesMayoristas,
               }].map((r, i) => (
                 <TableRow key={r.marca} className={cn(i === filasDemandaMarca.length && "font-medium")}>
-                  <TableCell className="font-medium">{r.marca}</TableCell>
+                  <TableCell className="font-medium">
+                    {r.marca === "Total" ? r.marca : <Marca marca={r.marca} />}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatUnidades(r.leads)}
                     {r.descartados > 0 && (
@@ -1428,7 +1440,10 @@ export default async function OperacionPage({
                   <TableRow key={`${r.marca}|${r.modelo}`}>
                     <TableCell>
                       <span className="font-medium">{r.modelo}</span>
-                      <span className="block text-xs text-muted-foreground">{r.marca}</span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <LogoMarca marca={r.marca} />
+                        {r.marca}
+                      </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatUnidades(r.leads + r.negocios)}
@@ -1527,7 +1542,7 @@ export default async function OperacionPage({
                 .slice(0, 25)
                 .map((m) => (
                   <TableRow key={`${m.marca}|${m.modelo}`}>
-                    <TableCell className="font-medium">{m.marca}</TableCell>
+                    <TableCell className="font-medium"><Marca marca={m.marca} /></TableCell>
                     <TableCell>{m.modelo}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatUnidades(m.unidades)}
@@ -1721,7 +1736,7 @@ export default async function OperacionPage({
               <TableBody>
                 {mejorPorMarca.map((m) => (
                   <TableRow key={m.marca}>
-                    <TableCell className="font-medium">{m.marca}</TableCell>
+                    <TableCell className="font-medium"><Marca marca={m.marca} /></TableCell>
                     <TableCell
                       className={cn(noEsPersona(m.mejorNombre) && "italic text-muted-foreground")}
                       title={noEsPersona(m.mejorNombre) ? "No es una persona: bucket interno de Cars." : undefined}
