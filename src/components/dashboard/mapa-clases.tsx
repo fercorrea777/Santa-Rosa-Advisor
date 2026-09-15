@@ -80,12 +80,15 @@ export function MapaClases({
   nombreColumna,
   /** Para la frase del detalle: "Ene–Jul 2026". */
   periodo,
+  fuente = "matriculacion",
 }: {
   filas: string[];
   columnas: ColumnaMapa[];
   celdas: CeldaMapa[];
   nombreColumna: string;
   periodo: string;
+  /** De qué base salen las unidades: lo dice la frase del detalle. */
+  fuente?: "matriculacion" | "importacion";
 }) {
   const [abierto, setAbierto] = useState<CeldaMapa | null>(null);
 
@@ -218,6 +221,7 @@ export function MapaClases({
         pesoPropio={abierto && totalPropias ? abierto.propias / totalPropias : 0}
         nombreColumna={nombreColumna}
         periodo={periodo}
+        fuente={fuente}
         onClose={() => setAbierto(null)}
       />
     </div>
@@ -262,6 +266,7 @@ function DetalleCasillero({
   pesoPropio,
   nombreColumna,
   periodo,
+  fuente,
   onClose,
 }: {
   celda: CeldaMapa | null;
@@ -271,6 +276,7 @@ function DetalleCasillero({
   pesoPropio: number;
   nombreColumna: string;
   periodo: string;
+  fuente: "matriculacion" | "importacion";
   onClose: () => void;
 }) {
   const share = celda && celda.mercado ? celda.propias / celda.mercado : 0;
@@ -455,8 +461,8 @@ function DetalleCasillero({
                 {propios.length === 0
                   ? "No tenemos ningún modelo con ventas en este casillero."
                   : `Nuestros modelos acá: ${propios.map((m) => m.modelo).join(", ")}.`}{" "}
-                {rivales.length} {rivales.length === 1 ? "rival" : "rivales"} con ventas. Unidades:
-                matriculaciones de CADAM del período. Precios: los nuestros del stock de Cars, los de la
+                {rivales.length} {rivales.length === 1 ? "rival" : "rivales"} con unidades. Unidades:
+                {fuente === "importacion" ? " importaciones" : " matriculaciones"} de CADAM del período. Precios: los nuestros del stock de Cars, los de la
                 competencia del catálogo de Datacar — no es lista oficial, y lo que no tiene precio no se
                 adivina.
               </p>

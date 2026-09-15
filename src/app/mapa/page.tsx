@@ -3,12 +3,14 @@ import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
+import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { Seccion } from "@/components/dashboard/seccion";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
   getCobertura, getModelosPorTecnologia, getPorDimension, getRankingModelos, TECNOLOGIAS,
+  type Fuente,
 } from "@/lib/cadam/mercado";
 import {
   armarMapa, asignarPrecios, BANDAS, etiquetaBanda, lecturaCasillero, PESO_PROPIO, PESO_RELEVANTE,
@@ -21,7 +23,7 @@ import { SIN_DATO_TECNOLOGIA } from "@/lib/informes/segmento-version";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { formatFecha, formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,26 +54,39 @@ export default async function MapaPage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
+  // Fuente de las unidades (Croman, 15/09/2026: "el mismo selector en Dónde
+  // competir"). Con importación, el mapa de precios y los rivales se arman
+  // con lo que entró al país hasta su propio último mes; el mapa por
+  // motorización no existe, porque la base de importación no la trae.
+  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
+  const esImportacion = fuente === "importacion";
+  const nombreFuente = esImportacion ? "importaciones" : "matriculaciones";
+  const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
   const mesMax: Record<number, number> = {};
-  for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio ? cobertura.matriculacion.ultimo.mes : 12;
+  for (const a of cobertura[fuente].anios) {
+    mesMax[a] = a === cobertura[fuente].ultimo?.anio ? cobertura[fuente].ultimo.mes : 12;
   }
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
+  const aclaracion = desparejas && ultMat && ultImp
+    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
+    : undefined;
   const rango = { anio: f.anio, mesDesde: f.mesDesde, mesHasta: f.mesHasta };
   // La clase es un param propio de esta pantalla (no está en filtroDesdeUrl).
   const claseFiltro = typeof sp.clase === "string" && sp.clase && sp.clase !== "todos" ? sp.clase : undefined;
 
   // Opciones del filtro de tipo: todos los tipos del período. No se le
   // aplica el filtro de tipo, si no la lista se reduciría a lo elegido.
-  const opcionesSegmento = getPorDimension("matriculacion", "segmento", { ...rango, tecnologia: f.tecnologia })
+  const opcionesSegmento = getPorDimension(fuente, "segmento", { ...rango, tecnologia: f.tecnologia })
     .map((d) => d.valor);
 
   // Unidades: CADAM, todas las marcas. Sin filtro de marca: el mapa es el
   // mercado entero. Tipo y motorización sí se respetan, para mirar solo las
   // pick-ups o solo los enchufables.
   const modelos = getRankingModelos(
-    "matriculacion",
+    fuente,
     { ...rango, segmento: f.segmento, tecnologia: f.tecnologia },
     3000
   );
@@ -161,7 +176,8 @@ export default async function MapaPage({
   // precio ya cruzado, para que la inferencia coincida).
   const clasePorModelo = new Map(conTodo.map((m) => [`${m.marca}|${m.modelo}`, m.clase]));
   const precioPorModelo = new Map(conTodo.map((m) => [`${m.marca}|${m.modelo}`, m.precio]));
-  const filasTec = getModelosPorTecnologia({ ...rango, segmento: f.segmento });
+  // Solo matriculación: la base de importación no trae motorización.
+  const filasTec = esImportacion ? [] : getModelosPorTecnologia({ ...rango, segmento: f.segmento });
   type CeldaTec = { mercado: number; propias: number; modelos: ModeloConBanda[] };
   const tecPorClase = new Map<string, Map<string, CeldaTec>>();
   const totalTecClase = new Map<string, number>();
@@ -235,21 +251,32 @@ export default async function MapaPage({
     <Pagina>
       <PageHeader
         titulo="Dónde competir"
-        descripcion={`El mercado por clase de vehículo, banda de precio y motorización, cuánto de cada casillero es nuestro y contra quién compite cada modelo · ${periodo}${recorte ? ` · ${recorte}` : ""}.`}
+        descripcion={`El mercado por clase de vehículo, banda de precio${esImportacion ? "" : " y motorización"}, cuánto de cada casillero es nuestro y contra quién compite cada modelo · ${nombreFuente} ${periodo}${recorte ? ` · ${recorte}` : ""}.`}
         fuente={`Fuente: CADAM (unidades y motorización) · Cars (nuestros precios) · Datacar (precios de la competencia, catálogo de terceros${
           fechaCompetencia ? `, relevado el ${formatFecha(fechaCompetencia)}` : ""
         }) · clases de vehículo: catálogo propio.`}
       />
 
-      <FiltroPeriodo
-        anios={cobertura.matriculacion.anios}
-        mesMaximoPorAnio={mesMax}
-        opciones={[
-          { param: "segmento", label: "Tipo de vehículo", valores: opcionesSegmento },
-          { param: "clase", label: "Clase", valores: opcionesClase },
-          { param: "tecnologia", label: "Motorización", valores: [...TECNOLOGIAS] },
-        ]}
-      />
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente fuente={fuente} porDefecto="matriculacion" aclaracion={aclaracion} />
+        <div className="min-w-0 sm:flex-1">
+          <FiltroPeriodo
+            pegajoso={false}
+            anios={cobertura[fuente].anios}
+            mesMaximoPorAnio={mesMax}
+            opciones={[
+              { param: "segmento", label: "Tipo de vehículo", valores: opcionesSegmento },
+              { param: "clase", label: "Clase", valores: opcionesClase },
+              ...(esImportacion
+                ? []
+                : [{ param: "tecnologia", label: "Motorización", valores: [...TECNOLOGIAS] }]),
+            ]}
+          />
+        </div>
+      </div>
 
       <NotaDato>
         <strong>Qué es una clase.</strong> CADAM solo distingue SUV, pick-up,
@@ -301,7 +328,7 @@ export default async function MapaPage({
         </CardHeader>
         <CardContent>
           {clasesMapa.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Sin matriculaciones en este recorte.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">Sin {nombreFuente} en este recorte.</p>
           ) : (
             <MapaClases
               filas={clasesMapa}
@@ -309,11 +336,19 @@ export default async function MapaPage({
               celdas={celdasBanda}
               nombreColumna="banda de precio"
               periodo={periodo}
+              fuente={fuente}
             />
           )}
         </CardContent>
       </Card>
 
+      {esImportacion ? (
+        <NotaDato>
+          <strong>El mapa por motorización solo existe en matriculación.</strong> La
+          base de importación de CADAM no dice si el vehículo es híbrido o
+          eléctrico; con «Matriculaciones» vuelve a aparecer.
+        </NotaDato>
+      ) : (
       <Card>
         <CardHeader>
           <CardTitle>Mercado por clase y motorización — {periodo}</CardTitle>
@@ -339,6 +374,7 @@ export default async function MapaPage({
           )}
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -423,7 +459,9 @@ export default async function MapaPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Nuestro modelo</TableHead>
-                  <TableHead className="text-right" nota="matriculados en el período">Vendidos</TableHead>
+                  <TableHead className="text-right" nota={`${esImportacion ? "importados" : "matriculados"} en el período`}>
+                    {esImportacion ? "Importados" : "Vendidos"}
+                  </TableHead>
                   <TableHead className="text-right" nota="el más barato de la gama">Precio</TableHead>
                   <TableHead nota="los que se le cruzan al cliente en el salón">
                     Rivales de su clase (unidades · precio desde, MT y AT · motorización)
@@ -531,7 +569,9 @@ export default async function MapaPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Nuestro modelo</TableHead>
-                  <TableHead className="text-right" nota="matriculados en el período">Vendidos</TableHead>
+                  <TableHead className="text-right" nota={`${esImportacion ? "importados" : "matriculados"} en el período`}>
+                    {esImportacion ? "Importados" : "Vendidos"}
+                  </TableHead>
                   <TableHead className="text-right whitespace-nowrap" nota="con la caja que se compara">Nuestro precio (misma transmisión)</TableHead>
                   <TableHead className="text-right whitespace-nowrap" nota="el del medio de su clase">Mediana de su clase</TableHead>
                   <TableHead className="text-right" nota="más caro o barato que su clase">Diferencia</TableHead>
