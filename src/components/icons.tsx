@@ -141,6 +141,18 @@ export function IconGama(props: IconProps) {
   );
 }
 
+/** Renglones de distinto largo con su etiqueta: la gama de una marca,
+ *  modelo por modelo, con el precio al lado. */
+export function IconPortafolio(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6h10M4 12h14M4 18h7" />
+      <path d="M17 5.5h3v3l-2.5 2.5" />
+      <circle cx="18.5" cy="7" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /** Burbujas de distinto tamaño: el gráfico de posicionamiento. */
 export function IconBubble(props: IconProps) {
   return (

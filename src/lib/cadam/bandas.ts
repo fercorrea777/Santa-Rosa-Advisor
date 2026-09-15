@@ -94,6 +94,13 @@ export interface ModeloConBanda {
    *  ninguna versión con precio dice su transmisión. */
   precioMT: number | null;
   precioAT: number | null;
+  /** El "hasta": la versión más cara del MISMO modelo (las que llevan todas
+   *  las palabras del nombre de CADAM y ninguna que sea de un hermano de
+   *  familia — "COROLLA" no se lleva las versiones de "COROLLA CROSS").
+   *  Con `precio` arma el rango de lista del modelo. null sin precio. */
+  precioHasta: number | null;
+  /** Cuántas versiones con precio entraron en ese rango. */
+  versionesConPrecio: number;
   /** De dónde salió el precio: "cars", "datacar"... o null. */
   fuentePrecio: string | null;
   banda: string;
@@ -164,6 +171,21 @@ export function asignarPrecios(
     }
   }
 
+  // Hermanos de familia: para cada marca y primera palabra, las segundas
+  // palabras con las que CADAM distingue modelos ("COROLLA" / "COROLLA
+  // CROSS" → CROSS). Sirven para que el rango de precio de "COROLLA" no se
+  // lleve las versiones de la Cross.
+  const hermanos = new Map<string, Set<string>>();
+  for (const m of modelos) {
+    const marca = normalizar(m.marca);
+    const tm = tokens(nombreParaCruce(m.modelo ?? "", marca));
+    if (tm.length < 2) continue;
+    const k = `${marca}|${tm[0]}`;
+    const s = hermanos.get(k) ?? new Set<string>();
+    s.add(tm[1]);
+    hermanos.set(k, s);
+  }
+
   return modelos.map((m) => {
     const marca = normalizar(m.marca);
     const nombre = nombreParaCruce(m.modelo ?? "", marca);
@@ -204,6 +226,22 @@ export function asignarPrecios(
         .reduce<number | null>((min, c) => (min === null || c.precio < min ? c.precio : min), null);
     const precioMT = masBarato("MT");
     const precioAT = masBarato("AT");
+    // Rango del modelo: versiones que llevan todas las palabras del nombre
+    // y ninguna de un hermano. Si el nombre de CADAM es una sola palabra
+    // ("COROLLA"), las palabras de sus hermanos ("CROSS") lo excluyen.
+    const tmNombre = tokens(nombre);
+    const ajenas = new Set<string>();
+    for (const h of hermanos.get(`${marca}|${tmNombre[0]}`) ?? []) {
+      if (!tmNombre.includes(h)) ajenas.add(h);
+    }
+    const delModelo = elegido
+      ? familia.filter(
+          (c) => tmNombre.every((t) => c.tokens.includes(t)) && !c.tokens.some((t) => ajenas.has(t))
+        )
+      : [];
+    const precioHasta = delModelo.length
+      ? Math.max(precio ?? 0, ...delModelo.map((c) => c.precio))
+      : precio;
     const segmento = m.segmento ?? "";
     const clase = claseDe({ marca: m.marca, modelo: m.modelo ?? m.marca, segmento, precio });
     return {
@@ -219,6 +257,8 @@ export function asignarPrecios(
       precio,
       precioMT,
       precioAT,
+      precioHasta,
+      versionesConPrecio: delModelo.length,
       fuentePrecio: elegido?.fuente ?? null,
       banda: bandaDe(precio),
       deltaShare: m.deltaShare,

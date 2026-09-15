@@ -512,6 +512,19 @@ export function getRankingVersiones(f: Filtro, limite = 300): FilaRanking[] {
   return rankingPorColumna("matriculacion", "modelo", f, limite);
 }
 
+/** Cuántas versiones distintas (texto de la DNRA) registró cada modelo en
+ *  el período. Solo matriculación: importación no baja a versión. */
+export function getVersionesPorModelo(f: Filtro): Map<string, number> {
+  const w = where("matriculacion", f);
+  const filas = getDb()
+    .prepare(
+      `SELECT modelo_base modelo, COUNT(DISTINCT modelo) n FROM v_matriculacion
+       WHERE ${w.sql} GROUP BY modelo_base`
+    )
+    .all(...w.args) as { modelo: string; n: number }[];
+  return new Map(filas.map((r) => [r.modelo, r.n]));
+}
+
 // -------------------------------------------------------- cortes por dimension
 
 export interface FilaDimension {

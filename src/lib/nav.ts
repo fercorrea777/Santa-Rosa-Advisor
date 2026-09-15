@@ -2,7 +2,7 @@
 export type IconoNav =
   | "inicio" | "mercado" | "evolucion" | "rankings" | "segmentos"
   | "combustibles" | "localidades" | "market-share" | "brecha" | "bubble" | "gama"
-  | "operacion"
+  | "portafolio" | "operacion"
   | "inteligencia" | "copiloto" | "cargas" | "calidad" | "configuracion";
 
 export interface NavItem {
@@ -59,6 +59,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/bubble-chart", label: "Bubble chart", icono: "bubble", implementado: true , pista: "El cuadro de producto: cada modelo contra sus rivales, por precio y por volumen." },
       { href: "/mapa", label: "Dónde competir", icono: "market-share", implementado: true , pista: "Contra quién compite cada modelo nuestro y si estamos caros o baratos frente a ellos." },
       { href: "/gama-propia", label: "Gama propia", icono: "gama", implementado: true , pista: "Nuestros modelos, su precio y cuánto vende cada uno. Tocá una burbuja para ver sus rivales." },
+      { href: "/portafolio", label: "Portafolio por marca", icono: "portafolio", implementado: true , pista: "La gama de cualquier marca, modelo por modelo: precio de lista, cuánto vende cada uno y qué hueco deja." },
       { href: "/operacion", label: "Nuestra operación", icono: "operacion", implementado: true , pista: "Lo nuestro: qué facturamos, qué stock hay, cómo vamos contra el presupuesto y quién vende." },
     ],
   },
