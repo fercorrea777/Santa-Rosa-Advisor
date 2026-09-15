@@ -13,7 +13,7 @@ import {
 } from "@/lib/cadam/bandas";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
-import { etiquetaCorte, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
 
 export default async function RankingsPage({
   searchParams,
@@ -88,7 +88,7 @@ export default async function RankingsPage({
       <PageHeader
         titulo="Rankings"
         descripcion={`Marcas y modelos, matriculación e importación · ${periodo}${matricRecorta ? ` (matriculación hasta ${mesCorto(fMat.mesHasta)})` : ""}.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
       <FiltroPeriodo

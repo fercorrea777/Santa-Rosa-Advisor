@@ -17,7 +17,7 @@ import {
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCortes } from "@/lib/periodo";
 
 export default async function SegmentosPage({
   searchParams,
@@ -60,7 +60,7 @@ export default async function SegmentosPage({
       <PageHeader
         titulo="Segmentos"
         descripcion={`Participación, evolución y liderazgo por segmento sobre matriculaciones · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
       <FiltroPeriodo

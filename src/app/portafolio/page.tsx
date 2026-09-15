@@ -5,12 +5,13 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
+import { SelectorFuente, type FuenteVista } from "@/components/dashboard/selector-fuente";
 import { Seccion } from "@/components/dashboard/seccion";
 import { EscaleraPreciosChart, type PeldanoPrecio } from "@/components/charts/escalera-precios-chart";
 import { TablaPortafolio, type FilaPortafolio } from "@/components/dashboard/tabla-portafolio";
 import {
   getCobertura, getKpi, getOpcionesFiltro, getRankingMarcas, getRankingModelos, getVersionesPorModelo,
-  totalUnidades,
+  totalUnidades, type Fuente,
 } from "@/lib/cadam/mercado";
 import { asignarPrecios, fichasDeModelos, type PrecioCandidato } from "@/lib/cadam/bandas";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
@@ -18,7 +19,9 @@ import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { tokens } from "@/lib/informes/segmento-version";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaCorte, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
+import {
+  etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams,
+} from "@/lib/periodo";
 
 /**
  * Portafolio por marca: la gama de UNA marca, modelo por modelo, con
@@ -27,11 +30,18 @@ import { etiquetaCorte, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchPa
  * precio". Gama propia hace esto para nuestras marcas desde Cars; esta
  * pantalla lo hace para cualquier marca del mercado.
  *
- * FUENTES. Modelos y unidades: CADAM (matriculación, y la importación
- * cruzada por nombre). Precios: CADAM no trae importes; los nuestros salen
- * del stock de Cars y los de la competencia del catálogo de Datacar que
- * releva Hermes. Un modelo sin precio en ninguna fuente se muestra igual,
- * con el precio vacío: la gama es la gama, tenga o no precio cargado.
+ * TRES VISTAS (Croman, 15/09/2026: "dame a elegir importaciones o
+ * matriculaciones o ambos"). La fuente PRINCIPAL define la lista de
+ * modelos, las unidades, el peso y la escalera; la otra va como columna
+ * cruzada por nombre. Cada fuente se mide hasta SU último mes publicado:
+ * la importación suele ir un mes adelante (el informe de CADAM llega antes
+ * que el detalle) y esconder ese mes era esconder el dato más nuevo.
+ *
+ * FUENTES. Modelos y unidades: CADAM. Precios: CADAM no trae importes; los
+ * nuestros salen del stock de Cars y los de la competencia del catálogo de
+ * Datacar (datacarpy.com) que releva Hermes. Un modelo sin precio en
+ * ninguna fuente se muestra igual, con el precio vacío: la gama es la gama,
+ * tenga o no precio cargado.
  */
 export default async function PortafolioPage({
   searchParams,
@@ -40,38 +50,65 @@ export default async function PortafolioPage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
-  const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
+  const vista: FuenteVista =
+    sp.fuente === "importacion" ? "importacion" : sp.fuente === "matriculacion" ? "matriculacion" : "ambas";
+  const principal: Fuente = vista === "importacion" ? "importacion" : "matriculacion";
+  const secundaria: Fuente | null =
+    vista === "ambas" ? "importacion" : vista === "importacion" ? "matriculacion" : null;
+  const nombreFuente: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
+
+  // El período lo manda la fuente principal; la otra se recorta o se estira
+  // a su propio último mes cuando la URL no fija el "hasta".
+  const f = filtroDesdeUrl(sp, cobertura[principal].ultimo);
   const opciones = getOpcionesFiltro();
   const propias = getMarcasPropiasSet();
+
+  const ventanaDe = (fuente: Fuente) => {
+    const ult = cobertura[fuente].ultimo;
+    if (!ult || f.anio !== ult.anio) return f;
+    if (sp.hasta) return f.mesHasta > ult.mes ? { ...f, mesHasta: Math.max(f.mesDesde, ult.mes) } : f;
+    return { ...f, mesHasta: Math.max(f.mesDesde, ult.mes) };
+  };
+  const fMat = ventanaDe("matriculacion");
+  const fImp = ventanaDe("importacion");
+  const periodoMat = etiquetaPeriodo(fMat.anio, fMat.mesDesde, fMat.mesHasta);
+  const periodoImp = etiquetaPeriodo(fImp.anio, fImp.mesDesde, fImp.mesHasta);
+  const fPrin = principal === "importacion" ? fImp : fMat;
+  const fSec = secundaria === "importacion" ? fImp : fMat;
+  const periodoPrin = principal === "importacion" ? periodoImp : periodoMat;
+  const periodoSec = secundaria === "importacion" ? periodoImp : periodoMat;
 
   // Sin marca en la URL, la propia que más vende EN EL PERÍODO: es nuestro
   // tablero y la primera pregunta es cómo está armada nuestra gama. El
   // desplegable ofrece todas, de más a menos unidades.
   const marca =
     (f.marca && opciones.marcas.includes(f.marca) ? f.marca : undefined) ??
-    getRankingMarcas("matriculacion", { ...f, marca: undefined }).find((m) => m.esPropia)?.marca ??
+    getRankingMarcas(principal, { ...fPrin, marca: undefined }).find((m) => m.esPropia)?.marca ??
     opciones.marcas[0];
-  const fm = { ...f, marca, modelo: undefined, version: undefined };
-  // La importación suele ir un mes adelante de la matriculación (el informe
-  // de CADAM llega antes que el detalle): lo importado se mide hasta su
-  // propio último mes y se rotula aparte, en vez de esconder ese mes.
-  const ultImp = cobertura.importacion.ultimo;
-  const impRecorta = !!ultImp && f.anio === ultImp.anio && !sp.hasta && ultImp.mes > f.mesHasta;
-  const fImp = impRecorta && ultImp ? { ...fm, mesHasta: ultImp.mes } : fm;
-  const periodoImp = etiquetaPeriodo(fImp.anio, fImp.mesDesde, fImp.mesHasta);
+  const conMarca = (x: typeof f) => ({ ...x, marca, modelo: undefined, version: undefined });
+  const fmPrin = conMarca(fPrin);
+  const fmSec = conMarca(fSec);
 
   const mesMax: Record<number, number> = {};
-  for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio ? cobertura.matriculacion.ultimo.mes : 12;
+  for (const a of cobertura[principal].anios) {
+    mesMax[a] = a === cobertura[principal].ultimo?.anio ? cobertura[principal].ultimo.mes : 12;
   }
 
-  // --- la gama: modelos matriculados, con su precio ------------------------
-  const modelos = getRankingModelos("matriculacion", fm, 300);
-  const kpiMat = getKpi("matriculacion", fm);
-  const kpiImp = getKpi("importacion", fImp);
-  const mercado = totalUnidades("matriculacion", { ...fm, marca: undefined });
-  const versionesPorModelo = getVersionesPorModelo(fm);
+  // Aclaración de hasta dónde llega cada fuente, al lado del selector.
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
+  const aclaracion = desparejas && ultMat && ultImp
+    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
+    : undefined;
+
+  // --- la gama: modelos de la fuente principal, con su precio ---------------
+  const modelos = getRankingModelos(principal, fmPrin, 300);
+  const kpiMat = getKpi("matriculacion", conMarca(fMat));
+  const kpiImp = getKpi("importacion", conMarca(fImp));
+  const kpiPrin = principal === "importacion" ? kpiImp : kpiMat;
+  const mercado = totalUnidades(principal, { ...fmPrin, marca: undefined });
+  const versionesPorModelo = principal === "matriculacion" ? getVersionesPorModelo(fmPrin) : null;
 
   let preciosPropios: PrecioCandidato[] = [];
   try {
@@ -90,31 +127,31 @@ export default async function PortafolioPage({
   const gama = asignarPrecios(modelos, listasPrecio);
 
   // Ficha de cada modelo (rivales de clase): se arma sobre el mercado
-  // entero, porque los rivales son de otras marcas.
+  // entero de la MISMA fuente, porque los rivales son de otras marcas y
+  // las dos bases escriben los modelos distinto.
   const universo = asignarPrecios(
-    getRankingModelos("matriculacion", { ...fm, marca: undefined }, 3000),
+    getRankingModelos(principal, { ...fmPrin, marca: undefined }, 3000),
     listasPrecio
   );
   const fichas = fichasDeModelos(universo);
 
-  // --- importación cruzada por nombre ---------------------------------------
+  // --- la otra fuente, cruzada por nombre ------------------------------------
   // Las dos bases escriben el modelo distinto ("COROLLA CROSS" en las dos,
-  // pero "HILUX" contra "HILUX D/C"…): se cruza por nombre normalizado y,
-  // si no, por el mismo conjunto de palabras. Lo que no cruza se informa
-  // como total aparte, no se inventa a qué modelo va.
-  const importados = getRankingModelos("importacion", fImp, 300);
+  // pero "HILUX" contra "HILUX D/C"…): se cruza por las mismas palabras. Lo
+  // que no cruza se informa como total aparte, no se inventa a qué modelo va.
+  const otros = secundaria ? getRankingModelos(secundaria, fmSec, 300) : [];
   const clave = (s: string) => tokens(s).join(" ");
-  const importPorClave = new Map<string, number>();
-  for (const i of importados) {
-    const k = clave(i.modelo ?? "");
-    importPorClave.set(k, (importPorClave.get(k) ?? 0) + i.unidades);
+  const otrosPorClave = new Map<string, number>();
+  for (const o of otros) {
+    const k = clave(o.modelo ?? "");
+    otrosPorClave.set(k, (otrosPorClave.get(k) ?? 0) + o.unidades);
   }
   const cruzadas = new Set<string>();
   const filas: FilaPortafolio[] = gama.map((m) => {
     const k = clave(m.modelo);
-    let importadas: number | null = null;
-    if (importPorClave.has(k)) {
-      importadas = importPorClave.get(k) ?? null;
+    let otras: number | null = null;
+    if (secundaria && otrosPorClave.has(k)) {
+      otras = otrosPorClave.get(k) ?? null;
       cruzadas.add(k);
     }
     return {
@@ -123,10 +160,10 @@ export default async function PortafolioPage({
       claseInferida: m.claseOrigen !== "catalogo",
       tecnologia: m.tecnologia,
       unidades: m.unidades,
-      participacion: kpiMat.valor ? m.unidades / kpiMat.valor : 0,
+      participacion: kpiPrin.valor ? m.unidades / kpiPrin.valor : 0,
       variacion: m.variacion,
-      importadas,
-      versionesDnra: versionesPorModelo.get(m.modelo) ?? 0,
+      otras,
+      versionesDnra: versionesPorModelo ? (versionesPorModelo.get(m.modelo) ?? 0) : null,
       precioDesde: m.precio,
       precioHasta: m.precioHasta,
       precioDeFamilia: m.precioDeFamilia,
@@ -135,12 +172,9 @@ export default async function PortafolioPage({
       banda: m.banda,
     };
   });
-  const importSinCruce = importados
-    .filter((i) => !cruzadas.has(clave(i.modelo ?? "")))
-    .reduce((s, i) => s + i.unidades, 0);
-  const importSinCruceModelos = importados
-    .filter((i) => !cruzadas.has(clave(i.modelo ?? "")))
-    .map((i) => `${i.modelo} (${formatUnidades(i.unidades)})`);
+  const sinCruce = otros.filter((o) => !cruzadas.has(clave(o.modelo ?? "")));
+  const sinCruceTotal = sinCruce.reduce((s, o) => s + o.unidades, 0);
+  const sinCruceModelos = sinCruce.map((o) => `${o.modelo} (${formatUnidades(o.unidades)})`);
 
   // --- resumen ---------------------------------------------------------------
   const conPrecio = filas.filter((r) => r.precioDesde !== null);
@@ -168,24 +202,35 @@ export default async function PortafolioPage({
   let acumulado = 0;
   let modelos80 = 0;
   for (const r of ordenados) {
-    if (acumulado >= 0.8 * kpiMat.valor) break;
+    if (acumulado >= 0.8 * kpiPrin.valor) break;
     acumulado += r.unidades;
     modelos80++;
   }
+
+  const verbo = principal === "importacion" ? "entró al país" : "matriculó";
 
   return (
     <Pagina>
       <PageHeader
         titulo="Portafolio por marca"
-        descripcion={`La gama de una marca, modelo por modelo: cuánto vende cada uno, cuánto entró al país y a qué precio de lista · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)} · precios: ${fuentesUsadas.length ? fuentesUsadas.map((x) => (x === "cars" ? "stock de Cars" : "catálogo Datacar")).join(" y ") : "sin fuente con precio para esta marca"}.`}
+        descripcion={`La gama de una marca, modelo por modelo: cuánto vende cada uno, cuánto entró al país y a qué precio de lista · ${nombreFuente[principal]} ${periodoPrin}${secundaria ? ` · ${nombreFuente[secundaria]} ${periodoSec}` : ""}.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)} · precios: ${fuentesUsadas.length ? fuentesUsadas.map((x) => (x === "cars" ? "stock de Cars" : "catálogo Datacar")).join(" y ") : "sin fuente con precio para esta marca"}.`}
       />
 
-      <FiltroPeriodo
-        anios={cobertura.matriculacion.anios}
-        mesMaximoPorAnio={mesMax}
-        opciones={[{ param: "marca", label: "Marca", valores: opciones.marcas }]}
-      />
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente fuente={vista} conAmbas aclaracion={aclaracion} />
+        <div className="min-w-0 sm:flex-1">
+          <FiltroPeriodo
+            pegajoso={false}
+            anios={cobertura[principal].anios}
+            mesMaximoPorAnio={mesMax}
+            opciones={[{ param: "marca", label: "Marca", valores: opciones.marcas }]}
+          />
+        </div>
+      </div>
 
       <section className="flex flex-wrap items-center gap-3">
         <Marca marca={marca} tamano="lg" claseNombre="text-2xl font-extrabold tracking-tight" />
@@ -201,39 +246,41 @@ export default async function PortafolioPage({
           label="Matriculaciones"
           value={formatUnidades(kpiMat.valor)}
           variacion={kpiMat.variacion}
-          periodo={periodo}
-          tooltip={`Chapas puestas de ${marca} en el período, contra el mismo período de ${f.anio - 1}.`}
+          periodo={periodoMat}
+          tono={principal === "matriculacion" ? "azul" : undefined}
+          tooltip={`Chapas puestas de ${marca} en ${periodoMat}, contra el mismo período de ${f.anio - 1}.`}
         />
         <KpiCard
           label="Importaciones"
           value={formatUnidades(kpiImp.valor)}
           variacion={kpiImp.variacion}
           periodo={periodoImp}
-          tooltip={`Unidades de ${marca} que entraron al país en ${periodoImp}, contra el mismo período de ${f.anio - 1}. Lo que importa y no matricula es stock en camino.${impRecorta && ultImp ? ` La importación ya tiene ${mesCorto(ultImp.mes)}; la matriculación de ese mes CADAM todavía no la publicó.` : ""}`}
+          tono={principal === "importacion" ? "verde" : undefined}
+          tooltip={`Unidades de ${marca} que entraron al país en ${periodoImp}, contra el mismo período de ${f.anio - 1}. Lo que importa y no matricula es stock en camino.${desparejas && ultImp ? ` La importación ya tiene ${mesCorto(ultImp.mes)}; la matriculación de ese mes CADAM todavía no la publicó.` : ""}`}
         />
         <KpiCard
           label="Participación de mercado"
-          value={mercado ? formatPct(kpiMat.valor / mercado) : "—"}
-          periodo={`de ${formatUnidades(mercado)} u. del mercado`}
-          tooltip="Matriculaciones de la marca sobre todas las del período."
+          value={mercado ? formatPct(kpiPrin.valor / mercado) : "—"}
+          periodo={`de ${formatUnidades(mercado)} u. ${nombreFuente[principal]} · ${periodoPrin}`}
+          tooltip={`${principal === "importacion" ? "Importaciones" : "Matriculaciones"} de la marca sobre todas las del período.`}
         />
         <KpiCard
           label="Modelos en la gama"
           value={String(filas.length)}
           periodo={filas.length ? `${modelos80} hacen el 80% de la marca` : undefined}
-          tooltip="Modelos con al menos una matriculación en el período. Cuántos de ellos concentran el 80% de las unidades dice si la marca depende de uno o dos."
+          tooltip={`Modelos con al menos una unidad en ${nombreFuente[principal]} del período. Cuántos de ellos concentran el 80% de las unidades dice si la marca depende de uno o dos.`}
         />
         <KpiCard
           label="Rango de precios"
           value={desdeGama !== null ? `${formatUnidades(Math.round(desdeGama / 1000))}–${formatUnidades(Math.round((hastaGama ?? desdeGama) / 1000))}k` : "—"}
-          periodo={desdeGama !== null ? `US$ · ${conPrecio.length} de ${filas.length} modelos con precio (${formatPct(kpiMat.valor ? uConPrecio / kpiMat.valor : 0)} de las unidades)` : "sin precio de lista"}
+          periodo={desdeGama !== null ? `US$ · ${conPrecio.length} de ${filas.length} modelos con precio (${formatPct(kpiPrin.valor ? uConPrecio / kpiPrin.valor : 0)} de las unidades)` : "sin precio de lista"}
           tooltip="De la versión más barata a la más cara de toda la gama, según las listas cargadas (Cars para las propias, Datacar para el resto)."
         />
       </section>
 
       <Seccion
         titulo="Escalera de precios"
-        nota="Cada barra va de la versión más barata a la más cara del modelo, en US$ de lista. Cuanto más pleno el color, más vende. Los huecos entre barras son huecos de la gama; las barras que se pisan, modelos que compiten entre sí."
+        nota="Cada barra va de la versión más barata a la más cara del modelo, en US$ de lista. Cuanto más pleno el color, más unidades. Los huecos entre barras son huecos de la gama; las barras que se pisan, modelos que compiten entre sí."
       >
         <Card>
           <CardHeader>
@@ -245,37 +292,47 @@ export default async function PortafolioPage({
             </p>
           </CardHeader>
           <CardContent>
-            <EscaleraPreciosChart filas={escalera} />
+            <EscaleraPreciosChart filas={escalera} etiquetaUnidades={nombreFuente[principal]} />
           </CardContent>
         </Card>
       </Seccion>
 
       <Seccion
         titulo="La gama, modelo por modelo"
-        nota={`Todos los modelos que la marca matriculó en el período, tengan o no precio. El peso es la parte de cada uno dentro de la marca; la importación (${periodoImp}) se cruza por nombre con la otra base de CADAM.`}
+        nota={`Todos los modelos que la marca ${verbo} en ${periodoPrin}, tengan o no precio. El peso es la parte de cada uno dentro de la marca${secundaria ? `; la columna de ${nombreFuente[secundaria]} (${periodoSec}) se cruza por nombre con la otra base de CADAM` : ""}.`}
       >
         <Card>
           <CardHeader>
-            <CardTitle>{marca} — {filas.length} modelos · {periodo}</CardTitle>
+            <CardTitle>{marca} — {filas.length} modelos · {nombreFuente[principal]} {periodoPrin}</CardTitle>
           </CardHeader>
           <CardContent>
             {filas.length ? (
-              <TablaPortafolio marca={marca} filas={filas} fichas={fichas} periodo={periodo} periodoImp={periodoImp} />
+              <TablaPortafolio
+                marca={marca}
+                filas={filas}
+                fichas={fichas}
+                principal={principal}
+                secundaria={secundaria}
+                periodo={periodoPrin}
+                periodoSec={periodoSec}
+              />
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                {marca} no tiene matriculaciones en {periodo}.
+                {marca} no tiene {nombreFuente[principal]} en {periodoPrin}.
               </p>
             )}
           </CardContent>
         </Card>
 
-        {importSinCruce > 0 && (
+        {secundaria && sinCruceTotal > 0 && (
           <NotaDato>
-            <strong>{formatUnidades(importSinCruce)} unidades importadas</strong> de {marca} no
-            cruzan con ningún modelo matriculado por nombre y no se atribuyen a
-            ninguna fila: {importSinCruceModelos.slice(0, 8).join(", ")}
-            {importSinCruceModelos.length > 8 ? "…" : ""}. Suelen ser modelos que
-            todavía no sacaron chapa o que la DNRA escribe con otro nombre.
+            <strong>{formatUnidades(sinCruceTotal)} unidades de {nombreFuente[secundaria]}</strong> de {marca} ({periodoSec}) no
+            cruzan con ningún modelo de la tabla por nombre y no se atribuyen a
+            ninguna fila: {sinCruceModelos.slice(0, 8).join(", ")}
+            {sinCruceModelos.length > 8 ? "…" : ""}.{" "}
+            {secundaria === "importacion"
+              ? "Suelen ser modelos que todavía no sacaron chapa o que la DNRA escribe con otro nombre."
+              : "Suelen ser modelos que ya no se importan o que las dos bases escriben distinto."}
           </NotaDato>
         )}
 

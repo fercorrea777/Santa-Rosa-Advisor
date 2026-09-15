@@ -18,7 +18,7 @@ import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatUnidades } from "@/lib/format";
 import {
-  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCorte } from "@/lib/periodo";
+  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
 
 export default async function InicioPage({
   searchParams,
@@ -101,7 +101,7 @@ export default async function InicioPage({
       <PageHeader
         titulo="Inicio"
         descripcion={`Mercado automotor paraguayo · ${periodo} vs. mismo período ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
       <FiltroPeriodo

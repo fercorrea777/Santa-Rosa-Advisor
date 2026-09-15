@@ -30,8 +30,7 @@ import { getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import {
-  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCorte,
-} from "@/lib/periodo";
+  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCorte, etiquetaCortes } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /** Las tecnologías que el archivo NEV de importación distingue. */
@@ -202,7 +201,7 @@ export default async function CombustiblesPage({
       <PageHeader
         titulo="Combustibles y tecnologías"
         descripcion={`Adopción por tecnología de propulsión sobre ${etiquetaFuente} · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
       {/* Misma fila pegajosa que Resumen del mercado: el selector de fuente

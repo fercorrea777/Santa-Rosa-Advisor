@@ -26,7 +26,15 @@ export interface PeldanoPrecio {
  * custom. Un modelo con una sola versión (desde = hasta) se dibuja con un
  * ancho mínimo para que se vea como un punto, no como nada.
  */
-export function EscaleraPreciosChart({ filas }: { filas: PeldanoPrecio[] }) {
+export function EscaleraPreciosChart({
+  filas,
+  etiquetaUnidades = "matriculadas",
+}: {
+  filas: PeldanoPrecio[];
+  /** De qué fuente son las unidades del tooltip ("matriculaciones",
+   *  "importaciones"). */
+  etiquetaUnidades?: string;
+}) {
   const theme = useChartTheme();
   if (!filas.length) {
     return (
@@ -54,7 +62,7 @@ export function EscaleraPreciosChart({ filas }: { filas: PeldanoPrecio[] }) {
         return (
           `<b>${f.modelo}</b> · ${f.clase}<br/>` +
           `${usd(f.desde)}${f.hasta > f.desde ? ` a ${usd(f.hasta)}` : ""}` +
-          `<br/><span style="font-size:11px;opacity:.75">${f.versiones} ${f.versiones === 1 ? "versión" : "versiones"} con precio · ${formatUnidades(f.unidades)} u. matriculadas</span>`
+          `<br/><span style="font-size:11px;opacity:.75">${f.versiones} ${f.versiones === 1 ? "versión" : "versiones"} con precio · ${formatUnidades(f.unidades)} ${etiquetaUnidades}</span>`
         );
       },
     },

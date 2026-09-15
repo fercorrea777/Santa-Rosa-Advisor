@@ -18,7 +18,7 @@ import {
 import { getCobertura } from "@/lib/cadam/mercado";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, mesCorto, type SearchParams, etiquetaCorte } from "@/lib/periodo";
+import { etiquetaPeriodo, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /** Debajo de esta base, la variacion porcentual deja de significar algo:
@@ -102,7 +102,7 @@ export default async function LocalidadesPage({
       <PageHeader
         titulo="Localidades"
         descripcion={`Dónde se matriculan los vehículos del país · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
       <FiltroPeriodo

@@ -10,7 +10,7 @@ import { Seccion } from "@/components/dashboard/seccion";
 import { getCobertura, getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { generarInforme, type Item, type Prioridad, type Tipo } from "@/lib/cadam/inteligencia";
 import { generarLecturaPropia } from "@/lib/informes/inteligencia-propia";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCortes } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 const SECCIONES: { tipo: Tipo; titulo: string; descripcion: string; tono?: "azul" | "verde" | "ambar" }[] = [
@@ -64,7 +64,7 @@ export default async function InteligenciaPage({
       <PageHeader
         titulo="Centro de Inteligencia Comercial"
         descripcion={`Lectura automática del mercado (${periodo} vs. ${f.anio - 1}) y de nuestra operación al día de hoy.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)} · Cars (stock y facturación) · Bitrix (demanda) · Meta (pauta) · Datacar (precios de la competencia) · catálogo de clases de vehículo.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)} · Cars (stock y facturación) · Bitrix (demanda) · Meta (pauta) · Datacar (precios de la competencia) · catálogo de clases de vehículo.`}
       />
 
       <FiltroPeriodo

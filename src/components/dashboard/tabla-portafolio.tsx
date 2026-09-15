@@ -9,21 +9,24 @@ import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { cn } from "@/lib/utils";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha } from "@/lib/cadam/bandas";
+import type { Fuente } from "@/lib/cadam/mercado";
 
 export interface FilaPortafolio {
   modelo: string;
   clase: string;
   claseInferida: boolean;
   tecnologia?: string;
-  /** Matriculadas en el período, y su parte dentro de la marca. */
+  /** Unidades de la fuente PRINCIPAL en el período, y su parte dentro de
+   *  la marca. */
   unidades: number;
   participacion: number;
   variacion: number | null;
-  /** Importadas en el período (cruzadas por nombre; null = sin equivalente
-   *  en la base de importación). */
-  importadas: number | null;
-  /** Versiones distintas que la DNRA registró para el modelo. */
-  versionesDnra: number;
+  /** Unidades de la OTRA fuente (cruzadas por nombre; null = sin
+   *  equivalente en esa base). */
+  otras: number | null;
+  /** Versiones distintas que la DNRA registró para el modelo. null cuando
+   *  la fuente principal es importación, que no baja a versión. */
+  versionesDnra: number | null;
   precioDesde: number | null;
   precioHasta: number | null;
   /** El precio es el "desde" de la familia, no de este modelo (ver
@@ -42,20 +45,30 @@ const usd = (n: number | null) => (n === null ? "—" : formatUnidades(Math.roun
  * la ficha del modelo (sus rivales de clase y el precio de cada uno), la
  * misma de Rankings y Gama propia.
  */
+const ROTULO: Record<Fuente, { columna: string; nota: string }> = {
+  matriculacion: { columna: "Matric.", nota: "chapas puestas" },
+  importacion: { columna: "Import.", nota: "entraron al país" },
+};
+
 export function TablaPortafolio({
   marca,
   filas,
   fichas,
+  principal,
+  secundaria,
   periodo,
-  periodoImp,
+  periodoSec,
 }: {
   marca: string;
   filas: FilaPortafolio[];
   fichas: ModeloFicha[];
+  /** La fuente que define la lista y las unidades. */
+  principal: Fuente;
+  /** La otra fuente, como columna cruzada; null = vista de una sola. */
+  secundaria: Fuente | null;
   periodo: string;
-  /** Ventana de la columna de importación, que puede ir un mes más lejos
-   *  que la de matriculación. */
-  periodoImp: string;
+  /** Ventana de la columna secundaria, que puede diferir de la principal. */
+  periodoSec: string;
 }) {
   const [abierto, setAbierto] = React.useState<DetalleModelo | null>(null);
   const [orden, setOrden] = React.useState<{ campo: keyof FilaPortafolio; asc: boolean }>({
@@ -98,10 +111,10 @@ export function TablaPortafolio({
             {cab("modelo", "Modelo")}
             {cab("clase", "Clase", "contra quién compite")}
             <TableHead>Tecnología</TableHead>
-            {cab("unidades", "Unidades", "matriculadas en el período", "text-right")}
+            {cab("unidades", ROTULO[principal].columna, `${ROTULO[principal].nota} · ${periodo}`, "text-right")}
             {cab("participacion", "Peso", "su parte dentro de la marca", "text-right")}
             {cab("variacion", "Var.", "contra el año pasado", "text-right")}
-            {cab("importadas", "Import.", `entraron al país · ${periodoImp}`, "text-right")}
+            {secundaria && cab("otras", ROTULO[secundaria].columna, `${ROTULO[secundaria].nota} · ${periodoSec}`, "text-right")}
             {cab("precioDesde", "Desde US$", "lista, versión más barata", "text-right")}
             {cab("precioHasta", "Hasta US$", "la más cara del modelo", "text-right")}
             <TableHead className="text-right" nota="con precio / según DNRA">Versiones</TableHead>
@@ -135,9 +148,11 @@ export function TablaPortafolio({
                 >
                   {f.variacion === null ? "Nuevo" : formatPct(f.variacion, { signed: true })}
                 </TableCell>
-                <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {f.importadas === null ? "—" : formatUnidades(f.importadas)}
-                </TableCell>
+                {secundaria && (
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {f.otras === null ? "—" : formatUnidades(f.otras)}
+                  </TableCell>
+                )}
                 <TableCell className="text-right tabular-nums">
                   {f.precioDeFamilia && (
                     <span
@@ -158,7 +173,7 @@ export function TablaPortafolio({
                   {f.precioHasta !== null && f.precioDesde !== null && f.precioHasta > f.precioDesde ? usd(f.precioHasta) : "—"}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {f.versionesConPrecio} / {f.versionesDnra}
+                  {f.versionesConPrecio} / {f.versionesDnra === null ? "—" : f.versionesDnra}
                 </TableCell>
               </TableRow>
             );

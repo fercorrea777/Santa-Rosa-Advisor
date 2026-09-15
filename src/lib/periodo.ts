@@ -29,6 +29,31 @@ export function etiquetaCorte(periodo: string | null | undefined): string {
   return anio && m ? `${m} ${anio}` : periodo;
 }
 
+type Corte = { anio: number; mes: number } | null;
+
+/**
+ * Hasta dónde llega cada fuente, para la píldora de fuente de cada pantalla.
+ *
+ * «datos hasta Ago 2026» mentía a medias cuando las dos fuentes no van
+ * parejas: en septiembre de 2026 CADAM ya había publicado la importación de
+ * agosto y la matriculación llegaba a julio. Croman (15/09/2026): "ponéme
+ * nomás una aclaración de que las matriculaciones son hasta julio y que
+ * agosto ya tenemos las importaciones". Cuando coinciden vuelve al texto
+ * corto de siempre.
+ */
+export function etiquetaCortes(cobertura: {
+  snapshot: string | null;
+  matriculacion: { ultimo: Corte };
+  importacion: { ultimo: Corte };
+}): string {
+  const m = cobertura.matriculacion.ultimo;
+  const i = cobertura.importacion.ultimo;
+  if (m && i && (m.anio !== i.anio || m.mes !== i.mes)) {
+    return `matriculaciones hasta ${mesCorto(m.mes)} ${m.anio} · importaciones hasta ${mesCorto(i.mes)} ${i.anio}`;
+  }
+  return `datos hasta ${etiquetaCorte(cobertura.snapshot)}`;
+}
+
 /** 'Ene–Jun 2026' | 'Mayo 2026' */
 export function etiquetaPeriodo(anio: number, desde: number, hasta: number): string {
   if (desde === hasta) {

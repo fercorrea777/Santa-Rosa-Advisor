@@ -10,7 +10,7 @@ import {
   TECNOLOGIAS, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCortes } from "@/lib/periodo";
 
 const DIMENSIONES = {
   marca: { label: "Marca", col: "marca" },
@@ -83,7 +83,7 @@ export default async function MarketSharePage({
       <PageHeader
         titulo="Market Share"
         descripcion={`Participación por ${DIMENSIONES[dimEfectiva].label.toLowerCase()} sobre ${etiquetaFuente} · ${periodo} vs. ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
       <SelectorDimension

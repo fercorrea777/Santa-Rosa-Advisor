@@ -8,18 +8,37 @@ import { cn } from "@/lib/utils";
  * Escribe `?fuente=` en la URL, igual que el resto de los filtros, para
  * que el estado sea compartible y sobreviva al refresh.
  */
+export type FuenteVista = "matriculacion" | "importacion" | "ambas";
+
 export function SelectorFuente({
   fuente,
   tecnologiasImportacion = [],
+  conAmbas = false,
+  aclaracion,
 }: {
-  fuente: "matriculacion" | "importacion";
+  fuente: FuenteVista;
   /** Tecnologías que SÍ existen del lado de importación (Combustibles las
    *  saca del archivo NEV: HEV, PHEV, EV). Cualquier otra se descarta al
    *  cambiar de fuente. Sin la lista, se descarta siempre. */
   tecnologiasImportacion?: string[];
+  /** Tercera opción «Ambas»: la pantalla muestra las dos fuentes lado a
+   *  lado, cada una hasta su propio último mes (Portafolio). */
+  conAmbas?: boolean;
+  /** Una línea debajo del selector: hasta dónde llega cada fuente. Va acá y
+   *  no en una nota aparte porque es la respuesta a la pregunta que se hace
+   *  quien está por elegir. */
+  aclaracion?: string;
 }) {
   const { leer, setParams, pendiente } = useFiltroUrl();
-  const vista = (leer("fuente") ?? fuente) as "matriculacion" | "importacion";
+  const vista = (leer("fuente") ?? fuente) as FuenteVista;
+  const opciones: FuenteVista[] = conAmbas
+    ? ["ambas", "matriculacion", "importacion"]
+    : ["matriculacion", "importacion"];
+  const rotulo: Record<FuenteVista, string> = {
+    matriculacion: "Matriculaciones",
+    importacion: "Importaciones",
+    ambas: "Ambas",
+  };
 
   const set = (v: string) => {
     // La tecnologia (casi) solo existe del lado de matriculacion: al pasar
@@ -41,7 +60,7 @@ export function SelectorFuente({
           pendiente && "opacity-70"
         )}
       >
-        {(["matriculacion", "importacion"] as const).map((v) => (
+        {opciones.map((v) => (
           <button
             key={v}
             type="button"
@@ -54,10 +73,13 @@ export function SelectorFuente({
                 : "text-muted-foreground hover:bg-muted"
             )}
           >
-            {v === "matriculacion" ? "Matriculaciones" : "Importaciones"}
+            {rotulo[v]}
           </button>
         ))}
       </div>
+      {aclaracion && (
+        <p className="max-w-[46ch] text-[11px] leading-snug text-muted-foreground">{aclaracion}</p>
+      )}
     </div>
   );
 }
