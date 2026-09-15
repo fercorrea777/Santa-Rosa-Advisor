@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
-import { SelectorFuente } from "@/components/dashboard/selector-fuente";
+import { SelectorFuente, type FuenteVista } from "@/components/dashboard/selector-fuente";
 import { BurbujasMarcaChart, type Burbuja } from "@/components/charts/burbujas-marca-chart";
 import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
 import { BatallaModeloChart } from "@/components/charts/batalla-modelo-chart";
@@ -21,7 +21,9 @@ import {
 import { asignarSegmento, SIN_CLASIFICAR, tokens } from "@/lib/informes/segmento-version";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCortes } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
+
+const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
 
 /** Unidades mínimas del período anterior para que un modelo entre al
  *  gráfico. Es lo que hace legible el eje, no un capricho: sobre los datos
@@ -50,68 +52,95 @@ export default async function BubbleChartPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
-  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
   const cobertura = getCobertura();
-  const ultimo = fuente === "importacion"
-    ? cobertura.importacion.ultimo
-    : cobertura.matriculacion.ultimo;
+  // Tres vistas (Croman, 15/09/2026: "el mismo selector en Bubble chart").
+  // Con "Ambas", el gráfico de crecimiento por modelo va dos veces, uno por
+  // fuente y cada uno hasta su propio último mes. El resto de la pantalla
+  // (batalla de producto, posicionamiento por versión) no depende de la
+  // fuente: sale del Excel de producto y de Cars.
+  const vista: FuenteVista =
+    sp.fuente === "importacion" ? "importacion" : sp.fuente === "ambas" ? "ambas" : "matriculacion";
+  const fuentes: Fuente[] = vista === "ambas" ? ["matriculacion", "importacion"] : [vista];
+  const fuente: Fuente = fuentes[0];
+  const ultimo = cobertura[fuente].ultimo;
   const f = filtroDesdeUrl(sp, ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
-  const etiquetaFuente = fuente === "importacion" ? "importaciones" : "matriculaciones";
+  const ventanaDe = (x: Fuente) => {
+    const ult = cobertura[x].ultimo;
+    if (!ult || f.anio !== ult.anio) return f;
+    if (sp.hasta) return f.mesHasta > ult.mes ? { ...f, mesHasta: Math.max(f.mesDesde, ult.mes) } : f;
+    return { ...f, mesHasta: Math.max(f.mesDesde, ult.mes) };
+  };
 
-  const anios = fuente === "importacion"
-    ? cobertura.importacion.anios
-    : cobertura.matriculacion.anios;
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
+  const aclaracion = desparejas && ultMat && ultImp
+    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
+    : undefined;
+
+  const anios = cobertura[fuente].anios;
   const mesMax: Record<number, number> = {};
   for (const a of anios) {
     mesMax[a] = a === ultimo?.anio ? ultimo.mes : 12;
   }
 
-  const modelos = getRankingModelos(fuente, f, 600);
+  /** El gráfico de crecimiento de una fuente: qué modelos entran y por qué
+   *  no entran los demás. Se arma una vez por fuente. */
+  const armarBloque = (x: Fuente) => {
+    const fx = ventanaDe(x);
+    const modelos = getRankingModelos(x, fx, 600);
 
-  // Solo entran los que tienen base comparable Y la superan. `variacion`
-  // viene null cuando el modelo no existía el año anterior: esos no se
-  // pueden ubicar en un eje de porcentaje, no se estiman.
-  const conBase = modelos.filter(
-    (m) => m.variacion !== null && m.unidadesAnterior >= BASE_MINIMA
-  );
+    // Solo entran los que tienen base comparable Y la superan. `variacion`
+    // viene null cuando el modelo no existía el año anterior: esos no se
+    // pueden ubicar en un eje de porcentaje, no se estiman.
+    const conBase = modelos.filter(
+      (m) => m.variacion !== null && m.unidadesAnterior >= BASE_MINIMA
+    );
 
-  // Top de marcas por volumen dentro de lo comparable, MÁS las propias
-  // siempre. No es un capricho: con los datos de Ene–Jun 2026, MITSUBISHI
-  // queda 17ª y RENAULT más abajo — un top 15 estricto dejaba el tablero de
-  // Santa Rosa sin sus propias marcas.
-  const volPorMarca = new Map<string, number>();
-  for (const m of conBase) {
-    volPorMarca.set(m.marca, (volPorMarca.get(m.marca) ?? 0) + m.unidades);
-  }
-  const topMarcas = [...volPorMarca.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOPE_MARCAS)
-    .map(([marca]) => marca);
-  const marcasVisibles = new Set([
-    ...topMarcas,
-    ...conBase.filter((m) => m.esPropia).map((m) => m.marca),
-  ]);
-  const visibles = conBase.filter((m) => marcasVisibles.has(m.marca));
+    // Top de marcas por volumen dentro de lo comparable, MÁS las propias
+    // siempre. No es un capricho: con los datos de Ene–Jun 2026, MITSUBISHI
+    // queda 17ª y RENAULT más abajo — un top 15 estricto dejaba el tablero de
+    // Santa Rosa sin sus propias marcas.
+    const volPorMarca = new Map<string, number>();
+    for (const m of conBase) {
+      volPorMarca.set(m.marca, (volPorMarca.get(m.marca) ?? 0) + m.unidades);
+    }
+    const topMarcas = [...volPorMarca.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, TOPE_MARCAS)
+      .map(([marca]) => marca);
+    const marcasVisibles = new Set([
+      ...topMarcas,
+      ...conBase.filter((m) => m.esPropia).map((m) => m.marca),
+    ]);
+    const visibles = conBase.filter((m) => marcasVisibles.has(m.marca));
 
-  const datos: Burbuja[] = visibles.map((m) => ({
-    marca: m.marca,
-    modelo: m.modelo ?? m.marca,
-    unidades: m.unidades,
-    unidadesAnterior: m.unidadesAnterior,
-    variacion: m.variacion as number,
-    esPropia: m.esPropia,
-  }));
+    const datos: Burbuja[] = visibles.map((m) => ({
+      marca: m.marca,
+      modelo: m.modelo ?? m.marca,
+      unidades: m.unidades,
+      unidadesAnterior: m.unidadesAnterior,
+      variacion: m.variacion as number,
+      esPropia: m.esPropia,
+    }));
 
-  const volTotal = modelos.reduce((s, m) => s + m.unidades, 0);
-  const volGraficado = visibles.reduce((s, m) => s + m.unidades, 0);
-  const entrantes = modelos.filter((m) => m.variacion === null).length;
-  const bajoBase = modelos.length - conBase.length - entrantes;
-  const fueraDelTope = conBase.length - visibles.length;
-  const propiasForzadas = [...marcasVisibles].filter(
-    (m) => !topMarcas.includes(m)
-  );
-  const recortadas = datos.filter((d) => d.variacion * 100 > TECHO_VARIACION);
+    const volTotal = modelos.reduce((s, m) => s + m.unidades, 0);
+    const volGraficado = visibles.reduce((s, m) => s + m.unidades, 0);
+    const entrantes = modelos.filter((m) => m.variacion === null).length;
+    const bajoBase = modelos.length - conBase.length - entrantes;
+    const fueraDelTope = conBase.length - visibles.length;
+    const propiasForzadas = [...marcasVisibles].filter((m) => !topMarcas.includes(m));
+    const recortadas = datos.filter((d) => d.variacion * 100 > TECHO_VARIACION);
+    return {
+      fuente: x, f: fx, periodo: etiquetaPeriodo(fx.anio, fx.mesDesde, fx.mesHasta),
+      modelos, visibles, datos, volTotal, volGraficado, entrantes, bajoBase, fueraDelTope,
+      propiasForzadas, recortadas,
+    };
+  };
+  const bloques = fuentes.map(armarBloque);
+  const principal = bloques[0];
+  const modelos = principal.modelos;
 
   // Las versiones ('HILUX D/C 4X4 SRV AUT') solo existen en matriculacion:
   // la base de importacion no las trae. Con fuente=importacion la tabla no
@@ -184,10 +213,16 @@ export default async function BubbleChartPage({
   }
   const preciosRivales: PrecioCandidato[] = (await getPreciosCompetencia())
     .map((p) => ({ marca: p.marca, nombre: p.version, precio: p.precio_usd }));
-  const universo = asignarPrecios(modelos, [
+  const listasPrecio = [
     { fuente: "cars", lista: preciosPropios },
     { fuente: "datacar", lista: preciosRivales },
-  ]);
+  ];
+  const universo = asignarPrecios(modelos, listasPrecio);
+  // Una ficha por fuente: los rivales de un modelo importado son los otros
+  // modelos importados, no los matriculados.
+  const fichasPorFuente = new Map(
+    bloques.map((b) => [b.fuente, fichasDeModelos(b.fuente === fuente ? universo : asignarPrecios(b.modelos, listasPrecio))])
+  );
 
   // Las claves que hacen falta: los modelos dibujados en el primer gráfico y
   // las familias de nuestras versiones en el segundo. Nada más: cada ficha
@@ -214,7 +249,7 @@ export default async function BubbleChartPage({
     ...b,
     claveDetalle: claveDeFamilia(b.marca, b.modelo),
   }));
-  const fichas = fichasDeModelos(universo);
+  const fichas = fichasPorFuente.get(fuente) ?? [];
   const clasePorClave = new Map(fichas.map((x) => [x.clave, x.clase]));
   /** La clase de cada versión: la de su familia en CADAM. Es la columna del
    *  gráfico de precios, en vez del segmento — misma razón que en el mapa. */
@@ -225,12 +260,15 @@ export default async function BubbleChartPage({
     <Pagina>
       <PageHeader
         titulo="Bubble chart"
-        descripcion={`Cada burbuja es un modelo, agrupado en la columna de su marca · ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
+        descripcion={`Cada burbuja es un modelo, agrupado en la columna de su marca · ${bloques.map((b) => `${NOMBRE[b.fuente]} ${b.periodo}`).join(" · ")} vs. mismo período ${f.anio - 1}.`}
         fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
-      <div className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end sm:bg-background/85 sm:backdrop-blur-md">
-        <SelectorFuente porDefecto="matriculacion" fuente={fuente} />
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente porDefecto="matriculacion" fuente={vista} conAmbas aclaracion={aclaracion} />
         <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
             pegajoso={false}
@@ -240,13 +278,13 @@ export default async function BubbleChartPage({
               { param: "marca", label: "Marca", valores: opciones.marcas },
               { param: "modelo", label: "Modelo", valores: modelosDisponibles },
               { param: "segmento", label: "Segmento", valores: opciones.segmentos },
-              ...(fuente === "importacion"
-                ? []
-                : [{
+              ...(fuentes.includes("matriculacion")
+                ? [{
                     param: "tecnologia",
                     label: "Tecnología",
                     valores: ["ICE", "MHEV", "HEV", "PHEV", "REEV", "EV"],
-                  }]),
+                  }]
+                : []),
             ]}
           />
         </div>
@@ -282,57 +320,63 @@ export default async function BubbleChartPage({
         de CADAM trae unidades, no importes. Como el porcentaje se dispara sobre
         bases chicas, sólo entran los modelos con al menos{" "}
         <strong>{BASE_MINIMA} unidades</strong> en {f.anio - 1}, y sólo las{" "}
-        <strong>{TOPE_MARCAS} marcas de mayor volumen</strong>
-        {propiasForzadas.length > 0 && (
-          <> más las propias ({propiasForzadas.join(", ")}), que entran siempre</>
-        )}
-        . Se grafican <strong>{visibles.length}</strong> de {modelos.length}{" "}
-        modelos, el{" "}
-        <strong>{volTotal ? formatPct(volGraficado / volTotal) : "—"}</strong> del
-        volumen del período. Fuera quedan {entrantes} modelos nuevos (sin año
-        anterior contra qué comparar), {bajoBase} por debajo de la base mínima y{" "}
-        {fueraDelTope} de marcas que no llegan al tope.
+        <strong>{TOPE_MARCAS} marcas de mayor volumen</strong> más las propias, que
+        entran siempre.
+        {bloques.map((b) => (
+          <span key={b.fuente}>
+            {" "}En {NOMBRE[b.fuente]} ({b.periodo}) se grafican <strong>{b.visibles.length}</strong> de{" "}
+            {b.modelos.length} modelos, el{" "}
+            <strong>{b.volTotal ? formatPct(b.volGraficado / b.volTotal) : "—"}</strong> del
+            volumen; fuera quedan {b.entrantes} modelos nuevos (sin año anterior contra
+            qué comparar), {b.bajoBase} por debajo de la base mínima y {b.fueraDelTope} de
+            marcas que no llegan al tope
+            {b.propiasForzadas.length > 0 ? ` (propias que entran igual: ${b.propiasForzadas.join(", ")})` : ""}.
+          </span>
+        ))}
       </NotaDato>
 
       <Seccion titulo="Posicionamiento por variación"
         nota="Qué modelos crecen y cuáles se caen, y con cuánto volumen: arriba a la derecha están los que crecen y ya pesan.">
-      <Card>
+      {bloques.map((b) => (
+      <Card key={b.fuente}>
         <CardHeader>
-          <CardTitle>Crecimiento por modelo — {etiquetaFuente}</CardTitle>
+          <CardTitle>Crecimiento por modelo — {NOMBRE[b.fuente]} · {b.periodo}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="pb-3 text-xs text-muted-foreground">
-            Eje Y = variación contra {f.anio - 1} · tamaño = unidades del período ·
+            Eje Y = variación contra {b.f.anio - 1} · tamaño = unidades del período ·
             las marcas propias van primero, con borde y su nombre resaltado en el
             eje. Arriba de la línea del 0% crecen, abajo caen; el tamaño dice
             cuánto pesa ese crecimiento. <strong>Tocá una burbuja</strong> y se
             abre la ficha del modelo: su clase, contra quién compite, a qué
             precio y cómo viene contra el año pasado.
-            {recortadas.length > 0 && (
+            {b.recortadas.length > 0 && (
               <>
                 {" "}El eje corta en +{TECHO_VARIACION}%:{" "}
-                <strong>{recortadas.length}</strong>{" "}
-                {recortadas.length === 1 ? "modelo se sale" : "modelos se salen"} y
-                {recortadas.length === 1 ? " queda dibujado" : " quedan dibujados"}{" "}
+                <strong>{b.recortadas.length}</strong>{" "}
+                {b.recortadas.length === 1 ? "modelo se sale" : "modelos se salen"} y
+                {b.recortadas.length === 1 ? " queda dibujado" : " quedan dibujados"}{" "}
                 como triángulo en el tope —{" "}
-                {[...recortadas]
-                  .sort((a, b) => b.variacion - a.variacion)
+                {[...b.recortadas]
+                  .sort((x, y) => y.variacion - x.variacion)
                   .slice(0, 3)
                   .map((d) => `${d.marca} ${d.modelo} ${formatPct(d.variacion, { signed: true })}`)
                   .join(", ")}
-                {recortadas.length > 3 ? " y otros" : ""}. El valor real está en el
+                {b.recortadas.length > 3 ? " y otros" : ""}. El valor real está en el
                 tooltip de cada uno.
               </>
             )}
           </p>
           <BurbujasMarcaChart
-            datos={datos}
+            datos={b.datos}
             techo={TECHO_VARIACION}
-            fichas={fichas}
-            periodo={periodo}
+            fichas={fichasPorFuente.get(b.fuente) ?? []}
+            periodo={b.periodo}
+            fuente={b.fuente}
           />
         </CardContent>
       </Card>
+      ))}
 
       </Seccion>
 

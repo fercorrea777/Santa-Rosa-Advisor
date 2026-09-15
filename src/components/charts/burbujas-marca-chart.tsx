@@ -41,6 +41,7 @@ export function BurbujasMarcaChart({
   techo,
   fichas,
   periodo = "",
+  fuente = "matriculacion",
 }: {
   datos: Burbuja[];
   altura?: number;
@@ -48,6 +49,8 @@ export function BurbujasMarcaChart({
    *  navegador (detalleDeFicha). Sin esto el gráfico anda igual, sin clic. */
   fichas?: ModeloFicha[];
   periodo?: string;
+  /** De qué base salen las unidades: la ficha lo dice. */
+  fuente?: "matriculacion" | "importacion";
   /** Techo del eje de variación, en %. Llega por prop y no como constante
    *  exportada de acá: este módulo es "use client", y un Server Component que
    *  importara la constante recibiría la referencia de cliente en vez del
@@ -235,7 +238,7 @@ export function BurbujasMarcaChart({
             : undefined
         }
       />
-      <DetalleModeloDialog detalle={abierto} periodo={periodo} onClose={() => setAbierto(null)} />
+      <DetalleModeloDialog detalle={abierto} periodo={periodo} fuente={fuente} onClose={() => setAbierto(null)} />
     </>
   );
 }
