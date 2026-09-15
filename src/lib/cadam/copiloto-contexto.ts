@@ -240,10 +240,11 @@ un modelo contra otro usa 'battle-cards'. Citá siempre la fecha del dato.
 }
 
 /**
- * @param conWeb  true solo cuando el proveedor ofrece las tools servidas por
- *   Anthropic (web_search / web_fetch / code_execution). Con Gemma sobre
- *   Ollama NO existen, y nombrarlas igual seria invitar al modelo a llamarlas
- *   y a prometerle al usuario una busqueda que nunca va a pasar.
+ * @param conWeb  true cuando hay busqueda en internet: desde el 15/09/2026
+ *   son dos herramientas locales (buscar_en_internet y leer_pagina, ver
+ *   src/lib/copiloto/web.ts), asi que con Gemma sobre Ollama TAMBIEN se
+ *   puede. false deja al modelo sin internet y el prompt lo dice, para que
+ *   no prometa una busqueda que no va a pasar.
  * @param conocimiento  indice de la base de Hermes. Se pasa desde la ruta
  *   porque vive en Postgres (async) y esto es sincrono. Si viene vacio el
  *   prompt lo dice en vez de callarlo.
@@ -280,12 +281,8 @@ export function armarSystemPrompt(
   // era mañana y contaba un día de más en "hace N días".
   const hoy = hoyEnAsuncion();
 
-  const fuentes = conWeb
-    ? `y herramientas de busqueda/lectura externa (web_search, web_fetch, ` +
-      `code_execution, leer_informe_competencia, leer_conocimiento_competencia) ` +
-      `para contexto de mercado y competencia, mas leer_operacion_propia para ` +
-      `nuestra facturacion y stock (API de Cars).`
-    : `y tres fuentes internas mas: leer_informe_competencia (informes ` +
+  const internas =
+    `y tres fuentes internas mas: leer_informe_competencia (informes ` +
       `semanales), leer_conocimiento_competencia (precios y promociones de ` +
       `competencia que releva Hermes) y leer_operacion_propia, que ademas de ` +
       `nuestra facturacion y stock (API de Cars) trae los resumenes del ` +
@@ -297,7 +294,17 @@ export function armarSystemPrompt(
       `empujar, asesores que dejaron de facturar). Para "contra quien ` +
       `compite", "que pedir", "leads perdidos", "pauta por vehiculo" o ` +
       `"mejores asesores" usa ESE resumen y cita sus numeros tal cual: ya ` +
-      `estan interpretados en codigo, no los recalcules ni los reinterpretes. ` +
+      `estan interpretados en codigo, no los recalcules ni los reinterpretes. `;
+  const fuentes = conWeb
+    ? internas +
+      `Ademas tenes internet, como ULTIMO recurso: buscar_en_internet ` +
+      `(DuckDuckGo) y leer_pagina. Se usan SOLO cuando la pregunta no se ` +
+      `puede contestar con las fuentes internas —una noticia, un lanzamiento, ` +
+      `un dato de otro pais, un precio que no esta cargado—, nunca para ` +
+      `cifras del mercado paraguayo (esas salen de consultar_base). Cuando ` +
+      `uses internet, decilo y cita la URL de donde salio cada dato; si la ` +
+      `busqueda no trae nada util, decilo en vez de suponer.`
+    : internas +
       `NO tenes acceso a internet: si algo no esta en esas fuentes, decilo en ` +
       `vez de suponerlo.`;
 

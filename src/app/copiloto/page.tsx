@@ -21,8 +21,8 @@ export default function CopilotoPage() {
     <Pagina className="h-full">
       <PageHeader
         titulo="Copiloto"
-        descripcion="Preguntale a los datos en lenguaje natural. Consulta él mismo las fuentes —CADAM, el relevamiento de precios de la competencia, nuestra operación, la demanda de Bitrix y la pauta de Meta— y muestra abajo de cada respuesta cuáles abrió."
-        fuente={`CADAM / DNRA · ${etiquetaCortes(cobertura)} · precios y promociones de la competencia relevados a diario · facturación, stock y asesores de Cars · leads y negocios de Bitrix · pauta de Meta · rivales por clase de vehículo. Sin acceso a internet.`}
+        descripcion="Preguntale a los datos en lenguaje natural. Consulta él mismo las fuentes —CADAM, el relevamiento de precios de la competencia, nuestra operación, la demanda de Bitrix y la pauta de Meta— y, si ahí no está, busca en internet. Muestra abajo de cada respuesta cuáles abrió."
+        fuente={`CADAM / DNRA · ${etiquetaCortes(cobertura)} · precios y promociones de la competencia relevados a diario · facturación, stock y asesores de Cars · leads y negocios de Bitrix · pauta de Meta · rivales por clase de vehículo · internet (DuckDuckGo) solo para lo que no está en esas fuentes, citando la URL.`}
       />
 
       <Tabs defaultValue="chat" className="flex min-h-0 flex-1 flex-col gap-3">

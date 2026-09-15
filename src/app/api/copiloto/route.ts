@@ -15,6 +15,7 @@ import { getCobertura } from "@/lib/cadam/mercado";
 import {
   modeloCopiloto, responderConGemma, type HerramientaLocal,
 } from "@/lib/copiloto/ollama";
+import { buscar, leerPagina } from "@/lib/copiloto/web";
 
 /**
  * Copiloto de inteligencia comercial.
@@ -28,7 +29,10 @@ import {
  *
  * SE PERDIERON web_search, web_fetch y code_execution: son tools SERVIDAS
  * por Anthropic, no del modelo, y Ollama no tiene equivalente. Quedan las
- * cuatro locales, que son las que leen nuestros datos.
+ * cuatro locales, que son las que leen nuestros datos — y desde el
+ * 15/09/2026 dos mas, tambien locales, que las reemplazan: buscar_en_internet
+ * y leer_pagina (src/lib/copiloto/web.ts). Croman: "si no encuentra lo que
+ * se le pregunte que pueda buscar en internet".
  *
  * El modelo responde preguntas en lenguaje natural con estas fuentes:
  * - consultar_base: SQL de solo lectura sobre la MISMA base SQLite que
@@ -404,8 +408,68 @@ const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
   },
 });
 
+const tBuscarEnInternet = (anotar: Anotar): HerramientaLocal => ({
+  nombre: "buscar_en_internet",
+  descripcion:
+    "Busca en internet (DuckDuckGo). SOLO para lo que no está en las fuentes " +
+    "internas: noticias, lanzamientos, precios o datos de otros mercados, " +
+    "contexto general. Nunca para cifras del mercado paraguayo, que salen de " +
+    "consultar_base. Devuelve título, URL y resumen de hasta 8 resultados; " +
+    "si necesitás el contenido, abrí la URL con leer_pagina. Citá siempre la URL.",
+  parametros: {
+    type: "object",
+    properties: {
+      consulta: { type: "string", description: "Qué buscar, en pocas palabras (ej. 'lanzamiento BYD Paraguay 2026')." },
+    },
+    required: ["consulta"],
+    additionalProperties: false,
+  },
+  ejecutar: async (input) => {
+    const consulta = String((input as { consulta?: unknown }).consulta ?? "");
+    try {
+      const resultados = await buscar(consulta);
+      anotar("Internet (búsqueda en DuckDuckGo)");
+      return JSON.stringify({
+        consulta,
+        resultados,
+        aviso: resultados.length
+          ? "Fuente externa: citá la URL y decí que salió de internet."
+          : "Sin resultados. Decilo en vez de suponer.",
+      });
+    } catch (e) {
+      return JSON.stringify({ error: `No se pudo buscar: ${(e as Error).message}` });
+    }
+  },
+});
+
+const tLeerPagina = (anotar: Anotar): HerramientaLocal => ({
+  nombre: "leer_pagina",
+  descripcion:
+    "Lee una página de internet y devuelve su texto (recortado a 6.000 " +
+    "caracteres). Usala después de buscar_en_internet, con una URL de los " +
+    "resultados, cuando el resumen no alcanza para contestar. Citá la URL.",
+  parametros: {
+    type: "object",
+    properties: {
+      url: { type: "string", description: "URL completa (https://…)." },
+    },
+    required: ["url"],
+    additionalProperties: false,
+  },
+  ejecutar: async (input) => {
+    const url = String((input as { url?: unknown }).url ?? "");
+    try {
+      const pagina = await leerPagina(url);
+      anotar(`Internet — ${new URL(url).hostname}`);
+      return JSON.stringify({ url, ...pagina });
+    } catch (e) {
+      return JSON.stringify({ error: `No se pudo leer la página: ${(e as Error).message}` });
+    }
+  },
+});
+
 /**
- * Las cuatro herramientas, creadas POR PREGUNTA para que el registro de
+ * Las herramientas, creadas POR PREGUNTA para que el registro de
  * fuentes no se mezcle entre pedidos concurrentes. Con consts de modulo, dos
  * gerentes preguntando a la vez se veian las fuentes del otro.
  */
@@ -423,6 +487,8 @@ function crearHerramientas(): {
       tLeerInformeCompetencia(anotar),
       tLeerConocimientoCompetencia(anotar),
       tLeerOperacion(anotar),
+      tBuscarEnInternet(anotar),
+      tLeerPagina(anotar),
     ],
     fuentes,
   };
@@ -472,9 +538,11 @@ export async function POST(request: Request) {
 
     const { herramientas, fuentes } = crearHerramientas();
     const r = await responderConGemma({
-      // `conWeb: false`: con Ollama no existen web_search ni code_execution,
-      // y prometerselas al modelo solo lo lleva a inventar busquedas.
-      system: armarSystemPrompt({ conWeb: false, conocimiento }),
+      // `conWeb: true` desde el 15/09/2026: buscar_en_internet y leer_pagina
+      // son herramientas locales (no las de Anthropic), asi que el prompt
+      // puede prometerlas. Siguen sin existir code_execution ni web_search
+      // de Anthropic.
+      system: armarSystemPrompt({ conWeb: true, conocimiento }),
       turnos: turnos.slice(-MAX_TURNOS),
       herramientas,
     });
