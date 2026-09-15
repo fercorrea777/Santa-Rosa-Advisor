@@ -8,14 +8,25 @@ import { cn } from "@/lib/utils";
  * Escribe `?fuente=` en la URL, igual que el resto de los filtros, para
  * que el estado sea compartible y sobreviva al refresh.
  */
-export function SelectorFuente({ fuente }: { fuente: "matriculacion" | "importacion" }) {
+export function SelectorFuente({
+  fuente,
+  tecnologiasImportacion = [],
+}: {
+  fuente: "matriculacion" | "importacion";
+  /** Tecnologías que SÍ existen del lado de importación (Combustibles las
+   *  saca del archivo NEV: HEV, PHEV, EV). Cualquier otra se descarta al
+   *  cambiar de fuente. Sin la lista, se descarta siempre. */
+  tecnologiasImportacion?: string[];
+}) {
   const { leer, setParams, pendiente } = useFiltroUrl();
   const vista = (leer("fuente") ?? fuente) as "matriculacion" | "importacion";
 
   const set = (v: string) => {
-    // La tecnologia solo existe del lado de matriculacion: al pasar a
-    // importacion se descarta para no dejar un filtro que no aplica.
-    setParams(v === "importacion" ? { fuente: v, tecnologia: null } : { fuente: v });
+    // La tecnologia (casi) solo existe del lado de matriculacion: al pasar
+    // a importacion se descarta para no dejar un filtro que no aplica.
+    const tec = leer("tecnologia");
+    const conservar = !!tec && tecnologiasImportacion.includes(tec);
+    setParams(v === "importacion" && !conservar ? { fuente: v, tecnologia: null } : { fuente: v });
   };
 
   return (

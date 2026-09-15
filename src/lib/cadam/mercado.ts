@@ -364,7 +364,7 @@ export function totalUnidades(fuente: Fuente, f: Filtro): number {
   return r?.t ?? 0;
 }
 
-function armarRanking(
+export function armarRanking(
   filasActual: {
     clave: string; marca: string; modelo?: string; segmento?: string;
     tecnologia?: string | null; unidades: number;
