@@ -36,7 +36,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cadam import detect, schema, validar  # noqa: E402
+from cadam import complemento, detect, schema, validar  # noqa: E402
 from cadam.rowlevel import PARSERS, Log  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -350,6 +350,20 @@ def main():
             if not hallazgos:
                 print("  sin hallazgos")
         con.commit()
+        # El row-level acaba de avanzar: si el informe estadistico iba mas
+        # adelante, ahora completa menos meses (o ninguno). Se recalcula.
+        if not args.dry_run:
+            hallazgos = complemento.complementar(con)
+            activo_c = con.execute("SELECT periodo FROM v_snapshot_actual").fetchone()
+            if activo_c:
+                con.execute("DELETE FROM carga_log WHERE snapshot=? AND categoria='complemento_informe'",
+                            (activo_c[0],))
+            con.executemany(
+                "INSERT INTO carga_log (snapshot, archivo, nivel, categoria, mensaje, n) "
+                "VALUES (?,?,?,?,?,?)", hallazgos)
+            con.commit()
+            for _s, _a, _n, _c, msg, _k in hallazgos:
+                print(f"  [complemento] {msg}")
         activo = con.execute("SELECT periodo FROM v_snapshot_actual").fetchone()
         print(f"\nSnapshot activo (el que lee la app): {activo[0] if activo else 'ninguno'}")
         print(f"Listo -> {DB_PATH}")

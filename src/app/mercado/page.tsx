@@ -15,7 +15,7 @@ import {
   getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getParametros } from "@/lib/cadam/config";
-import { aniosDeSerie, etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
+import { aniosDeSerie, etiquetaCorte, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 import { formatPct, formatUnidades } from "@/lib/format";
 import { serieAAnios } from "@/lib/serie";
 
@@ -26,11 +26,29 @@ export default async function MercadoPage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
+  // Fuente activa: manda sobre los cortes por dimension, el ranking y
+  // TAMBIEN sobre hasta que mes se puede pedir. La importacion suele ir un
+  // mes adelante de la matriculacion (el informe de CADAM llega antes que
+  // el detalle), y topar todo con la matriculacion escondia ese mes.
+  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
+  const esImportacion = fuente === "importacion";
+  const etiquetaFuente = esImportacion ? "importaciones" : "matriculaciones";
+  const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
 
-  const matric = getKpi("matriculacion", f);
+  // Si el rango pasa del ultimo mes de matriculacion, los KPIs que la usan
+  // se calculan hasta donde llega y lo dicen; comparar importacion de ocho
+  // meses contra matriculacion de siete seria un numero inventado.
+  const topeMatric = cobertura.matriculacion.ultimo;
+  const matricHasta =
+    topeMatric && f.anio === topeMatric.anio ? Math.min(f.mesHasta, topeMatric.mes) : f.mesHasta;
+  const matricRecorta = matricHasta < f.mesHasta;
+  const fComun = matricRecorta ? { ...f, mesHasta: Math.max(f.mesDesde, matricHasta) } : f;
+  const periodoMatric = etiquetaPeriodo(fComun.anio, fComun.mesDesde, fComun.mesHasta);
+
+  const matric = getKpi("matriculacion", fComun);
   const import_ = getKpi("importacion", f);
+  const importComun = matricRecorta ? getKpi("importacion", fComun) : import_;
 
   // Los graficos respetan los mismos filtros que los KPIs (segmento,
   // tecnologia, marca), pero NO el rango de meses: muestran el ano
@@ -43,11 +61,6 @@ export default async function MercadoPage({
   const serieMat = serieAAnios(getSerieMensual("matriculacion", aniosMat, cortes), aniosMat);
   const serieImp = serieAAnios(getSerieMensual("importacion", aniosImp, cortes), aniosImp);
 
-  // Fuente activa: manda sobre los cortes por dimension y el ranking.
-  // Los KPIs de arriba siguen mostrando las dos, porque son el titular.
-  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
-  const esImportacion = fuente === "importacion";
-  const etiquetaFuente = esImportacion ? "importaciones" : "matriculaciones";
 
   const opciones = getOpcionesFiltro();
   const segmentos = getPorDimension(fuente, "segmento", f);
@@ -102,11 +115,12 @@ export default async function MercadoPage({
     .slice(0, TOPE_PANEL);
 
   const mesMax: Record<number, number> = {};
-  for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio ? cobertura.matriculacion.ultimo.mes : 12;
+  for (const a of cobertura[fuente].anios) {
+    mesMax[a] = a === cobertura[fuente].ultimo?.anio ? cobertura[fuente].ultimo.mes : 12;
   }
 
-  const diferencia = import_.valor - matric.valor;
+  // Sobre el mismo rango de meses para las dos, si no la resta no significa nada.
+  const diferencia = importComun.valor - matric.valor;
 
   return (
     <div className="flex flex-col gap-5">
@@ -126,7 +140,7 @@ export default async function MercadoPage({
         <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
             pegajoso={false}
-            anios={cobertura.matriculacion.anios}
+            anios={cobertura[fuente].anios}
             mesMaximoPorAnio={mesMax}
             aniosSerie
             opciones={[
@@ -152,11 +166,11 @@ export default async function MercadoPage({
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          label="Matriculaciones"
+          label={matricRecorta ? `Matriculaciones (hasta ${mesCorto(matricHasta)})` : "Matriculaciones"}
           value={formatUnidades(matric.valor)}
           variacion={matric.variacion}
-          periodo={periodo}
-          tooltip={`Unidades matriculadas en el período. Comparación contra ${periodo.replace(String(f.anio), String(f.anio - 1))}: ${formatUnidades(matric.baseValor)} u.`}
+          periodo={periodoMatric}
+          tooltip={`Unidades matriculadas en el período. Comparación contra ${periodoMatric.replace(String(f.anio), String(f.anio - 1))}: ${formatUnidades(matric.baseValor)} u.${matricRecorta ? ` CADAM todavía no publicó la matriculación de ${mesCorto(f.mesHasta)}: la importación de ese mes ya está, la matriculación no.` : ""}`}
         />
         <KpiCard
           label="Importaciones"
@@ -168,7 +182,7 @@ export default async function MercadoPage({
         <KpiCard
           label="Diferencia import. − matric."
           value={formatUnidades(Math.abs(diferencia))}
-          periodo={diferencia >= 0 ? "importación por encima" : "matriculación por encima"}
+          periodo={`${diferencia >= 0 ? "importación por encima" : "matriculación por encima"}${matricRecorta ? ` · ${periodoMatric}` : ""}`}
           tooltip="Señal orientativa, NO stock real: hay desfasajes temporales, unidades importadas en períodos anteriores, reexportaciones y registros tardíos."
         />
         <KpiCard

@@ -39,6 +39,8 @@ import xlrd
 import openpyxl
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+from cadam import complemento  # noqa: E402
 DB_PATH = SCRIPT_DIR.parent / "data" / "cadam.db"
 DEFAULT_CADAM_DATA_DIR = SCRIPT_DIR.parent.parent / "CADAM-DATA"
 
@@ -135,7 +137,35 @@ CREATE TABLE IF NOT EXISTS importacion_modelo_mensual (
     unidades INTEGER NOT NULL,
     PRIMARY KEY (informe_periodo, anio, mes, marca, modelo)
 );
+
+-- Cuadro 19: camiones y omnibus por modelo y mes. Mismo formato que el 8.
+CREATE TABLE IF NOT EXISTS importacion_camion_modelo_mensual (
+    informe_periodo TEXT NOT NULL,
+    anio INTEGER NOT NULL,
+    mes INTEGER NOT NULL,
+    marca TEXT NOT NULL,
+    modelo TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    unidades INTEGER NOT NULL,
+    PRIMARY KEY (informe_periodo, anio, mes, marca, modelo, tipo)
+);
 """
+
+# `tipo` en importacion_modelo_mensual se agrego el 15/09/2026: el Cuadro 8
+# lo trae ("SUV mediano B") y es exactamente el `tipo_cadam` del row-level,
+# lo que permite completar meses que el row-level todavia no tiene. Las
+# bases anteriores no tienen la columna: se agrega si falta.
+MIGRACIONES = [
+    ("importacion_modelo_mensual", "tipo", "TEXT NOT NULL DEFAULT ''"),
+]
+
+
+def migrar(con):
+    for tabla, columna, tipo_sql in MIGRACIONES:
+        cols = {r[1] for r in con.execute(f"PRAGMA table_info({tabla})")}
+        if columna not in cols:
+            con.execute(f"ALTER TABLE {tabla} ADD COLUMN {columna} {tipo_sql}")
+
 
 def month_cols_cuadro1(hasta_mes: int):
     """Cuadro 1 trae tres columnas por mes (año anterior, año actual, var %):
@@ -451,12 +481,55 @@ def extract_cuadro8_importacion_modelo(wb, hasta_mes=6):
         modelo = clean(str(modelo)) if modelo else ""
         if not modelo:
             continue
+        # Col C: "SUV mediano B", "Pick up mediano", "Auto mediano C"… Es el
+        # mismo `tipo_cadam` del row-level, en otra caja. Se guarda en
+        # mayusculas para que cruce directo.
+        tipo = sh.cell(r, 3).value
+        tipo = clean(str(tipo)).upper() if tipo else ""
         for mes_idx in range(hasta_mes):  # Ene.. -> columnas desde D (indices 4..)
             val = sh.cell(r, 4 + mes_idx).value
             if isinstance(val, (int, float)) and val > 0:
-                clave = (mes_idx + 1, marca, modelo)
+                clave = (mes_idx + 1, marca, modelo, tipo)
                 acumulado[clave] = acumulado.get(clave, 0) + int(val)
-    return [(anio, mes, marca, modelo, u) for (mes, marca, modelo), u in acumulado.items()]
+    return [(anio, mes, marca, modelo, tipo, u) for (mes, marca, modelo, tipo), u in acumulado.items()]
+
+
+def extract_cuadro19_importacion_camion_modelo(wb, hasta_mes=6):
+    """Cuadro 19: importacion de camiones y omnibus por modelo y mes. Misma
+    grilla que el Cuadro 8 (Marca | Modelo | Tipo | Ene..Dic) con el titulo
+    en la fila 1 y el encabezado en la 2. El tipo viene como 'chico',
+    'mediano', 'grande', 'omnibus' — el mismo corte que usa
+    importacion_camion en el row-level."""
+    if "19" not in wb.sheetnames:
+        return []
+    sh = wb["19"]
+    title = clean(str(sh.cell(1, 1).value or ""))
+    m = re.search(r"(\d{4})", title)
+    anio = int(m.group(1)) if m else None
+    if anio is None:
+        return []
+    acumulado = {}
+    for r in range(3, sh.max_row + 1):
+        marca = sh.cell(r, 1).value
+        if not marca:
+            continue
+        marca = clean(str(marca))
+        if marca.upper().startswith(("TOTAL", "FUENTE")):
+            if marca.upper().startswith("FUENTE"):
+                break
+            continue
+        modelo = sh.cell(r, 2).value
+        modelo = clean(str(modelo)) if modelo else ""
+        if not modelo:
+            continue
+        tipo = sh.cell(r, 3).value
+        tipo = clean(str(tipo)).upper() if tipo else ""
+        for mes_idx in range(hasta_mes):
+            val = sh.cell(r, 4 + mes_idx).value
+            if isinstance(val, (int, float)) and val > 0:
+                clave = (mes_idx + 1, marca.upper(), modelo, tipo)
+                acumulado[clave] = acumulado.get(clave, 0) + int(val)
+    return [(anio, mes, marca, modelo, tipo, u) for (mes, marca, modelo, tipo), u in acumulado.items()]
 
 
 def extract_cuadro10_importacion_combustible(wb, hasta_mes=6):
@@ -503,6 +576,7 @@ def get_conn():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB_PATH)
     con.executescript(SCHEMA)
+    migrar(con)
     return con
 
 
@@ -569,6 +643,7 @@ def ingest_importacion(con, archivo: Path, periodo: str):
     marca_rows = extract_cuadro5_importacion_marca(wb, hasta)
     combustible_rows = extract_cuadro10_importacion_combustible(wb, hasta)
     modelo_rows = extract_cuadro8_importacion_modelo(wb, hasta)
+    camion_rows = extract_cuadro19_importacion_camion_modelo(wb, hasta)
 
     con.execute(
         "INSERT INTO informes (periodo, tipo, archivo) VALUES (?, 'importacion', ?) "
@@ -581,6 +656,7 @@ def ingest_importacion(con, archivo: Path, periodo: str):
     con.execute("DELETE FROM importacion_marca_mensual WHERE informe_periodo = ?", (periodo,))
     con.execute("DELETE FROM importacion_combustible_mensual WHERE informe_periodo = ?", (periodo,))
     con.execute("DELETE FROM importacion_modelo_mensual WHERE informe_periodo = ?", (periodo,))
+    con.execute("DELETE FROM importacion_camion_modelo_mensual WHERE informe_periodo = ?", (periodo,))
     con.executemany(
         "INSERT INTO importacion_tipo_acum "
         "(informe_periodo, tipo, anio_actual, anio_anterior, unidades_actual, unidades_anterior) "
@@ -604,8 +680,13 @@ def ingest_importacion(con, archivo: Path, periodo: str):
     )
     con.executemany(
         "INSERT INTO importacion_modelo_mensual "
-        "(informe_periodo, anio, mes, marca, modelo, unidades) VALUES (?, ?, ?, ?, ?, ?)",
-        [(periodo, y, m, mk, mo, u) for (y, m, mk, mo, u) in modelo_rows],
+        "(informe_periodo, anio, mes, marca, modelo, tipo, unidades) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [(periodo, y, m, mk, mo, tp, u) for (y, m, mk, mo, tp, u) in modelo_rows],
+    )
+    con.executemany(
+        "INSERT INTO importacion_camion_modelo_mensual "
+        "(informe_periodo, anio, mes, marca, modelo, tipo, unidades) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [(periodo, y, m, mk, mo, tp, u) for (y, m, mk, mo, tp, u) in camion_rows],
     )
     con.commit()
     n_acum = con.execute(
@@ -623,9 +704,31 @@ def ingest_importacion(con, archivo: Path, periodo: str):
     n_modelo = con.execute(
         "SELECT COUNT(*) FROM importacion_modelo_mensual WHERE informe_periodo=?", (periodo,)
     ).fetchone()[0]
+    n_camion = con.execute(
+        "SELECT COUNT(*) FROM importacion_camion_modelo_mensual WHERE informe_periodo=?", (periodo,)
+    ).fetchone()[0]
     print(f"  [importacion]   {periodo} <- '{archivo.name}': {n_acum} filas tipo (acum), "
           f"{n_mensual} filas mensuales, {n_marca} filas marca, {n_comb} filas combustible, "
-          f"{n_modelo} filas modelo")
+          f"{n_modelo} filas modelo, {n_camion} filas camion/modelo")
+
+    # Si el informe va mas adelante que el detalle por vehiculo, completa
+    # los meses que faltan (ver cadam/complemento.py). Deja constancia en
+    # carga_log para que Calidad de datos lo muestre.
+    try:
+        hallazgos = complemento.complementar(con)
+    except sqlite3.Error as e:
+        print(f"  [aviso] no se pudo completar desde el informe: {e}")
+        hallazgos = []
+    if hallazgos:
+        snap = hallazgos[0][0]
+        con.execute("DELETE FROM carga_log WHERE snapshot=? AND categoria='complemento_informe'", (snap,))
+        con.executemany(
+            "INSERT INTO carga_log (snapshot, archivo, nivel, categoria, mensaje, n) VALUES (?,?,?,?,?,?)",
+            hallazgos,
+        )
+        con.commit()
+        for _s, _a, _n, _c, msg, _k in hallazgos:
+            print(f"  [complemento]   {msg}")
 
 
 def scan_and_ingest(carpeta: Path):

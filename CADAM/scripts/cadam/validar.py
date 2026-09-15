@@ -73,10 +73,14 @@ def _vs_informe(con, snapshot):
         # agosto) la suma sin filtrar contaba enero-junio dos veces y el
         # control daba un descuadre de exactamente el total de junio
         # (24.047). Paso el 15/09/2026 al cargar el informe de agosto.
+        # Y sin las filas que vinieron DEL informe (cadam/complemento.py):
+        # compararlas contra si mismas daria un "coincide" vacio.
+        cols = {r[1] for r in con.execute(f"PRAGMA table_info({tabla})")}
+        solo_rowlevel = " AND fuente = 'row-level'" if "fuente" in cols else ""
         filas = con.execute(f"""
             SELECT r.anio, SUM(r.u), SUM(o.u), COUNT(*) FROM
               (SELECT anio, mes, SUM(unidades) u FROM {tabla}
-               WHERE snapshot = ? GROUP BY anio, mes) r
+               WHERE snapshot = ?{solo_rowlevel} GROUP BY anio, mes) r
             JOIN (SELECT anio, mes, SUM(unidades) u FROM {oficial}
                   WHERE informe_periodo = (SELECT MAX(informe_periodo) FROM {oficial})
                   GROUP BY anio, mes) o

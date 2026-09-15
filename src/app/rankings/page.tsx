@@ -11,7 +11,7 @@ import {
 } from "@/lib/cadam/bandas";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCorte } from "@/lib/periodo";
+import { etiquetaCorte, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 
 export default async function RankingsPage({
   searchParams,
@@ -20,8 +20,20 @@ export default async function RankingsPage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
+  // Las dos fuentes conviven en pestanas con un solo filtro. Por defecto
+  // el periodo llega hasta la ultima matriculacion (asi las cuatro
+  // pestanas comparan lo mismo), pero se puede pedir hasta donde llegue
+  // la importacion, que suele ir un mes adelante. Cuando pasa eso, las
+  // pestanas de matriculacion lo avisan.
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const ultimo =
+    ultMat && ultImp && (ultImp.anio > ultMat.anio || (ultImp.anio === ultMat.anio && ultImp.mes > ultMat.mes))
+      ? ultImp
+      : ultMat;
+  const f = filtroDesdeUrl(sp, ultMat);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
+  const matricRecorta = !!ultMat && f.anio === ultMat.anio && f.mesHasta > ultMat.mes;
   const opciones = getOpcionesFiltro();
 
   const marcasMat = getRankingMarcas("matriculacion", f);
@@ -30,8 +42,8 @@ export default async function RankingsPage({
   const modelosImp = getRankingModelos("importacion", f, 500);
 
   const mesMax: Record<number, number> = {};
-  for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio ? cobertura.matriculacion.ultimo.mes : 12;
+  for (const a of [...new Set([...cobertura.matriculacion.anios, ...cobertura.importacion.anios])].sort()) {
+    mesMax[a] = a === ultimo?.anio ? ultimo.mes : 12;
   }
   const nota = `Variación y cambio de posición contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`;
 
@@ -99,6 +111,13 @@ export default async function RankingsPage({
             titulo={`Marcas por matriculación (${marcasMat.length})`}
             nota="Las marcas ordenadas por chapas puestas. Tocá una y toda la pantalla queda filtrada por ella; tocala de nuevo y se quita."
           >
+            {matricRecorta && ultMat && (
+              <NotaDato>
+                CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
+                ranking llega hasta {mesCorto(ultMat.mes)}. La importación de{" "}
+                {mesCorto(f.mesHasta)} ya está, en las pestañas de importación.
+              </NotaDato>
+            )}
             <TablaRanking filas={marcasMat} notaVariacion={nota}
               nombreArchivo={`ranking-marcas-matriculacion-${f.anio}`} />
           </Panel>
@@ -125,6 +144,12 @@ export default async function RankingsPage({
             titulo={`Modelos por matriculación (${modelosMat.length})`}
             nota="Modelo por modelo, con su segmento. Tocá una fila y se abre contra quién compite ese modelo: su clase, sus rivales y a qué precio."
           >
+            {matricRecorta && ultMat && (
+              <NotaDato>
+                CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
+                ranking llega hasta {mesCorto(ultMat.mes)}.
+              </NotaDato>
+            )}
             <TablaRanking filas={modelosMat} mostrarModelo mostrarSegmento
               notaVariacion={nota}
               fichas={fichasMat}

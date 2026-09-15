@@ -27,14 +27,16 @@ export default async function MarketSharePage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
+  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
+  // El tope de meses es el de la fuente que se mira: la importacion suele
+  // ir un mes adelante de la matriculacion.
+  const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
   const opciones = getOpcionesFiltro();
   const propias = getMarcasPropiasSet();
 
   const dimRaw = String(sp.dim ?? "marca");
   const dim: Dim = (dimRaw in DIMENSIONES ? dimRaw : "marca") as Dim;
-  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
 
   // Importacion no trae tecnologia ni importador: esas dimensiones solo
   // existen del lado de matriculacion.
@@ -70,9 +72,8 @@ export default async function MarketSharePage({
   });
 
   const mesMax: Record<number, number> = {};
-  for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio
-      ? cobertura.matriculacion.ultimo.mes : 12;
+  for (const a of cobertura[fuente].anios) {
+    mesMax[a] = a === cobertura[fuente].ultimo?.anio ? cobertura[fuente].ultimo.mes : 12;
   }
 
   return (
@@ -90,7 +91,7 @@ export default async function MarketSharePage({
       />
 
       <FiltroPeriodo
-        anios={cobertura.matriculacion.anios}
+        anios={cobertura[fuente].anios}
         mesMaximoPorAnio={mesMax}
         opciones={[
           { param: "segmento", label: "Segmento", valores: opciones.segmentos },
