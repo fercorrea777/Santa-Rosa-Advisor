@@ -34,7 +34,7 @@ export interface FilaPortafolio {
   banda: string;
 }
 
-const usd = (n: number | null) => (n === null ? "—" : `US$ ${formatUnidades(Math.round(n))}`);
+const usd = (n: number | null) => (n === null ? "—" : formatUnidades(Math.round(n)));
 
 /**
  * La gama de una marca en una tabla: cada modelo con su clase, cuánto
@@ -93,13 +93,13 @@ export function TablaPortafolio({
           <TableRow>
             {cab("modelo", "Modelo")}
             {cab("clase", "Clase", "contra quién compite")}
-            <TableHead nota="según la DNRA">Tecnología</TableHead>
+            <TableHead>Tecnología</TableHead>
             {cab("unidades", "Unidades", "matriculadas en el período", "text-right")}
             {cab("participacion", "Peso", "su parte dentro de la marca", "text-right")}
             {cab("variacion", "Var.", "contra el año pasado", "text-right")}
             {cab("importadas", "Import.", "entraron al país en el período", "text-right")}
-            {cab("precioDesde", "Desde", "lista, versión más barata", "text-right")}
-            {cab("precioHasta", "Hasta", "lista, versión más cara", "text-right")}
+            {cab("precioDesde", "Desde US$", "lista, versión más barata", "text-right")}
+            {cab("precioHasta", "Hasta US$", "la más cara del modelo", "text-right")}
             <TableHead className="text-right" nota="con precio / según DNRA">Versiones</TableHead>
           </TableRow>
         </TableHeader>
