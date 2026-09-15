@@ -3,18 +3,17 @@
 import { useFiltroUrl } from "@/lib/filtro-url";
 import { cn } from "@/lib/utils";
 
-/** Selector de fuente + dimension de analisis, escrito en la URL. */
+/** Selector de la dimension de analisis, escrito en la URL. La fuente
+ *  (matriculacion / importacion / ambas) la elige el SelectorFuente que va
+ *  al lado, el mismo de todas las pantallas. */
 export function SelectorDimension({
   dimensiones,
   dimensionActual,
-  fuente,
 }: {
   dimensiones: { valor: string; label: string }[];
   dimensionActual: string;
-  fuente: "matriculacion" | "importacion";
 }) {
   const { leer, setParams: set, pendiente } = useFiltroUrl();
-  const fuenteVista = leer("fuente") ?? fuente;
   const dimVista = leer("dim") ?? dimensionActual;
 
   return (
@@ -28,14 +27,6 @@ export function SelectorDimension({
           className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
         />
       )}
-      <Grupo label="Fuente">
-        {(["matriculacion", "importacion"] as const).map((v) => (
-          <Boton key={v} activo={fuenteVista === v} onClick={() => set({ fuente: v })}>
-            {v === "matriculacion" ? "Matriculación" : "Importación"}
-          </Boton>
-        ))}
-      </Grupo>
-
       <Grupo label="Analizar por">
         {dimensiones.map((d) => (
           <Boton
