@@ -137,8 +137,11 @@ CREATE TABLE IF NOT EXISTS importacion_modelo_mensual (
 );
 """
 
-MONTH_COLS_CUADRO1 = [(1, 2, "ene"), (4, 5, "feb"), (7, 8, "mar"),
-                       (10, 11, "abr"), (13, 14, "may"), (16, 17, "jun")]
+def month_cols_cuadro1(hasta_mes: int):
+    """Cuadro 1 trae tres columnas por mes (año anterior, año actual, var %):
+    ene en B..D, feb en E..G, … Devuelve los pares (col_anterior, col_actual)
+    hasta el mes de cierre del informe. Antes era una lista fija de seis."""
+    return [(1 + 3 * i, 2 + 3 * i) for i in range(hasta_mes)]
 
 MESES_ES = {
     "ene": 1, "enero": 1, "feb": 2, "febrero": 2, "mar": 3, "marzo": 3,
@@ -185,6 +188,18 @@ def xldate_year(wb, serial):
     return y, m
 
 
+def meses_del_periodo(periodo: str) -> int:
+    """'2026-08' -> 8. Los cuadros mensuales del informe traen las doce
+    columnas siempre, pero solo tienen dato hasta el mes de cierre; las que
+    siguen vienen en 0 o vacías. Leer más allá del cierre metería ceros
+    como si fueran meses reales.
+
+    Esto estaba cableado en 6 (el primer informe procesado fue el de junio)
+    y el de agosto entró con julio y agosto afuera: 24.047 importaciones en
+    vez de 34.472. Cinco extractores, el mismo error."""
+    return int(periodo.split("-")[1])
+
+
 def detectar_tipo_y_periodo(nombre_archivo: str):
     """Devuelve (tipo, 'AAAA-MM') a partir del nombre del archivo, o (None, None)
     si no se puede clasificar con confianza."""
@@ -206,7 +221,7 @@ def detectar_tipo_y_periodo(nombre_archivo: str):
 
 # ---------------- MATRICULACION ----------------
 
-def extract_cuadro1_matriculacion(wb):
+def extract_cuadro1_matriculacion(wb, hasta_mes=6):
     """Cuadro 1: matriculacion por tipo de automotor, formato largo."""
     sh = wb.sheet_by_name("1")
     date_row = sh.row_values(2)
@@ -221,7 +236,7 @@ def extract_cuadro1_matriculacion(wb):
                 continue
             else:
                 break
-        for c25, c26, _tag in MONTH_COLS_CUADRO1:
+        for c25, c26 in month_cols_cuadro1(hasta_mes):
             y25, m25 = xldate_year(wb, date_row[c25])
             y26, m26 = xldate_year(wb, date_row[c26])
             v25 = row[c25] if isinstance(row[c25], float) else 0
@@ -231,7 +246,7 @@ def extract_cuadro1_matriculacion(wb):
     return rows
 
 
-def extract_cuadro2_matriculacion(wb):
+def extract_cuadro2_matriculacion(wb, hasta_mes=6):
     """Cuadro 2: matriculacion de livianos por marca, formato largo."""
     sh = wb.sheet_by_name("2")
     date_row = sh.row_values(2)
@@ -245,7 +260,7 @@ def extract_cuadro2_matriculacion(wb):
             continue
         if marca.upper().startswith(("ELABORADO", "FUENTE")):
             break
-        for i in range(6):
+        for i in range(hasta_mes):
             base = 1 + i * 3
             y25, m25 = xldate_year(wb, date_row[base])
             y26, m26 = xldate_year(wb, date_row[base + 1])
@@ -256,7 +271,7 @@ def extract_cuadro2_matriculacion(wb):
     return rows
 
 
-def extract_cuadro19_matriculacion_combustible(wb):
+def extract_cuadro19_matriculacion_combustible(wb, hasta_mes=6):
     """Cuadro 19: matriculacion por tipo de movilidad (combustible), por mes,
     SOLO anio en curso (CADAM no publica el detalle mensual del anio
     anterior en este cuadro)."""
@@ -279,14 +294,14 @@ def extract_cuadro19_matriculacion_combustible(wb):
                 break
             continue
         combustible = normalizar_combustible(label)
-        for mes_idx in range(6):  # Ene..Jun -> columnas B..G (indices 1..6)
+        for mes_idx in range(hasta_mes):  # Ene.. -> columnas desde B (indices 1..)
             val = row[1 + mes_idx]
             if isinstance(val, float):
                 rows.append((anio, mes_idx + 1, combustible, int(val)))
     return rows
 
 
-def extract_cuadro17_matriculacion_modelo(wb):
+def extract_cuadro17_matriculacion_modelo(wb, hasta_mes=6):
     """Cuadro 17: matriculacion por tipo, marca y modelo, SOLO anio en curso.
     La hoja original solo llena 'Marca' en la primera fila de cada marca
     (celdas fusionadas al exportar) -- hay que arrastrar el ultimo valor no
@@ -316,7 +331,7 @@ def extract_cuadro17_matriculacion_modelo(wb):
             break
         if marca_actual is None:
             continue
-        for mes_idx in range(6):  # Ene..Jun -> columnas D..I (indices 3..8)
+        for mes_idx in range(hasta_mes):  # Ene.. -> columnas desde D (indices 3..)
             val = row[3 + mes_idx]
             if isinstance(val, float) and val > 0:
                 clave = (mes_idx + 1, marca_actual, modelo)
@@ -352,7 +367,7 @@ def extract_cuadro2_importacion(wb):
     return rows
 
 
-def extract_cuadro3_importacion_mensual(wb):
+def extract_cuadro3_importacion_mensual(wb, hasta_mes=6):
     """Cuadro 3: importacion de vehiculos livianos por tipo y mes, anio en curso.
     wb: openpyxl Workbook (el archivo de importacion es .xlsx)."""
     sh = wb["3"]
@@ -373,14 +388,14 @@ def extract_cuadro3_importacion_mensual(wb):
             continue
         if anio is None:
             continue
-        for mes_idx in range(6):  # Ene..Jun -> columnas B..G (indices 1..6 de row)
+        for mes_idx in range(hasta_mes):  # Ene.. -> columnas desde B (indices 1.. de row)
             val = row[1 + mes_idx]
             if isinstance(val, (int, float)):
                 rows.append((anio, mes_idx + 1, label, int(val)))
     return rows
 
 
-def extract_cuadro5_importacion_marca(wb):
+def extract_cuadro5_importacion_marca(wb, hasta_mes=6):
     """Cuadro 5: importacion de vehiculos por marca y mes, SOLO anio en curso
     (mismo patron que el Cuadro 3: CADAM no publica la serie mensual del anio
     anterior en estos cuadros de detalle). wb: openpyxl Workbook (.xlsx)."""
@@ -401,14 +416,14 @@ def extract_cuadro5_importacion_marca(wb):
             if label.upper().startswith("FUENTE"):
                 break
             continue
-        for mes_idx in range(6):  # Ene..Jun -> columnas B..G (indices 2..7)
+        for mes_idx in range(hasta_mes):  # Ene.. -> columnas desde B (indices 2..)
             val = sh.cell(r, 2 + mes_idx).value
             if isinstance(val, (int, float)):
                 rows.append((anio, mes_idx + 1, label, int(val)))
     return rows
 
 
-def extract_cuadro8_importacion_modelo(wb):
+def extract_cuadro8_importacion_modelo(wb, hasta_mes=6):
     """Cuadro 8: importacion de vehiculos por modelo, por mes (y valor CIF,
     que no se usa aca), SOLO anio en curso. A diferencia del Cuadro 17 de
     matriculacion, aca 'Marca' viene completo en cada fila (no requiere
@@ -436,7 +451,7 @@ def extract_cuadro8_importacion_modelo(wb):
         modelo = clean(str(modelo)) if modelo else ""
         if not modelo:
             continue
-        for mes_idx in range(6):  # Ene..Jun -> columnas D..I (indices 4..9)
+        for mes_idx in range(hasta_mes):  # Ene.. -> columnas desde D (indices 4..)
             val = sh.cell(r, 4 + mes_idx).value
             if isinstance(val, (int, float)) and val > 0:
                 clave = (mes_idx + 1, marca, modelo)
@@ -444,7 +459,7 @@ def extract_cuadro8_importacion_modelo(wb):
     return [(anio, mes, marca, modelo, u) for (mes, marca, modelo), u in acumulado.items()]
 
 
-def extract_cuadro10_importacion_combustible(wb):
+def extract_cuadro10_importacion_combustible(wb, hasta_mes=6):
     """Cuadro 10A: importacion por tipo de combustible, por mes, SOLO anio en
     curso (mismo cuadro trae despues, indentado, el detalle por tipo de
     vehiculo dentro de cada mes -- se toman solo las filas de TOTAL mensual,
@@ -473,7 +488,7 @@ def extract_cuadro10_importacion_combustible(wb):
         if label.upper().startswith("FUENTE"):
             break
         mes = MESES_LARGOS.get(label.lower())
-        if mes is None or mes > 6:  # solo filas de TOTAL mensual, Ene-Jun con datos reales
+        if mes is None or mes > hasta_mes:  # solo filas de TOTAL mensual, con datos reales
             continue
         for col, combustible in combustibles_cols:
             val = sh.cell(r, col).value
@@ -493,10 +508,11 @@ def get_conn():
 
 def ingest_matriculacion(con, archivo: Path, periodo: str):
     wb = xlrd.open_workbook(str(archivo))
-    tipo_rows = extract_cuadro1_matriculacion(wb)
-    marca_rows = extract_cuadro2_matriculacion(wb)
-    combustible_rows = extract_cuadro19_matriculacion_combustible(wb)
-    modelo_rows = extract_cuadro17_matriculacion_modelo(wb)
+    hasta = meses_del_periodo(periodo)
+    tipo_rows = extract_cuadro1_matriculacion(wb, hasta)
+    marca_rows = extract_cuadro2_matriculacion(wb, hasta)
+    combustible_rows = extract_cuadro19_matriculacion_combustible(wb, hasta)
+    modelo_rows = extract_cuadro17_matriculacion_modelo(wb, hasta)
 
     con.execute(
         "INSERT INTO informes (periodo, tipo, archivo) VALUES (?, 'matriculacion', ?) "
@@ -547,11 +563,12 @@ def ingest_matriculacion(con, archivo: Path, periodo: str):
 
 def ingest_importacion(con, archivo: Path, periodo: str):
     wb = openpyxl.load_workbook(str(archivo), data_only=True)
+    hasta = meses_del_periodo(periodo)
     acum_rows = extract_cuadro2_importacion(wb)
-    mensual_rows = extract_cuadro3_importacion_mensual(wb)
-    marca_rows = extract_cuadro5_importacion_marca(wb)
-    combustible_rows = extract_cuadro10_importacion_combustible(wb)
-    modelo_rows = extract_cuadro8_importacion_modelo(wb)
+    mensual_rows = extract_cuadro3_importacion_mensual(wb, hasta)
+    marca_rows = extract_cuadro5_importacion_marca(wb, hasta)
+    combustible_rows = extract_cuadro10_importacion_combustible(wb, hasta)
+    modelo_rows = extract_cuadro8_importacion_modelo(wb, hasta)
 
     con.execute(
         "INSERT INTO informes (periodo, tipo, archivo) VALUES (?, 'importacion', ?) "

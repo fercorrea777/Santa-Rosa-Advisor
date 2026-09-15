@@ -46,8 +46,11 @@ export function getPeriodoInfo(): PeriodoInfo | null {
   const anioActual = anios[0].anio;
   const anioAnterior = anioActual - 1;
   const mesMaxRow = db
-    .prepare("SELECT MAX(mes) as mesMax FROM matriculacion_tipo WHERE anio = ?")
-    .get(anioActual) as { mesMax: number };
+    // Del informe más reciente: cada informe repite el año desde enero, y con
+    // dos cargados el MAX sin filtrar es el mismo pero el resto de las
+    // consultas de este archivo contarían los meses dos veces.
+    .prepare("SELECT MAX(mes) as mesMax FROM matriculacion_tipo WHERE informe_periodo = ? AND anio = ?")
+    .get(informe.periodo, anioActual) as { mesMax: number };
 
   return {
     periodo: informe.periodo,
@@ -72,11 +75,11 @@ export function getEvolucionMensual(info: PeriodoInfo, rango: Rango): EvolucionM
     .prepare(
       `SELECT anio, mes, SUM(unidades) as total
        FROM matriculacion_tipo
-       WHERE anio IN (?, ?) AND mes BETWEEN ? AND ?
+       WHERE informe_periodo = ? AND anio IN (?, ?) AND mes BETWEEN ? AND ?
        GROUP BY anio, mes
        ORDER BY mes`
     )
-    .all(info.anioActual, info.anioAnterior, rango.desde, rango.hasta) as {
+    .all(info.periodo, info.anioActual, info.anioAnterior, rango.desde, rango.hasta) as {
     anio: number;
     mes: number;
     total: number;
@@ -113,10 +116,10 @@ export function getDistribucionTipo(info: PeriodoInfo, rango: Rango): Distribuci
     .prepare(
       `SELECT anio, tipo, SUM(unidades) as total
        FROM matriculacion_tipo
-       WHERE anio IN (?, ?) AND mes BETWEEN ? AND ?
+       WHERE informe_periodo = ? AND anio IN (?, ?) AND mes BETWEEN ? AND ?
        GROUP BY anio, tipo`
     )
-    .all(info.anioActual, info.anioAnterior, rango.desde, rango.hasta) as {
+    .all(info.periodo, info.anioActual, info.anioAnterior, rango.desde, rango.hasta) as {
     anio: number;
     tipo: string;
     total: number;
@@ -161,10 +164,10 @@ export function getRankingMarcas(info: PeriodoInfo, rango: Rango): RankingMarcaI
     .prepare(
       `SELECT anio, marca, SUM(unidades) as total
        FROM matriculacion_marca
-       WHERE anio IN (?, ?) AND mes BETWEEN ? AND ?
+       WHERE informe_periodo = ? AND anio IN (?, ?) AND mes BETWEEN ? AND ?
        GROUP BY anio, marca`
     )
-    .all(info.anioActual, info.anioAnterior, rango.desde, rango.hasta) as {
+    .all(info.periodo, info.anioActual, info.anioAnterior, rango.desde, rango.hasta) as {
     anio: number;
     marca: string;
     total: number;

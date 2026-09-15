@@ -67,11 +67,18 @@ def _vs_informe(con, snapshot):
         # cubre el ano en curso hasta su mes de cierre, mientras que el
         # row-level trae anos completos. Comparar totales anuales daria un
         # descuadre falso (ej. 2025 completo vs ene-jun del informe).
+        #
+        # Y SOLO EL INFORME MAS RECIENTE. Cada informe mensual repite los
+        # meses del anio desde enero, asi que con dos cargados (junio y
+        # agosto) la suma sin filtrar contaba enero-junio dos veces y el
+        # control daba un descuadre de exactamente el total de junio
+        # (24.047). Paso el 15/09/2026 al cargar el informe de agosto.
         filas = con.execute(f"""
             SELECT r.anio, SUM(r.u), SUM(o.u), COUNT(*) FROM
               (SELECT anio, mes, SUM(unidades) u FROM {tabla}
                WHERE snapshot = ? GROUP BY anio, mes) r
             JOIN (SELECT anio, mes, SUM(unidades) u FROM {oficial}
+                  WHERE informe_periodo = (SELECT MAX(informe_periodo) FROM {oficial})
                   GROUP BY anio, mes) o
               ON o.anio = r.anio AND o.mes = r.mes
             GROUP BY r.anio
