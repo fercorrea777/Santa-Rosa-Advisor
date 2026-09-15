@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/cadam/db";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { getPool } from "@/lib/informes/db";
-import type { Filtro } from "@/lib/cadam/mercado";
+import type { Filtro, Fuente } from "@/lib/cadam/mercado";
 import type { ModeloConPrecio } from "@/lib/cadam/precios";
 import { normalizarTecnologias } from "@/lib/informes/segmento-version";
 
@@ -113,24 +113,42 @@ export interface GamaPropiaCars {
   error: string | null;
 }
 
-export async function getGamaPropiaDesdeCars(f: Filtro): Promise<GamaPropiaCars> {
+/**
+ * `fuente`: de dónde salen las unidades. Matriculación (lo de siempre) o
+ * importación —lo que entró al país, que suele ir un mes adelante—. El
+ * precio es el mismo (Cars) en los dos casos; en importación no hay
+ * tecnología por unidad.
+ */
+export async function getGamaPropiaDesdeCars(
+  f: Filtro,
+  fuente: Fuente = "matriculacion"
+): Promise<GamaPropiaCars> {
   const propias = [...getMarcasPropiasSet()];
   const vacio: GamaPropiaCars = {
     conPrecio: [], sinPrecio: [], sincronizado: null, error: null,
   };
   if (!propias.length) return vacio;
 
-  // Unidades del periodo, por marca y modelo (CADAM, SQLite).
+  // Unidades del periodo, por marca y modelo (CADAM, SQLite). En
+  // matriculación el modelo vive en `modelo_base`; en importación la
+  // columna `modelo` ya es el modelo.
   const marcasIn = propias.map(() => "?").join(",");
   const ventas = getDb()
     .prepare(
-      `SELECT marca, modelo_base modelo, SUM(unidades) unidades,
-              GROUP_CONCAT(DISTINCT tecnologia) tecs
-       FROM v_matriculacion
-       WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
-       GROUP BY marca, modelo_base
-       HAVING unidades > 0
-       ORDER BY unidades DESC`
+      fuente === "matriculacion"
+        ? `SELECT marca, modelo_base modelo, SUM(unidades) unidades,
+                  GROUP_CONCAT(DISTINCT tecnologia) tecs
+           FROM v_matriculacion
+           WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
+           GROUP BY marca, modelo_base
+           HAVING unidades > 0
+           ORDER BY unidades DESC`
+        : `SELECT marca, modelo, SUM(unidades) unidades, NULL tecs
+           FROM v_importacion
+           WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
+           GROUP BY marca, modelo
+           HAVING unidades > 0
+           ORDER BY unidades DESC`
     )
     .all(f.anio, f.mesDesde, f.mesHasta, ...propias) as {
     marca: string; modelo: string; unidades: number; tecs: string | null;
@@ -201,7 +219,7 @@ export async function getGamaPropiaDesdeCars(f: Filtro): Promise<GamaPropiaCars>
       conPrecio.push({
         marca: v.marca, modelo: v.modelo, unidades: v.unidades,
         precio, moneda: "USD", periodoPrecio: periodo,
-        tecnologia: normalizarTecnologias(v.tecs),
+        tecnologia: v.tecs === null ? undefined : normalizarTecnologias(v.tecs),
       });
   }
   return { conPrecio, sinPrecio, sincronizado, error: null };

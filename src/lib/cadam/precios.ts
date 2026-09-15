@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/cadam/db";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import type { Filtro } from "@/lib/cadam/mercado";
+import type { Filtro, Fuente } from "@/lib/cadam/mercado";
 import { normalizarTecnologias } from "@/lib/informes/segmento-version";
 
 /**
@@ -62,7 +62,25 @@ export function getPeriodosPrecio(): string[] {
  * usa esa — seria anacronico, mostrando el precio de hoy junto a las
  * unidades de hace dos meses. Sin lista aplicable el modelo no aparece.
  */
-export function getGamaPropiaConPrecio(f: Filtro): ModeloConPrecio[] {
+/** Unidades propias por marca y modelo, en la fuente pedida. Matriculación
+ *  agrupa por `modelo_base` y trae la tecnología; importación agrupa por
+ *  `modelo` y no la tiene. */
+function ventasSql(fuente: Fuente, marcasIn: string): string {
+  return fuente === "matriculacion"
+    ? `SELECT marca, modelo_base modelo, SUM(unidades) unidades,
+              GROUP_CONCAT(DISTINCT tecnologia) tecs
+       FROM v_matriculacion
+       WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
+       GROUP BY marca, modelo_base
+       HAVING unidades > 0`
+    : `SELECT marca, modelo, SUM(unidades) unidades, NULL tecs
+       FROM v_importacion
+       WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
+       GROUP BY marca, modelo
+       HAVING unidades > 0`;
+}
+
+export function getGamaPropiaConPrecio(f: Filtro, fuente: Fuente = "matriculacion"): ModeloConPrecio[] {
   if (!hayPrecios()) return [];
   const propias = [...getMarcasPropiasSet()];
   if (!propias.length) return [];
@@ -74,12 +92,7 @@ export function getGamaPropiaConPrecio(f: Filtro): ModeloConPrecio[] {
   const filas = getDb()
     .prepare(
       `WITH ventas AS (
-         SELECT marca, modelo_base modelo, SUM(unidades) unidades,
-                GROUP_CONCAT(DISTINCT tecnologia) tecs
-         FROM v_matriculacion
-         WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
-         GROUP BY marca, modelo_base
-         HAVING unidades > 0
+         ${ventasSql(fuente, marcasIn)}
        ),
        lista AS (
          -- Una sola fila por marca+modelo: la de la lista mas reciente que
@@ -101,26 +114,26 @@ export function getGamaPropiaConPrecio(f: Filtro): ModeloConPrecio[] {
     tecs: string | null;
   })[];
 
-  return filas.map(({ tecs, ...m }) => ({ ...m, tecnologia: normalizarTecnologias(tecs) }));
+  return filas.map(({ tecs, ...m }) => ({
+    ...m,
+    tecnologia: tecs === null ? undefined : normalizarTecnologias(tecs),
+  }));
 }
 
 /** Modelos propios con ventas en el periodo pero SIN precio en ninguna lista
  *  aplicable. Se listan aparte en vez de desaparecer: un modelo que vende y
  *  no esta en la lista es un dato que falta, no un modelo que no existe. */
-export function getGamaPropiaSinPrecio(f: Filtro): { marca: string; modelo: string; unidades: number }[] {
+export function getGamaPropiaSinPrecio(
+  f: Filtro,
+  fuente: Fuente = "matriculacion"
+): { marca: string; modelo: string; unidades: number }[] {
   const propias = [...getMarcasPropiasSet()];
   if (!propias.length) return [];
   const marcasIn = propias.map(() => "?").join(",");
 
   if (!hayPrecios()) {
     return getDb()
-      .prepare(
-        `SELECT marca, modelo_base modelo, SUM(unidades) unidades
-         FROM v_matriculacion
-         WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
-         GROUP BY marca, modelo_base HAVING unidades > 0
-         ORDER BY unidades DESC`
-      )
+      .prepare(`SELECT marca, modelo, unidades FROM (${ventasSql(fuente, marcasIn)}) ORDER BY unidades DESC`)
       .all(f.anio, f.mesDesde, f.mesHasta, ...propias) as {
       marca: string; modelo: string; unidades: number;
     }[];
@@ -130,10 +143,7 @@ export function getGamaPropiaSinPrecio(f: Filtro): { marca: string; modelo: stri
   return getDb()
     .prepare(
       `SELECT v.marca, v.modelo, v.unidades FROM (
-         SELECT marca, modelo_base modelo, SUM(unidades) unidades
-         FROM v_matriculacion
-         WHERE anio = ? AND mes BETWEEN ? AND ? AND marca IN (${marcasIn})
-         GROUP BY marca, modelo_base HAVING unidades > 0
+         ${ventasSql(fuente, marcasIn)}
        ) v
        WHERE NOT EXISTS (
          SELECT 1 FROM precio_modelo p

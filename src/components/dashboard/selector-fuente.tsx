@@ -16,6 +16,7 @@ export function SelectorFuente({
   conAmbas = false,
   aclaracion,
   porDefecto,
+  deshabilitadas = {},
 }: {
   fuente: FuenteVista;
   /** Tecnologías que SÍ existen del lado de importación (Combustibles las
@@ -33,6 +34,10 @@ export function SelectorFuente({
    *  de la URL en vez de escribirla: así el botón "Quitar filtros" no cuenta
    *  como filtro a la opción por defecto. */
   porDefecto?: FuenteVista;
+  /** Opciones que en esta pantalla no existen, con el porqué (va como
+   *  tooltip). Se muestran apagadas en vez de esconderse: que la pantalla
+   *  no pueda hacerlo es un dato, y decirlo evita buscarlo en otro lado. */
+  deshabilitadas?: Partial<Record<FuenteVista, string>>;
 }) {
   const { leer, setParams, pendiente } = useFiltroUrl();
   const vista = (leer("fuente") ?? fuente) as FuenteVista;
@@ -66,22 +71,28 @@ export function SelectorFuente({
           pendiente && "opacity-70"
         )}
       >
-        {opciones.map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => set(v)}
-            aria-pressed={vista === v}
-            className={cn(
-              "h-8 rounded px-3 text-xs font-medium transition-colors",
-              vista === v
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted"
-            )}
-          >
-            {rotulo[v]}
-          </button>
-        ))}
+        {opciones.map((v) => {
+          const motivo = deshabilitadas[v];
+          return (
+            <button
+              key={v}
+              type="button"
+              onClick={() => set(v)}
+              aria-pressed={vista === v}
+              disabled={!!motivo}
+              title={motivo}
+              className={cn(
+                "h-8 rounded px-3 text-xs font-medium transition-colors",
+                vista === v
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted",
+                motivo && "cursor-not-allowed line-through opacity-50 hover:bg-transparent"
+              )}
+            >
+              {rotulo[v]}
+            </button>
+          );
+        })}
       </div>
       {aclaracion && (
         <p className="max-w-[46ch] text-[11px] leading-snug text-muted-foreground">{aclaracion}</p>

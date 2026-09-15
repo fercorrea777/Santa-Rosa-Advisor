@@ -3,11 +3,12 @@ import { Marca } from "@/components/dashboard/logo-marca";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
+import { SelectorFuente, type FuenteVista } from "@/components/dashboard/selector-fuente";
 import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { getCobertura, getRankingModelos } from "@/lib/cadam/mercado";
+import { getCobertura, getRankingModelos, type Fuente } from "@/lib/cadam/mercado";
 import {
   getGamaPropiaConPrecio, getGamaPropiaSinPrecio, getPeriodosPrecio, hayPrecios,
 } from "@/lib/cadam/precios";
@@ -17,8 +18,11 @@ import {
 } from "@/lib/cadam/bandas";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
+import { tokens } from "@/lib/informes/segmento-version";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCortes } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
+
+const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
 
 export default async function GamaPropiaPage({
   searchParams,
@@ -27,13 +31,38 @@ export default async function GamaPropiaPage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
+  // Tres vistas (Croman, 15/09/2026: "el mismo selector en Gama propia"):
+  // la fuente principal define las unidades de cada burbuja; con "Ambas",
+  // la otra va como columna en la tabla de abajo, cada una hasta su propio
+  // último mes. El precio es el mismo (Cars) en las tres.
+  const vista: FuenteVista =
+    sp.fuente === "importacion" ? "importacion" : sp.fuente === "matriculacion" ? "matriculacion" : "ambas";
+  const principal: Fuente = vista === "importacion" ? "importacion" : "matriculacion";
+  const secundaria: Fuente | null =
+    vista === "ambas" ? "importacion" : vista === "importacion" ? "matriculacion" : null;
+  const f0 = filtroDesdeUrl(sp, cobertura[principal].ultimo);
+  const ventanaDe = (fuente: Fuente) => {
+    const ult = cobertura[fuente].ultimo;
+    if (!ult || f0.anio !== ult.anio) return f0;
+    if (sp.hasta) return f0.mesHasta > ult.mes ? { ...f0, mesHasta: Math.max(f0.mesDesde, ult.mes) } : f0;
+    return { ...f0, mesHasta: Math.max(f0.mesDesde, ult.mes) };
+  };
+  const f = ventanaDe(principal);
+  const fSec = secundaria ? ventanaDe(secundaria) : null;
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
+  const periodoSec = fSec ? etiquetaPeriodo(fSec.anio, fSec.mesDesde, fSec.mesHasta) : "";
+
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
+  const aclaracion = desparejas && ultMat && ultImp
+    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
+    : undefined;
 
   const mesMax: Record<number, number> = {};
-  for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio
-      ? cobertura.matriculacion.ultimo.mes : 12;
+  for (const a of cobertura[principal].anios) {
+    mesMax[a] = a === cobertura[principal].ultimo?.anio
+      ? cobertura[principal].ultimo.mes : 12;
   }
 
   // DOS FUENTES DE PRECIO, con prioridad explicita:
@@ -47,12 +76,30 @@ export default async function GamaPropiaPage({
   // un dato que el sistema ya tenia. Ver lib/cadam/precios-cars.ts.
   const listaManual = hayPrecios();
   const periodosLista = getPeriodosPrecio();
-  const cars = listaManual ? null : await getGamaPropiaDesdeCars(f);
+  const cars = listaManual ? null : await getGamaPropiaDesdeCars(f, principal);
 
-  const conPrecio = listaManual ? getGamaPropiaConPrecio(f) : (cars?.conPrecio ?? []);
-  const sinPrecio = listaManual ? getGamaPropiaSinPrecio(f) : (cars?.sinPrecio ?? []);
+  const conPrecio = listaManual ? getGamaPropiaConPrecio(f, principal) : (cars?.conPrecio ?? []);
+  const sinPrecio = listaManual ? getGamaPropiaSinPrecio(f, principal) : (cars?.sinPrecio ?? []);
   const tienePrecios = conPrecio.length > 0;
   const fuentePrecio = listaManual ? "lista propia cargada" : "stock de Cars";
+
+  // La otra fuente, por marca y modelo, cruzada por las mismas palabras
+  // (las dos bases escriben distinto: "NUEVO KWID ZEN 1.0" contra "KWID").
+  const otras = new Map<string, number>();
+  if (secundaria && fSec) {
+    let g: { marca: string; modelo: string; unidades: number }[];
+    if (listaManual) {
+      g = [...getGamaPropiaConPrecio(fSec, secundaria), ...getGamaPropiaSinPrecio(fSec, secundaria)];
+    } else {
+      const r = await getGamaPropiaDesdeCars(fSec, secundaria);
+      g = [...r.conPrecio, ...r.sinPrecio];
+    }
+    for (const m of g) {
+      const k = `${m.marca}|${tokens(m.modelo).join(" ")}`;
+      otras.set(k, (otras.get(k) ?? 0) + m.unidades);
+    }
+  }
+  const otrasDe = (marca: string, modelo: string) => otras.get(`${marca}|${tokens(modelo).join(" ")}`) ?? null;
 
   const uConPrecio = conPrecio.reduce((s, d) => s + d.unidades, 0);
   const uSinPrecio = sinPrecio.reduce((s, d) => s + d.unidades, 0);
@@ -73,7 +120,7 @@ export default async function GamaPropiaPage({
   }
   const preciosRivales: PrecioCandidato[] = (await getPreciosCompetencia())
     .map((p) => ({ marca: p.marca, nombre: p.version, precio: p.precio_usd }));
-  const universo = asignarPrecios(getRankingModelos("matriculacion", f, 3000), [
+  const universo = asignarPrecios(getRankingModelos(principal, f, 3000), [
     { fuente: "cars", lista: preciosPropios },
     { fuente: "datacar", lista: preciosRivales },
   ]);
@@ -84,11 +131,19 @@ export default async function GamaPropiaPage({
     <Pagina>
       <PageHeader
         titulo="Gama propia"
-        descripcion={`Posicionamiento por precio de los modelos del grupo · matriculaciones · ${periodo}.`}
+        descripcion={`Posicionamiento por precio de los modelos del grupo · ${NOMBRE[principal]} ${periodo}${secundaria ? ` · ${NOMBRE[secundaria]} ${periodoSec} en la tabla` : ""}.`}
         fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)} · precios: ${fuentePrecio}${cars?.sincronizado ? ` (sinc. ${formatFechaHora(cars.sincronizado)})` : ""}.`}
       />
 
-      <FiltroPeriodo anios={cobertura.matriculacion.anios} mesMaximoPorAnio={mesMax} />
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente porDefecto="ambas" fuente={vista} conAmbas aclaracion={aclaracion} />
+        <div className="min-w-0 sm:flex-1">
+          <FiltroPeriodo pegajoso={false} anios={cobertura[principal].anios} mesMaximoPorAnio={mesMax} />
+        </div>
+      </div>
 
       {!tienePrecios ? (
         // Estado vacío con la instrucción, no una pantalla en blanco: lo que
@@ -165,20 +220,20 @@ export default async function GamaPropiaPage({
             {uTotal > 0 && (
               <>
                 {" "}Con precio: <strong>{formatUnidades(uConPrecio)} u.</strong>{" "}
-                ({formatPct(uConPrecio / uTotal)} de lo que vendió el grupo en el
-                período).
+                ({formatPct(uConPrecio / uTotal)} de lo que el grupo{" "}
+                {principal === "importacion" ? "importó" : "vendió"} en el período).
               </>
             )}
           </NotaDato>
 
           <Card>
             <CardHeader>
-              <CardTitle>Precio vs. volumen — gama propia</CardTitle>
+              <CardTitle>Precio vs. volumen — gama propia · {NOMBRE[principal]} {periodo}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="pb-3 text-xs text-muted-foreground">
                 Cada burbuja es un modelo, en la columna de su marca · eje Y =
-                precio de lista · tamaño = unidades del período. La línea
+                precio de lista · tamaño = {NOMBRE[principal]} del período. La línea
                 punteada es el precio <strong>ponderado por unidades</strong>, no
                 el promedio simple: un modelo que vendió 3 no puede pesar lo
                 mismo que uno que vendió 300.
@@ -202,10 +257,60 @@ export default async function GamaPropiaPage({
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle>La gama, modelo por modelo</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Los mismos modelos del gráfico, en números: precio de lista y
+                unidades de {NOMBRE[principal]} ({periodo})
+                {secundaria ? `, con las ${NOMBRE[secundaria]} (${periodoSec}) al lado` : ""}.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Marca</TableHead>
+                    <TableHead>Modelo</TableHead>
+                    <TableHead nota="según CADAM">Tecnología</TableHead>
+                    <TableHead className="text-right" nota="lista, la versión más barata">Precio US$</TableHead>
+                    <TableHead className="text-right" nota={`${NOMBRE[principal]} · ${periodo}`}>
+                      {principal === "importacion" ? "Import." : "Matric."}
+                    </TableHead>
+                    {secundaria && (
+                      <TableHead className="text-right" nota={`${NOMBRE[secundaria]} · ${periodoSec}`}>
+                        {secundaria === "importacion" ? "Import." : "Matric."}
+                      </TableHead>
+                    )}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...conPrecio].sort((a, b) => b.unidades - a.unidades).map((d) => {
+                    const o = otrasDe(d.marca, d.modelo);
+                    return (
+                      <TableRow key={`${d.marca}-${d.modelo}`}>
+                        <TableCell><Marca marca={d.marca} /></TableCell>
+                        <TableCell className="font-medium">{d.modelo}</TableCell>
+                        <TableCell className="text-muted-foreground">{d.tecnologia ?? "—"}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUnidades(d.precio)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUnidades(d.unidades)}</TableCell>
+                        {secundaria && (
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {o === null ? "—" : formatUnidades(o)}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
           {sinPrecio.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Modelos con ventas y sin precio</CardTitle>
+                <CardTitle>Modelos con {NOMBRE[principal]} y sin precio</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="pb-3 text-xs text-muted-foreground">
@@ -223,7 +328,7 @@ export default async function GamaPropiaPage({
                     <TableRow>
                       <TableHead>Marca</TableHead>
                       <TableHead>Modelo</TableHead>
-                      <TableHead className="text-right" nota="vendidas en el período, sin precio de lista">Unidades</TableHead>
+                      <TableHead className="text-right" nota={`${NOMBRE[principal]} del período, sin precio de lista`}>Unidades</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

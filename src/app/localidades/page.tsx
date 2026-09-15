@@ -3,6 +3,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
+import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Seccion } from "@/components/dashboard/seccion";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
@@ -105,12 +106,33 @@ export default async function LocalidadesPage({
         fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
-      <FiltroPeriodo
-        anios={anios}
-        mesMaximoPorAnio={Object.fromEntries(
-          anios.map((a) => [a, ultimo && a === ultimo.anio ? ultimo.mes : 12])
-        )}
-      />
+      {/* Mismo selector que el resto de las pantallas (Croman, 15/09/2026),
+          con Importaciones apagada y el porqué: el corte por localidad
+          existe solo en matriculación. La base de importación de CADAM
+          dice qué entró, no adónde fue. Apagada y no escondida: que esta
+          pantalla no lo tenga es un dato, y así nadie lo busca. */}
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente
+          fuente="matriculacion"
+          porDefecto="matriculacion"
+          deshabilitadas={{
+            importacion: "La base de importación de CADAM no dice a qué localidad va el vehículo: este corte solo existe en matriculación.",
+          }}
+          aclaracion={`Solo matriculaciones: la importación no tiene localidad (CADAM dice qué entró, no adónde fue).${ultimo ? ` Datos hasta ${mesCorto(ultimo.mes)} ${ultimo.anio}.` : ""}`}
+        />
+        <div className="min-w-0 sm:flex-1">
+          <FiltroPeriodo
+            pegajoso={false}
+            anios={anios}
+            mesMaximoPorAnio={Object.fromEntries(
+              anios.map((a) => [a, ultimo && a === ultimo.anio ? ultimo.mes : 12])
+            )}
+          />
+        </div>
+      </div>
 
       <NotaDato>
         CADAM no documenta si «localidad» es el domicilio del comprador o la
