@@ -11,6 +11,20 @@
  * logo caen al monograma (ver logo-marca.tsx); no es un error.
  */
 export const LOGOS_MARCA: Record<string, string> = {
+  // Alias: como lo escriben Cars y los Excel de producto.
+  "JMEV": "jmev",
+  "VW": "volkswagen",
+  "GWM": "great-wall",
+  "GREAT WALL MOTORS": "great-wall",
+  "MERCEDES": "mercedes-benz",
+  "MERCEDES-BENZ": "mercedes-benz",
+  "CHEVY": "chevrolet",
+  "BAIC MOTOR": "baic-motor",
+  "GAC MOTOR": "gac-group",
+  "JAC MOTORS": "jac",
+  "DONFENG": "dongfeng",
+  "MITSUBISHI MOTORS": "mitsubishi",
+  "LANDROVER": "land-rover",
   "AGRALE": "agrale",
   "AION": "aion",
   "ARCFOX": "arcfox",
