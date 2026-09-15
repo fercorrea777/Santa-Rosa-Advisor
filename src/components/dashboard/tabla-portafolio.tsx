@@ -26,6 +26,9 @@ export interface FilaPortafolio {
   versionesDnra: number;
   precioDesde: number | null;
   precioHasta: number | null;
+  /** El precio es el "desde" de la familia, no de este modelo (ver
+   *  bandas.ts). Se muestra con "≈" y se explica. */
+  precioDeFamilia: boolean;
   versionesConPrecio: number;
   fuentePrecio: string | null;
   banda: string;
@@ -132,6 +135,14 @@ export function TablaPortafolio({
                   {f.importadas === null ? "—" : formatUnidades(f.importadas)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
+                  {f.precioDeFamilia && (
+                    <span
+                      className="mr-0.5 text-muted-foreground"
+                      title="Precio de referencia de la familia: esta variante no tiene precio propio en las listas"
+                    >
+                      ≈
+                    </span>
+                  )}
                   {usd(f.precioDesde)}
                   {f.fuentePrecio && (
                     <Badge variant="outline" className="ml-1.5 px-1 text-[9px] font-normal uppercase">
@@ -152,7 +163,8 @@ export function TablaPortafolio({
       </Table>
       <p className="text-xs text-muted-foreground">
         {filas.length} modelos. Tocá una fila para ver contra quién compite ese modelo y a qué precio.
-        «~» junto a la clase: inferida por precio o segmento, no del catálogo.
+        «~» junto a la clase: inferida por precio o segmento, no del catálogo. «≈» junto al precio: es
+        el «desde» de la familia, porque esa variante no tiene precio propio en las listas.
       </p>
       <DetalleModeloDialog detalle={abierto} periodo={periodo} onClose={() => setAbierto(null)} />
     </div>

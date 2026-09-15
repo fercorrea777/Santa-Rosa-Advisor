@@ -101,6 +101,11 @@ export interface ModeloConBanda {
   precioHasta: number | null;
   /** Cuántas versiones con precio entraron en ese rango. */
   versionesConPrecio: number;
+  /** true cuando `precio` es el "desde" de la FAMILIA y no de este modelo:
+   *  ninguna versión con precio lleva todas las palabras de su nombre
+   *  ("COROLLA GR" sin precio propio toma el de "COROLLA"). El ranking lo
+   *  acepta como precio de referencia; el portafolio lo marca. */
+  precioDeFamilia: boolean;
   /** De dónde salió el precio: "cars", "datacar"... o null. */
   fuentePrecio: string | null;
   banda: string;
@@ -171,10 +176,11 @@ export function asignarPrecios(
     }
   }
 
-  // Hermanos de familia: para cada marca y primera palabra, las segundas
-  // palabras con las que CADAM distingue modelos ("COROLLA" / "COROLLA
-  // CROSS" → CROSS). Sirven para que el rango de precio de "COROLLA" no se
-  // lleve las versiones de la Cross.
+  // Hermanos de familia: para cada marca y primera palabra, todas las
+  // palabras con las que CADAM distingue a los modelos de esa familia
+  // ("COROLLA" / "COROLLA CROSS" → CROSS; "LAND CRUISER" / "LAND CRUISER
+  // 300" / "LAND CRUISER VX" → 300, VX). Sirven para que el rango de precio
+  // de un modelo no se lleve las versiones de sus hermanos.
   const hermanos = new Map<string, Set<string>>();
   for (const m of modelos) {
     const marca = normalizar(m.marca);
@@ -182,7 +188,7 @@ export function asignarPrecios(
     if (tm.length < 2) continue;
     const k = `${marca}|${tm[0]}`;
     const s = hermanos.get(k) ?? new Set<string>();
-    s.add(tm[1]);
+    for (const t of tm.slice(1)) s.add(t);
     hermanos.set(k, s);
   }
 
@@ -259,6 +265,7 @@ export function asignarPrecios(
       precioAT,
       precioHasta,
       versionesConPrecio: delModelo.length,
+      precioDeFamilia: precio !== null && delModelo.length === 0,
       fuentePrecio: elegido?.fuente ?? null,
       banda: bandaDe(precio),
       deltaShare: m.deltaShare,

@@ -122,6 +122,7 @@ export default async function PortafolioPage({
       versionesDnra: versionesPorModelo.get(m.modelo) ?? 0,
       precioDesde: m.precio,
       precioHasta: m.precioHasta,
+      precioDeFamilia: m.precioDeFamilia,
       versionesConPrecio: m.versionesConPrecio,
       fuentePrecio: m.fuentePrecio,
       banda: m.banda,
@@ -142,7 +143,10 @@ export default async function PortafolioPage({
     : null;
   const uConPrecio = conPrecio.reduce((s, r) => s + r.unidades, 0);
   const fuentesUsadas = [...new Set(conPrecio.map((r) => r.fuentePrecio).filter(Boolean))] as string[];
-  const escalera: PeldanoPrecio[] = conPrecio.map((r) => ({
+  // La escalera solo con precio PROPIO: una variante que toma el "desde" de
+  // su familia dibujaría una barra idéntica a la de la familia, y tres
+  // barras iguales no son tres modelos.
+  const escalera: PeldanoPrecio[] = conPrecio.filter((r) => !r.precioDeFamilia).map((r) => ({
     modelo: r.modelo,
     desde: r.precioDesde as number,
     hasta: Math.max(r.precioHasta ?? 0, r.precioDesde as number),
@@ -228,8 +232,9 @@ export default async function PortafolioPage({
           <CardHeader>
             <CardTitle>{marca} — dónde se para cada modelo</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Solo los modelos con precio en alguna fuente. Pasá el mouse por una
-              barra para ver el rango, las versiones y las unidades.
+              Solo los modelos con precio propio en alguna fuente (las variantes que
+              toman el precio de su familia van en la tabla, con «≈»). Pasá el mouse
+              por una barra para ver el rango, las versiones y las unidades.
             </p>
           </CardHeader>
           <CardContent>

@@ -180,7 +180,7 @@ export default async function MapaPage({
       marca: r.marca, modelo: r.modelo, segmento: r.segmento, clase, claseOrigen: "catalogo",
       tecnologia: r.tecnologia, unidades: r.unidades, esPropia: r.esPropia,
       precio: precioPorModelo.get(`${r.marca}|${r.modelo}`) ?? null,
-      precioMT: null, precioAT: null, precioHasta: null, versionesConPrecio: 0,
+      precioMT: null, precioAT: null, precioHasta: null, versionesConPrecio: 0, precioDeFamilia: false,
       fuentePrecio: null, banda: "", deltaShare: null, variacion: null,
     });
     fila.set(r.tecnologia, celda);
