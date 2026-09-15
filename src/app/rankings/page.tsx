@@ -5,7 +5,8 @@ import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  getCobertura, getOpcionesFiltro, getRankingMarcas, getRankingModelos, TECNOLOGIAS,
+  getCobertura, getMarcasDeImportador, getOpcionesFiltro, getRankingMarcas, getRankingModelos,
+  TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
 import {
   asignarPrecios, fichasDeModelos, type PrecioCandidato,
@@ -41,6 +42,9 @@ export default async function RankingsPage({
   const marcasImp = getRankingMarcas("importacion", f);
   const modelosMat = getRankingModelos("matriculacion", f, 500);
   const modelosImp = getRankingModelos("importacion", f, 500);
+  // En importación el importador se infiere por marca (la base no lo trae):
+  // se le dice al usuario qué marcas quedaron adentro.
+  const marcasDelImportador = f.empresa ? getMarcasDeImportador(f.empresa, f.anio) : [];
 
   const mesMax: Record<number, number> = {};
   for (const a of [...new Set([...cobertura.matriculacion.anios, ...cobertura.importacion.anios])].sort()) {
@@ -85,7 +89,11 @@ export default async function RankingsPage({
       <FiltroPeriodo
         anios={cobertura.matriculacion.anios}
         mesMaximoPorAnio={mesMax}
+        hastaPorDefecto={f.mesHasta}
         opciones={[
+          // Marca puntual (pedido de Fernando, 15/09/2026): con una marca
+          // elegida las pestañas de modelos son la gama de esa marca.
+          { param: "marca", label: "Marca", valores: opciones.marcas },
           { param: "segmento", label: "Segmento", valores: opciones.segmentos },
           { param: "tecnologia", label: "Tecnología", valores: [...TECNOLOGIAS] },
           { param: "empresa", label: "Importador", valores: opciones.empresas },
@@ -120,6 +128,7 @@ export default async function RankingsPage({
               </NotaDato>
             )}
             <TablaRanking filas={marcasMat} notaVariacion={nota}
+              filtrarPor={{ marca: "marca" }}
               nombreArchivo={`ranking-marcas-matriculacion-${f.anio}`} />
           </Panel>
         </TabsContent>
@@ -129,13 +138,9 @@ export default async function RankingsPage({
             titulo={`Marcas por importación (${marcasImp.length})`}
             nota="Lo mismo, pero por unidades que entraron al país. Una marca puede liderar acá y todavía no aparecer en matriculación: es stock en camino."
           >
-            {(f.tecnologia || f.empresa) && (
-              <NotaDato>
-                Los filtros de tecnología e importador solo aplican a
-                matriculación: la base de importación no trae esas columnas.
-              </NotaDato>
-            )}
+            <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />
             <TablaRanking filas={marcasImp} notaVariacion={nota}
+              filtrarPor={{ marca: "marca" }}
               nombreArchivo={`ranking-marcas-importacion-${f.anio}`} />
           </Panel>
         </TabsContent>
@@ -155,6 +160,7 @@ export default async function RankingsPage({
               notaVariacion={nota}
               fichas={fichasMat}
               periodo={periodo}
+              filtrarPor={{ marca: "marca" }}
               nombreArchivo={`ranking-modelos-matriculacion-${f.anio}`} />
           </Panel>
         </TabsContent>
@@ -164,16 +170,43 @@ export default async function RankingsPage({
             titulo={`Modelos por importación (${modelosImp.length})`}
             nota="Los modelos por unidades importadas. Sirve para ver qué se está trayendo antes de que llegue al mercado."
           >
+            <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />
             <TablaRanking filas={modelosImp} mostrarModelo mostrarSegmento
               notaVariacion={nota}
               fichas={fichasImp}
               periodo={periodo}
               fuente="importacion"
+              filtrarPor={{ marca: "marca" }}
               nombreArchivo={`ranking-modelos-importacion-${f.anio}`} />
           </Panel>
         </TabsContent>
       </Tabs>
     </Pagina>
+  );
+}
+
+/** Qué pasa con los filtros que la base de importación no trae. Tecnología
+ *  no se puede; importador se infiere por marca y se dice cuáles. */
+function NotasImportacion({
+  f, marcasDelImportador,
+}: { f: { anio: number; tecnologia?: string; empresa?: string }; marcasDelImportador: string[] }) {
+  return (
+    <>
+      {f.tecnologia && (
+        <NotaDato>
+          El filtro de tecnología solo aplica a matriculación: la base de
+          importación no dice si el vehículo es híbrido o eléctrico.
+        </NotaDato>
+      )}
+      {f.empresa && (
+        <NotaDato>
+          La base de importación no dice quién importa. Se muestran las marcas que{" "}
+          <strong>{f.empresa}</strong> representa —la empresa que más las matriculó en{" "}
+          {f.anio - 1} y {f.anio}—:{" "}
+          {marcasDelImportador.length ? marcasDelImportador.join(", ") : "ninguna con matriculación todavía"}.
+        </NotaDato>
+      )}
+    </>
   );
 }
 

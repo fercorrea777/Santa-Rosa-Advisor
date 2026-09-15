@@ -34,6 +34,7 @@ export function FiltroPeriodo({
   opciones = [],
   aniosSerie = false,
   pegajoso = true,
+  hastaPorDefecto,
 }: {
   anios: number[];
   /** Ultimo mes con datos, por anio. Evita ofrecer meses vacios. */
@@ -47,6 +48,12 @@ export function FiltroPeriodo({
    *  de otra fila que ya es pegajosa (mercado, que le suma el selector de
    *  fuente): dos sticky anidados se pisan. */
   pegajoso?: boolean;
+  /** Mes "hasta" efectivo cuando la URL no lo dice: el que la página
+   *  calculó (f.mesHasta). Por defecto el selector muestra el tope del
+   *  año, y en Rankings eso mentía: el tope es la importación (Ago) pero
+   *  sin parámetros la página corta en la última matriculación (Jul), así
+   *  que el selector decía "Ago" y el título "Ene–Jul". */
+  hastaPorDefecto?: number;
 }) {
   // La mecánica de "que el filtro se quede quieto" vive en el hook: por qué
   // hace falta está explicado ahí.
@@ -65,7 +72,7 @@ export function FiltroPeriodo({
   const aniosPuestos = (crudoAnios ? crudoAnios.split(",") : defectoAnios.split(","))
     .map(Number)
     .filter((a) => anios.includes(a));
-  const hasta = Math.min(Number(leer("hasta")) || topeMes, topeMes);
+  const hasta = Math.min(Number(leer("hasta")) || hastaPorDefecto || topeMes, topeMes);
 
   return (
     // top-16 = los 56px del header de la app + 8px de aire. z-30 la deja por

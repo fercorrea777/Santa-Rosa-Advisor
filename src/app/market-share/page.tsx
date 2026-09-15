@@ -39,11 +39,12 @@ export default async function MarketSharePage({
   const dimRaw = String(sp.dim ?? "marca");
   const dim: Dim = (dimRaw in DIMENSIONES ? dimRaw : "marca") as Dim;
 
-  // Importacion no trae tecnologia ni importador: esas dimensiones solo
-  // existen del lado de matriculacion.
-  const dimDisponible = fuente === "matriculacion" ||
-    dim === "marca" || dim === "segmento";
+  // Importacion no trae tecnologia: esa dimension solo existe del lado de
+  // matriculacion. Importador tampoco viene en la base, pero se infiere
+  // por marca (ver getPorDimension) y por eso si esta disponible.
+  const dimDisponible = fuente === "matriculacion" || dim !== "tecnologia";
   const dimEfectiva: Dim = dimDisponible ? dim : "marca";
+  const importadorInferido = fuente === "importacion" && dimEfectiva === "empresa";
   const etiquetaFuente = fuente === "importacion" ? "importaciones" : "matriculaciones";
 
   const filas = getPorDimension(fuente, DIMENSIONES[dimEfectiva].col, f)
@@ -104,8 +105,18 @@ export default async function MarketSharePage({
 
       {!dimDisponible && (
         <NotaDato>
-          La base de importación no trae tecnología ni importador, así que esa
-          vista solo existe del lado de matriculación. Se muestra por marca.
+          La base de importación no trae tecnología, así que esa vista solo
+          existe del lado de matriculación. Se muestra por marca.
+        </NotaDato>
+      )}
+
+      {importadorInferido && (
+        <NotaDato>
+          La base de importación de CADAM no dice quién importa. Acá cada unidad
+          se le atribuye al <strong>representante de su marca</strong>: la
+          empresa que más chapas le puso a esa marca en {f.anio} y {f.anio - 1}.
+          Las marcas que todavía nadie matriculó quedan en «Sin representante
+          conocido».
         </NotaDato>
       )}
 

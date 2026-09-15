@@ -136,6 +136,48 @@ function vista(fuente: Fuente) {
   return fuente === "matriculacion" ? "v_matriculacion" : "v_importacion";
 }
 
+/**
+ * Importador en IMPORTACIÓN. La base de importación de CADAM no trae quién
+ * importa (Marca | Modelo | Tipo | Fecha | Valor | Origen | medidas); la de
+ * matriculación sí (EMPRESA). Pero cada marca tiene UN representante —en
+ * 2026 ninguna marca de más de 200 unidades reparte su matriculación entre
+ * dos empresas—, así que "lo que importa SANTA ROSA" son las marcas que
+ * SANTA ROSA matricula. La inferencia es por marca y por mayoría: entra la
+ * marca si esa empresa puso al menos la mitad de sus chapas en el año del
+ * filtro o el anterior (dos años, para que enero no quede sin base).
+ *
+ * Es una inferencia y la UI lo dice (ver marcasDeImportador): el pedido
+ * de Fernando del 15/09/2026 fue "que funcione el filtro por importador",
+ * que hasta entonces en las pestañas de importación no hacía nada.
+ */
+/** Una fila por marca: la empresa que más la matriculó en el año dado o el
+ *  anterior. Binds: anio, anio. */
+const REPRESENTANTE_POR_MARCA_SQL = `
+  SELECT marca, empresa, u FROM (
+    SELECT marca, empresa, SUM(unidades) u,
+           ROW_NUMBER() OVER (PARTITION BY marca ORDER BY SUM(unidades) DESC) rn
+    FROM v_matriculacion WHERE anio IN (?, ? - 1)
+    GROUP BY marca, empresa
+  ) WHERE rn = 1`;
+
+/** Las marcas de un importador. Binds: anio, anio, empresa. */
+const MARCAS_DEL_IMPORTADOR_SQL = `
+  SELECT marca FROM (${REPRESENTANTE_POR_MARCA_SQL}) WHERE empresa = ?`;
+
+/** Las marcas que se le atribuyen a un importador, de más a menos unidades
+ *  (para que la pantalla diga cuáles son). */
+export function getMarcasDeImportador(empresa: string, anio: number): string[] {
+  const db = getDb();
+  return (
+    db
+      .prepare(`${MARCAS_DEL_IMPORTADOR_SQL} ORDER BY u DESC`)
+      .all(anio, anio, empresa) as { marca: string }[]
+  ).map((r) => r.marca);
+}
+
+/** Etiqueta para las importaciones de marcas que nadie matriculó todavía. */
+export const SIN_REPRESENTANTE = "Sin representante conocido";
+
 /** Construye el WHERE de un filtro. Devuelve el fragmento y los binds. */
 function where(fuente: Fuente, f: Filtro, alias = "") {
   const p = alias ? `${alias}.` : "";
@@ -160,9 +202,14 @@ function where(fuente: Fuente, f: Filtro, alias = "") {
     cond.push(`${p}tecnologia = ?`);
     args.push(f.tecnologia);
   }
-  if (fuente === "matriculacion" && f.empresa) {
-    cond.push(`${p}empresa = ?`);
-    args.push(f.empresa);
+  if (f.empresa) {
+    if (fuente === "matriculacion") {
+      cond.push(`${p}empresa = ?`);
+      args.push(f.empresa);
+    } else {
+      cond.push(`${p}marca IN (${MARCAS_DEL_IMPORTADOR_SQL})`);
+      args.push(f.anio, f.anio, f.empresa);
+    }
   }
   if (fuente === "matriculacion" && f.version) {
     cond.push(`${p}modelo = ?`);
@@ -256,9 +303,16 @@ export function getSerieMensual(
     cond.push("tecnologia = ?");
     args.push(extra.tecnologia);
   }
-  if (fuente === "matriculacion" && extra?.empresa) {
-    cond.push("empresa = ?");
-    args.push(extra.empresa);
+  if (extra?.empresa) {
+    if (fuente === "matriculacion") {
+      cond.push("empresa = ?");
+      args.push(extra.empresa);
+    } else {
+      // Mismo criterio que where(): las marcas que ese importador matricula,
+      // tomando como año de referencia el último de la serie.
+      cond.push(`marca IN (${MARCAS_DEL_IMPORTADOR_SQL})`);
+      args.push(Math.max(...anios), Math.max(...anios), extra.empresa);
+    }
   }
   return db
     .prepare(
@@ -531,21 +585,36 @@ export function getPorDimension(
   if (dimension === "marca") delete fSinDim.marca;
   if (dimension === "empresa") delete fSinDim.empresa;
 
-  const w = where(fuente, fSinDim);
-  const wp = where(fuente, { ...fSinDim, anio: fSinDim.anio - 1 });
+  // Importador sobre importación: la base no lo trae, se le pone a cada
+  // unidad el representante de su marca (ver REPRESENTANTE_POR_MARCA_SQL).
+  // Las marcas que nadie matriculó todavía quedan en una fila aparte.
+  const porRepresentante = fuente === "importacion" && dimension === "empresa";
+  const alias = porRepresentante ? "i" : "";
+  const w = where(fuente, fSinDim, alias);
+  const wp = where(fuente, { ...fSinDim, anio: fSinDim.anio - 1 }, alias);
   const baseDisp = hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta);
 
-  const q = (cond: typeof w) =>
-    db
-      .prepare(
-        `SELECT ${dimension} valor, SUM(unidades) unidades FROM ${vista(fuente)}
-         WHERE ${cond.sql} GROUP BY ${dimension} HAVING unidades > 0
-         ORDER BY unidades DESC`
-      )
-      .all(...cond.args) as { valor: string; unidades: number }[];
+  const q = (cond: typeof w, anio: number) =>
+    (porRepresentante
+      ? db
+          .prepare(
+            `SELECT COALESCE(r.empresa, ?) valor, SUM(i.unidades) unidades
+             FROM ${vista(fuente)} i
+             LEFT JOIN (${REPRESENTANTE_POR_MARCA_SQL}) r ON r.marca = i.marca
+             WHERE ${cond.sql}
+             GROUP BY valor HAVING unidades > 0 ORDER BY unidades DESC`
+          )
+          .all(SIN_REPRESENTANTE, anio, anio, ...cond.args)
+      : db
+          .prepare(
+            `SELECT ${dimension} valor, SUM(unidades) unidades FROM ${vista(fuente)}
+             WHERE ${cond.sql} GROUP BY ${dimension} HAVING unidades > 0
+             ORDER BY unidades DESC`
+          )
+          .all(...cond.args)) as { valor: string; unidades: number }[];
 
-  const actual = q(w);
-  const previo = q(wp);
+  const actual = q(w, f.anio);
+  const previo = q(wp, f.anio - 1);
   const totalA = actual.reduce((s, r) => s + r.unidades, 0) || 1;
   const totalP = previo.reduce((s, r) => s + r.unidades, 0) || 1;
   const mapaP = new Map(previo.map((r) => [r.valor, r.unidades]));
