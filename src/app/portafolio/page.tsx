@@ -221,7 +221,7 @@ export default async function PortafolioPage({
         data-revelar=""
         className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
       >
-        <SelectorFuente fuente={vista} conAmbas aclaracion={aclaracion} />
+        <SelectorFuente porDefecto="ambas" fuente={vista} conAmbas aclaracion={aclaracion} />
         <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
             pegajoso={false}

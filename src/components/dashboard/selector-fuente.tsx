@@ -15,6 +15,7 @@ export function SelectorFuente({
   tecnologiasImportacion = [],
   conAmbas = false,
   aclaracion,
+  porDefecto,
 }: {
   fuente: FuenteVista;
   /** Tecnologías que SÍ existen del lado de importación (Combustibles las
@@ -28,6 +29,10 @@ export function SelectorFuente({
    *  no en una nota aparte porque es la respuesta a la pregunta que se hace
    *  quien está por elegir. */
   aclaracion?: string;
+  /** La vista que la página muestra sin parámetro. Elegirla saca `fuente`
+   *  de la URL en vez de escribirla: así el botón "Quitar filtros" no cuenta
+   *  como filtro a la opción por defecto. */
+  porDefecto?: FuenteVista;
 }) {
   const { leer, setParams, pendiente } = useFiltroUrl();
   const vista = (leer("fuente") ?? fuente) as FuenteVista;
@@ -45,7 +50,8 @@ export function SelectorFuente({
     // a importacion se descarta para no dejar un filtro que no aplica.
     const tec = leer("tecnologia");
     const conservar = !!tec && tecnologiasImportacion.includes(tec);
-    setParams(v === "importacion" && !conservar ? { fuente: v, tecnologia: null } : { fuente: v });
+    const valor = v === porDefecto ? null : v;
+    setParams(v === "importacion" && !conservar ? { fuente: valor, tecnologia: null } : { fuente: valor });
   };
 
   return (

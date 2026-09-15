@@ -4,7 +4,10 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
+import { SelectorFuente, type FuenteVista } from "@/components/dashboard/selector-fuente";
+import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { BrechaChart } from "@/components/charts/brecha-chart";
+import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -12,12 +15,17 @@ import { Badge } from "@/components/ui/badge";
 import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { cn } from "@/lib/utils";
 import {
-  getBrecha, getCobertura, getMarcasMatriculacionLivianos, getRankingMarcas,
+  getBrecha, getCobertura, getKpi, getMarcasMatriculacionLivianos, getRankingMarcas,
+  getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
+import { serieAAnios } from "@/lib/serie";
 import { formatUnidades } from "@/lib/format";
 import {
-  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
+  etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams,
+} from "@/lib/periodo";
+
+const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
 
 export default async function BrechaPage({
   searchParams,
@@ -26,14 +34,42 @@ export default async function BrechaPage({
 }) {
   const sp = await searchParams;
   const cobertura = getCobertura();
-  const f = filtroDesdeUrl(sp, cobertura.matriculacion.ultimo);
+  // Tres vistas (Croman, 15/09/2026: "el mismo selector en Segmentos y
+  // Brecha"). "Ambas" es la brecha de siempre: las dos fuentes sobre la
+  // ventana común, y el mes que la importación ya tiene y la matriculación
+  // no, se ve en el gráfico y la tabla con la matriculación "sin dato".
+  // "Importaciones" o "Matriculaciones" es una sola fuente hasta su propio
+  // último mes: total, evolución y ranking por marca.
+  const vista: FuenteVista =
+    sp.fuente === "importacion" ? "importacion" : sp.fuente === "matriculacion" ? "matriculacion" : "ambas";
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
+  const aclaracion = desparejas && ultMat && ultImp
+    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
+    : undefined;
+
+  if (vista !== "ambas") {
+    return <UnaFuente sp={sp} fuente={vista} cobertura={cobertura} aclaracion={aclaracion} />;
+  }
+
+  const f = filtroDesdeUrl(sp, ultMat);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
 
+  // La serie del gráfico y la tabla llegan hasta el último mes que tenga
+  // CUALQUIERA de las dos fuentes (si la URL no fija el "hasta"): agosto
+  // aparece con su importación y la matriculación "sin dato", en vez de
+  // quedar escondido. Los KPIs y la brecha por marca siguen sobre la
+  // ventana común: restar un mes que una fuente todavía no tiene sería
+  // inventar stock.
+  const hastaSerie =
+    !sp.hasta && ultImp && f.anio === ultImp.anio ? Math.max(f.mesHasta, ultImp.mes) : f.mesHasta;
   const serie = getBrecha([f.anio], f.marca)
-    .filter((p) => p.mes >= f.mesDesde && p.mes <= f.mesHasta);
+    .filter((p) => p.mes >= f.mesDesde && p.mes <= hastaSerie);
+  const comun = serie.filter((p) => p.mes <= f.mesHasta);
 
-  const totImp = serie.reduce((s, p) => s + (p.importaciones ?? 0), 0);
-  const totMat = serie.reduce((s, p) => s + (p.matriculaciones ?? 0), 0);
+  const totImp = comun.reduce((s, p) => s + (p.importaciones ?? 0), 0);
+  const totMat = comun.reduce((s, p) => s + (p.matriculaciones ?? 0), 0);
   const ratio = totImp ? totMat / totImp : null;
 
   // Brecha por marca: quien importa mas de lo que matricula y viceversa.
@@ -61,16 +97,9 @@ export default async function BrechaPage({
   const masImporta = marcas.slice(0, 10);
   const masMatricula = [...marcas].reverse().slice(0, 10);
 
-  // La importación suele ir un mes adelante de la matriculación. La brecha
-  // se calcula sobre la ventana común (si no, todo agosto parecería stock),
-  // pero ese mes que ya entró y todavía no tiene chapa posible se dice
-  // aparte, con sus marcas: es justamente lo que está por salir a la calle.
-  const ultMat = cobertura.matriculacion.ultimo;
-  const ultImp = cobertura.importacion.ultimo;
-  const mesesExtra =
-    ultMat && ultImp && f.anio === ultImp.anio && ultImp.mes > f.mesHasta && f.mesHasta >= ultMat.mes
-      ? { desde: f.mesHasta + 1, hasta: ultImp.mes }
-      : null;
+  // El mes que ya entró y todavía no tiene chapa posible se dice aparte,
+  // con sus marcas: es justamente lo que está por salir a la calle.
+  const mesesExtra = hastaSerie > f.mesHasta ? { desde: f.mesHasta + 1, hasta: hastaSerie } : null;
   const extraImp = mesesExtra
     ? getRankingMarcas("importacion", { ...f, mesDesde: mesesExtra.desde, mesHasta: mesesExtra.hasta })
     : [];
@@ -86,11 +115,19 @@ export default async function BrechaPage({
     <Pagina>
       <PageHeader
         titulo="Importaciones vs. matriculaciones"
-        descripcion={`Brecha entre lo que entra al país y lo que se patenta · ${periodo}.`}
+        descripcion={`Brecha entre lo que entra al país y lo que se patenta · ${periodo}${mesesExtra ? ` (importación hasta ${mesCorto(mesesExtra.hasta)})` : ""}.`}
         fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
-      <FiltroPeriodo anios={cobertura.matriculacion.anios} mesMaximoPorAnio={mesMax} />
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente porDefecto="ambas" fuente="ambas" conAmbas aclaracion={aclaracion} />
+        <div className="min-w-0 sm:flex-1">
+          <FiltroPeriodo pegajoso={false} anios={cobertura.matriculacion.anios} mesMaximoPorAnio={mesMax} />
+        </div>
+      </div>
 
       <NotaDato>
         <strong>Esto es una señal de análisis, no stock real.</strong> La
@@ -116,20 +153,20 @@ export default async function BrechaPage({
               ? `En ${mesCorto(mesesExtra.hasta)} entraron ${formatUnidades(extraTotal)} unidades más`
               : `Entre ${mesCorto(mesesExtra.desde)} y ${mesCorto(mesesExtra.hasta)} entraron ${formatUnidades(extraTotal)} unidades más`}
           </strong>{" "}
-          que no están en la brecha de arriba: CADAM ya publicó esa importación pero
-          todavía no la matriculación de ese mes, así que compararlas sería contar
-          stock que no tuvo tiempo de sacar chapa. Las que más trajeron:{" "}
+          que no entran en los totales ni en la brecha por marca: CADAM ya publicó
+          esa importación pero todavía no la matriculación de ese mes, así que
+          compararlas sería contar stock que no tuvo tiempo de sacar chapa. En el
+          gráfico y la tabla de abajo ese mes aparece con la matriculación «sin
+          dato». Las que más trajeron:{" "}
           {extraImp.slice(0, 6).map((r) => `${r.marca} ${formatUnidades(r.unidades)}`).join(" · ")}.
-          Para verlas en el ranking, en Rankings está la pestaña de importación hasta{" "}
-          {mesCorto(mesesExtra.hasta)}.
         </NotaDato>
       )}
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Importaciones" value={formatUnidades(totImp)} periodo={periodo}
-          tooltip="Unidades importadas en el período filtrado." />
+          tooltip="Unidades importadas en la ventana común de las dos fuentes." />
         <KpiCard label="Matriculaciones" value={formatUnidades(totMat)} periodo={periodo}
-          tooltip="Unidades patentadas en el período filtrado." />
+          tooltip="Unidades patentadas en la ventana común de las dos fuentes." />
         <KpiCard
           label="Diferencia"
           value={formatUnidades(Math.abs(totImp - totMat))}
@@ -243,7 +280,7 @@ export default async function BrechaPage({
       </Seccion>
 
       <Seccion titulo="Marcas que más se apartan"
-        nota="Las marcas donde más se despega lo importado de lo matriculado: o están cargando stock, o lo están liquidando.">
+        nota={`Las marcas donde más se despega lo importado de lo matriculado (${periodo}): o están cargando stock, o lo están liquidando.`}>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <TablaBrechaMarcas
           titulo="Importan más de lo que matriculan"
@@ -263,6 +300,107 @@ export default async function BrechaPage({
         Se excluyen las marcas con menos de 20 unidades sumando ambas fuentes:
         con bases tan chicas la brecha no dice nada.
       </p>
+    </Pagina>
+  );
+}
+
+/**
+ * Una sola fuente, hasta su propio último mes: el total contra el año
+ * pasado, la evolución (una línea por año) y el ranking por marca. Es la
+ * vista que muestra la importación de agosto entera cuando la
+ * matriculación todavía va por julio.
+ */
+async function UnaFuente({
+  sp, fuente, cobertura, aclaracion,
+}: {
+  sp: SearchParams;
+  fuente: Fuente;
+  cobertura: ReturnType<typeof getCobertura>;
+  aclaracion?: string;
+}) {
+  const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
+  const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
+  const kpi = getKpi(fuente, f);
+  const anios = [f.anio - 1, f.anio].filter((a) => cobertura[fuente].anios.includes(a));
+  const serie = serieAAnios(getSerieMensual(fuente, anios, { marca: f.marca }), anios);
+  const marcas = getRankingMarcas(fuente, f);
+  const mesMax: Record<number, number> = {};
+  for (const a of cobertura[fuente].anios) {
+    mesMax[a] = a === cobertura[fuente].ultimo?.anio ? cobertura[fuente].ultimo.mes : 12;
+  }
+  const propias = getMarcasPropiasSet();
+  const propiasU = marcas.filter((m) => propias.has(m.marca)).reduce((s, m) => s + m.unidades, 0);
+  const verbo = fuente === "importacion" ? "entró al país" : "sacó chapa";
+
+  return (
+    <Pagina>
+      <PageHeader
+        titulo="Importaciones vs. matriculaciones"
+        descripcion={`Solo ${NOMBRE[fuente]} · ${periodo}. Volvé a «Ambas» para ver la brecha entre las dos.`}
+        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+      />
+
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente porDefecto="ambas" fuente={fuente} conAmbas aclaracion={aclaracion} />
+        <div className="min-w-0 sm:flex-1">
+          <FiltroPeriodo pegajoso={false} anios={cobertura[fuente].anios} mesMaximoPorAnio={mesMax} />
+        </div>
+      </div>
+
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard
+          label={fuente === "importacion" ? "Importaciones" : "Matriculaciones"}
+          value={formatUnidades(kpi.valor)}
+          variacion={kpi.variacion}
+          periodo={periodo}
+          tono={fuente === "importacion" ? "verde" : "azul"}
+          tooltip={`Lo que ${verbo} en ${periodo}, contra el mismo período de ${f.anio - 1}.`}
+        />
+        <KpiCard
+          label="Marcas propias"
+          value={formatUnidades(propiasU)}
+          periodo={kpi.valor ? `${((propiasU / kpi.valor) * 100).toFixed(1)}% del total` : undefined}
+          tooltip={`Unidades de nuestras marcas en ${NOMBRE[fuente]} del período.`}
+        />
+        <KpiCard
+          label="Marcas con unidades"
+          value={String(marcas.length)}
+          periodo={periodo}
+          tooltip={`Marcas con al menos una unidad en ${NOMBRE[fuente]} del período.`}
+        />
+      </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Evolución mensual — {NOMBRE[fuente]} ({anios.join(" vs. ")})</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Una línea por año. Los meses que la fuente todavía no tiene quedan
+            sin punto, no en cero.
+          </p>
+        </CardHeader>
+        <CardContent><SerieAniosChart series={serie} /></CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Marcas por {NOMBRE[fuente]} · {periodo}</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Todas las marcas ordenadas por unidades, con su variación contra el
+            año pasado. Tocá una y la pantalla queda filtrada por ella.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <TablaRanking
+            filas={marcas}
+            fuente={fuente}
+            filtrarPor={{ marca: "marca" }}
+            nombreArchivo={`${fuente}-marcas-${f.anio}`}
+          />
+        </CardContent>
+      </Card>
     </Pagina>
   );
 }

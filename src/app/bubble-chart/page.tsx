@@ -230,7 +230,7 @@ export default async function BubbleChartPage({
       />
 
       <div className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end sm:bg-background/85 sm:backdrop-blur-md">
-        <SelectorFuente fuente={fuente} />
+        <SelectorFuente porDefecto="matriculacion" fuente={fuente} />
         <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
             pegajoso={false}
