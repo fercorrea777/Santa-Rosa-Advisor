@@ -18,7 +18,7 @@ import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { tokens } from "@/lib/informes/segmento-version";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaCorte, etiquetaPeriodo, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { etiquetaCorte, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
 
 /**
  * Portafolio por marca: la gama de UNA marca, modelo por modelo, con
@@ -53,6 +53,13 @@ export default async function PortafolioPage({
     getRankingMarcas("matriculacion", { ...f, marca: undefined }).find((m) => m.esPropia)?.marca ??
     opciones.marcas[0];
   const fm = { ...f, marca, modelo: undefined, version: undefined };
+  // La importación suele ir un mes adelante de la matriculación (el informe
+  // de CADAM llega antes que el detalle): lo importado se mide hasta su
+  // propio último mes y se rotula aparte, en vez de esconder ese mes.
+  const ultImp = cobertura.importacion.ultimo;
+  const impRecorta = !!ultImp && f.anio === ultImp.anio && !sp.hasta && ultImp.mes > f.mesHasta;
+  const fImp = impRecorta && ultImp ? { ...fm, mesHasta: ultImp.mes } : fm;
+  const periodoImp = etiquetaPeriodo(fImp.anio, fImp.mesDesde, fImp.mesHasta);
 
   const mesMax: Record<number, number> = {};
   for (const a of cobertura.matriculacion.anios) {
@@ -62,7 +69,7 @@ export default async function PortafolioPage({
   // --- la gama: modelos matriculados, con su precio ------------------------
   const modelos = getRankingModelos("matriculacion", fm, 300);
   const kpiMat = getKpi("matriculacion", fm);
-  const kpiImp = getKpi("importacion", fm);
+  const kpiImp = getKpi("importacion", fImp);
   const mercado = totalUnidades("matriculacion", { ...fm, marca: undefined });
   const versionesPorModelo = getVersionesPorModelo(fm);
 
@@ -95,7 +102,7 @@ export default async function PortafolioPage({
   // pero "HILUX" contra "HILUX D/C"…): se cruza por nombre normalizado y,
   // si no, por el mismo conjunto de palabras. Lo que no cruza se informa
   // como total aparte, no se inventa a qué modelo va.
-  const importados = getRankingModelos("importacion", fm, 300);
+  const importados = getRankingModelos("importacion", fImp, 300);
   const clave = (s: string) => tokens(s).join(" ");
   const importPorClave = new Map<string, number>();
   for (const i of importados) {
@@ -201,8 +208,8 @@ export default async function PortafolioPage({
           label="Importaciones"
           value={formatUnidades(kpiImp.valor)}
           variacion={kpiImp.variacion}
-          periodo={periodo}
-          tooltip={`Unidades de ${marca} que entraron al país en el período. Lo que importa y no matricula es stock en camino.`}
+          periodo={periodoImp}
+          tooltip={`Unidades de ${marca} que entraron al país en ${periodoImp}, contra el mismo período de ${f.anio - 1}. Lo que importa y no matricula es stock en camino.${impRecorta && ultImp ? ` La importación ya tiene ${mesCorto(ultImp.mes)}; la matriculación de ese mes CADAM todavía no la publicó.` : ""}`}
         />
         <KpiCard
           label="Participación de mercado"
@@ -245,7 +252,7 @@ export default async function PortafolioPage({
 
       <Seccion
         titulo="La gama, modelo por modelo"
-        nota="Todos los modelos que la marca matriculó en el período, tengan o no precio. El peso es la parte de cada uno dentro de la marca; la importación se cruza por nombre con la otra base de CADAM."
+        nota={`Todos los modelos que la marca matriculó en el período, tengan o no precio. El peso es la parte de cada uno dentro de la marca; la importación (${periodoImp}) se cruza por nombre con la otra base de CADAM.`}
       >
         <Card>
           <CardHeader>
@@ -253,7 +260,7 @@ export default async function PortafolioPage({
           </CardHeader>
           <CardContent>
             {filas.length ? (
-              <TablaPortafolio marca={marca} filas={filas} fichas={fichas} periodo={periodo} />
+              <TablaPortafolio marca={marca} filas={filas} fichas={fichas} periodo={periodo} periodoImp={periodoImp} />
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {marca} no tiene matriculaciones en {periodo}.

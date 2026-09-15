@@ -47,11 +47,15 @@ export function TablaPortafolio({
   filas,
   fichas,
   periodo,
+  periodoImp,
 }: {
   marca: string;
   filas: FilaPortafolio[];
   fichas: ModeloFicha[];
   periodo: string;
+  /** Ventana de la columna de importación, que puede ir un mes más lejos
+   *  que la de matriculación. */
+  periodoImp: string;
 }) {
   const [abierto, setAbierto] = React.useState<DetalleModelo | null>(null);
   const [orden, setOrden] = React.useState<{ campo: keyof FilaPortafolio; asc: boolean }>({
@@ -97,7 +101,7 @@ export function TablaPortafolio({
             {cab("unidades", "Unidades", "matriculadas en el período", "text-right")}
             {cab("participacion", "Peso", "su parte dentro de la marca", "text-right")}
             {cab("variacion", "Var.", "contra el año pasado", "text-right")}
-            {cab("importadas", "Import.", "entraron al país en el período", "text-right")}
+            {cab("importadas", "Import.", `entraron al país · ${periodoImp}`, "text-right")}
             {cab("precioDesde", "Desde US$", "lista, versión más barata", "text-right")}
             {cab("precioHasta", "Hasta US$", "la más cara del modelo", "text-right")}
             <TableHead className="text-right" nota="con precio / según DNRA">Versiones</TableHead>

@@ -23,24 +23,28 @@ export default async function RankingsPage({
   const sp = await searchParams;
   const cobertura = getCobertura();
   // Las dos fuentes conviven en pestanas con un solo filtro. Por defecto
-  // el periodo llega hasta la ultima matriculacion (asi las cuatro
-  // pestanas comparan lo mismo), pero se puede pedir hasta donde llegue
-  // la importacion, que suele ir un mes adelante. Cuando pasa eso, las
-  // pestanas de matriculacion lo avisan.
+  // el periodo llega hasta el ultimo mes que CADAM publico de CUALQUIERA de
+  // las dos (la importacion suele ir un mes adelante): asi lo mas nuevo se
+  // ve sin tocar nada (Croman, 15/09/2026: "actualizá lo de agosto
+  // importaciones"). Las pestanas de matriculacion se recortan a su propio
+  // ultimo mes y lo avisan: comparar ocho meses de 2026 contra ocho de 2025
+  // cuando solo hay siete cargados daria variaciones falsas.
   const ultMat = cobertura.matriculacion.ultimo;
   const ultImp = cobertura.importacion.ultimo;
   const ultimo =
     ultMat && ultImp && (ultImp.anio > ultMat.anio || (ultImp.anio === ultMat.anio && ultImp.mes > ultMat.mes))
       ? ultImp
       : ultMat;
-  const f = filtroDesdeUrl(sp, ultMat);
+  const f = filtroDesdeUrl(sp, ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
   const matricRecorta = !!ultMat && f.anio === ultMat.anio && f.mesHasta > ultMat.mes;
+  const fMat = matricRecorta && ultMat ? { ...f, mesHasta: Math.max(f.mesDesde, ultMat.mes) } : f;
+  const periodoMat = etiquetaPeriodo(fMat.anio, fMat.mesDesde, fMat.mesHasta);
   const opciones = getOpcionesFiltro();
 
-  const marcasMat = getRankingMarcas("matriculacion", f);
+  const marcasMat = getRankingMarcas("matriculacion", fMat);
   const marcasImp = getRankingMarcas("importacion", f);
-  const modelosMat = getRankingModelos("matriculacion", f, 500);
+  const modelosMat = getRankingModelos("matriculacion", fMat, 500);
   const modelosImp = getRankingModelos("importacion", f, 500);
   // En importación el importador se infiere por marca (la base no lo trae):
   // se le dice al usuario qué marcas quedaron adentro.
@@ -51,6 +55,7 @@ export default async function RankingsPage({
     mesMax[a] = a === ultimo?.anio ? ultimo.mes : 12;
   }
   const nota = `Variación y cambio de posición contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`;
+  const notaMat = `Variación y cambio de posición contra ${periodoMat.replace(String(f.anio), String(f.anio - 1))}.`;
 
   // --- ficha de cada modelo, para abrirla desde su fila -------------------
   // Un ranking dice quién vendió más; la pregunta que sigue es contra quién
@@ -82,14 +87,13 @@ export default async function RankingsPage({
     <Pagina>
       <PageHeader
         titulo="Rankings"
-        descripcion={`Marcas y modelos, matriculación e importación · ${periodo}.`}
+        descripcion={`Marcas y modelos, matriculación e importación · ${periodo}${matricRecorta ? ` (matriculación hasta ${mesCorto(fMat.mesHasta)})` : ""}.`}
         fuente={`Fuente: CADAM / DNRA · datos hasta ${etiquetaCorte(cobertura.snapshot)}.`}
       />
 
       <FiltroPeriodo
         anios={cobertura.matriculacion.anios}
         mesMaximoPorAnio={mesMax}
-        hastaPorDefecto={f.mesHasta}
         opciones={[
           // Marca puntual (pedido de Fernando, 15/09/2026): con una marca
           // elegida las pestañas de modelos son la gama de esa marca.
@@ -117,7 +121,7 @@ export default async function RankingsPage({
 
         <TabsContent value="marcas-mat">
           <Panel
-            titulo={`Marcas por matriculación (${marcasMat.length})`}
+            titulo={`Marcas por matriculación (${marcasMat.length}) · ${periodoMat}`}
             nota="Las marcas ordenadas por chapas puestas. Tocá una y toda la pantalla queda filtrada por ella; tocala de nuevo y se quita."
           >
             {matricRecorta && ultMat && (
@@ -127,7 +131,7 @@ export default async function RankingsPage({
                 {mesCorto(f.mesHasta)} ya está, en las pestañas de importación.
               </NotaDato>
             )}
-            <TablaRanking filas={marcasMat} notaVariacion={nota}
+            <TablaRanking filas={marcasMat} notaVariacion={notaMat}
               filtrarPor={{ marca: "marca" }}
               nombreArchivo={`ranking-marcas-matriculacion-${f.anio}`} />
           </Panel>
@@ -135,7 +139,7 @@ export default async function RankingsPage({
 
         <TabsContent value="marcas-imp">
           <Panel
-            titulo={`Marcas por importación (${marcasImp.length})`}
+            titulo={`Marcas por importación (${marcasImp.length}) · ${periodo}`}
             nota="Lo mismo, pero por unidades que entraron al país. Una marca puede liderar acá y todavía no aparecer en matriculación: es stock en camino."
           >
             <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />
@@ -147,7 +151,7 @@ export default async function RankingsPage({
 
         <TabsContent value="modelos-mat">
           <Panel
-            titulo={`Modelos por matriculación (${modelosMat.length})`}
+            titulo={`Modelos por matriculación (${modelosMat.length}) · ${periodoMat}`}
             nota="Modelo por modelo, con su segmento. Tocá una fila y se abre contra quién compite ese modelo: su clase, sus rivales y a qué precio."
           >
             {matricRecorta && ultMat && (
@@ -157,9 +161,9 @@ export default async function RankingsPage({
               </NotaDato>
             )}
             <TablaRanking filas={modelosMat} mostrarModelo mostrarSegmento
-              notaVariacion={nota}
+              notaVariacion={notaMat}
               fichas={fichasMat}
-              periodo={periodo}
+              periodo={periodoMat}
               filtrarPor={{ marca: "marca" }}
               nombreArchivo={`ranking-modelos-matriculacion-${f.anio}`} />
           </Panel>
@@ -167,7 +171,7 @@ export default async function RankingsPage({
 
         <TabsContent value="modelos-imp">
           <Panel
-            titulo={`Modelos por importación (${modelosImp.length})`}
+            titulo={`Modelos por importación (${modelosImp.length}) · ${periodo}`}
             nota="Los modelos por unidades importadas. Sirve para ver qué se está trayendo antes de que llegue al mercado."
           >
             <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />

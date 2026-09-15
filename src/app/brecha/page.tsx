@@ -61,6 +61,21 @@ export default async function BrechaPage({
   const masImporta = marcas.slice(0, 10);
   const masMatricula = [...marcas].reverse().slice(0, 10);
 
+  // La importación suele ir un mes adelante de la matriculación. La brecha
+  // se calcula sobre la ventana común (si no, todo agosto parecería stock),
+  // pero ese mes que ya entró y todavía no tiene chapa posible se dice
+  // aparte, con sus marcas: es justamente lo que está por salir a la calle.
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const mesesExtra =
+    ultMat && ultImp && f.anio === ultImp.anio && ultImp.mes > f.mesHasta && f.mesHasta >= ultMat.mes
+      ? { desde: f.mesHasta + 1, hasta: ultImp.mes }
+      : null;
+  const extraImp = mesesExtra
+    ? getRankingMarcas("importacion", { ...f, mesDesde: mesesExtra.desde, mesHasta: mesesExtra.hasta })
+    : [];
+  const extraTotal = extraImp.reduce((s, r) => s + r.unidades, 0);
+
   const mesMax: Record<number, number> = {};
   for (const a of cobertura.matriculacion.anios) {
     mesMax[a] = a === cobertura.matriculacion.ultimo?.anio
@@ -93,6 +108,22 @@ export default async function BrechaPage({
         recorte la brecha se inflaba con 1.509 unidades de pesados y aparecían
         marcas de camiones con cero importaciones y cientos de matriculaciones.
       </NotaDato>
+
+      {mesesExtra && extraTotal > 0 && (
+        <NotaDato>
+          <strong>
+            {mesesExtra.desde === mesesExtra.hasta
+              ? `En ${mesCorto(mesesExtra.hasta)} entraron ${formatUnidades(extraTotal)} unidades más`
+              : `Entre ${mesCorto(mesesExtra.desde)} y ${mesCorto(mesesExtra.hasta)} entraron ${formatUnidades(extraTotal)} unidades más`}
+          </strong>{" "}
+          que no están en la brecha de arriba: CADAM ya publicó esa importación pero
+          todavía no la matriculación de ese mes, así que compararlas sería contar
+          stock que no tuvo tiempo de sacar chapa. Las que más trajeron:{" "}
+          {extraImp.slice(0, 6).map((r) => `${r.marca} ${formatUnidades(r.unidades)}`).join(" · ")}.
+          Para verlas en el ranking, en Rankings está la pestaña de importación hasta{" "}
+          {mesCorto(mesesExtra.hasta)}.
+        </NotaDato>
+      )}
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Importaciones" value={formatUnidades(totImp)} periodo={periodo}
