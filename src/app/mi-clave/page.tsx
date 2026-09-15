@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 import { getUsuario } from "@/lib/auth/usuarios";
 import { FormularioMiClave } from "./formulario";
@@ -30,7 +31,7 @@ export default async function MiClavePage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Mi clave"
         descripcion="Cambiá la clave con la que entrás al tablero."
@@ -38,6 +39,6 @@ export default async function MiClavePage() {
       <div className="mx-auto w-full max-w-md">
         <FormularioMiClave quien={quien} />
       </div>
-    </div>
+    </Pagina>
   );
 }

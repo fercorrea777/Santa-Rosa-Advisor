@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Marca } from "@/components/dashboard/logo-marca";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
@@ -123,7 +124,7 @@ export default async function CombustiblesPage({
     .reduce((s, t) => s + t.unidades, 0);
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Combustibles y tecnologías"
         descripcion={`Adopción por tecnología de propulsión sobre matriculaciones · ${periodo}.`}
@@ -539,7 +540,7 @@ export default async function CombustiblesPage({
         desde 2024. Tampoco se puede separar nafta de diésel: ambas van como ICE.
       </NotaDato>
       </Seccion>
-    </div>
+    </Pagina>
   );
 }
 

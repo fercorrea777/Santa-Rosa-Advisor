@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { etiquetaCorte } from "@/lib/periodo";
 import { ChatCopiloto } from "@/components/copiloto/chat";
 import { InformesPanel } from "@/components/copiloto/informes-panel";
@@ -17,7 +18,7 @@ export default function CopilotoPage() {
   const cobertura = getCobertura();
 
   return (
-    <div className="flex h-full flex-col gap-5">
+    <Pagina className="h-full">
       <PageHeader
         titulo="Copiloto"
         descripcion="Preguntale a los datos en lenguaje natural. Consulta él mismo las fuentes —CADAM, el relevamiento de precios de la competencia, nuestra operación, la demanda de Bitrix y la pauta de Meta— y muestra abajo de cada respuesta cuáles abrió."
@@ -46,6 +47,6 @@ export default function CopilotoPage() {
           <InformesPanel />
         </TabsContent>
       </Tabs>
-    </div>
+    </Pagina>
   );
 }

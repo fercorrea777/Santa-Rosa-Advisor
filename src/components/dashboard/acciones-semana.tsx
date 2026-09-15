@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
+import { Cifra } from "@/components/movimiento/cifra";
 import { getRankingMarcas, getRankingModelos, type Filtro } from "@/lib/cadam/mercado";
 import { getAsesoresMayoristasSet, getMarcasPropiasSet, getPresupuesto } from "@/lib/cadam/config";
 import {
@@ -109,7 +110,7 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
   const hayPresupuestoCargado = getPresupuesto(anioActual()) !== null;
 
   return (
-    <section aria-labelledby="acciones-titulo" className="flex flex-col gap-3">
+    <section aria-labelledby="acciones-titulo" data-seccion="" className="flex flex-col gap-3">
       <h2 id="acciones-titulo" className="seccion-hd">Acciones de la semana</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <TarjetaAccion
@@ -240,7 +241,9 @@ function TarjetaAccion({
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {titulo}
           </p>
-          <p
+          <Cifra
+            como="p"
+            texto={sinDatos ? "—" : String(numero)}
             className={cn(
               "metric mt-1 text-4xl leading-none",
               sinDatos || nada
@@ -251,9 +254,7 @@ function TarjetaAccion({
                     ? "text-amber-600 dark:text-amber-500"
                     : "text-foreground"
             )}
-          >
-            {sinDatos ? "—" : numero}
-          </p>
+          />
           <p className="mt-1 text-xs text-muted-foreground">
             {sinDatos ? "Sin datos de Cars ahora mismo." : nada ? vacio : `${unidad} ${frase}`}
           </p>

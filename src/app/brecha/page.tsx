@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Seccion } from "@/components/dashboard/seccion";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { BrechaChart } from "@/components/charts/brecha-chart";
 import {
@@ -67,7 +68,7 @@ export default async function BrechaPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Importaciones vs. matriculaciones"
         descripcion={`Brecha entre lo que entra al país y lo que se patenta · ${periodo}.`}
@@ -231,7 +232,7 @@ export default async function BrechaPage({
         Se excluyen las marcas con menos de 20 unidades sumando ambas fuentes:
         con bases tan chicas la brecha no dice nada.
       </p>
-    </div>
+    </Pagina>
   );
 }
 

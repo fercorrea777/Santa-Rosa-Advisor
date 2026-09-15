@@ -35,7 +35,9 @@ export function Seccion({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="flex flex-col gap-4 scroll-mt-20">
+    // `data-seccion`: la entrada de página (movimiento/pagina.tsx) anima el
+    // encabezado de cada sección junto con las tarjetas.
+    <section id={id} data-seccion="" className="flex flex-col gap-4 scroll-mt-20">
       {nota ? (
         <div>
           <h2 className="seccion-hd">{titulo}</h2>

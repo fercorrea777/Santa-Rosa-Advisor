@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Marca } from "@/components/dashboard/logo-marca";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { BurbujasPrecioChart } from "@/components/charts/burbujas-precio-chart";
 import {
@@ -80,7 +81,7 @@ export default async function GamaPropiaPage({
   const hayDetalles = fichas.length > 0;
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Gama propia"
         descripcion={`Posicionamiento por precio de los modelos del grupo · matriculaciones · ${periodo}.`}
@@ -242,6 +243,6 @@ export default async function GamaPropiaPage({
           )}
         </>
       )}
-    </div>
+    </Pagina>
   );
 }

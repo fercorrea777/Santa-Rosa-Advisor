@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { BurbujasMarcaChart, type Burbuja } from "@/components/charts/burbujas-marca-chart";
@@ -221,7 +222,7 @@ export default async function BubbleChartPage({
     (clave ? clasePorClave.get(clave) : undefined) ?? b.segmento;
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Bubble chart"
         descripcion={`Cada burbuja es un modelo, agrupado en la columna de su marca · ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
@@ -426,6 +427,6 @@ export default async function BubbleChartPage({
         </Card>
         </Seccion>
       )}
-    </div>
+    </Pagina>
   );
 }

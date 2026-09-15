@@ -3,24 +3,59 @@
 import * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
+import { motion } from "motion/react"
 
 import { cn } from "@/lib/utils"
+import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento"
+
+/**
+ * Qué pasó con las pestañas hasta ahora: cuántas veces el usuario cambió
+ * y hacia dónde fue la última vez. Lo lee TabsContent para decidir si
+ * entra animado y desde qué lado.
+ *
+ * Contador y no booleano por un detalle: un panel que se monta tiene que
+ * saber si es el PRIMERO (la página recién abrió, y entonces entra con el
+ * resto de la página, sin animación propia) o uno que el usuario pidió.
+ */
+const ContextoCambios = React.createContext<{
+  cambios: number
+  direccion: TabsPrimitive.Tab.ActivationDirection
+}>({ cambios: 0, direccion: "none" })
 
 function Tabs({
   className,
   orientation = "horizontal",
+  onValueChange,
   ...props
 }: TabsPrimitive.Root.Props) {
+  const [estado, setEstado] = React.useState<React.ContextType<typeof ContextoCambios>>({
+    cambios: 0,
+    direccion: "none",
+  })
   return (
-    <TabsPrimitive.Root
-      data-slot="tabs"
-      data-orientation={orientation}
-      className={cn(
-        "group/tabs flex gap-2 data-horizontal:flex-col",
-        className
-      )}
-      {...props}
-    />
+    <ContextoCambios.Provider value={estado}>
+      <TabsPrimitive.Root
+        data-slot="tabs"
+        data-orientation={orientation}
+        className={cn(
+          "group/tabs flex gap-2 data-horizontal:flex-col",
+          className
+        )}
+        onValueChange={(value, detalles) => {
+          // Solo los cambios que pidió el usuario. base-ui también avisa
+          // los automáticos ("initial", "missing", "disabled") y esos no
+          // son un clic que merezca animación.
+          if (detalles.reason === "none") {
+            setEstado((e) => ({
+              cambios: e.cambios + 1,
+              direccion: detalles.activationDirection,
+            }))
+          }
+          onValueChange?.(value, detalles)
+        }}
+        {...props}
+      />
+    </ContextoCambios.Provider>
   )
 }
 
@@ -148,13 +183,36 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
-function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+/** De qué lado entra el contenido según hacia dónde fue el clic: la
+ *  pestaña de la derecha trae su panel desde la derecha. "none" (vertical
+ *  o sin dato) entra desde abajo, apenas. */
+const DESDE: Record<TabsPrimitive.Tab.ActivationDirection, { x: number; y: number }> = {
+  left: { x: -14, y: 0 },
+  right: { x: 14, y: 0 },
+  up: { x: 0, y: -10 },
+  down: { x: 0, y: 10 },
+  none: { x: 0, y: 6 },
+}
+
+function TabsContent({ className, children, ...props }: TabsPrimitive.Panel.Props) {
+  const { cambios, direccion } = React.useContext(ContextoCambios)
   return (
     <TabsPrimitive.Panel
       data-slot="tabs-content"
       className={cn("flex-1 text-sm outline-none", className)}
       {...props}
-    />
+    >
+      {/* Los paneles se montan al activarse (keepMounted es false), así
+          que la animación de montaje ES la del cambio de pestaña. El panel
+          inicial no se anima: entra con la página. */}
+      <motion.div
+        initial={cambios > 0 ? { opacity: 0, ...DESDE[direccion] } : false}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{ duration: DURACION.corta, ease: SUAVE_BEZIER }}
+      >
+        {children}
+      </motion.div>
+    </TabsPrimitive.Panel>
   )
 }
 

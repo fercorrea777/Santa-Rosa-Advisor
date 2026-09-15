@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Seccion } from "@/components/dashboard/seccion";
@@ -35,7 +36,7 @@ export default async function LocalidadesPage({
 
   if (!hayCorte("localidad")) {
     return (
-      <div className="flex flex-col gap-5">
+      <Pagina>
         <PageHeader
           titulo="Localidades"
           descripcion="Dónde se matriculan los vehículos del país."
@@ -44,7 +45,7 @@ export default async function LocalidadesPage({
           title="Todavía no hay corte por localidad"
           description="Este corte llega en un archivo aparte de CADAM. Cargalo desde «Carga de archivos» y la pantalla se arma sola."
         />
-      </div>
+      </Pagina>
     );
   }
 
@@ -97,7 +98,7 @@ export default async function LocalidadesPage({
       : null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Localidades"
         descripcion={`Dónde se matriculan los vehículos del país · ${periodo}.`}
@@ -343,6 +344,6 @@ export default async function LocalidadesPage({
         Cobertura: {anios[0]}–{anios.at(-1)}
         {ultimo ? `, último mes cargado ${mesCorto(ultimo.mes)} ${ultimo.anio}` : ""}.
       </NotaDato>
-    </div>
+    </Pagina>
   );
 }

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { mensajeLegible, tipoArchivoLegible } from "@/lib/tipo-archivo";
 import { etiquetaCorte } from "@/lib/periodo";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -21,7 +22,7 @@ export default function CalidadDatosPage() {
   const resto = log.filter((l) => l.nivel === "info" && l.categoria !== "control_ok");
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Calidad de datos"
         descripcion="Todo lo que se detectó al cargar los archivos: controles cruzados contra el informe oficial de CADAM, huecos, ambigüedades y valores sin clasificar."
@@ -195,7 +196,7 @@ export default function CalidadDatosPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+    </Pagina>
   );
 }
 

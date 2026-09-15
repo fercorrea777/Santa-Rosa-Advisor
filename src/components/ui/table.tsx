@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { DURACION, gsap, menosMovimiento, SUAVE } from "@/lib/movimiento"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
@@ -29,13 +30,60 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   )
 }
 
-function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
+/** Cuántas filas entran en cascada. Las que siguen aparecen de una: en una
+ *  tabla de cien filas nadie mira la fila cuarenta entrar, y escalonar
+ *  cien es un segundo y medio de espera. */
+const FILAS_EN_CASCADA = 24
+
+function TableBody({ className, children, ...props }: React.ComponentProps<"tbody">) {
+  const ref = React.useRef<HTMLTableSectionElement>(null)
+
+  // Firma de la lista: las keys de las filas, en orden. El efecto corre
+  // cuando cambia ESO —otra lista, otro orden— y no en cada re-render del
+  // padre (un hover, una pestaña), que con `children` como dependencia
+  // haría parpadear la tabla sin que nada haya cambiado.
+  const firma = React.Children.toArray(children)
+    .map((c) => (React.isValidElement(c) ? String(c.key) : "?"))
+    .join("|")
+
+  // Las filas entran en cascada, con GSAP sobre el DOM que ya está: un
+  // <tr> del servidor no necesita volverse componente para animarse.
+  // useLayoutEffect y no useEffect: el `from` deja las filas en opacidad 0
+  // ANTES del primer frame; con useEffect se verían enteras un instante y
+  // después entrarían.
+  React.useLayoutEffect(() => {
+    const cuerpo = ref.current
+    if (!cuerpo || menosMovimiento()) return
+    const filas = Array.from(cuerpo.children).slice(0, FILAS_EN_CASCADA)
+    if (filas.length < 2) return
+    const tween = gsap.from(filas, {
+      autoAlpha: 0,
+      y: 6,
+      duration: DURACION.corta + 0.1,
+      ease: SUAVE,
+      stagger: 0.025,
+      clearProps: "opacity,visibility,transform",
+    })
+    // Pestaña de fondo: rAF no corre, el timer sí. Ver movimiento/cifra.tsx.
+    const respaldo = window.setTimeout(() => tween.progress(1), 1500)
+    return () => {
+      // Si la lista cambia a mitad de la cascada, lo que quedó a medias
+      // se ve entero al toque: una fila a medio aparecer no es un estado.
+      window.clearTimeout(respaldo)
+      tween.kill()
+      gsap.set(filas, { clearProps: "opacity,visibility,transform" })
+    }
+  }, [firma])
+
   return (
     <tbody
+      ref={ref}
       data-slot="table-body"
       className={cn("[&_tr:last-child]:border-0", className)}
       {...props}
-    />
+    >
+      {children}
+    </tbody>
   )
 }
 

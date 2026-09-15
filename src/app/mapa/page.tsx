@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { Seccion } from "@/components/dashboard/seccion";
 import {
@@ -231,7 +232,7 @@ export default async function MapaPage({
   ].filter(Boolean).join(" · ");
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Dónde competir"
         descripcion={`El mercado por clase de vehículo, banda de precio y motorización, cuánto de cada casillero es nuestro y contra quién compite cada modelo · ${periodo}${recorte ? ` · ${recorte}` : ""}.`}
@@ -578,7 +579,7 @@ export default async function MapaPage({
         </CardContent>
       </Card>
       </Seccion>
-    </div>
+    </Pagina>
   );
 }
 

@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
+import { ProveedorMovimiento } from "@/components/movimiento/proveedor";
 import { cookies } from "next/headers";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 
@@ -91,12 +92,14 @@ export default async function RootLayout({
             queda como elección explícita del toggle. */}
         <ThemeProvider attribute="class" defaultTheme="light">
           <TooltipProvider>
-            {/* `sinClave` se lee ACA, en el layout, que es Server Component:
-                AppShell es "use client" y ahi process.env no existe. Ver
-                src/proxy.ts para por que la puerta falla abierta. */}
-            <AppShell sinClave={!clave} esAdmin={esAdmin}>
-              {children}
-            </AppShell>
+            <ProveedorMovimiento>
+              {/* `sinClave` se lee ACA, en el layout, que es Server Component:
+                  AppShell es "use client" y ahi process.env no existe. Ver
+                  src/proxy.ts para por que la puerta falla abierta. */}
+              <AppShell sinClave={!clave} esAdmin={esAdmin}>
+                {children}
+              </AppShell>
+            </ProveedorMovimiento>
           </TooltipProvider>
         </ThemeProvider>
       </body>

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { getMetasMensuales, getParametros, getPresupuesto } from "@/lib/cadam/config";
 import { hoyEnAsuncion } from "@/lib/format";
 import { EditorMetasMensuales } from "./metas";
@@ -48,7 +49,7 @@ export default async function ConfiguracionPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Configuración"
         descripcion="Metas y competidores se editan acá y se guardan en parametros.json — el mismo archivo que la app ya leía. Un solo lugar, sin duplicados."
@@ -138,7 +139,7 @@ export default async function ConfiguracionPage() {
         </CardContent>
       </Card>
       </div>
-    </div>
+    </Pagina>
   );
 }
 

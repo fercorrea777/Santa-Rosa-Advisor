@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogoMarca, Marca } from "@/components/dashboard/logo-marca";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Seccion } from "@/components/dashboard/seccion";
@@ -60,7 +61,7 @@ export default async function OperacionPage({
 
   if (!(await hayDatosPropios())) {
     return (
-      <div className="flex flex-col gap-5">
+      <Pagina>
         <PageHeader
           titulo="Nuestra operación"
           descripcion="Facturación y stock propios, del API de Cars."
@@ -69,7 +70,7 @@ export default async function OperacionPage({
           title="Todavía no llegaron los datos de Cars"
           description="Los empuja Hermes cada 4 horas desde la máquina donde el API responde. Si pasaron varias horas y sigue vacío, revisá el trabajo advisor-datos-propios en Hermes."
         />
-      </div>
+      </Pagina>
     );
   }
 
@@ -636,7 +637,7 @@ export default async function OperacionPage({
   const detalle = (sync?.detalle ?? {}) as Record<string, unknown>;
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Nuestra operación"
         descripcion={`Lo que facturamos y lo que tenemos en stock · ${periodo}${
@@ -1849,6 +1850,6 @@ export default async function OperacionPage({
           </>
         )}
       </NotaDato>
-    </div>
+    </Pagina>
   );
 }

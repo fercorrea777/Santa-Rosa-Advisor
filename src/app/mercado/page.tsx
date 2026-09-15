@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Marca } from "@/components/dashboard/logo-marca";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -123,7 +124,7 @@ export default async function MercadoPage({
   const diferencia = importComun.valor - matric.valor;
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Resumen del mercado"
         descripcion={`Analizando ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
@@ -135,7 +136,10 @@ export default async function MercadoPage({
           pegara el filtro, el toggle Matriculaciones/Importaciones se quedaría
           scrolleando solo. Fondo propio porque la fila tiene gaps entre las
           dos tarjetas por donde asomaría el contenido de atrás. */}
-      <div className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end sm:bg-background/85 sm:backdrop-blur-md">
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end sm:bg-background/85 sm:backdrop-blur-md"
+      >
         <SelectorFuente fuente={fuente} />
         <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
@@ -407,7 +411,7 @@ export default async function MercadoPage({
         </CardContent>
       </Card>
       </Seccion>
-    </div>
+    </Pagina>
   );
 }
 

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { tipoArchivoLegible } from "@/lib/tipo-archivo";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { Seccion } from "@/components/dashboard/seccion";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -227,7 +228,7 @@ export default async function EstadoDatosPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Estado de los datos"
         descripcion="Qué tan fresco está cada dato del tablero y qué lo mantiene al día."
@@ -375,7 +376,7 @@ export default async function EstadoDatosPage() {
           </CardContent>
         </Card>
       </Seccion>
-    </div>
+    </Pagina>
   );
 }
 

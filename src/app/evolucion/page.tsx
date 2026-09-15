@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { SelectorAnios } from "@/components/dashboard/selector-anios";
 import {
@@ -52,7 +53,7 @@ export default async function EvolucionPage({
   }));
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Evolución mensual"
         descripcion={`${etiquetaFuente[0].toUpperCase()}${etiquetaFuente.slice(1)} mes a mes entre años · ${etiquetaRango}. Acumulado, promedio, máximo, mínimo y proyección de cierre.`}
@@ -256,6 +257,6 @@ export default async function EvolucionPage({
           </div>
         </CardContent>
       </Card>
-    </div>
+    </Pagina>
   );
 }

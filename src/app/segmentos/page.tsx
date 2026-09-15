@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
@@ -55,7 +56,7 @@ export default async function SegmentosPage({
   const modelosSeg = seleccionado ? getRankingModelos("matriculacion", f, 100) : [];
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Segmentos"
         descripcion={`Participación, evolución y liderazgo por segmento sobre matriculaciones · ${periodo}.`}
@@ -235,6 +236,6 @@ export default async function SegmentosPage({
           </div>
         </>
       )}
-    </div>
+    </Pagina>
   );
 }

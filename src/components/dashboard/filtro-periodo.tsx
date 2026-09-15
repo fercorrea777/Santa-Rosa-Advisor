@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
+import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento";
 import { useFiltroUrl } from "@/lib/filtro-url";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
@@ -78,6 +80,7 @@ export function FiltroPeriodo({
       // aria-busy + el punto de abajo: el filtro tarda lo que tarda la
       // consulta, y sin señal parecía que el clic se había perdido.
       aria-busy={pendiente}
+      data-revelar=""
       className={cn(
         "relative flex flex-wrap items-end gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-2.5",
         pegajoso && "sm:sticky sm:top-16 sm:z-30 sm:shadow-[var(--card-shadow)]"
@@ -193,23 +196,34 @@ export function FiltroPeriodo({
           Los que SI tienen desplegable quedan afuera: en Operación, "marca"
           salia dos veces —el select en HAVAL y al lado el chip "Marca:
           HAVAL ✕"— y no habia forma de saber si eran un filtro o dos. */}
-      {CHIPS.filter(({ param }) => !opciones.some((o) => o.param === param)).map(({ param, label }) => {
-        const valor = leer(param);
-        if (!valor || valor === "todos") return null;
-        return (
-          <button
-            key={param}
-            type="button"
-            onClick={() => setParams({ [param]: null })}
-            title="Quitar este filtro"
-            className="inline-flex h-8 items-center gap-1.5 self-end rounded-md border border-primary/40 bg-primary/10 px-2.5 text-xs"
-          >
-            <span className="text-muted-foreground">{label}:</span>
-            <span className="font-medium">{valor}</span>
-            <span aria-hidden="true" className="opacity-70">✕</span>
-          </button>
-        );
-      })}
+      {/* AnimatePresence: el chip que se quita se achica y se va en vez de
+          desaparecer de golpe — y el que llega de un clic en un gráfico
+          aparece creciendo, que es lo que señala que ESE clic puso un
+          filtro. initial={false}: los que ya estaban al abrir la página
+          (URL compartida) no se animan. */}
+      <AnimatePresence initial={false}>
+        {CHIPS.filter(({ param }) => !opciones.some((o) => o.param === param)).map(({ param, label }) => {
+          const valor = leer(param);
+          if (!valor || valor === "todos") return null;
+          return (
+            <motion.button
+              key={param}
+              type="button"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ duration: DURACION.corta * 0.7, ease: SUAVE_BEZIER }}
+              onClick={() => setParams({ [param]: null })}
+              title="Quitar este filtro"
+              className="inline-flex h-8 items-center gap-1.5 self-end rounded-md border border-primary/40 bg-primary/10 px-2.5 text-xs"
+            >
+              <span className="text-muted-foreground">{label}:</span>
+              <span className="font-medium">{valor}</span>
+              <span aria-hidden="true" className="opacity-70">✕</span>
+            </motion.button>
+          );
+        })}
+      </AnimatePresence>
 
       <QuitarFiltros className="ml-auto self-end" />
     </div>

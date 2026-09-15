@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
+import { Cifra } from "@/components/movimiento/cifra";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { Badge } from "@/components/ui/badge";
 import { InformesPanel } from "@/components/copiloto/informes-panel";
@@ -58,7 +60,7 @@ export default async function InteligenciaPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Centro de Inteligencia Comercial"
         descripcion={`Lectura automática del mercado (${periodo} vs. ${f.anio - 1}) y de nuestra operación al día de hoy.`}
@@ -87,7 +89,7 @@ export default async function InteligenciaPage({
                   <span className={cn("text-[0.68rem] font-semibold uppercase tracking-[0.06em]", alta > 0 ? undefined : "text-muted-foreground")}>
                     {titulo}
                   </span>
-                  <span className="metric text-2xl">{items.length}</span>
+                  <Cifra texto={String(items.length)} className="metric text-2xl" />
                   {alta > 0 && (
                     <span className="text-[11px] font-medium opacity-80">{alta} en prioridad alta</span>
                   )}
@@ -199,7 +201,7 @@ export default async function InteligenciaPage({
         </CardContent>
       </Card>
       </Seccion>
-    </div>
+    </Pagina>
   );
 }
 

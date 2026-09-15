@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { useCountUp } from "@/lib/use-count-up";
+import { Cifra } from "@/components/movimiento/cifra";
 import { IconBrecha, IconEvolucion, IconMarketShare, IconSegmentos } from "@/components/icons";
 
 // Mapa de key serializable -> componente, resuelto DENTRO de este Client
@@ -31,9 +31,10 @@ interface KpiCardProps {
   variacion?: number | null;
   tooltip?: string;
   disponible?: boolean;
-  /** Si se pasa, el valor se anima con count-up desde 0 hasta este numero,
-   *  formateado segun `formato`. Si no se pasa, se usa `value` tal cual sin
-   *  animar — para KPIs de texto (marca, segmento) que no son un conteo.
+  /** Número crudo, formateado acá según `formato`. Es de antes de que
+   *  <Cifra> supiera contar a partir del texto formateado: hoy `value` solo
+   *  ya cuenta igual, y esto queda como atajo para no formatear en la
+   *  página. Las dos vías terminan en la misma cifra animada.
    *
    *  Es un enum (no una funcion) a proposito: este componente es
    *  "use client" y `value`/`valorAnimado`/etc. suelen venir de un Server
@@ -76,11 +77,10 @@ export function KpiCard({
   chipTono,
 }: KpiCardProps) {
   const ChipIcono = chipIcono ? CHIP_ICONOS[chipIcono] : undefined;
-  // Se llama siempre (regla de hooks), aunque no se use el resultado: sin
-  // valorAnimado, contado queda en 0 y no se muestra en ningun lado.
-  const contado = useCountUp(valorAnimado ?? 0);
+  // El conteo lo hace <Cifra> sobre el texto final: acá solo se decide qué
+  // texto es.
   const valorMostrado = valorAnimado !== undefined
-    ? (formato ? FORMATEADORES[formato](contado) : String(contado))
+    ? (formato ? FORMATEADORES[formato](valorAnimado) : String(valorAnimado))
     : value;
   if (!disponible) {
     return (
@@ -122,7 +122,7 @@ export function KpiCard({
           anclada al fondo en todas — sin vacíos asimétricos. */}
       <CardContent className="flex flex-1 flex-col px-4">
         {/* El peso lo fija .metric (700); no agregar font-* aca o lo pisa. */}
-        <p className="metric text-[2rem] text-foreground">{valorMostrado}</p>
+        <Cifra como="p" texto={valorMostrado} className="metric text-[2rem] text-foreground" />
         <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2">
           {variacion !== undefined && variacion !== null ? (
             <span

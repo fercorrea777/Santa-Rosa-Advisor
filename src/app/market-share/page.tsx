@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaShare } from "@/components/dashboard/tabla-share";
 import { SelectorDimension } from "@/components/dashboard/selector-dimension";
@@ -77,7 +78,7 @@ export default async function MarketSharePage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Market Share"
         descripcion={`Participación por ${DIMENSIONES[dimEfectiva].label.toLowerCase()} sobre ${etiquetaFuente} · ${periodo} vs. ${f.anio - 1}.`}
@@ -169,6 +170,6 @@ export default async function MarketSharePage({
         el país. El país real aparece únicamente en el Cuadro 12 del informe de
         matriculación, y solo acumulado por año.
       </NotaDato>
-    </div>
+    </Pagina>
   );
 }

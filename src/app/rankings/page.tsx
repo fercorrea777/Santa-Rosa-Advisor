@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -74,7 +75,7 @@ export default async function RankingsPage({
   const fichasImp = fichasDe(modelosImp);
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Rankings"
         descripcion={`Marcas y modelos, matriculación e importación · ${periodo}.`}
@@ -172,7 +173,7 @@ export default async function RankingsPage({
           </Panel>
         </TabsContent>
       </Tabs>
-    </div>
+    </Pagina>
   );
 }
 

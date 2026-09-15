@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
+import { Pagina } from "@/components/movimiento/pagina";
+import { Cifra } from "@/components/movimiento/cifra";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
@@ -95,7 +97,7 @@ export default async function InicioPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <Pagina>
       <PageHeader
         titulo="Inicio"
         descripcion={`Mercado automotor paraguayo · ${periodo} vs. mismo período ${f.anio - 1}.`}
@@ -118,16 +120,18 @@ export default async function InicioPage({
           evolución integrada (la card de evolución separada desaparece:
           vive acá). El resto escala hacia abajo. */}
       <section className="grid grid-cols-1 auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="reveal reveal-d1 flex sm:col-span-2 xl:row-span-2">
+        <div className="flex sm:col-span-2 xl:row-span-2">
           <Card className="tile-azul flex w-full flex-col gap-2 py-4">
             <CardHeader className="px-5">
               <CardTitle>Matriculaciones acumuladas · {periodo}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col px-5">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <p className="metric text-[3.4rem] leading-none text-foreground">
-                  {formatUnidades(matric.valor)}
-                </p>
+                <Cifra
+                  como="p"
+                  texto={formatUnidades(matric.valor)}
+                  className="metric text-[3.4rem] leading-none text-foreground"
+                />
                 {matric.variacion !== null && matric.variacion !== undefined && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                     <span aria-hidden="true">{matric.variacion >= 0 ? "▲" : "▼"}</span>
@@ -150,7 +154,7 @@ export default async function InicioPage({
             </CardContent>
           </Card>
         </div>
-        <div className="reveal reveal-d2 flex sm:col-span-2">
+        <div className="flex sm:col-span-2">
           <KpiCard
             tono="verde"
             label="Importaciones acumuladas"
@@ -163,7 +167,7 @@ export default async function InicioPage({
             tooltip="La base de importación de CADAM cubre vehículos livianos; camiones y ómnibus se reportan en un archivo aparte."
           />
         </div>
-        <div className="reveal reveal-d3 flex">
+        <div className="flex">
           <KpiCard
             tono="tinta"
             label="Marca líder"
@@ -172,7 +176,7 @@ export default async function InicioPage({
             tooltip="Marca con más matriculaciones en el período filtrado."
           />
         </div>
-        <div className="reveal reveal-d4 flex">
+        <div className="flex">
           <KpiCard
             tono="ambar"
             label="Tecnología con mayor crecimiento"
@@ -182,7 +186,7 @@ export default async function InicioPage({
             tooltip="La tecnología (fuera de ICE) que más creció contra el año anterior, sobre una base mínima de 30 unidades."
           />
         </div>
-        <div className="reveal reveal-d5 flex">
+        <div className="flex">
           <KpiCard
             chipIcono="segmentos"
             chipTono="violet"
@@ -192,7 +196,7 @@ export default async function InicioPage({
             tooltip="Segmento con más matriculaciones. CADAM no clasifica el segmento antes de 2024."
           />
         </div>
-        <div className="reveal reveal-d5 flex">
+        <div className="flex">
           <KpiCard
             chipIcono="evolucion"
             chipTono="mint"
@@ -205,7 +209,7 @@ export default async function InicioPage({
             tooltip="Matriculaciones del último mes del rango contra el mes inmediatamente anterior."
           />
         </div>
-        <div className="reveal reveal-d6 flex">
+        <div className="flex">
           <KpiCard
             chipIcono="market-share"
             chipTono="amber"
@@ -217,7 +221,7 @@ export default async function InicioPage({
             tooltip="JETOUR, GWM/GREAT WALL, JAC, Dongfeng, Soueast, Renault, Mitsubishi, Leapmotor, Zeekr y JMEV, sobre el total del período filtrado."
           />
         </div>
-        <div className="reveal reveal-d6 flex">
+        <div className="flex">
           <KpiCard
             chipIcono="brecha"
             chipTono="pink"
@@ -314,6 +318,6 @@ export default async function InicioPage({
           </Tabs>
         </CardContent>
       </Card>
-    </div>
+    </Pagina>
   );
 }

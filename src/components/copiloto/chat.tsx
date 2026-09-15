@@ -1,9 +1,17 @@
 "use client";
 
 import * as React from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento";
 import { Button } from "@/components/ui/button";
 import { IconCopiloto } from "@/components/icons";
+
+/** Variantes del estado vacío: el padre escalona y cada bloque sube. */
+const ENTRADA = {
+  oculto: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: SUAVE_BEZIER } },
+};
 
 interface Turno {
   role: "user" | "assistant";
@@ -78,8 +86,13 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
   // mensaje pasa al layout de conversación (lista + input abajo).
   if (vacio) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-10">
-        <div className="flex flex-col items-center gap-2 text-center">
+      <motion.div
+        initial="oculto"
+        animate="visible"
+        variants={{ visible: { transition: { staggerChildren: 0.08 } } }}
+        className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-10"
+      >
+        <motion.div variants={ENTRADA} className="flex flex-col items-center gap-2 text-center">
           <span className="flex size-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
             <IconCopiloto size={22} />
           </span>
@@ -90,17 +103,19 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
             Preguntá sobre el mercado — marcas, modelos, segmentos, tecnologías,
             evolución. Respondo con los datos cargados y cito las cifras.
           </p>
-        </div>
+        </motion.div>
 
-        <InputBar
-          texto={texto}
-          setTexto={setTexto}
-          onEnviar={() => enviar(texto)}
-          cargando={cargando}
-          hero
-        />
+        <motion.div variants={ENTRADA} className="flex w-full justify-center">
+          <InputBar
+            texto={texto}
+            setTexto={setTexto}
+            onEnviar={() => enviar(texto)}
+            cargando={cargando}
+            hero
+          />
+        </motion.div>
 
-        <div className="flex max-w-2xl flex-wrap justify-center gap-2">
+        <motion.div variants={ENTRADA} className="flex max-w-2xl flex-wrap justify-center gap-2">
           {sugerencias.map((s) => (
             <button
               key={s}
@@ -112,14 +127,14 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
               {s}
             </button>
           ))}
-        </div>
+        </motion.div>
 
         {error && (
           <p className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-600 dark:text-rose-400">
             {error}
           </p>
         )}
-      </div>
+      </motion.div>
     );
   }
 
@@ -131,16 +146,25 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
           {turnos.map((t, i) => (
             <Mensaje key={i} turno={t} />
           ))}
-          {cargando && (
-            <div className="flex items-center gap-2 pl-9 text-sm text-muted-foreground">
-              <span className="inline-flex gap-1">
-                <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-current" />
-              </span>
-              Consultando
-            </div>
-          )}
+          <AnimatePresence>
+            {cargando && (
+              <motion.div
+                key="consultando"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: DURACION.corta * 0.7 }}
+                className="flex items-center gap-2 pl-9 text-sm text-muted-foreground"
+              >
+                <span className="inline-flex gap-1">
+                  <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]" />
+                  <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]" />
+                  <span className="size-1.5 animate-bounce rounded-full bg-current" />
+                </span>
+                Consultando
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div ref={finRef} />
         </div>
       </div>
@@ -234,7 +258,14 @@ function InputBar({
 function Mensaje({ turno }: { turno: Turno }) {
   const esUsuario = turno.role === "user";
   return (
-    <div className={cn("flex gap-2.5", esUsuario && "flex-row-reverse")}>
+    // Cada turno entra desde abajo al montarse: los que ya están no se
+    // tocan (React no los remonta, así que Motion no los vuelve a animar).
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: DURACION.corta, ease: SUAVE_BEZIER }}
+      className={cn("flex gap-2.5", esUsuario && "flex-row-reverse")}
+    >
       <div
         className={cn(
           "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wide",
@@ -252,7 +283,7 @@ function Mensaje({ turno }: { turno: Turno }) {
         <Contenido texto={turno.content} />
         {!esUsuario && <Fuentes fuentes={turno.fuentes} />}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
