@@ -153,6 +153,42 @@ export function IconPortafolio(props: IconProps) {
   );
 }
 
+/** Etiqueta de precio con el agujerito: la acción comercial (descuento,
+ *  bono) que cuelga de cada versión. */
+export function IconAcciones(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h5.4a1.5 1.5 0 0 1 1.06.44l7.6 7.6a1.5 1.5 0 0 1 0 2.12l-5.4 5.4a1.5 1.5 0 0 1-2.12 0l-7.6-7.6A1.5 1.5 0 0 1 4 10.9z" />
+      <circle cx="8.5" cy="8.5" r="1.1" fill="currentColor" stroke="none" />
+      <path d="M10.5 15.5l5-5" />
+    </svg>
+  );
+}
+
+/** Capas apiladas: el costo desglosado (FOB, flete, aduana…) hasta el
+ *  precio, que es lo que muestra un cost break down. */
+export function IconCbd(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 8h14v3H5zM5 12.5h14v3H5zM5 17h14v3H5z" />
+      <path d="M8 4h8" />
+      <path d="M12 4v4" />
+    </svg>
+  );
+}
+
+/** Barco con la estela y la flecha: unidades en camino. */
+export function IconCarflow(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 15.5l1.6-4.5h12.8L20 15.5" />
+      <path d="M8 11V7.5h8V11" />
+      <path d="M12 7.5V5" />
+      <path d="M3 19c1.5 1 3 1 4.5 0s3-1 4.5 0 3 1 4.5 0 3-1 4.5 0" />
+    </svg>
+  );
+}
+
 /** Burbujas de distinto tamaño: el gráfico de posicionamiento. */
 export function IconBubble(props: IconProps) {
   return (

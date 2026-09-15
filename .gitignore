@@ -46,5 +46,6 @@ __pycache__/
 *.py[cod]
 .superpowers/
 
-# lo escribe la app (POST /api/batalla), no se versiona
+# lo escribe la app (POST /api/batalla, /api/acciones-comerciales), no se versiona
 data/batalla.json
+data/acciones-comerciales.json

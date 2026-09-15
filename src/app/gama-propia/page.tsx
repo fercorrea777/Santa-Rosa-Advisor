@@ -16,8 +16,11 @@ import { getGamaPropiaDesdeCars } from "@/lib/cadam/precios-cars";
 import {
   asignarPrecios, claveModelo, fichasDeModelos, type PrecioCandidato,
 } from "@/lib/cadam/bandas";
-import { getStockPropio } from "@/lib/informes/propios";
+import Link from "next/link";
+import { getStockPropio, getVentasPropias } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
+import { getAcciones, nombreMes, type AccionVersion } from "@/lib/informes/acciones";
+import { claveCars, claveFamilia, familiaMasParecida } from "@/lib/informes/acciones-cruce";
 import { tokens } from "@/lib/informes/segmento-version";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
@@ -104,6 +107,54 @@ export default async function GamaPropiaPage({
   const uConPrecio = conPrecio.reduce((s, d) => s + d.unidades, 0);
   const uSinPrecio = sinPrecio.reduce((s, d) => s + d.unidades, 0);
   const uTotal = uConPrecio + uSinPrecio;
+
+  // --- lo nuestro, al lado de cada modelo (Fernando, 15/09/2026: "gama
+  // propia vinculada con las acciones comerciales y con importaciones,
+  // matriculaciones y ventas") ----------------------------------------------
+  // Facturación propia (Cars) en la misma ventana que las unidades de
+  // CADAM, y la acción comercial del mes por familia. Las dos se cruzan
+  // por FAMILIA (ver acciones-cruce.ts): las fuentes escriben la versión
+  // distinto y la familia es lo que se lee igual en todas.
+  const periodoCars = `${f.anio}-${String(f.mesDesde).padStart(2, "0")}`;
+  const periodoCarsHasta = `${f.anio}-${String(f.mesHasta).padStart(2, "0")}`;
+  let ventasCars: { marca: string; modelo: string; version: string; unidades: number }[] = [];
+  let hayCars = false;
+  try {
+    ventasCars = (await getVentasPropias()).filter((v) => v.periodo >= periodoCars && v.periodo <= periodoCarsHasta);
+    hayCars = true;
+  } catch {
+    ventasCars = [];
+  }
+  const carsPorMarca = new Map<string, { clave: string; valor: number }[]>();
+  for (const v of ventasCars) {
+    const lista = carsPorMarca.get(v.marca) ?? [];
+    lista.push({ clave: claveCars(v.marca, v), valor: v.unidades });
+    carsPorMarca.set(v.marca, lista);
+  }
+  const facturadasDe = (marca: string, modelo: string): number | null => {
+    const r = familiaMasParecida(claveFamilia(marca, modelo), carsPorMarca.get(marca) ?? []);
+    return r ? r.valores.reduce((s, u) => s + u, 0) : null;
+  };
+
+  const acciones = getAcciones();
+  const accionesPorMarca = new Map<string, { clave: string; valor: AccionVersion }[]>();
+  for (const h of acciones?.hojas ?? []) {
+    accionesPorMarca.set(h.marca, h.versiones.map((v) => ({ clave: claveFamilia(h.marca, v.version), valor: v })));
+  }
+  const accionDe = (marca: string, modelo: string) => {
+    const r = familiaMasParecida(claveFamilia(marca, modelo), accionesPorMarca.get(marca) ?? []);
+    if (!r) return null;
+    const vs = r.valores;
+    const descuento = Math.max(0, ...vs.map((v) => v.descuento ?? 0));
+    return {
+      descuento,
+      conBono: vs.some((v) => (v.bono ?? 0) > 0 || !!v.bono_texto),
+      conMecanica: vs.some((v) => !!v.observaciones),
+      versiones: vs.length,
+      aproximado: r.aproximado,
+    };
+  };
+  const mesAcciones = acciones ? nombreMes(acciones.mes) : null;
 
   // --- ficha de cada burbuja: contra quién compite ese modelo -------------
   // Esta pantalla es de la gama PROPIA y lo dice: no compara contra la
@@ -263,7 +314,13 @@ export default async function GamaPropiaPage({
               <p className="text-xs text-muted-foreground">
                 Los mismos modelos del gráfico, en números: precio de lista y
                 unidades de {NOMBRE[principal]} ({periodo})
-                {secundaria ? `, con las ${NOMBRE[secundaria]} (${periodoSec}) al lado` : ""}.
+                {secundaria ? `, con las ${NOMBRE[secundaria]} (${periodoSec}) al lado` : ""}
+                {hayCars ? ", lo que facturamos nosotros según Cars en el mismo período" : ""}
+                {mesAcciones ? (
+                  <>
+                    {" "}y la <Link href="/acciones-comerciales" className="text-primary underline-offset-2 hover:underline">acción comercial</Link> de {mesAcciones}: el descuento máximo de la familia, si tiene bono al vendedor y si hay una mecánica especial
+                  </>
+                ) : ""}.
               </p>
             </CardHeader>
             <CardContent>
@@ -282,11 +339,19 @@ export default async function GamaPropiaPage({
                         {secundaria === "importacion" ? "Import." : "Matric."}
                       </TableHead>
                     )}
+                    {hayCars && (
+                      <TableHead className="text-right" nota={`facturado por nosotros · ${periodo}`}>Fact. Cars</TableHead>
+                    )}
+                    {mesAcciones && (
+                      <TableHead nota="descuento máximo de la familia">Acción {mesAcciones.split(" ")[0]}</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {[...conPrecio].sort((a, b) => b.unidades - a.unidades).map((d) => {
                     const o = otrasDe(d.marca, d.modelo);
+                    const fact = hayCars ? facturadasDe(d.marca, d.modelo) : null;
+                    const acc = mesAcciones ? accionDe(d.marca, d.modelo) : null;
                     return (
                       <TableRow key={`${d.marca}-${d.modelo}`}>
                         <TableCell><Marca marca={d.marca} /></TableCell>
@@ -297,6 +362,32 @@ export default async function GamaPropiaPage({
                         {secundaria && (
                           <TableCell className="text-right tabular-nums text-muted-foreground">
                             {o === null ? "—" : formatUnidades(o)}
+                          </TableCell>
+                        )}
+                        {hayCars && (
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {fact === null ? "—" : formatUnidades(fact)}
+                          </TableCell>
+                        )}
+                        {mesAcciones && (
+                          <TableCell className="text-xs">
+                            {acc ? (
+                              <Link
+                                href={`/acciones-comerciales?marca=${encodeURIComponent(d.marca)}`}
+                                className="inline-flex flex-wrap items-center gap-1.5 underline-offset-2 hover:underline"
+                                title={`${acc.versiones} ${acc.versiones === 1 ? "versión" : "versiones"} en la planilla${acc.aproximado ? ` (familia ${acc.aproximado})` : ""}`}
+                              >
+                                {acc.descuento > 0 ? (
+                                  <span className="font-semibold text-rose-600 dark:text-rose-400">−US$ {formatUnidades(acc.descuento)}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">sin descuento</span>
+                                )}
+                                {acc.conBono && <span className="rounded bg-emerald-500/12 px-1 text-[10px] text-emerald-700 dark:text-emerald-400">bono</span>}
+                                {acc.conMecanica && <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">mecánica</span>}
+                              </Link>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                         )}
                       </TableRow>

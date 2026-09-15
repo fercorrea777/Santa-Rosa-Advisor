@@ -61,6 +61,7 @@ const SIN_PUERTA = new Set([
   "/api/presupuesto",
   "/api/batalla",
   "/api/informes-competencia/hermes",
+  "/api/acciones-comerciales",
 ]);
 
 /** A la pantalla de acceso, recordando adonde queria ir. Para las rutas de

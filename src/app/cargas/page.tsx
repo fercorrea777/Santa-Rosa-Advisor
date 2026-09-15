@@ -17,6 +17,7 @@ import { getActualizacionPautaMarca, getPautaMarca } from "@/lib/informes/pauta-
 import { formatUnidades, hoyEnAsuncion } from "@/lib/format";
 import { getPresupuesto } from "@/lib/cadam/config";
 import { getBatalla } from "@/lib/informes/batalla";
+import { getAcciones, nombreMes } from "@/lib/informes/acciones";
 import { mesCorto, etiquetaCorte } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +97,7 @@ export default async function EstadoDatosPage() {
   const anioHoy = Number(hoyEnAsuncion().slice(0, 4));
   const presupuesto = getPresupuesto(anioHoy);
   const batalla = getBatalla();
+  const acciones = getAcciones();
   const planTotal = presupuesto ? presupuesto.grupos.reduce((s, g) => s + g.plan.reduce((a, b) => a + b, 0), 0) : 0;
   const pptoTotal = presupuesto ? presupuesto.grupos.reduce((s, g) => s + (g.presupuesto_anual ?? 0), 0) : 0;
 
@@ -214,6 +216,17 @@ export default async function EstadoDatosPage() {
       tibioH: 45 * 24,
       frioH: 90 * 24,
       motor: "Hermes · «Batalla por modelo (Excel producto)», cada hora, notebook",
+    },
+    {
+      nombre: "Acciones comerciales (Excel de Fernando)",
+      detalle: acciones
+        ? `${nombreMes(acciones.mes)} · ${acciones.hojas.length} marcas, ${acciones.hojas.reduce((s, h) => s + h.versiones.length, 0)} versiones · «${acciones.archivo}»`
+        : "Nunca cargado. Lo carga advisor-acciones.sh (Hermes, notebook) desde ACCIONES COMERCIALES <MES>.xlsx de la carpeta.",
+      cadencia: "mensual, cuando Fernando manda la planilla (el cron mira cada 4 horas)",
+      actualizado: acciones ? new Date(acciones.cargado_en) : null,
+      tibioH: 40 * 24,
+      frioH: 70 * 24,
+      motor: "Hermes · «Acciones comerciales (Excel)», cada 4 horas, notebook",
     },
   ];
 

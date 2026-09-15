@@ -2,7 +2,7 @@
 export type IconoNav =
   | "inicio" | "mercado" | "evolucion" | "rankings" | "segmentos"
   | "combustibles" | "localidades" | "market-share" | "brecha" | "bubble" | "gama"
-  | "portafolio" | "operacion"
+  | "portafolio" | "operacion" | "acciones" | "cbd" | "carflow"
   | "inteligencia" | "copiloto" | "cargas" | "calidad" | "configuracion";
 
 export interface NavItem {
@@ -58,9 +58,22 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/brecha", label: "Import. vs matric.", icono: "brecha", implementado: true , pista: "Lo que entró al país y todavía no sacó chapa: stock que ya está acá y aún no se vendió." },
       { href: "/bubble-chart", label: "Bubble chart", icono: "bubble", implementado: true , pista: "El cuadro de producto: cada modelo contra sus rivales, por precio y por volumen." },
       { href: "/mapa", label: "Dónde competir", icono: "market-share", implementado: true , pista: "Contra quién compite cada modelo nuestro y si estamos caros o baratos frente a ellos." },
-      { href: "/gama-propia", label: "Gama propia", icono: "gama", implementado: true , pista: "Nuestros modelos, su precio y cuánto vende cada uno. Tocá una burbuja para ver sus rivales." },
       { href: "/portafolio", label: "Portafolio por marca", icono: "portafolio", implementado: true , pista: "La gama de cualquier marca, modelo por modelo: precio de lista, cuánto vende cada uno y qué hueco deja." },
+    ],
+  },
+  {
+    // Lo NUESTRO, aparte del mercado (pedido de Fernando, 15/09/2026: "un
+    // apartado nuevo que se llame algo como SANTA ROSA" con las acciones
+    // comerciales, CBD, Carflow y la gama propia vinculada a todo eso).
+    // Gama propia y Nuestra operación se mudaron acá desde Análisis: son
+    // datos de la casa, no del mercado.
+    titulo: "Santa Rosa",
+    items: [
+      { href: "/acciones-comerciales", label: "Acciones comerciales", icono: "acciones", implementado: true , pista: "La planilla del mes de Fernando: descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión, cruzada con lo que importa, matricula y factura cada familia." },
+      { href: "/gama-propia", label: "Gama propia", icono: "gama", implementado: true , pista: "Nuestros modelos, su precio, cuánto vende cada uno y qué acción comercial tiene este mes. Tocá una burbuja para ver sus rivales." },
       { href: "/operacion", label: "Nuestra operación", icono: "operacion", implementado: true , pista: "Lo nuestro: qué facturamos, qué stock hay, cómo vamos contra el presupuesto y quién vende." },
+      { href: "/cbd", label: "CBD", icono: "cbd", implementado: false , pista: "Cost break down: de FOB a costo puesto en playa, versión por versión. Falta el archivo de cada marca." },
+      { href: "/carflow", label: "Carflow", icono: "carflow", implementado: false , pista: "El flujo de unidades: pedido, embarque, tránsito, aduana y playa. Falta definir la fuente." },
     ],
   },
   {
