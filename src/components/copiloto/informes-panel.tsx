@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { FilaInforme } from "@/lib/informes/db";
+import { Contenido } from "@/components/copiloto/chat";
 
 const ETIQUETA_DIMENSION: Record<string, string> = {
   resumen: "Resumen ejecutivo",
@@ -70,8 +71,8 @@ export function InformesPanel() {
               <summary className="cursor-pointer text-sm font-medium">
                 {ETIQUETA_DIMENSION[f.dimension] ?? f.dimension}
               </summary>
-              <div className="mt-2 flex flex-col gap-2 whitespace-pre-wrap text-sm text-muted-foreground">
-                {f.contenido}
+              <div className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground">
+                <Contenido texto={f.contenido} />
                 {f.fuentes.length > 0 && (
                   <ul className="flex flex-col gap-1 text-xs">
                     {f.fuentes.map((s, i) => (

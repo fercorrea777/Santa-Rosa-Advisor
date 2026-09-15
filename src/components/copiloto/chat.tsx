@@ -323,7 +323,10 @@ function Fuentes({ fuentes }: { fuentes?: string[] }) {
 
 /** Render minimo de markdown: tablas, negrita y saltos de linea. Sin
  *  dependencias nuevas; suficiente para respuestas con cifras. */
-function Contenido({ texto }: { texto: string }) {
+/** Markdown chico (títulos, negritas, tablas) a HTML. Lo usan el chat y
+ *  el panel de informes semanales: los documentos de Hermes vienen en
+ *  markdown y en texto plano se leían con los asteriscos puestos. */
+export function Contenido({ texto }: { texto: string }) {
   const bloques = partirEnBloques(texto);
   return (
     <div className="flex flex-col gap-2">
