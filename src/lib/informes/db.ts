@@ -44,10 +44,21 @@ export interface FuenteCitada {
 
 export type DimensionInforme =
   | "precios" | "noticias" | "redes" | "tendencias" | "resumen"
-  // Empujado por Hermes (agente externo, corre local): scan periódico de
-  // promociones de competencia, volcado a un vault Obsidian propio. Ver
-  // /api/informes-competencia/hermes.
-  | "hermes_promos";
+  // Empujado por Hermes (agente externo, corre local) desde su vault
+  // Obsidian, una vez por semana (advisor-informe-semanal.py) y cada vez
+  // que quiera repetir. Ver /api/informes-competencia/hermes.
+  | "hermes_resumen"       // lo que pasó esta semana, en cinco renglones
+  | "hermes_promos"        // scan de promociones de la competencia
+  | "hermes_bitacora"      // cambios detectados en las webs de la competencia
+  | "hermes_precios"       // benchmark de precios de lista (Datacar + Cars)
+  | "hermes_battle_cards"; // battle cards modelo contra modelo
+
+/** Las que Hermes puede empujar. Lista cerrada: la dimension se interpola en
+ *  filtros y rotulos, y un valor libre desde afuera seria basura en la
+ *  tabla (o peor). */
+export const DIMENSIONES_HERMES: DimensionInforme[] = [
+  "hermes_resumen", "hermes_promos", "hermes_bitacora", "hermes_precios", "hermes_battle_cards",
+];
 
 /** Lunes de la semana actual en Asunción, formato YYYY-MM-DD. Todas las
  *  filas de informes_competencia agrupan por esto, sea cual sea su origen.
@@ -114,20 +125,29 @@ export async function guardarInforme(params: {
  *
  *  Va en una transaccion: si el insert fallara despues del delete, sin esto
  *  quedaria borrado el informe de la semana y ninguno nuevo en su lugar. */
-export async function guardarInformeHermes(params: { contenido: string }): Promise<void> {
-  const semana = lunesDeEstaSemana();
+export async function guardarInformeHermes(params: {
+  contenido: string;
+  dimension?: DimensionInforme;
+  fuentes?: FuenteCitada[];
+  /** Lunes de la semana a la que pertenece (YYYY-MM-DD). Por defecto, la
+   *  actual: Hermes corre los lunes temprano y habla de la semana que
+   *  arranca, con lo relevado hasta ese momento. */
+  semana?: string;
+}): Promise<void> {
+  const semana = params.semana ?? lunesDeEstaSemana();
+  const dimension = params.dimension ?? "hermes_promos";
   const cliente = await getPool().connect();
   try {
     await cliente.query("begin");
     await cliente.query(
       `delete from informes_competencia
-       where semana = $1 and dimension = 'hermes_promos'`,
-      [semana]
+       where semana = $1 and dimension = $2`,
+      [semana, dimension]
     );
     await cliente.query(
       `insert into informes_competencia (semana, dimension, contenido, fuentes)
-       values ($1, 'hermes_promos', $2, '[]'::jsonb)`,
-      [semana, params.contenido]
+       values ($1, $2, $3, $4::jsonb)`,
+      [semana, dimension, params.contenido, JSON.stringify(params.fuentes ?? [])]
     );
     await cliente.query("commit");
   } catch (e) {

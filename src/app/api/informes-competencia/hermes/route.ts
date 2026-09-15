@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { guardarInformeHermes } from "@/lib/informes/db";
+import {
+  DIMENSIONES_HERMES, guardarInformeHermes, type DimensionInforme, type FuenteCitada,
+} from "@/lib/informes/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,12 +48,54 @@ export async function POST(request: Request) {
     );
   }
 
+  // Dimension: lista cerrada. Sin ella, promociones (lo unico que existia
+  // cuando se escribio esto; asi el push viejo sigue andando).
+  const dimRaw = (body as { dimension?: unknown }).dimension;
+  const dimension: DimensionInforme =
+    typeof dimRaw === "string" && (DIMENSIONES_HERMES as string[]).includes(dimRaw)
+      ? (dimRaw as DimensionInforme)
+      : "hermes_promos";
+  if (dimRaw !== undefined && dimension !== dimRaw) {
+    return NextResponse.json(
+      { error: `'dimension' invalida; validas: ${DIMENSIONES_HERMES.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  // Fuentes: hasta 50, cada una con url; titulo y fecha opcionales.
+  const fuentesRaw = (body as { fuentes?: unknown }).fuentes;
+  const fuentes: FuenteCitada[] = Array.isArray(fuentesRaw)
+    ? fuentesRaw
+        .filter((f): f is { url: string; titulo?: string; fecha?: string } =>
+          !!f && typeof f === "object" && typeof (f as { url?: unknown }).url === "string")
+        .slice(0, 50)
+        .map((f) => ({
+          url: f.url.slice(0, 500),
+          titulo: typeof f.titulo === "string" ? f.titulo.slice(0, 200) : "",
+          fecha: typeof f.fecha === "string" ? f.fecha.slice(0, 40) : "",
+        }))
+    : [];
+
+  // Semana: un lunes YYYY-MM-DD. Sin ella, la actual.
+  const semanaRaw = (body as { semana?: unknown }).semana;
+  let semana: string | undefined;
+  if (semanaRaw !== undefined) {
+    if (typeof semanaRaw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(semanaRaw)) {
+      return NextResponse.json({ error: "'semana' debe ser YYYY-MM-DD" }, { status: 400 });
+    }
+    const d = new Date(`${semanaRaw}T00:00:00Z`);
+    if (Number.isNaN(d.getTime()) || d.getUTCDay() !== 1) {
+      return NextResponse.json({ error: "'semana' debe ser un lunes" }, { status: 400 });
+    }
+    semana = semanaRaw;
+  }
+
   try {
-    await guardarInformeHermes({ contenido: contenido.trim() });
+    await guardarInformeHermes({ contenido: contenido.trim(), dimension, fuentes, semana });
   } catch (e) {
     console.error("POST /api/informes-competencia/hermes:", e);
     return NextResponse.json({ error: "No se pudo guardar el informe" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, dimension, semana: semana ?? null });
 }

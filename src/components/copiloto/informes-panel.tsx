@@ -4,13 +4,21 @@ import * as React from "react";
 import type { FilaInforme } from "@/lib/informes/db";
 
 const ETIQUETA_DIMENSION: Record<string, string> = {
+  resumen: "Resumen ejecutivo",
+  hermes_resumen: "Resumen de la semana",
   precios: "Precios y modelos",
+  hermes_precios: "Precios de lista de la competencia",
+  hermes_promos: "Promociones de la competencia",
+  hermes_bitacora: "Cambios en las webs de la competencia",
+  hermes_battle_cards: "Battle cards modelo contra modelo",
   noticias: "Noticias y lanzamientos",
   redes: "Redes sociales",
   tendencias: "Tendencias globales",
-  resumen: "Resumen ejecutivo",
-  hermes_promos: "Promociones de la competencia",
 };
+// El resumen primero, el resto en este orden; lo que no este en la lista,
+// al final tal como llegue.
+const ORDEN = Object.keys(ETIQUETA_DIMENSION);
+const posicion = (d: string) => (ORDEN.includes(d) ? ORDEN.indexOf(d) : 99);
 
 export function InformesPanel() {
   const [informes, setInformes] = React.useState<FilaInforme[] | null>(null);
@@ -35,9 +43,9 @@ export function InformesPanel() {
   if (informes.length === 0) {
     return (
       <p className="p-4 text-sm text-muted-foreground">
-        Todavía no se generó ningún informe semanal. Se genera automáticamente
-        cada semana; también se puede disparar a mano desde el dashboard de
-        Vercel (Cron Jobs).
+        Todavía no hay informes semanales. Hermes los arma los lunes a la
+        mañana con lo que relevó en la semana (promociones, cambios en las
+        webs, precios de lista y battle cards).
       </p>
     );
   }
@@ -45,6 +53,9 @@ export function InformesPanel() {
   const porSemana = new Map<string, FilaInforme[]>();
   for (const i of informes) {
     porSemana.set(i.semana, [...(porSemana.get(i.semana) ?? []), i]);
+  }
+  for (const [, filas] of porSemana) {
+    filas.sort((a, b) => posicion(a.dimension) - posicion(b.dimension));
   }
 
   return (
@@ -55,7 +66,7 @@ export function InformesPanel() {
             Semana del {semana}
           </p>
           {filas.map((f) => (
-            <details key={f.id} className="group">
+            <details key={f.id} className="group" open={f.dimension === "hermes_resumen" || f.dimension === "resumen"}>
               <summary className="cursor-pointer text-sm font-medium">
                 {ETIQUETA_DIMENSION[f.dimension] ?? f.dimension}
               </summary>
