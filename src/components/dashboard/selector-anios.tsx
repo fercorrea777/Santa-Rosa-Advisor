@@ -15,13 +15,11 @@ import { cn } from "@/lib/utils";
 export function SelectorAnios({
   aniosDisponibles,
   aniosSeleccionados,
-  fuente,
   mesDesde,
   mesHasta,
 }: {
   aniosDisponibles: number[];
   aniosSeleccionados: number[];
-  fuente: "matriculacion" | "importacion";
   mesDesde: number;
   mesHasta: number;
 }) {
@@ -32,7 +30,6 @@ export function SelectorAnios({
   // consulta terminaba.
   const desde = leerNum("desde", mesDesde);
   const hasta = leerNum("hasta", mesHasta);
-  const fuenteVista = (leer("fuente") ?? fuente) as "matriculacion" | "importacion";
   const crudoAnios = leer("anios");
   const aniosVista = crudoAnios
     ? crudoAnios.split(",").map(Number).filter((a) => aniosDisponibles.includes(a))
@@ -61,27 +58,8 @@ export function SelectorAnios({
           className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
         />
       )}
-      <div className="flex flex-col gap-1">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Fuente
-        </span>
-        <div className="flex gap-1">
-          {(["matriculacion", "importacion"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => set({ fuente: v, anios: null })}
-              className={cn(
-                "h-8 rounded-md px-3 text-xs font-medium",
-                fuenteVista === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {v === "matriculacion" ? "Matriculación" : "Importación"}
-            </button>
-          ))}
-        </div>
-      </div>
-
+      {/* La fuente (matriculación / importación / ambas) la elige el
+          SelectorFuente que va al lado, el mismo de todas las pantallas. */}
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           Años a comparar

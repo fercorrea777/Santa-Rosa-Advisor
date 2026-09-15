@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
-import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
+import { SerieAniosChart, type SerieAnio } from "@/components/charts/serie-anios-chart";
 import { SelectorAnios } from "@/components/dashboard/selector-anios";
+import { SelectorFuente, type FuenteVista } from "@/components/dashboard/selector-fuente";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -19,12 +20,27 @@ export default async function EvolucionPage({
   const sp = await searchParams;
   const cobertura = getCobertura();
 
-  const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
-  const disponibles = cobertura[fuente].anios;
+  // Tres vistas (Croman, 15/09/2026: "el mismo selector en Evolución
+  // mensual"). Con "Ambas", cada año lleva dos líneas: matriculación
+  // llena e importación punteada, y los indicadores van en una tarjeta por
+  // fuente. Por defecto dos años en vez de tres, que con seis líneas el
+  // gráfico deja de leerse.
+  const vista: FuenteVista =
+    sp.fuente === "importacion" ? "importacion" : sp.fuente === "ambas" ? "ambas" : "matriculacion";
+  const fuentes: Fuente[] = vista === "ambas" ? ["matriculacion", "importacion"] : [vista];
+  const fuente: Fuente = fuentes[0];
+  const disponibles = [...new Set(fuentes.flatMap((x) => cobertura[x].anios))].sort((a, b) => a - b);
   const pedidos = String(sp.anios ?? "")
     .split(",").map(Number).filter((a) => disponibles.includes(a));
-  // Por defecto los ultimos 3 anios con datos.
-  const anios = pedidos.length ? pedidos.sort((a, b) => a - b) : disponibles.slice(-3);
+  // Por defecto los ultimos 3 anios con datos (2 con las dos fuentes).
+  const anios = pedidos.length ? pedidos.sort((a, b) => a - b) : disponibles.slice(vista === "ambas" ? -2 : -3);
+
+  const ultMat = cobertura.matriculacion.ultimo;
+  const ultImp = cobertura.importacion.ultimo;
+  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
+  const aclaracion = desparejas && ultMat && ultImp
+    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
+    : undefined;
 
   // Rango de meses: se aplica a TODOS los anios elegidos. Es lo que
   // permite comparar acumulados equivalentes (Ene-Jun de cada ano) en vez
@@ -37,20 +53,35 @@ export default async function EvolucionPage({
   const mesDesde = nMes(sp.desde, 1);
   const mesHasta = Math.max(mesDesde, nMes(sp.hasta, 12));
   const anioCompleto = mesDesde === 1 && mesHasta === 12;
-  const etiquetaFuente = fuente === "importacion" ? "importaciones" : "matriculaciones";
+  const nombre: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
+  const etiquetaFuente = vista === "ambas" ? "matriculaciones e importaciones" : nombre[fuente];
   const etiquetaRango = anioCompleto
     ? "año completo"
     : `${mesCorto(mesDesde)}–${mesCorto(mesHasta)}`;
 
   // Se recorta despues de armar las 12 posiciones: asi los meses fuera
   // del rango quedan en null (hueco), no desplazan el eje.
-  const seriesCompletas = serieAAnios(getSerieMensual(fuente, anios), anios);
-  const series = seriesCompletas.map((s) => ({
+  const recortar = (s: SerieAnio): SerieAnio => ({
     ...s,
-    valores: s.valores.map((v, i) =>
-      i + 1 >= mesDesde && i + 1 <= mesHasta ? v : null
-    ),
-  }));
+    valores: s.valores.map((v, i) => (i + 1 >= mesDesde && i + 1 <= mesHasta ? v : null)),
+  });
+  const porFuente = fuentes.map((x) => {
+    const completas = serieAAnios(getSerieMensual(x, anios), anios);
+    return { fuente: x, completas, series: completas.map(recortar) };
+  });
+  // Lo que dibuja el gráfico: con una fuente, una línea por año; con las
+  // dos, la importación va punteada y rotulada para que se distinga de la
+  // matriculación del mismo año.
+  const seriesGrafico: SerieAnio[] =
+    vista === "ambas"
+      ? porFuente.flatMap((pf) =>
+          pf.series.map((s) => ({
+            ...s,
+            anio: `${s.anio} ${pf.fuente === "importacion" ? "imp." : "mat."}`,
+            punteada: pf.fuente === "importacion",
+          }))
+        )
+      : porFuente[0].series;
 
   return (
     <Pagina>
@@ -60,42 +91,55 @@ export default async function EvolucionPage({
         fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
-      <SelectorAnios
-        aniosDisponibles={disponibles}
-        aniosSeleccionados={anios}
-        fuente={fuente}
-        mesDesde={mesDesde}
-        mesHasta={mesHasta}
-      />
+      <div
+        data-revelar=""
+        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-start sm:bg-background/85 sm:backdrop-blur-md"
+      >
+        <SelectorFuente fuente={vista} porDefecto="matriculacion" conAmbas aclaracion={aclaracion} />
+        <div className="min-w-0 sm:flex-1">
+          <SelectorAnios
+            aniosDisponibles={disponibles}
+            aniosSeleccionados={anios}
+            mesDesde={mesDesde}
+            mesHasta={mesHasta}
+          />
+        </div>
+      </div>
 
       <Card>
         <CardHeader>
           <CardTitle>
-            {fuente === "matriculacion" ? "Matriculaciones" : "Importaciones"} por mes
+            {vista === "ambas"
+              ? "Matriculaciones e importaciones por mes"
+              : fuente === "matriculacion" ? "Matriculaciones por mes" : "Importaciones por mes"}
             {!anioCompleto && ` — ${etiquetaRango}`}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             Una línea por año, mes contra mes: sirve para ver la estacionalidad
             del mercado y comparar el mismo mes entre años, no para leer el
             total.
+            {vista === "ambas" ? " Matriculación en línea llena, importación punteada; el hueco entre las dos del mismo año es stock que entró y todavía no sacó chapa." : ""}
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <SerieAniosChart series={series} altura={340} />
+          <SerieAniosChart series={seriesGrafico} altura={340} />
           <NotaDato>
             Un mes sin información queda como <strong>hueco</strong> en la línea, no
             como cero: la línea no se une por encima del vacío.
-            {cobertura.mesesFaltantes[fuente].length > 0 && (
-              <> Faltante detectado en el origen: {cobertura.mesesFaltantes[fuente].join(", ")}.</>
+            {fuentes.map((x) =>
+              cobertura.mesesFaltantes[x].length > 0 ? (
+                <span key={x}> Faltante detectado en {nombre[x]}: {cobertura.mesesFaltantes[x].join(", ")}.</span>
+              ) : null
             )}
           </NotaDato>
         </CardContent>
       </Card>
 
-      <Card>
+      {porFuente.map(({ fuente: x, completas, series }) => (
+      <Card key={x}>
         <CardHeader>
           <CardTitle>
-            Indicadores por año — {etiquetaFuente}, {etiquetaRango}
+            Indicadores por año — {nombre[x]}, {etiquetaRango}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             {anioCompleto
@@ -130,7 +174,7 @@ export default async function EvolucionPage({
               // recorte de meses no significa nada. Con un rango parcial
               // activo directamente no se muestra.
               const proy = anioCompleto
-                ? proyeccionCierre(seriesCompletas[i].valores)
+                ? proyeccionCierre(completas[i].valores)
                 : null;
               return { anio: s.anio, con, acum, prom, maxIdx, minIdx, varYtd, proy };
             });
@@ -257,6 +301,7 @@ export default async function EvolucionPage({
           </div>
         </CardContent>
       </Card>
+      ))}
     </Pagina>
   );
 }
