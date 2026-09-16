@@ -5,6 +5,7 @@ import { Marca } from "@/components/dashboard/logo-marca";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
+import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaAcciones, type FamiliaAcciones } from "@/components/dashboard/tabla-acciones";
 import { cn } from "@/lib/utils";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
@@ -146,15 +147,6 @@ export default async function AccionesComercialesPage({
     })
     .filter((h) => h.familias.length > 0);
 
-  const enlace = (cambios: Record<string, string | undefined>) => {
-    const q = new URLSearchParams();
-    const base: Record<string, string | undefined> = {
-      mes: txt(sp.mes), marca: marcaSel, segmento: segmentoSel, ...cambios,
-    };
-    for (const [k, v] of Object.entries(base)) if (v) q.set(k, v);
-    const s = q.toString();
-    return `/acciones-comerciales${s ? `?${s}` : ""}`;
-  };
   const titulo = nombreMes(acciones.mes);
 
   return (
@@ -165,34 +157,19 @@ export default async function AccionesComercialesPage({
         fuente={`Fuente: «${acciones.archivo}» de Fernando, modificado ${formatFechaHora(acciones.modificado)} · cargado ${formatFechaHora(acciones.cargado_en)}.`}
       />
 
-      {/* Barra de filtros: pegada arriba al scrollear, con fondo sólido y
-          borde abajo para que se lea como barra y no como chips flotando
-          sobre la tarjeta que pasa por debajo. */}
-      <div
-        data-revelar=""
-        className="-mx-1 flex flex-col gap-1.5 border-b border-border/70 bg-background px-1 pb-2 pt-1 sm:sticky sm:top-16 sm:z-30"
-      >
-        {meses.length > 1 && (
-          <Chips
-            rotulo="Mes"
-            items={meses.map((m) => ({ valor: m, label: nombreMes(m), href: enlace({ mes: m === meses[0] ? undefined : m }), activo: m === acciones.mes }))}
-          />
-        )}
-        <Chips
-          rotulo="Marca"
-          items={[
-            { valor: "", label: "Todas", href: enlace({ marca: undefined }), activo: !marcaSel },
-            ...marcas.map((m) => ({ valor: m, label: m, href: enlace({ marca: m }), activo: marcaSel === m })),
-          ]}
-        />
-        <Chips
-          rotulo="Segmento"
-          items={[
-            { valor: "", label: "Todos", href: enlace({ segmento: undefined }), activo: !segmentoSel },
-            ...segmentos.map((s) => ({ valor: s, label: s, href: enlace({ segmento: s }), activo: segmentoSel === s })),
-          ]}
-        />
-      </div>
+      {/* La misma barra de filtros que el resto del tablero (Croman,
+          16/09: "más estético que tenga filtro como las demás secciones"),
+          sin Año/Desde/Hasta porque la planilla es de un mes. */}
+      <FiltroPeriodo
+        sinPeriodo
+        opciones={[
+          ...(meses.length > 1
+            ? [{ param: "mes", label: "Mes", valores: meses.map((m) => ({ valor: m, label: nombreMes(m) })) }]
+            : []),
+          { param: "marca", label: "Marca", valores: marcas },
+          { param: "segmento", label: "Segmento", valores: segmentos },
+        ]}
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <KpiCard label="Versiones" value={formatUnidades(resumen.versiones)} periodo={`${resumen.marcas} marcas · ${titulo}`} />
@@ -296,36 +273,6 @@ const ENLACE_CHICO = cn(
   "rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
   FOCO
 );
-
-function Chips({
-  rotulo,
-  items,
-}: {
-  rotulo: string;
-  items: { valor: string; label: string; href: string; activo: boolean }[];
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{rotulo}</span>
-      {items.map((it) => (
-        <Link
-          key={it.valor || "_"}
-          href={it.href}
-          aria-pressed={it.activo}
-          className={cn(
-            "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
-            FOCO,
-            it.activo
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-          )}
-        >
-          {it.label}
-        </Link>
-      ))}
-    </div>
-  );
-}
 
 function SinPlanilla() {
   return (

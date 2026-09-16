@@ -20,7 +20,9 @@ export interface OpcionFiltro {
   /** Clave del parametro en la URL, ej. 'segmento'. */
   param: string;
   label: string;
-  valores: string[];
+  /** Un texto por opción, o {valor, label} cuando lo que va a la URL no es
+   *  lo que se lee ("2026-09" → "Septiembre 2026"). */
+  valores: (string | { valor: string; label: string })[];
 }
 
 /**
@@ -29,16 +31,21 @@ export interface OpcionFiltro {
  * Component vuelve a consultar la base con los valores nuevos.
  */
 export function FiltroPeriodo({
-  anios,
-  mesMaximoPorAnio,
+  anios = [],
+  mesMaximoPorAnio = {},
   opciones = [],
   aniosSerie = false,
   pegajoso = true,
+  sinPeriodo = false,
 }: {
-  anios: number[];
+  anios?: number[];
   /** Ultimo mes con datos, por anio. Evita ofrecer meses vacios. */
-  mesMaximoPorAnio: Record<number, number>;
+  mesMaximoPorAnio?: Record<number, number>;
   opciones?: OpcionFiltro[];
+  /** Sin Año/Desde/Hasta: para las pantallas cuyo dato no tiene período
+   *  (la planilla de acciones comerciales es de un mes) pero que quieren la
+   *  misma barra que el resto del tablero. */
+  sinPeriodo?: boolean;
   /** Muestra los chips de "Años en el gráfico" (param `anios`). Solo en las
    *  pantallas que dibujan series: en las que no, seria un control que no
    *  cambia nada de lo que se ve. */
@@ -92,7 +99,7 @@ export function FiltroPeriodo({
           className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
         />
       )}
-      {aniosSerie && (
+      {aniosSerie && !sinPeriodo && (
         <Campo label="Años en el gráfico">
           {/* Chips y no un <select multiple>: son cinco años y el multiple
               nativo obliga a ctrl+clic —que nadie descubre— y ocupa cuatro
@@ -131,6 +138,7 @@ export function FiltroPeriodo({
         </Campo>
       )}
 
+      {!sinPeriodo && (<>
       <Campo label="Año">
         <select
           className={selectCls}
@@ -173,6 +181,7 @@ export function FiltroPeriodo({
           ))}
         </select>
       </Campo>
+      </>)}
 
       {opciones.map((o) => (
         <Campo key={o.param} label={o.label}>
@@ -182,9 +191,11 @@ export function FiltroPeriodo({
             onChange={(e) => setParams({ [o.param]: e.target.value })}
           >
             <option value="todos">Todos</option>
-            {o.valores.map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
+            {o.valores.map((v) => {
+              const valor = typeof v === "string" ? v : v.valor;
+              const label = typeof v === "string" ? v : v.label;
+              return <option key={valor} value={valor}>{label}</option>;
+            })}
           </select>
         </Campo>
       ))}
