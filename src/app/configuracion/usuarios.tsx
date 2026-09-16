@@ -6,9 +6,9 @@ import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
-import { cn } from "@/lib/utils";
+import { cn, sincronizarAriaInvalid } from "@/lib/utils";
 import { formatFecha, formatFechaHora } from "@/lib/format";
-import { patronCorreo, sincronizarAriaInvalid } from "@/app/entrar/formulario";
+import { patronCorreo } from "@/app/entrar/formulario";
 import {
   accionBorrarUsuario, accionCambiarActivo, accionCambiarCorreo, accionCambiarRol,
   accionCrearUsuario, accionEnviarEnlace, accionResetearClave, type EstadoUsuarios,
@@ -207,6 +207,8 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
             required
             maxLength={80}
             placeholder="Pablo Villalba"
+            onBlur={sincronizarAriaInvalid}
+            onInput={sincronizarAriaInvalid}
             className="input-base h-9"
           />
         </label>
@@ -237,6 +239,8 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
               minLength={10}
               autoComplete="new-password"
               placeholder="mínimo 10 caracteres"
+              onBlur={sincronizarAriaInvalid}
+              onInput={sincronizarAriaInvalid}
               // Arranca VISIBLE: quien la crea la tiene que poder leer para
               // pasársela. Es provisoria, esa persona después la cambia. Con el
               // ojito se tapa en un clic si hay alguien atrás.
@@ -360,6 +364,8 @@ function ResetearClave({ usuario }: { usuario: Usuario }) {
             minLength={10}
             autoComplete="new-password"
             placeholder="mínimo 10 caracteres"
+            onBlur={sincronizarAriaInvalid}
+            onInput={sincronizarAriaInvalid}
             // Misma razón que en el alta: el admin se la tiene que dictar.
             visiblePorDefecto
             className="input-base h-9"

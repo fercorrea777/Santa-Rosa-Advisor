@@ -587,6 +587,21 @@
   *::-webkit-scrollbar-track {
     background: transparent;
   }
+  /* Quien pide más contraste (SO o navegador) lo pide en serio: el
+     scrollbar tenue de arriba deja de alcanzar y pasa a separación dura
+     texto/fondo, con los mismos tokens del tema (guía modern-web-guidance
+     "adapt-scrollbar-to-contrast-preferences"). */
+  @media (prefers-contrast: more) {
+    * {
+      scrollbar-color: var(--foreground) var(--background);
+    }
+    *::-webkit-scrollbar-thumb {
+      background: var(--foreground);
+    }
+    *::-webkit-scrollbar-track {
+      background: var(--background);
+    }
+  }
 }
 
 /* Tintes bento por familia de dato — FUERA de @layer a propósito: la base

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
+import { sincronizarAriaInvalid } from "@/lib/utils";
 import { campo } from "../entrar/formulario";
 import { restablecerClave, type EstadoRestablecer } from "./acciones";
 
@@ -53,6 +54,8 @@ export function FormularioRestablecer({
               required
               minLength={minimo}
               autoFocus
+              onBlur={sincronizarAriaInvalid}
+              onInput={sincronizarAriaInvalid}
               className={campo}
               claseBoton="text-white/70 hover:text-white hover:bg-white/15"
               placeholder={`al menos ${minimo} caracteres`}
@@ -65,6 +68,8 @@ export function FormularioRestablecer({
               autoComplete="new-password"
               required
               minLength={minimo}
+              onBlur={sincronizarAriaInvalid}
+              onInput={sincronizarAriaInvalid}
               className={campo}
               claseBoton="text-white/70 hover:text-white hover:bg-white/15"
               placeholder="la misma otra vez"

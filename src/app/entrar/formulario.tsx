@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
+import { sincronizarAriaInvalid } from "@/lib/utils";
 import { entrar, type EstadoLogin } from "./acciones";
 
 /**
@@ -117,6 +118,8 @@ export function FormularioLogin({
               autoComplete="current-password"
               required
               autoFocus={emergencia}
+              onBlur={sincronizarAriaInvalid}
+              onInput={sincronizarAriaInvalid}
               className={campo}
               // El ojito va sobre el navy: el gris de la app no se ve ahi.
               claseBoton="text-white/70 hover:text-white hover:bg-white/15"
@@ -174,23 +177,6 @@ export function FormularioLogin({
  *  del campo (ver :user-invalid en globals.css). Los puntos van escapados. */
 export const patronCorreo = (dominio: string) =>
   `[a-z0-9._+\\-]+@${dominio.replace(/\./g, "\\.")}`;
-
-/**
- * Puente entre el estado VISUAL de `:user-invalid` (CSS, ver globals.css) y
- * el estado PROGRAMÁTICO que necesita un lector de pantalla (`aria-invalid`).
- * Sin esto, alguien con lector de pantalla nunca se entera de que el campo
- * quedó marcado en rojo: el borde no se anuncia, `aria-invalid` sí.
- *
- * Se llama en `onBlur` y `onInput`: en `onBlur` porque ahí el navegador
- * recién actualiza la bandera "interactuado" que activa `:user-invalid`; en
- * `onInput` para que, si la persona vuelve a corregir el campo, el error se
- * retire al toque y no recién al salir de nuevo (guía modern-web-guidance
- * "accessible-error-announcement").
- */
-export function sincronizarAriaInvalid(e: React.SyntheticEvent<HTMLInputElement>) {
-  const el = e.currentTarget;
-  el.setAttribute("aria-invalid", el.matches(":user-invalid") ? "true" : "false");
-}
 
 export const campo =
   "campo-acceso w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus-visible:border-white/40 focus-visible:outline-none";

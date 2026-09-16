@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
-import { cn } from "@/lib/utils";
+import { cn, sincronizarAriaInvalid } from "@/lib/utils";
 import { cambiarMiClave, type EstadoMiClave } from "./acciones";
 
 export function FormularioMiClave({ quien }: { quien: string | null }) {
@@ -79,6 +79,8 @@ function Campo({
         required
         minLength={minLength}
         autoComplete={autoComplete}
+        onBlur={sincronizarAriaInvalid}
+        onInput={sincronizarAriaInvalid}
         className="input-base h-9"
       />
     </label>

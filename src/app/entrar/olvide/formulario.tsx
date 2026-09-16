@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { campo, patronCorreo, sincronizarAriaInvalid } from "../formulario";
+import { sincronizarAriaInvalid } from "@/lib/utils";
+import { campo, patronCorreo } from "../formulario";
 import { pedirRecuperacion, type EstadoOlvide } from "./acciones";
 
 export function FormularioOlvide({ dominio }: { dominio: string }) {
