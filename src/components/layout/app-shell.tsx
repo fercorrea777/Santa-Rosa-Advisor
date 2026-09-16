@@ -28,6 +28,31 @@ export function AppShell({
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const pathname = usePathname();
+  // Cajón móvil (guía "navigation-drawer" de modern-web-guidance): Escape
+  // lo cierra, el foco entra al abrirlo y vuelve al botón al cerrarlo, y
+  // el botón declara qué abre y si está abierto.
+  const botonMenu = React.useRef<HTMLButtonElement>(null);
+  const botonCerrar = React.useRef<HTMLButtonElement>(null);
+  const estabaAbierto = React.useRef(false);
+  React.useEffect(() => {
+    if (mobileOpen) {
+      estabaAbierto.current = true;
+      // Después de la transición de entrada: enfocar antes mueve el scroll.
+      const t = window.setTimeout(() => botonCerrar.current?.focus(), 320);
+      const alTeclear = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setMobileOpen(false);
+      };
+      document.addEventListener("keydown", alTeclear);
+      return () => {
+        window.clearTimeout(t);
+        document.removeEventListener("keydown", alTeclear);
+      };
+    }
+    if (estabaAbierto.current) {
+      estabaAbierto.current = false;
+      botonMenu.current?.focus();
+    }
+  }, [mobileOpen]);
 
   // La pantalla de acceso NO lleva el marco de la app: mostrar el menú de
   // trece secciones detrás del login sería enseñar el mapa de lo que
@@ -45,7 +70,16 @@ export function AppShell({
     // cabeceras de alturas distintas (56 y 64px) y colores opuestos pegadas,
     // con la misma marca escrita dos veces.
     <div className="flex min-h-screen w-full flex-col">
-      <BarraMarca onAbrirMenu={() => setMobileOpen(true)} />
+      {/* Enlace para saltar el menú: invisible hasta que recibe el foco
+          con Tab. Quien navega con teclado o lector de pantalla no tiene
+          que pasar por trece renglones en cada página. */}
+      <a
+        href="#contenido"
+        className="sr-only z-[60] rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Saltar al contenido
+      </a>
+      <BarraMarca onAbrirMenu={() => setMobileOpen(true)} abierto={mobileOpen} refBoton={botonMenu} />
 
       {sinClave && <AvisoSinClave />}
 
@@ -138,6 +172,10 @@ export function AppShell({
           aria-hidden="true"
         />
         <aside
+          id="menu-movil"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menú"
           className="relative flex w-72 flex-col shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
           style={{
             translate: mobileOpen ? "0" : "-100%",
@@ -154,6 +192,7 @@ export function AppShell({
               </span>
             </div>
             <Button
+              ref={botonCerrar}
               variant="ghost"
               size="icon"
               className="size-8 text-base leading-none text-white/80 hover:bg-white/10 hover:text-white"
@@ -163,7 +202,9 @@ export function AppShell({
               ✕
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto py-3">
+          {/* overscroll-contain: al llegar al final del menú, el gesto no
+              sigue scrolleando la página de atrás. */}
+          <div className="flex-1 overflow-y-auto overscroll-contain py-3">
             <SidebarNav esAdmin={esAdmin} onNavigate={() => setMobileOpen(false)} />
           </div>
         </aside>
@@ -173,7 +214,7 @@ export function AppShell({
             trae el suyo (confirmado: 0px de gap real entre el header y el
             H1, medido en vivo — no era percepción). Vive acá para que las
             13 pantallas lo hereden parejo en vez de repetirlo 13 veces. */}
-        <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+        <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 p-4 outline-none md:p-6">{children}</main>
       </div>
     </div>
   );
@@ -188,17 +229,28 @@ export function AppShell({
  * choca contra el rail, que es una tarjeta blanca — dos cabeceras pegadas,
  * de distinto alto y color opuesto.
  */
-function BarraMarca({ onAbrirMenu }: { onAbrirMenu: () => void }) {
+function BarraMarca({
+  onAbrirMenu,
+  abierto,
+  refBoton,
+}: {
+  onAbrirMenu: () => void;
+  abierto: boolean;
+  refBoton: React.RefObject<HTMLButtonElement | null>;
+}) {
   return (
     <header
       className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 px-4 shadow-[0_10px_20px_-16px_oklch(0_0_0/45%)]"
       style={{ backgroundColor: "var(--barra)", color: "var(--barra-foreground)" }}
     >
       <Button
+        ref={refBoton}
         variant="ghost"
         size="icon"
         className="size-8 text-base leading-none text-[var(--barra-foreground)] hover:bg-white/10 hover:text-[var(--barra-foreground)] md:hidden"
         aria-label="Abrir menú"
+        aria-expanded={abierto}
+        aria-controls="menu-movil"
         onClick={onAbrirMenu}
       >
         ≡

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { campo } from "../formulario";
+import { campo, patronCorreo } from "../formulario";
 import { pedirRecuperacion, type EstadoOlvide } from "./acciones";
 
 export function FormularioOlvide({ dominio }: { dominio: string }) {
@@ -48,6 +48,8 @@ export function FormularioOlvide({ dominio }: { dominio: string }) {
                 spellCheck={false}
                 required
                 autoFocus
+                pattern={patronCorreo(dominio)}
+                title={`Tiene que ser un correo @${dominio}`}
                 className={campo}
                 placeholder={`nombre@${dominio}`}
               />

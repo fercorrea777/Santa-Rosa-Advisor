@@ -98,6 +98,10 @@ export function TablaAcciones({
       else s.add(k);
       return s;
     });
+  const abrir = React.useCallback(
+    (k: string) => setAbiertas((prev) => (prev.has(k) ? prev : new Set(prev).add(k))),
+    []
+  );
 
   const versiones = familias.flatMap((f) => f.versiones);
   const conBono = tiene(versiones, "bono") || tiene(versiones, "bono_texto");
@@ -260,9 +264,12 @@ export function TablaAcciones({
                   {conCars && <TableCell className={PEGADA_DER} style={derecha(0)} />}
                 </TableRow>,
               ];
-              if (abierta) {
-                filas.push(
-                  <TableRow key={`${k}-detalle`} className="bg-muted/20 hover:bg-muted/20">
+              // El detalle está SIEMPRE en el DOM, oculto con
+              // hidden="until-found": Ctrl+F encuentra "Soporte FOB" o un
+              // costo aunque la fila esté cerrada, y al encontrarlo la abre
+              // (guía "search-hidden-content").
+              filas.push(
+                <FilaDetalle key={`${k}-detalle`} abierta={abierta} onAbrir={() => abrir(k)}>
                     <TableCell colSpan={columnas} className="py-2 pl-9">
                       <dl className="sticky left-9 grid w-fit max-w-[calc(100vw-22rem)] grid-cols-2 gap-x-6 gap-y-1.5 text-xs sm:grid-cols-3 lg:grid-cols-4">
                         <Dato rotulo="PVP s/IVA" valor={usd(v.pvp_sin_iva)} />
@@ -293,9 +300,8 @@ export function TablaAcciones({
                         {v.segmento && <Dato rotulo="Segmento" valor={v.segmento} />}
                       </dl>
                     </TableCell>
-                  </TableRow>
-                );
-              }
+                </FilaDetalle>
+              );
               return filas;
             }),
           ];
@@ -325,6 +331,43 @@ export function TablaAcciones({
         </TableRow>
       </TableBody>
     </Table>
+  );
+}
+
+/**
+ * Fila de detalle que se puede ENCONTRAR cerrada. `hidden="until-found"`
+ * la oculta pero la deja en el índice de "buscar en la página" y de los
+ * enlaces a texto; cuando el navegador la encuentra dispara `beforematch`,
+ * le saca el atributo y acá se sincroniza el estado (la fila queda abierta
+ * y el chevron gira). React escribe `hidden=""` en el servidor —vale como
+ * oculto— y el efecto lo cambia a `until-found` al montar.
+ */
+function FilaDetalle({
+  abierta,
+  onAbrir,
+  children,
+}: {
+  abierta: boolean;
+  onAbrir: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = React.useRef<HTMLTableRowElement>(null);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (abierta) el.removeAttribute("hidden");
+    else el.setAttribute("hidden", "until-found");
+  }, [abierta]);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("beforematch", onAbrir);
+    return () => el.removeEventListener("beforematch", onAbrir);
+  }, [onAbrir]);
+  return (
+    <TableRow ref={ref} hidden={!abierta} className="bg-muted/20 hover:bg-muted/20">
+      {children}
+    </TableRow>
   );
 }
 

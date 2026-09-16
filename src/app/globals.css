@@ -766,3 +766,19 @@
   78%        { stroke-dasharray: 40 400;  stroke-width: 30; stroke-dashoffset: -395; }
   86%, to    { stroke-dasharray: 0 440;   stroke-width: 20; stroke-dashoffset: -440; }
 }
+
+/* Error solo DESPUÉS de que la persona terminó con el campo (salió de él o
+   intentó enviar), nunca mientras tipea: `:user-invalid` en vez de
+   `:invalid` (modern-web-guidance, "validate-input-after-interaction").
+   Fuera de las capas a propósito: las utilidades de Tailwind (border-white/15
+   en el login) viven en una capa posterior y pisarían esto si estuviera en
+   `components`, sin importar la especificidad. */
+.input-base:user-invalid,
+.campo-acceso:user-invalid {
+  border-color: color-mix(in oklab, var(--destructive) 70%, var(--border));
+}
+.input-base:user-invalid:focus-visible,
+.campo-acceso:user-invalid:focus-visible {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 35%, transparent);
+}

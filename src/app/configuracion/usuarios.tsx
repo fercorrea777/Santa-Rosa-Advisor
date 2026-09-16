@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
 import { cn } from "@/lib/utils";
 import { formatFecha, formatFechaHora } from "@/lib/format";
+import { patronCorreo } from "@/app/entrar/formulario";
 import {
   accionBorrarUsuario, accionCambiarActivo, accionCambiarCorreo, accionCambiarRol,
   accionCrearUsuario, accionEnviarEnlace, accionResetearClave, type EstadoUsuarios,
@@ -190,6 +191,8 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
+            pattern={patronCorreo(dominio)}
+            title={`Tiene que ser un correo @${dominio}`}
             placeholder={`nombre@${dominio}`}
             className="input-base h-9"
           />
@@ -387,6 +390,8 @@ function CambiarCorreo({ usuario, dominio }: { usuario: Usuario; dominio: string
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
+            pattern={patronCorreo(dominio)}
+            title={`Tiene que ser un correo @${dominio}`}
             placeholder={`nombre@${dominio}`}
             className="input-base h-9"
           />
