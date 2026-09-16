@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProveedorMovimiento } from "@/components/movimiento/proveedor";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { vigenciaDe } from "@/lib/auth/vigencia";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 
 // Historia: Nunito Sans -> Inter (2026-07-23, "mejorar las fuentes") ->
@@ -77,6 +79,14 @@ export default async function RootLayout({
   const sesion = clave
     ? leerSesion((await cookies()).get(NOMBRE_COOKIE)?.value, clave)
     : null;
+  // La firma cerró, pero ¿la cuenta sigue viva y con la misma versión de
+  // sesión? (baja, cambio de clave o de rol). La puerta no puede mirar la
+  // base en cada request; acá sí, con caché de un minuto (vigencia.ts). Si
+  // no, a la salida: la ruta borra la cookie y manda a entrar. Las
+  // pantallas públicas (/entrar, /restablecer) no pasan por acá con sesión.
+  if (sesion && (await vigenciaDe(sesion)) === "cortada") {
+    redirect("/api/sesion/cerrar?motivo=sesion-cortada");
+  }
   const esAdmin = !clave || sesion?.rol === "admin";
 
   return (

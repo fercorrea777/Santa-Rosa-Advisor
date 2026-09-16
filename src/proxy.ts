@@ -99,7 +99,16 @@ export function proxy(request: NextRequest) {
   if (SIN_PUERTA.has(request.nextUrl.pathname)) return NextResponse.next();
 
   // La pantalla de acceso queda afuera, si no el redirect se muerde la cola.
-  if (request.nextUrl.pathname === "/entrar") return NextResponse.next();
+  // Con ella, "olvidé mi clave" y el destino del enlace del correo: quien
+  // llega ahí es justamente quien no puede entrar.
+  const ruta = request.nextUrl.pathname;
+  if (
+    ruta === "/entrar" || ruta.startsWith("/entrar/") || ruta === "/restablecer" ||
+    // Borra la propia cookie y manda a entrar: no necesita sesión.
+    ruta === "/api/sesion/cerrar"
+  ) {
+    return NextResponse.next();
+  }
 
   const token = request.cookies.get(NOMBRE_COOKIE)?.value;
   const sesion = leerSesion(token, clave);

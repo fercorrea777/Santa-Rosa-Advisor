@@ -6,7 +6,10 @@ import { hoyEnAsuncion } from "@/lib/format";
 import { EditorMetasMensuales } from "./metas";
 import { CatalogoTransmision } from "./transmision";
 import { getPeriodoInfo } from "@/lib/cadam/queries";
-import { listarUsuarios, type Usuario } from "@/lib/auth/usuarios";
+import {
+  DOMINIO_CORREO, listarAuditoria, listarUsuarios, type EventoAuditoria, type Usuario,
+} from "@/lib/auth/usuarios";
+import { hayCorreo } from "@/lib/auth/correo";
 import { getVentasPropias } from "@/lib/informes/propios";
 import { EditorConfiguracion } from "./editor";
 import { PanelUsuarios } from "./usuarios";
@@ -39,9 +42,11 @@ export default async function ConfiguracionPage() {
   // no responde, se muestra el aviso SOLO en esa tarjeta: metas y
   // competidores salen de parametros.json y no tienen por que caerse con ella.
   let usuarios: Usuario[] = [];
+  let auditoria: EventoAuditoria[] = [];
   let errorUsuarios: string | undefined;
   try {
     usuarios = await listarUsuarios();
+    auditoria = await listarAuditoria(60);
   } catch (e) {
     errorUsuarios =
       `No se pudo leer la lista de usuarios: ${(e as Error).message}. ` +
@@ -81,7 +86,13 @@ export default async function ConfiguracionPage() {
         </CardContent>
       </Card>
 
-      <PanelUsuarios usuarios={usuarios} error={errorUsuarios} />
+      <PanelUsuarios
+        usuarios={usuarios}
+        error={errorUsuarios}
+        dominio={DOMINIO_CORREO}
+        hayCorreo={hayCorreo()}
+        auditoria={auditoria}
+      />
 
       <EditorConfiguracion
         metas={parametros.metas}

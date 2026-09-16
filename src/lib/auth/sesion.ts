@@ -13,17 +13,25 @@ import { createHmac, timingSafeEqual } from "node:crypto";
  * abiertas. Es lo que uno espera cuando rota una clave compartida —si se
  * filtró, se cambia y todo el mundo queda afuera— y con dos secretos
  * separados habría que acordarse de rotar los dos.
+ *
+ * DOS TOKENS. `v1` es la clave general (emergencia): admin por un día.
+ * `v3` es una persona con cuenta: lleva id, rol y la VERSIÓN DE SESIÓN de
+ * esa cuenta. La puerta no consulta la base (corre en cada request); el
+ * layout sí, con caché de un minuto, y si la versión del token quedó vieja
+ * —cambió la clave, la dieron de baja, le cambiaron el rol— manda a entrar
+ * de nuevo (ver vigencia.ts). El `v2` de antes (sin versión) ya no se
+ * acepta: quien lo tenga vuelve a entrar una vez.
  */
 
 const VERSION = "v1";
-/** Sesión de una persona con cuenta propia: `v2.<id>.<rol>.<vence>.<firma>`.
- *  El rol viaja FIRMADO adentro para que la puerta pueda decidir si alguien
- *  entra a Configuración sin ir a la base en cada request. */
-const VERSION_USUARIO = "v2";
+/** `v3.<id>.<rol>.<version>.<vence>.<firma>` */
+const VERSION_USUARIO = "v3";
 /** Dos semanas. Suficiente para no pedir la clave todos los días en una
  *  herramienta de trabajo diario, corto para que un equipo prestado o una
  *  sesión olvidada no quede abierta para siempre. */
 const DURACION_MS = 14 * 24 * 60 * 60 * 1000;
+/** La clave general es de emergencia: la sesión que abre dura un día. */
+const DURACION_EMERGENCIA_MS = 24 * 60 * 60 * 1000;
 
 export const NOMBRE_COOKIE = "advisor_sesion";
 
@@ -33,7 +41,7 @@ export type Sesion =
   /** Entró con la clave compartida del entorno. Es la llave de emergencia:
    *  se le da rol admin porque quien la tiene ya puede todo. */
   | { tipo: "compartida"; rol: "admin" }
-  | { tipo: "usuario"; id: number; rol: RolSesion };
+  | { tipo: "usuario"; id: number; rol: RolSesion; version: number };
 
 function firmar(datos: string, clave: string): string {
   return createHmac("sha256", clave).update(datos).digest("base64url");
@@ -41,18 +49,18 @@ function firmar(datos: string, clave: string): string {
 
 /** Token para la cookie: `v1.<vence>.<firma>`. */
 export function crearToken(clave: string): string {
-  const vence = String(Date.now() + DURACION_MS);
+  const vence = String(Date.now() + DURACION_EMERGENCIA_MS);
   const cuerpo = `${VERSION}.${vence}`;
   return `${cuerpo}.${firmar(cuerpo, clave)}`;
 }
 
-/** Token de una persona con cuenta: `v2.<id>.<rol>.<vence>.<firma>`. */
+/** Token de una persona con cuenta: `v3.<id>.<rol>.<version>.<vence>.<firma>`. */
 export function crearTokenUsuario(
   clave: string,
-  usuario: { id: number; rol: RolSesion }
+  usuario: { id: number; rol: RolSesion; version: number }
 ): string {
   const vence = String(Date.now() + DURACION_MS);
-  const cuerpo = `${VERSION_USUARIO}.${usuario.id}.${usuario.rol}.${vence}`;
+  const cuerpo = `${VERSION_USUARIO}.${usuario.id}.${usuario.rol}.${usuario.version}.${vence}`;
   return `${cuerpo}.${firmar(cuerpo, clave)}`;
 }
 
@@ -77,10 +85,8 @@ function noVencio(vence: string): boolean {
  *
  * NO CONSULTA LA BASE, a propósito: corre en la puerta, o sea en CADA
  * request, y una consulta ahí ataría el tablero entero a que Postgres esté
- * bien. El precio es que dar de baja a alguien no le corta la sesión en el
- * acto: le vence sola (14 días) o se corta antes cambiando ADVISOR_CLAVE, que
- * invalida TODAS las firmas de una. Está dicho en la pantalla de usuarios
- * para que nadie descubra el detalle el día que lo necesita.
+ * bien. La vigencia contra la base la revisa el layout (vigencia.ts), con
+ * caché, una vez por página y no por request.
  */
 export function leerSesion(
   token: string | undefined,
@@ -96,15 +102,16 @@ export function leerSesion(
     return noVencio(vence) ? { tipo: "compartida", rol: "admin" } : null;
   }
 
-  if (partes.length === 5) {
-    const [version, id, rol, vence, firma] = partes;
+  if (partes.length === 6) {
+    const [version, id, rol, ver, vence, firma] = partes;
     if (version !== VERSION_USUARIO) return null;
     if (rol !== "admin" && rol !== "lector") return null;
-    if (!firmaCierra(`${version}.${id}.${rol}.${vence}`, firma, clave)) return null;
+    if (!firmaCierra(`${version}.${id}.${rol}.${ver}.${vence}`, firma, clave)) return null;
     if (!noVencio(vence)) return null;
     const n = Number(id);
-    if (!Number.isInteger(n) || n <= 0) return null;
-    return { tipo: "usuario", id: n, rol };
+    const v = Number(ver);
+    if (!Number.isInteger(n) || n <= 0 || !Number.isInteger(v) || v < 0) return null;
+    return { tipo: "usuario", id: n, rol, version: v };
   }
 
   return null;
@@ -117,12 +124,12 @@ export function tokenValido(token: string | undefined, clave: string): boolean {
 /** Opciones de la cookie. `secure` sale del protocolo real y no de
  *  NODE_ENV: en desarrollo se entra por http y una cookie `secure` no
  *  viajaría, dejando el login en un bucle imposible de depurar. */
-export function opcionesCookie(esHttps: boolean) {
+export function opcionesCookie(esHttps: boolean, emergencia = false) {
   return {
     httpOnly: true, // ningún script de la página puede leerla
     secure: esHttps,
     sameSite: "lax" as const, // no viaja en peticiones desde otros sitios
     path: "/",
-    maxAge: DURACION_MS / 1000,
+    maxAge: (emergencia ? DURACION_EMERGENCIA_MS : DURACION_MS) / 1000,
   };
 }

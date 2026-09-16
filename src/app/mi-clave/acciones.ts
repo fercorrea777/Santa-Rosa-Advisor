@@ -1,9 +1,11 @@
 "use server";
 
-import { cookies } from "next/headers";
-import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
+import { cookies, headers } from "next/headers";
+import { crearTokenUsuario, leerSesion, NOMBRE_COOKIE, opcionesCookie } from "@/lib/auth/sesion";
+import { esHttps, ipDe } from "@/lib/auth/freno";
+import { olvidarVigencia } from "@/lib/auth/vigencia";
 import {
-  cambiarClave, getUsuario, problemaConLaClave, verificarCredenciales,
+  cambiarClave, getUsuario, problemaConLaClave, registrarEvento, verificarCredenciales,
 } from "@/lib/auth/usuarios";
 
 export interface EstadoMiClave {
@@ -49,20 +51,32 @@ export async function cambiarMiClave(
   const repetida = String(form.get("repetida") ?? "");
 
   if (nueva !== repetida) return { error: "Las dos claves nuevas no coinciden." };
-  const problema = problemaConLaClave(nueva);
-  if (problema) return { error: problema };
   if (nueva === actual) return { error: "La clave nueva es igual a la actual." };
 
   const persona = await getUsuario(sesion.id);
   if (!persona) return { error: "Tu usuario ya no existe." };
+  const problema = problemaConLaClave(nueva, persona.usuario);
+  if (problema) return { error: problema };
 
   if (!(await verificarCredenciales(persona.usuario, actual))) {
     return { error: "La clave actual no es correcta." };
   }
 
-  await cambiarClave(persona.id, nueva, true);
+  // Cambiar la clave sube la versión de sesión (cierra las demás sesiones
+  // de esta cuenta: una notebook olvidada, un teléfono prestado). La de
+  // ESTE navegador se reemite con la versión nueva para no echar a quien
+  // acaba de cambiarla.
+  const version = await cambiarClave(persona.id, nueva, true);
+  olvidarVigencia(persona.id);
+  const h = await headers();
+  store.set(
+    NOMBRE_COOKIE,
+    crearTokenUsuario(claveEntorno, { id: persona.id, rol: persona.rol, version }),
+    opcionesCookie(esHttps(h))
+  );
+  void registrarEvento("clave_cambiada", { correo: persona.usuario, usuarioId: persona.id, ip: ipDe(h) });
   return {
-    ok: "Listo, tu clave quedó cambiada. La sesión sigue abierta; " +
-      "la próxima vez entrá con la nueva.",
+    ok: "Listo, tu clave quedó cambiada. Esta sesión sigue abierta; " +
+      "las que tuvieras abiertas en otros dispositivos se cerraron.",
   };
 }

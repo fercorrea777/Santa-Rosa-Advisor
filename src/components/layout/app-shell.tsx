@@ -32,7 +32,11 @@ export function AppShell({
   // La pantalla de acceso NO lleva el marco de la app: mostrar el menú de
   // trece secciones detrás del login sería enseñar el mapa de lo que
   // justamente todavía no se puede ver.
-  if (pathname === "/entrar") return <>{children}</>;
+  // Las pantallas de acceso (entrar, olvidé mi clave, poner clave con el
+  // enlace) van sin menú ni cabecera: quien está ahí todavía no entró.
+  if (pathname === "/entrar" || pathname.startsWith("/entrar/") || pathname === "/restablecer") {
+    return <>{children}</>;
+  }
 
   return (
     // Columna, no fila: la barra de marca cruza TODO el ancho arriba de todo
