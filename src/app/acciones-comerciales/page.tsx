@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Marca } from "@/components/dashboard/logo-marca";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
-import { Seccion } from "@/components/dashboard/seccion";
 import { TablaAcciones, type FamiliaAcciones } from "@/components/dashboard/tabla-acciones";
 import { cn } from "@/lib/utils";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
@@ -19,7 +17,7 @@ import {
   claveCars, claveFamilia, cruzarFamilia, nombreDeClave, type UnidadesModelo,
 } from "@/lib/informes/acciones-cruce";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, mesCorto, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, type SearchParams } from "@/lib/periodo";
 
 export const dynamic = "force-dynamic";
 
@@ -164,12 +162,15 @@ export default async function AccionesComercialesPage({
       <PageHeader
         titulo="Acciones comerciales"
         descripcion={`${acciones.titulo} · descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión, con lo que cada familia importó, matriculó y facturó en ${anioAcc}.`}
-        fuente={`Fuente: «${acciones.archivo}» (Fernando) · modificado ${formatFechaHora(acciones.modificado)} · cargado ${formatFechaHora(acciones.cargado_en)}${ultMat && ultImp ? ` · CADAM matric. hasta ${mesCorto(ultMat.mes)} · import. hasta ${mesCorto(ultImp.mes)}` : ""}${hastaCars ? ` · Cars hasta ${mesCorto(hastaCars)}` : ""}.`}
+        fuente={`Fuente: «${acciones.archivo}» de Fernando, modificado ${formatFechaHora(acciones.modificado)} · cargado ${formatFechaHora(acciones.cargado_en)}.`}
       />
 
+      {/* Barra de filtros: pegada arriba al scrollear, con fondo sólido y
+          borde abajo para que se lea como barra y no como chips flotando
+          sobre la tarjeta que pasa por debajo. */}
       <div
         data-revelar=""
-        className="-mx-1 flex flex-col gap-2 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:bg-background/85 sm:backdrop-blur-md"
+        className="-mx-1 flex flex-col gap-1.5 border-b border-border/70 bg-background px-1 pb-2 pt-1 sm:sticky sm:top-16 sm:z-30"
       >
         {meses.length > 1 && (
           <Chips
@@ -217,9 +218,10 @@ export default async function AccionesComercialesPage({
       <NotaDato>
         <strong>La planilla manda.</strong> Precios, descuentos, márgenes y notas
         se muestran tal cual los cargó Fernando en el Excel; acá no se recalcula
-        nada. Lo que sí agrega el tablero es la fila gris de cada familia: cuánto
-        matriculó ({etiquetas.matriculaciones}) e importó ({etiquetas.importaciones})
-        ese modelo según CADAM{etiquetas.facturadas ? `, y cuánto facturamos nosotros según Cars (${etiquetas.facturadas})` : ""}.
+        nada. Lo que agrega el tablero son las tres columnas de la derecha, en la
+        fila de cada familia: cuánto matriculó ({etiquetas.matriculaciones}) e
+        importó ({etiquetas.importaciones}) ese modelo según CADAM
+        {etiquetas.facturadas ? `, y cuánto facturamos nosotros según Cars (${etiquetas.facturadas})` : ""}.
         El cruce es por <strong>familia</strong> (X50, TANK 300, L200), porque las
         tres fuentes escriben la versión distinto; cuando una fuente no tiene la
         familia con ese nombre exacto se usa la más parecida y se marca con «≈».
@@ -237,55 +239,63 @@ export default async function AccionesComercialesPage({
         </Card>
       )}
 
-      {hojas.map((h) => (
-        <Seccion key={h.marca} id={`marca-${h.marca.toLowerCase().replace(/\s+/g, "-")}`} titulo={h.marca}>
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Marca marca={h.marca} tamano="md" />
-                </CardTitle>
-                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  <Badge variant="secondary" className="font-normal">
-                    {h.versiones.length} {h.versiones.length === 1 ? "versión" : "versiones"}
-                  </Badge>
-                  <Badge variant="secondary" className="font-normal">
-                    {h.versiones.filter((v) => (v.descuento ?? 0) > 0).length} con descuento
-                  </Badge>
-                  {h.totales.stock > 0 && (
-                    <Badge variant="secondary" className="font-normal">stock {formatUnidades(h.totales.stock)}</Badge>
-                  )}
-                  <Link href="/gama-propia" className="ml-1 text-primary underline-offset-2 hover:underline">
-                    Gama propia →
-                  </Link>
-                  <Link
-                    href={`/portafolio?marca=${encodeURIComponent(h.marca)}`}
-                    className="text-primary underline-offset-2 hover:underline"
-                  >
-                    Portafolio →
+      {hojas.map((h) => {
+        const conDcto = h.versiones.filter((v) => (v.descuento ?? 0) > 0).length;
+        return (
+          // Una sola cabecera por marca: el logo con el nombre, el resumen
+          // en una línea y los enlaces como botones chicos. La tarjeta ya
+          // entra animada por ser tarjeta (movimiento/pagina.tsx).
+          <section
+            key={h.marca}
+            id={`marca-${h.marca.toLowerCase().replace(/\s+/g, "-")}`}
+            className="scroll-mt-40"
+          >
+            <Card>
+              <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Marca marca={h.marca} tamano="md" claseNombre="font-semibold" />
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {h.versiones.length} {h.versiones.length === 1 ? "versión" : "versiones"} ·{" "}
+                    {conDcto} con descuento
+                    {h.totales.stock > 0 && <> · stock {formatUnidades(h.totales.stock)}</>}
+                    {h.totales.enViaje > 0 && <> · {formatUnidades(h.totales.enViaje)} en viaje</>}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Link href="/gama-propia" className={ENLACE_CHICO}>Gama propia</Link>
+                  <Link href={`/portafolio?marca=${encodeURIComponent(h.marca)}`} className={ENLACE_CHICO}>
+                    Portafolio
                   </Link>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <TablaAcciones familias={h.familias} etiquetas={etiquetas} esAdmin={esAdmin} totales={h.totales} />
-              {h.notas.length > 0 && (
-                <div className="mt-4 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                  <p className="mb-1 font-semibold uppercase tracking-wide text-[10px]">Notas de la hoja</p>
-                  <ul className="flex flex-col gap-0.5">
-                    {h.notas.map((n, i) => (
-                      <li key={i} className="whitespace-pre-wrap">{n}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </Seccion>
-      ))}
+              </CardHeader>
+              <CardContent>
+                <TablaAcciones familias={h.familias} etiquetas={etiquetas} esAdmin={esAdmin} totales={h.totales} />
+                {h.notas.length > 0 && (
+                  <div className="mt-4 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide">Notas de la hoja</p>
+                    <ul className="flex flex-col gap-0.5">
+                      {h.notas.map((n, i) => (
+                        <li key={i} className="whitespace-pre-wrap">{n}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+        );
+      })}
     </Pagina>
   );
 }
+
+const FOCO = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1";
+const ENLACE_CHICO = cn(
+  "rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+  FOCO
+);
 
 function Chips({
   rotulo,
@@ -303,10 +313,11 @@ function Chips({
           href={it.href}
           aria-pressed={it.activo}
           className={cn(
-            "rounded-full border px-2.5 py-1 text-xs transition-colors",
+            "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+            FOCO,
             it.activo
               ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-card text-muted-foreground hover:text-foreground"
+              : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
           )}
         >
           {it.label}
