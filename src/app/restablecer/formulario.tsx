@@ -54,7 +54,7 @@ export function FormularioRestablecer({
               minLength={minimo}
               autoFocus
               className={campo}
-              claseBoton="text-white/45 hover:text-white hover:bg-white/10"
+              claseBoton="text-white/70 hover:text-white hover:bg-white/15"
               placeholder={`al menos ${minimo} caracteres`}
             />
           </label>
@@ -66,7 +66,7 @@ export function FormularioRestablecer({
               required
               minLength={minimo}
               className={campo}
-              claseBoton="text-white/45 hover:text-white hover:bg-white/10"
+              claseBoton="text-white/70 hover:text-white hover:bg-white/15"
               placeholder="la misma otra vez"
             />
           </label>

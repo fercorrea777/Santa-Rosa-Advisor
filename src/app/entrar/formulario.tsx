@@ -115,7 +115,7 @@ export function FormularioLogin({
               autoFocus={emergencia}
               className={campo}
               // El ojito va sobre el navy: el gris de la app no se ve ahi.
-              claseBoton="text-white/45 hover:text-white hover:bg-white/10"
+              claseBoton="text-white/70 hover:text-white hover:bg-white/15"
               placeholder="••••••••"
             />
           </label>
@@ -163,5 +163,8 @@ export function FormularioLogin({
   );
 }
 
+/** Campo sobre el navy. `campo-acceso` (globals.css) mantiene este mismo
+ *  aspecto cuando el navegador autocompleta, así el ojito de la clave sigue
+ *  viéndose. */
 export const campo =
-  "w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus-visible:border-white/40 focus-visible:outline-none";
+  "campo-acceso w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus-visible:border-white/40 focus-visible:outline-none";

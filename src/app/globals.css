@@ -454,6 +454,20 @@
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
   }
 
+  /* Campos de las pantallas de acceso (sobre el navy). Chrome pinta el
+     autocompletado con fondo claro y texto oscuro, y ahí el ojito de la
+     clave —blanco al 45%— desaparecía (Croman, 16/09/2026: "falta el
+     ojito"). El fondo se fuerza con la sombra interior, que es lo único
+     que el autofill respeta, y el texto vuelve a blanco. */
+  .campo-acceso:-webkit-autofill,
+  .campo-acceso:-webkit-autofill:hover,
+  .campo-acceso:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px oklch(0.33 0.08 277) inset;
+    -webkit-text-fill-color: #fff;
+    caret-color: #fff;
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
   /* Zebra sutil + hover marcado en todas las tablas de datos: con 80 filas
      de ranking el ojo necesita guía horizontal. Tan tenue que no compite
      con los chips de variación. */
