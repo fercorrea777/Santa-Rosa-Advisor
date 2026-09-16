@@ -298,6 +298,11 @@
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+  /* Párrafos sin viudas ni ríos (modern-web-guidance, css §7): el
+     navegador reparte las últimas líneas. Los títulos ya usan balance. */
+  p {
+    text-wrap: pretty;
+  }
 }
 
 @layer components {
@@ -478,6 +483,91 @@
     [data-slot="table"] tbody tr:hover {
       background-color: color-mix(in oklab, var(--primary) 6%, transparent);
     }
+  }
+
+  /* --- modern-web-guidance (GoogleChrome), aplicado el 16/09/2026 ------
+
+     Tablas que scrollean de lado: pista de que hay más a la derecha.
+     El contenedor es un query container de estado de scroll; el hijo
+     `.tabla-pista` queda pegado al borde derecho visible y su degradado
+     solo se muestra mientras se puede seguir scrolleando hacia la derecha
+     (guía "scrollability-affordance-hints"). Chrome/Edge 133+; en los
+     demás no hay pista y no pasa nada. z-index por debajo de las columnas
+     pegadas (z-10), que son opacas y no necesitan fundido. */
+  .tabla-scroll {
+    container-type: scroll-state;
+    container-name: tabla;
+    /* El hijo absoluto es más alto que la tabla: se recorta en vez de
+       abrir un scroll vertical. */
+    overflow-y: hidden;
+  }
+  .tabla-pista {
+    position: sticky;
+    right: 0;
+    display: block;
+    width: 2rem;
+    height: 0;
+    margin-inline-start: auto;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .tabla-pista::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 100vh;
+    background: linear-gradient(to right, transparent, var(--card) 85%);
+    opacity: 0;
+    transition: opacity 200ms;
+  }
+  @container tabla scroll-state(scrollable: right) {
+    .tabla-pista::before {
+      opacity: 1;
+    }
+  }
+
+  /* Barra de filtros pegajosa: la sombra solo cuando está PEGADA arriba,
+     no siempre (guía "state-aware-sticky-headers"). El hijo `.pegada-sombra`
+     la dibuja; fuera de Chrome/Edge queda la sombra de siempre. */
+  .barra-pegajosa {
+    container-type: scroll-state;
+    container-name: barra;
+  }
+  .pegada-sombra {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.35), 0 1px 0 var(--border);
+    opacity: 0;
+    transition: opacity 200ms;
+    pointer-events: none;
+  }
+  @container barra scroll-state(stuck: top) {
+    .pegada-sombra {
+      opacity: 1;
+    }
+  }
+  @supports not (container-type: scroll-state) {
+    .pegada-sombra {
+      opacity: 1;
+    }
+  }
+
+  /* Secciones largas debajo del primer pliegue: el navegador no calcula
+     su layout hasta que se acercan (guía "defer-rendering-heavy-content").
+     `contain-intrinsic-size` reserva un alto estimado para que el scroll
+     no salte, y `auto` recuerda el real una vez pintada. */
+  .seccion-diferida {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 40rem;
+  }
+
+  /* Áreas de texto que crecen con lo escrito, con tope (guía
+     "form-fields-automatically-fit-contents"). */
+  .campo-crece {
+    field-sizing: content;
+    min-block-size: 4lh;
+    max-block-size: 14lh;
   }
 
   /* Scrollbar fino y neutro: el scrollbar del sistema rompe el pulido en

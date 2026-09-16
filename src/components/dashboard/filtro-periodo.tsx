@@ -90,9 +90,12 @@ export function FiltroPeriodo({
       data-revelar=""
       className={cn(
         "relative flex flex-wrap items-end gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-2.5",
-        pegajoso && "sm:sticky sm:top-16 sm:z-30 sm:shadow-[var(--card-shadow)]"
+        pegajoso && "barra-pegajosa sm:sticky sm:top-16 sm:z-30"
       )}
     >
+      {/* La sombra aparece solo cuando la barra está pegada arriba (ver
+          .barra-pegajosa en globals.css). */}
+      {pegajoso && <span aria-hidden="true" className="pegada-sombra" />}
       {pendiente && (
         <span
           aria-hidden="true"

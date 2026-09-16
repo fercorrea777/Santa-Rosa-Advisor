@@ -35,13 +35,16 @@ export interface EtiquetasCruce {
  *  columnas la tabla no entra en una notebook y el nombre es lo único que
  *  no puede irse de la vista. El fondo tapa lo que pasa por debajo y sigue
  *  al hover de la fila para que no se vea el corte. */
-const PEGADA = "sticky left-0 z-10 bg-card transition-colors group-hover/fila:bg-muted/50";
+const FONDO_HOVER = "group-hover/fila:bg-[color-mix(in_oklab,var(--muted)_50%,var(--card))]";
+// Tailwind genera solo las clases que ve escritas: las dos van literales.
+const FONDO_FAMILIA = "bg-[color-mix(in_oklab,var(--muted)_40%,var(--card))] group-hover/fila:bg-[color-mix(in_oklab,var(--muted)_40%,var(--card))]";
+const PEGADA = `sticky left-0 z-10 bg-card transition-colors ${FONDO_HOVER}`;
 /** Las tres columnas del mercado (matric., import., fact.) quedan fijas a
  *  la DERECHA: son el vínculo con el mercado que pidió Fernando y no pueden
  *  quedar detrás del scroll en una notebook. Ancho fijo para calcular el
  *  corrimiento de cada una. */
 const ANCHO_MERCADO_REM = 4;
-const PEGADA_DER = "sticky z-10 bg-card transition-colors group-hover/fila:bg-muted/50";
+const PEGADA_DER = `sticky z-10 bg-card transition-colors ${FONDO_HOVER}`;
 const derecha = (desdeElBorde: number): React.CSSProperties => ({
   right: `${desdeElBorde * ANCHO_MERCADO_REM}rem`,
   width: `${ANCHO_MERCADO_REM}rem`,
@@ -144,7 +147,7 @@ export function TablaAcciones({
           const segmentos = [...new Set(f.versiones.map((v) => v.segmento).filter(Boolean))];
           return [
             <TableRow key={`f-${f.clave}`} className="group/fila bg-muted/40 hover:bg-muted/40">
-              <TableCell className={cn(PEGADA, "bg-muted/40 py-1.5 group-hover/fila:bg-muted/40")}>
+              <TableCell className={cn(PEGADA, FONDO_FAMILIA, "py-1.5")}>
                 <div className="flex items-center gap-2">
                   {/* Color de acento (pedido de Fernando, 15/09): el rótulo
                       de la familia tiene que leerse como título del modelo. */}
@@ -160,14 +163,14 @@ export function TablaAcciones({
                 </div>
               </TableCell>
               <TableCell colSpan={antesDelMercado - 1} className="py-1.5" />
-              <TableCell className={cn(PEGADA_DER, "border-l bg-muted/40 py-1.5 text-right group-hover/fila:bg-muted/40")} style={derecha(posMat)}>
+              <TableCell className={cn(PEGADA_DER, FONDO_FAMILIA, "border-l py-1.5 text-right")} style={derecha(posMat)}>
                 <Cruce c={f.matriculaciones} />
               </TableCell>
-              <TableCell className={cn(PEGADA_DER, "bg-muted/40 py-1.5 text-right group-hover/fila:bg-muted/40")} style={derecha(posImp)}>
+              <TableCell className={cn(PEGADA_DER, FONDO_FAMILIA, "py-1.5 text-right")} style={derecha(posImp)}>
                 <Cruce c={f.importaciones} />
               </TableCell>
               {conCars && (
-                <TableCell className={cn(PEGADA_DER, "bg-muted/40 py-1.5 text-right group-hover/fila:bg-muted/40")} style={derecha(0)}>
+                <TableCell className={cn(PEGADA_DER, FONDO_FAMILIA, "py-1.5 text-right")} style={derecha(0)}>
                   <Cruce c={f.facturadas} />
                 </TableCell>
               )}
@@ -298,7 +301,7 @@ export function TablaAcciones({
           ];
         })}
         <TableRow className="group/fila bg-muted/40 font-semibold hover:bg-muted/40">
-          <TableCell className={cn(PEGADA, "bg-muted/40 py-2 text-xs uppercase tracking-wide group-hover/fila:bg-muted/40")}>
+          <TableCell className={cn(PEGADA, FONDO_FAMILIA, "py-2 text-xs uppercase tracking-wide")}>
             Total marca
           </TableCell>
           <TableCell colSpan={columnas - 1} className="py-2">

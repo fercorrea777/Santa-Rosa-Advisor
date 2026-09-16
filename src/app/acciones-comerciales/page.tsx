@@ -216,7 +216,7 @@ export default async function AccionesComercialesPage({
         </Card>
       )}
 
-      {hojas.map((h) => {
+      {hojas.map((h, i) => {
         const conDcto = h.versiones.filter((v) => (v.descuento ?? 0) > 0).length;
         return (
           // Una sola cabecera por marca: el logo con el nombre, el resumen
@@ -225,7 +225,9 @@ export default async function AccionesComercialesPage({
           <section
             key={h.marca}
             id={`marca-${h.marca.toLowerCase().replace(/\s+/g, "-")}`}
-            className="scroll-mt-40"
+            // Diez marcas × una tabla: de la segunda en adelante el layout se
+            // difiere hasta que se acercan al viewport (.seccion-diferida).
+            className={cn("scroll-mt-40", i > 0 && "seccion-diferida")}
           >
             <Card>
               <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

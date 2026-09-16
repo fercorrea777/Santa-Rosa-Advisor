@@ -81,7 +81,7 @@ export function EditorConfiguracion({
               defaultValue={competidores.join("\n")}
               spellCheck={false}
               placeholder={"TOYOTA\nKIA\nCHEVROLET"}
-              className="input-base h-auto w-full max-w-md resize-y px-3 py-2 font-mono text-sm leading-relaxed"
+              className="input-base campo-crece h-auto w-full max-w-md resize-y px-3 py-2 font-mono text-sm leading-relaxed"
             />
             <span className="text-[11px] text-muted-foreground">
               Un nombre por línea (o separados por coma), tal como los escribe CADAM.

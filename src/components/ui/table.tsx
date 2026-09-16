@@ -9,8 +9,11 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="tabla-scroll relative w-full overflow-x-auto"
     >
+      {/* Fundido en el borde derecho mientras haya más columnas para ver
+          (ver .tabla-pista en globals.css). */}
+      <span aria-hidden="true" className="tabla-pista" />
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
