@@ -125,7 +125,7 @@ export function TablaAcciones({
               {/* sticky adentro de la celda: el rótulo de la familia se queda
                   a la vista aunque la tabla esté scrolleada de lado. */}
               <div className="sticky left-3 flex w-fit max-w-full flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wide">{f.nombre}</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-primary">{f.nombre}</span>
                 <span className="text-[11px] text-muted-foreground">
                   {f.versiones.length} {f.versiones.length === 1 ? "versión" : "versiones"}
                 </span>
