@@ -16,9 +16,11 @@ import { guardarConfiguracion, type EstadoGuardado } from "./acciones";
  * funciona — es un form.
  */
 export function EditorConfiguracion({
+  anio,
   metas,
   competidores,
 }: {
+  anio: number;
   metas: {
     participacion_mercado_2026_pct: number | null;
     ranking_objetivo_2026: number | null;
@@ -32,98 +34,104 @@ export function EditorConfiguracion({
   );
 
   return (
-    <form action={enviar} className="flex flex-col gap-4">
-      <Card>
+    <Card>
+      <form action={enviar} className="contents">
         <CardHeader>
-          <CardTitle className="text-base">Metas 2026</CardTitle>
+          <CardTitle className="text-base">Metas {anio} y competidores clave</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Contra esto se compara el share real en el Centro de Inteligencia.
-            Dejá vacío lo que todavía no esté definido: la app muestra «sin
-            definir», nunca un cero inventado.
+            Contra las metas se compara el share real en el Centro de
+            Inteligencia; los competidores son la watchlist que resaltan los
+            rankings. Dejá vacío lo que todavía no esté definido: la app
+            muestra «sin definir», nunca un cero inventado.
           </p>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <CampoMeta
-            name="participacion"
-            label="Participación de mercado"
-            sufijo="%"
-            placeholder="ej. 8.5"
-            defaultValue={metas.participacion_mercado_2026_pct}
-          />
-          <CampoMeta
-            name="ranking"
-            label="Ranking objetivo (posición del grupo)"
-            sufijo="#"
-            placeholder="ej. 3"
-            defaultValue={metas.ranking_objetivo_2026}
-          />
-          <CampoMeta
-            name="unidades"
-            label="Unidades objetivo por mes"
-            sufijo="u."
-            placeholder="ej. 400"
-            defaultValue={metas.unidades_objetivo_mensual}
-          />
+        <CardContent className="flex flex-col gap-5">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <CampoMeta
+              name="participacion"
+              label="Participación de mercado"
+              sufijo="%"
+              placeholder="ej. 8,5"
+              defaultValue={metas.participacion_mercado_2026_pct}
+            />
+            <CampoMeta
+              name="ranking"
+              label="Ranking objetivo"
+              nota="posición del grupo"
+              sufijo="#"
+              placeholder="ej. 3"
+              defaultValue={metas.ranking_objetivo_2026}
+            />
+            <CampoMeta
+              name="unidades"
+              label="Unidades objetivo"
+              nota="por mes, todo el grupo"
+              sufijo="u."
+              placeholder="ej. 400"
+              defaultValue={metas.unidades_objetivo_mensual}
+            />
+          </div>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Competidores clave
+            </span>
+            <textarea
+              name="competidores"
+              rows={4}
+              defaultValue={competidores.join("\n")}
+              spellCheck={false}
+              placeholder={"TOYOTA\nKIA\nCHEVROLET"}
+              className="input-base h-auto w-full max-w-md resize-y px-3 py-2 font-mono text-sm leading-relaxed"
+            />
+            <span className="text-[11px] text-muted-foreground">
+              Un nombre por línea (o separados por coma), tal como los escribe CADAM.
+            </span>
+          </label>
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
+            {estado && (
+              <p
+                role="status"
+                className={
+                  estado.ok
+                    ? "text-sm text-emerald-600 dark:text-emerald-500"
+                    : "text-sm text-rose-600 dark:text-rose-500"
+                }
+              >
+                {estado.mensaje}
+              </p>
+            )}
+            <Button type="submit" disabled={pendiente}>
+              {pendiente ? "Guardando…" : "Guardar metas y competidores"}
+            </Button>
+          </div>
         </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Competidores clave</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            La watchlist que resaltan los rankings. Un nombre por línea (o
-            separados por coma), tal como los escribe CADAM.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <textarea
-            name="competidores"
-            rows={4}
-            defaultValue={competidores.join("\n")}
-            spellCheck={false}
-            className="input-base w-full rounded-md border bg-background px-3 py-2 font-mono text-sm leading-relaxed"
-          />
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pendiente}>
-          {pendiente ? "Guardando…" : "Guardar cambios"}
-        </Button>
-        {estado && (
-          <p
-            role="status"
-            className={
-              estado.ok
-                ? "text-sm text-emerald-600 dark:text-emerald-500"
-                : "text-sm text-rose-600 dark:text-rose-500"
-            }
-          >
-            {estado.mensaje}
-          </p>
-        )}
-      </div>
-    </form>
+      </form>
+    </Card>
   );
 }
 
 function CampoMeta({
   name,
   label,
+  nota,
   sufijo,
   placeholder,
   defaultValue,
 }: {
   name: string;
   label: string;
+  nota?: string;
   sufijo: string;
   placeholder: string;
   defaultValue: number | null;
 }) {
   return (
-    <label className="flex items-center justify-between gap-4 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="flex items-center gap-1.5">
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+        {nota && <span className="ml-1 font-normal normal-case tracking-normal">· {nota}</span>}
+      </span>
+      <span className="relative block">
         <input
           name={name}
           // text + inputMode y no type=number: number rechaza la coma decimal
@@ -132,9 +140,14 @@ function CampoMeta({
           inputMode="decimal"
           placeholder={placeholder}
           defaultValue={defaultValue ?? ""}
-          className="input-base w-28 rounded-md border bg-background px-2.5 py-1.5 text-right tabular-nums"
+          className="input-base w-full pr-9 text-right tabular-nums"
         />
-        <span className="w-5 text-xs text-muted-foreground">{sufijo}</span>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground"
+        >
+          {sufijo}
+        </span>
       </span>
     </label>
   );

@@ -97,7 +97,7 @@ export function EditorMetasMensuales({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {presupuesto && (
-            <p className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
               Cargado desde <em>{presupuesto.archivo}</em> (archivo del{" "}
               {presupuesto.modificado.slice(0, 10)}, cargado el{" "}
               {presupuesto.cargado_en.slice(0, 16).replace("T", " ")} UTC, versión{" "}
@@ -105,28 +105,33 @@ export function EditorMetasMensuales({
               Excel. El presupuesto anual es la cifra original del año y no se edita.
             </p>
           )}
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Año</span>
-            <select name="anio" defaultValue={anio} className="input-base rounded-md border bg-background px-2 py-1">
-              {anios.map((a) => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
-            <span className="text-xs text-muted-foreground">
-              (para cargar otro año, elegilo, completá y guardá)
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Año</span>
+              <select name="anio" defaultValue={anio} className="input-base">
+                {anios.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </label>
+            <span className="pb-2 text-[11px] text-muted-foreground">
+              Para cargar otro año: elegilo, completá la grilla y guardá.
             </span>
-          </label>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          </div>
+          {/* La primera columna queda fija: en una notebook la grilla de
+              doce meses más totales scrollea de lado y el nombre de la
+              marca no puede irse de la vista. */}
+          <div className="-mx-1 overflow-x-auto px-1">
+            <table className="w-full min-w-[56rem] text-xs">
               <thead>
                 <tr className="text-muted-foreground">
-                  <th className="py-1 pr-2 text-left font-medium">Marca</th>
+                  <th className="sticky left-0 z-10 bg-card py-1.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide">Marca</th>
                   {MESES.map((m) => (
-                    <th key={m} className="px-0.5 py-1 text-right font-medium">{m}</th>
+                    <th key={m} className="px-0.5 py-1.5 text-right text-[11px] font-medium uppercase tracking-wide">{m}</th>
                   ))}
-                  <th className="py-1 pl-2 text-right font-medium">Año</th>
+                  <th className="border-l py-1.5 pl-3 text-right text-[11px] font-medium uppercase tracking-wide">Año</th>
                   {presupuesto && (
-                    <th className="py-1 pl-2 text-right font-medium whitespace-nowrap">Ppto. anual</th>
+                    <th className="py-1.5 pl-3 text-right text-[11px] font-medium uppercase tracking-wide whitespace-nowrap">Ppto. anual</th>
                   )}
                 </tr>
               </thead>
@@ -135,7 +140,7 @@ export function EditorMetasMensuales({
                   const m = f.marca;
                   return (
                   <tr key={f.clave} className="border-t">
-                    <td className="py-1 pr-2 font-medium whitespace-nowrap">
+                    <td className="sticky left-0 z-10 bg-card py-1.5 pr-3 font-medium whitespace-nowrap">
                       {f.etiqueta}
                       {f.conjunta && (
                         <span className="block text-[10px] font-normal text-muted-foreground">meta conjunta</span>
@@ -144,17 +149,14 @@ export function EditorMetasMensuales({
                     {MESES.map((_, i) => {
                       const k = `${m}|${i + 1}`;
                       return (
-                        <td key={k} className="px-0.5 py-1 align-top">
+                        <td key={k} className="px-0.5 py-1.5 align-top">
                           <input
                             name={`m_${m}_${i + 1}`}
                             type="text"
                             inputMode="numeric"
                             value={valores[k] ?? ""}
                             onChange={(e) => setValores((v) => ({ ...v, [k]: e.target.value }))}
-                            // w-11: doce casilleros más el total tienen que entrar en
-                            // el ancho de la tarjeta sin scroll, si no la columna
-                            // "Año" queda cortada en el borde.
-                            className="input-base w-11 rounded-md border bg-background px-1 py-1 text-right tabular-nums"
+                            className="input-base h-8 w-12 px-1.5 text-right tabular-nums"
                             aria-label={`${f.etiqueta} ${MESES[i]}`}
                           />
                           {facturado && (
@@ -168,7 +170,7 @@ export function EditorMetasMensuales({
                         </td>
                       );
                     })}
-                    <td className="py-1 pl-2 text-right tabular-nums font-medium align-top">
+                    <td className="border-l py-1.5 pl-3 text-right tabular-nums font-medium align-top">
                       {totalFila(m) ? totalFila(m).toLocaleString("es-PY") : "—"}
                       {facturado && (
                         <span className="block text-[10px] font-normal text-muted-foreground">
@@ -177,17 +179,17 @@ export function EditorMetasMensuales({
                       )}
                     </td>
                     {presupuesto && (
-                      <td className="py-1 pl-2 text-right tabular-nums text-muted-foreground align-top">
+                      <td className="py-1.5 pl-3 text-right tabular-nums text-muted-foreground align-top">
                         {presupuesto.anual[m] ? presupuesto.anual[m]?.toLocaleString("es-PY") : "—"}
                       </td>
                     )}
                   </tr>
                   );
                 })}
-                <tr className="border-t font-medium">
-                  <td className="py-1 pr-2">Total</td>
+                <tr className="border-t bg-muted/40 font-medium">
+                  <td className="sticky left-0 z-10 bg-muted/40 py-1.5 pr-3">Total</td>
                   {MESES.map((_, i) => (
-                    <td key={i} className="px-0.5 py-1 text-right tabular-nums align-top">
+                    <td key={i} className="px-1.5 py-1.5 text-right tabular-nums align-top">
                       {totalCol(i) ? totalCol(i).toLocaleString("es-PY") : "—"}
                       {facturado && (
                         <span className="block text-[10px] font-normal text-muted-foreground">
@@ -196,11 +198,11 @@ export function EditorMetasMensuales({
                       )}
                     </td>
                   ))}
-                  <td className="py-1 pl-2 text-right tabular-nums">
+                  <td className="border-l py-1.5 pl-3 text-right tabular-nums">
                     {totalAnio ? totalAnio.toLocaleString("es-PY") : "—"}
                   </td>
                   {presupuesto && (
-                    <td className="py-1 pl-2 text-right tabular-nums">
+                    <td className="py-1.5 pl-3 text-right tabular-nums">
                       {Object.values(presupuesto.anual).reduce((s: number, v) => s + (v ?? 0), 0).toLocaleString("es-PY")}
                     </td>
                   )}
@@ -208,15 +210,15 @@ export function EditorMetasMensuales({
               </tbody>
             </table>
           </div>
-          <div className="flex items-center gap-3">
-            <Button type="submit" disabled={pendiente}>
-              {pendiente ? "Guardando…" : "Guardar metas"}
-            </Button>
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
             {estado && (
-              <p className={estado.ok ? "text-sm text-emerald-600 dark:text-emerald-500" : "text-sm text-rose-600 dark:text-rose-500"}>
+              <p role="status" className={estado.ok ? "text-sm text-emerald-600 dark:text-emerald-500" : "text-sm text-rose-600 dark:text-rose-500"}>
                 {estado.mensaje}
               </p>
             )}
+            <Button type="submit" disabled={pendiente}>
+              {pendiente ? "Guardando…" : "Guardar metas por mes"}
+            </Button>
           </div>
         </CardContent>
       </Card>
