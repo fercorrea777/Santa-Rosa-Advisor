@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { campo, patronCorreo } from "../formulario";
+import { campo, patronCorreo, sincronizarAriaInvalid } from "../formulario";
 import { pedirRecuperacion, type EstadoOlvide } from "./acciones";
 
 export function FormularioOlvide({ dominio }: { dominio: string }) {
@@ -50,6 +50,8 @@ export function FormularioOlvide({ dominio }: { dominio: string }) {
                 autoFocus
                 pattern={patronCorreo(dominio)}
                 title={`Tiene que ser un correo @${dominio}`}
+                onBlur={sincronizarAriaInvalid}
+                onInput={sincronizarAriaInvalid}
                 className={campo}
                 placeholder={`nombre@${dominio}`}
               />

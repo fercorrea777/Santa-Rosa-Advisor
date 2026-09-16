@@ -2,12 +2,13 @@
 
 import * as React from "react";
 import { useActionState } from "react";
+import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
 import { cn } from "@/lib/utils";
 import { formatFecha, formatFechaHora } from "@/lib/format";
-import { patronCorreo } from "@/app/entrar/formulario";
+import { patronCorreo, sincronizarAriaInvalid } from "@/app/entrar/formulario";
 import {
   accionBorrarUsuario, accionCambiarActivo, accionCambiarCorreo, accionCambiarRol,
   accionCrearUsuario, accionEnviarEnlace, accionResetearClave, type EstadoUsuarios,
@@ -193,6 +194,8 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
             spellCheck={false}
             pattern={patronCorreo(dominio)}
             title={`Tiene que ser un correo @${dominio}`}
+            onBlur={sincronizarAriaInvalid}
+            onInput={sincronizarAriaInvalid}
             placeholder={`nombre@${dominio}`}
             className="input-base h-9"
           />
@@ -392,6 +395,8 @@ function CambiarCorreo({ usuario, dominio }: { usuario: Usuario; dominio: string
             spellCheck={false}
             pattern={patronCorreo(dominio)}
             title={`Tiene que ser un correo @${dominio}`}
+            onBlur={sincronizarAriaInvalid}
+            onInput={sincronizarAriaInvalid}
             placeholder={`nombre@${dominio}`}
             className="input-base h-9"
           />
@@ -445,29 +450,63 @@ function Borrar({ usuario }: { usuario: Usuario }) {
     accionBorrarUsuario,
     null
   );
+  const [confirmando, setConfirmando] = React.useState(false);
+  const formId = React.useId();
   return (
-    <form
-      action={enviar}
-      className="flex flex-col gap-1"
-      // Borrar es irreversible y el botón está al lado de los otros: la
-      // confirmación evita el clic de más.
-      onSubmit={(e) => {
-        if (!confirm(`¿Borrar el usuario "${usuario.usuario}"? No se puede deshacer.`)) {
-          e.preventDefault();
-        }
-      }}
-    >
-      <input type="hidden" name="id" value={usuario.id} />
-      <Button
-        type="submit"
-        size="sm"
-        variant="outline"
-        disabled={pendiente}
-        className="border-rose-500/40 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
-      >
-        Borrar
-      </Button>
+    <div className="flex flex-col gap-1">
+      {/* El formulario real no tiene botón visible: el que se ve abre el
+          diálogo, y el que borra vive DENTRO del diálogo (en su portal, o
+          sea fuera de este <form> en el DOM) apuntando acá por `form={formId}`
+          — el atributo `form` asocia un botón a cualquier <form> del
+          documento sin importar dónde esté en el árbol. */}
+      <form id={formId} action={enviar} className="hidden" aria-hidden="true">
+        <input type="hidden" name="id" value={usuario.id} />
+      </form>
+      {/* window.confirm() bloquea el hilo principal, no se puede maquillar
+          y algunas políticas de navegador lo autodescartan sin avisar — mal
+          lugar para la única confirmación de un borrado irreversible.
+          AlertDialog (base-ui) es el equivalente declarativo: foco atrapado,
+          Escape cancela, y describe la acción en vez de solo preguntarla. */}
+      <AlertDialog.Root open={confirmando} onOpenChange={setConfirmando}>
+        <AlertDialog.Trigger
+          className={cn(
+            buttonVariants({ size: "sm", variant: "outline" }),
+            "border-rose-500/40 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
+          )}
+        >
+          Borrar
+        </AlertDialog.Trigger>
+        <AlertDialog.Portal>
+          <AlertDialog.Backdrop className="fixed inset-0 z-50 bg-black/50" />
+          <AlertDialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(26rem,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-xl">
+            <AlertDialog.Title className="text-base font-semibold">
+              Borrar usuario
+            </AlertDialog.Title>
+            <AlertDialog.Description className="mt-1.5 text-sm text-muted-foreground">
+              ¿Borrar a <strong className="text-foreground">{usuario.usuario}</strong>?
+              No se puede deshacer.
+            </AlertDialog.Description>
+            <div className="mt-4 flex justify-end gap-2">
+              <AlertDialog.Close className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
+                Cancelar
+              </AlertDialog.Close>
+              <button
+                type="submit"
+                form={formId}
+                disabled={pendiente}
+                onClick={() => setConfirmando(false)}
+                className={cn(
+                  buttonVariants({ size: "sm" }),
+                  "bg-rose-600 text-white hover:bg-rose-600/90 disabled:opacity-50"
+                )}
+              >
+                {pendiente ? "Borrando…" : "Sí, borrar"}
+              </button>
+            </div>
+          </AlertDialog.Popup>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
       <Aviso estado={estado} />
-    </form>
+    </div>
   );
 }

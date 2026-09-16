@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -63,6 +63,16 @@ export const metadata: Metadata = {
     url: "/",
     locale: "es_PY",
   },
+};
+
+// `color-scheme` YA está declarado en globals.css (`:root`/`.dark`, es lo
+// que en verdad tiñe scrollbars y controles nativos); este <meta> es la
+// segunda mitad de la guía modern-web-guidance "dark-mode" — evita el
+// flash de fondo blanco/negro en el primer paint, ANTES de que llegue el
+// CSS. No decide el tema (eso lo sigue haciendo next-themes vía la clase
+// en <html>): solo le avisa al navegador que la página soporta los dos.
+export const viewport: Viewport = {
+  colorScheme: "light dark",
 };
 
 export default async function RootLayout({
