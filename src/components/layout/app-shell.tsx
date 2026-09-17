@@ -82,22 +82,17 @@ export function AppShell({
 
   if (embebido) {
     return (
-      <div className="flex min-h-screen w-full flex-col">
+      <div className="flex w-full flex-col">
         {sinClave && <AvisoSinClave />}
         {/* Solo el contenido, con el mismo aire que <main> tiene en la app.
-            El enlace abre la pantalla completa en una pestaña nueva (target
-            _top saldría del tablero que lo embebe). */}
-        <main id="contenido" tabIndex={-1} className="relative min-w-0 flex-1 p-4 outline-none md:p-6">
-          <a
-            href={pathname}
-            target="_blank"
-            rel="noopener"
-            className="absolute right-4 top-4 z-10 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground md:right-6 md:top-6"
-          >
-            Abrir en Advisor ↗
-          </a>
+            Sin `min-h-screen`: el alto tiene que ser el del contenido, porque
+            el tablero de afuera ajusta el iframe a esa medida (AvisarAlto) y
+            un mínimo de 100vh haría que nunca pudiera achicarse. El enlace
+            para abrirlo aparte lo pone el tablero que embebe. */}
+        <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 p-4 outline-none md:p-6">
           {children}
         </main>
+        <AvisarAlto />
       </div>
     );
   }
@@ -257,6 +252,35 @@ export function AppShell({
       </div>
     </div>
   );
+}
+
+/**
+ * Modo embebido: le avisa al tablero que embebe (presentacion.santarosa.lat)
+ * cuánto mide el contenido, para que ajuste el alto del iframe y la página de
+ * afuera scrollee entera, sin un scroll adentro de otro. Se manda solo a ese
+ * origen: es el único que puede enmarcar la app (ver frame-ancestors en
+ * next.config.ts).
+ */
+function AvisarAlto() {
+  React.useEffect(() => {
+    if (window.self === window.top) return;
+    const destino = "https://presentacion.santarosa.lat";
+    const avisar = () => {
+      window.parent.postMessage(
+        { tipo: "advisor-alto", alto: document.documentElement.scrollHeight },
+        destino
+      );
+    };
+    avisar();
+    const ro = new ResizeObserver(avisar);
+    ro.observe(document.body);
+    window.addEventListener("load", avisar);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("load", avisar);
+    };
+  }, []);
+  return null;
 }
 
 /**
