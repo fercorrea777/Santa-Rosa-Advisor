@@ -14,6 +14,7 @@ export function AppShell({
   children,
   sinClave = false,
   esAdmin = true,
+  embebidoPorUrl = false,
 }: {
   children: React.ReactNode;
   /** true cuando falta ADVISOR_CLAVE, o sea que el tablero esta abierto a
@@ -25,9 +26,25 @@ export function AppShell({
    *  unico lugar donde se puede leer la cookie) y baja hasta el menu: un
    *  lector no ve el renglon de Configuracion. */
   esAdmin?: boolean;
+  /** true cuando la URL trae `?embed=1` (lo lee el layout vía la cabecera
+   *  que deja src/proxy.ts). Ver `embebido` abajo. */
+  embebidoPorUrl?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const pathname = usePathname();
+  // Modo embebido (Croman, 17/09/2026): presentacion.santarosa.lat muestra el
+  // Bubble chart dentro de su propio tablero, en un iframe. Ahí el menú y la
+  // barra de marca sobran —el tablero de afuera ya tiene los suyos— y
+  // quedaría un marco adentro de otro marco. Se detecta de dos formas que se
+  // complementan: `?embed=1` en la URL (lo pone el iframe; llega ya en el
+  // render del servidor, así no hay parpadeo) y, por si un filtro reescribe
+  // la query y pierde el parámetro, el hecho de estar adentro de un frame.
+  // Fuera de un frame, sin el parámetro, no cambia nada.
+  const [enFrame, setEnFrame] = React.useState(false);
+  React.useEffect(() => {
+    setEnFrame(window.self !== window.top);
+  }, []);
+  const embebido = embebidoPorUrl || enFrame;
   // Cajón móvil (guía "navigation-drawer" de modern-web-guidance): Escape
   // lo cierra, el foco entra al abrirlo y vuelve al botón al cerrarlo, y
   // el botón declara qué abre y si está abierto.
@@ -61,6 +78,28 @@ export function AppShell({
   // enlace) van sin menú ni cabecera: quien está ahí todavía no entró.
   if (pathname === "/entrar" || pathname.startsWith("/entrar/") || pathname === "/restablecer") {
     return <>{children}</>;
+  }
+
+  if (embebido) {
+    return (
+      <div className="flex min-h-screen w-full flex-col">
+        {sinClave && <AvisoSinClave />}
+        {/* Solo el contenido, con el mismo aire que <main> tiene en la app.
+            El enlace abre la pantalla completa en una pestaña nueva (target
+            _top saldría del tablero que lo embebe). */}
+        <main id="contenido" tabIndex={-1} className="relative min-w-0 flex-1 p-4 outline-none md:p-6">
+          <a
+            href={pathname}
+            target="_blank"
+            rel="noopener"
+            className="absolute right-4 top-4 z-10 rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground md:right-6 md:top-6"
+          >
+            Abrir en Advisor ↗
+          </a>
+          {children}
+        </main>
+      </div>
+    );
   }
 
   return (

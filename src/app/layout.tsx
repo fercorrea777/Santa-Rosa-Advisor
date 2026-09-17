@@ -5,7 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProveedorMovimiento } from "@/components/movimiento/proveedor";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { vigenciaDe } from "@/lib/auth/vigencia";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
@@ -98,6 +98,9 @@ export default async function RootLayout({
     redirect("/api/sesion/cerrar?motivo=sesion-cortada");
   }
   const esAdmin = !clave || sesion?.rol === "admin";
+  // `?embed=1` (el iframe de presentacion.santarosa.lat): el layout no ve la
+  // query, así que la puerta la deja en una cabecera. Ver src/proxy.ts.
+  const embebidoPorUrl = (await headers()).get("x-advisor-embed") === "1";
 
   return (
     <html
@@ -116,7 +119,7 @@ export default async function RootLayout({
               {/* `sinClave` se lee ACA, en el layout, que es Server Component:
                   AppShell es "use client" y ahi process.env no existe. Ver
                   src/proxy.ts para por que la puerta falla abierta. */}
-              <AppShell sinClave={!clave} esAdmin={esAdmin}>
+              <AppShell sinClave={!clave} esAdmin={esAdmin} embebidoPorUrl={embebidoPorUrl}>
                 {children}
               </AppShell>
             </ProveedorMovimiento>

@@ -84,6 +84,16 @@ function aLogin(request: NextRequest): NextResponse {
   return r;
 }
 
+/** Con `?embed=1` la app va sin menú ni barra (AppShell). El layout no puede
+ *  leer la query, así que se la pasamos como cabecera del request. Es un
+ *  detalle de presentación, no de acceso: la puerta sigue igual. */
+function conEmbed(request: NextRequest): NextResponse {
+  if (request.nextUrl.searchParams.get("embed") !== "1") return NextResponse.next();
+  const cabeceras = new Headers(request.headers);
+  cabeceras.set("x-advisor-embed", "1");
+  return NextResponse.next({ request: { headers: cabeceras } });
+}
+
 export function proxy(request: NextRequest) {
   const clave = process.env.ADVISOR_CLAVE;
 
@@ -94,7 +104,7 @@ export function proxy(request: NextRequest) {
   // sin nadie adentro que pueda arreglarlo. El riesgo se hace VISIBLE en vez
   // de silencioso: mientras falte, cada pantalla muestra una franja roja
   // diciendo que el tablero es publico (ver AppShell).
-  if (!clave) return NextResponse.next();
+  if (!clave) return conEmbed(request);
 
   if (SIN_PUERTA.has(request.nextUrl.pathname)) return NextResponse.next();
 
@@ -107,7 +117,7 @@ export function proxy(request: NextRequest) {
     // Borra la propia cookie y manda a entrar: no necesita sesión.
     ruta === "/api/sesion/cerrar"
   ) {
-    return NextResponse.next();
+    return conEmbed(request);
   }
 
   const token = request.cookies.get(NOMBRE_COOKIE)?.value;
@@ -134,7 +144,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return conEmbed(request);
 }
 
 function esDeAdmins(pathname: string): boolean {
