@@ -185,10 +185,17 @@ export default async function AccionesComercialesPage({
         <KpiCard label="En viaje" value={formatUnidades(resumen.enViaje)} periodo="unidades en camino" tono="verde" />
         <KpiCard
           label="Descuento comprometido"
-          value={`US$ ${formatUnidades(Math.round(resumen.descuentoComprometido))}`}
-          periodo="stock × descuento máximo"
+          // En millones cuando pasa el millón y la moneda al pie: «US$
+          // 1.287.938» no entraba en la tarjeta y se partía en dos renglones.
+          // La cifra exacta va en el tooltip.
+          value={
+            resumen.descuentoComprometido >= 1_000_000
+              ? `${(resumen.descuentoComprometido / 1_000_000).toLocaleString("es-PY", { maximumFractionDigits: 2 })} M`
+              : formatUnidades(Math.round(resumen.descuentoComprometido))
+          }
+          periodo="US$ · stock × descuento máximo"
           tono="ambar"
-          tooltip="Lo que costaría vender todo el stock de hoy al precio con descuento máximo. Es una cota, no un pronóstico: no todas las unidades salen con el descuento entero."
+          tooltip={`US$ ${formatUnidades(Math.round(resumen.descuentoComprometido))}: lo que costaría vender todo el stock de hoy al precio con descuento máximo. Es una cota, no un pronóstico: no todas las unidades salen con el descuento entero.`}
         />
       </div>
 

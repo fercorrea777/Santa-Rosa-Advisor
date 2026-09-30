@@ -587,7 +587,6 @@ export default async function MapaPage({
               Todavía no hay suficientes precios de rivales para comparar.
             </p>
           ) : (
-            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -595,11 +594,15 @@ export default async function MapaPage({
                   <TableHead className="text-right" nota={`${esImportacion ? "importados" : "matriculados"} en el período`}>
                     {esImportacion ? "Importados" : "Vendidos"}
                   </TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="con la caja que se compara">Nuestro precio (misma transmisión)</TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="el del medio de su clase">Mediana de su clase</TableHead>
-                  <TableHead className="text-right" nota="más caro o barato que su clase">Diferencia</TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="el del medio de todo el tipo">Mediana de todo el tipo</TableHead>
-                  <TableHead className="text-right" nota="más caro o barato que el tipo">Diferencia</TableHead>
+                  {/* Rótulos cortos (30/09/2026): «Nuestro precio (misma
+                      transmisión)» y «Mediana de todo el tipo» sin corte de
+                      línea empujaban la última columna fuera de la tarjeta.
+                      Lo largo va en la nota. */}
+                  <TableHead className="text-right" nota="con la misma caja que se compara">Nuestro precio</TableHead>
+                  <TableHead className="text-right" nota="mediana de los rivales de su clase">Su clase</TableHead>
+                  <TableHead className="text-right" nota="contra su clase">Diferencia</TableHead>
+                  <TableHead className="text-right" nota="mediana de todo su tipo de vehículo">Todo el tipo</TableHead>
+                  <TableHead className="text-right" nota="contra el tipo">Diferencia</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -637,7 +640,6 @@ export default async function MapaPage({
                 ))}
               </TableBody>
             </Table>
-            </div>
           )}
         </CardContent>
       </Card>
