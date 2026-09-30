@@ -6,6 +6,7 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
+import { SelectorVista } from "@/components/dashboard/selector-vista";
 import { TablaAcciones, type FamiliaAcciones } from "@/components/dashboard/tabla-acciones";
 import { cn } from "@/lib/utils";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
@@ -17,7 +18,7 @@ import {
 import {
   claveCars, claveFamilia, cruzarFamilia, nombreDeClave, type UnidadesModelo,
 } from "@/lib/informes/acciones-cruce";
-import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
+import { formatFechaHora, formatPct, formatUnidades, nombreDeMarca } from "@/lib/format";
 import { etiquetaPeriodo, type SearchParams } from "@/lib/periodo";
 
 export const dynamic = "force-dynamic";
@@ -57,11 +58,26 @@ export default async function AccionesComercialesPage({
 
   if (!acciones) return <SinPlanilla />;
 
-  const marcaSel = txt(sp.marca)?.toUpperCase();
   const segmentoSel = txt(sp.segmento)?.toUpperCase();
   const marcas = acciones.hojas.map((h) => h.marca);
   const segmentos = [...new Set(acciones.hojas.flatMap((h) => h.versiones.map((v) => v.segmento)).filter((s): s is string => !!s))];
-  const resumen = resumirAcciones(acciones);
+
+  // --- una pestaña por marca (Croman, 30/09/2026) --------------------------
+  // Las diez hojas una abajo de la otra eran 11.400 px: para ver Mitsubishi
+  // había que pasar por nueve marcas. Ahora arranca en la primera hoja de la
+  // planilla y «Todas» deja la vista completa (para imprimir o recorrer).
+  // La pestaña va en `vista` (no es filtro: «Quitar filtros» no la borra);
+  // los enlaces viejos con `?marca=` (Gama propia) caen en su pestaña.
+  const TODAS = "todas";
+  const vistaPedida = (txt(sp.vista) ?? txt(sp.marca))?.toUpperCase();
+  const marcaSel = vistaPedida && marcas.includes(vistaPedida) ? vistaPedida : vistaPedida === TODAS.toUpperCase() ? null : marcas[0];
+  const vistas = [
+    ...marcas.map((m) => ({ valor: m, label: nombreDeMarca(m) })),
+    { valor: TODAS, label: "Todas", pista: "Las diez hojas de la planilla, una abajo de la otra." },
+  ];
+  const hojasVista = marcaSel ? acciones.hojas.filter((h) => h.marca === marcaSel) : acciones.hojas;
+  // Los números de arriba son los de la pestaña, no los de toda la planilla.
+  const resumen = resumirAcciones({ ...acciones, hojas: hojasVista });
   const [anioAcc] = acciones.mes.split("-").map(Number);
 
   // --- el mercado y Cars, por familia --------------------------------------
@@ -166,13 +182,18 @@ export default async function AccionesComercialesPage({
           ...(meses.length > 1
             ? [{ param: "mes", label: "Mes", valores: meses.map((m) => ({ valor: m, label: nombreMes(m) })) }]
             : []),
-          { param: "marca", label: "Marca", valores: marcas },
           { param: "segmento", label: "Segmento", valores: segmentos },
         ]}
       />
 
+      <SelectorVista vistas={vistas} porDefecto={marcas[0]} actual={marcaSel ?? TODAS} quitar={["marca"]} />
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Versiones" value={formatUnidades(resumen.versiones)} periodo={`${resumen.marcas} marcas · ${titulo}`} />
+        <KpiCard
+          label="Versiones"
+          value={formatUnidades(resumen.versiones)}
+          periodo={marcaSel ? `${nombreDeMarca(marcaSel)} · ${titulo}` : `${resumen.marcas} marcas · ${titulo}`}
+        />
         <KpiCard
           label="Con descuento"
           value={formatUnidades(resumen.conDescuento)}

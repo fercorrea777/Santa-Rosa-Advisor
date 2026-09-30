@@ -9,6 +9,7 @@ import { BatallaModeloChart } from "@/components/charts/batalla-modelo-chart";
 import { getBatalla } from "@/lib/informes/batalla";
 import { TablaVersiones } from "@/components/dashboard/tabla-versiones";
 import { Seccion } from "@/components/dashboard/seccion";
+import { SelectorVista } from "@/components/dashboard/selector-vista";
 import {
   getCobertura, getOpcionesFiltro, getRankingModelos, getRankingVersiones,
   type Fuente,
@@ -256,6 +257,22 @@ export default async function BubbleChartPage({
   const claseDeBurbuja = (clave: string | undefined, b: { segmento: string }) =>
     (clave ? clasePorClave.get(clave) : undefined) ?? b.segmento;
 
+  // --- pestañas (30/09/2026) ----------------------------------------------
+  // Cuatro secciones y 6.900 px: la batalla del equipo de producto, el
+  // crecimiento por modelo, el posicionamiento por versión y su ranking. En
+  // el Advisor van en tres pestañas. EMBEBIDO NO: presentacion.santarosa.lat
+  // muestra esta pantalla con ?embed=1 y promete «la sección completa»; ahí
+  // se dibuja todo junto, como siempre.
+  const embebido = (Array.isArray(sp.embed) ? sp.embed[0] : sp.embed) === "1";
+  const PESTANAS = [
+    { valor: "batalla", label: "Batalla por modelo", pista: "Cada modelo nuestro contra sus rivales, como lo arma el equipo de producto." },
+    { valor: "crecimiento", label: "Crecimiento", pista: "Qué modelos crecen y cuáles caen contra el año pasado, y con cuánto volumen." },
+    { valor: "versiones", label: "Por versión", pista: "Precio y volumen versión por versión, y el ranking de competidores." },
+  ];
+  const pedida = Array.isArray(sp.vista) ? sp.vista[0] : sp.vista;
+  const pestana = PESTANAS.some((x) => x.valor === pedida) ? (pedida as string) : "batalla";
+  const ver = (x: string) => embebido || pestana === x;
+
   return (
     <Pagina>
       <PageHeader
@@ -290,6 +307,9 @@ export default async function BubbleChartPage({
         </div>
       </div>
 
+      {!embebido && <SelectorVista vistas={PESTANAS} porDefecto="batalla" />}
+
+      {ver("batalla") && (
       <Seccion titulo="Batalla por modelo"
         nota="El cuadro que arma producto: cada modelo contra sus rivales de verdad, por precio y por volumen, con las medidas de cada versión.">
         {batalla ? (
@@ -314,7 +334,10 @@ export default async function BubbleChartPage({
           </Card>
         )}
       </Seccion>
+      )}
 
+      {ver("crecimiento") && (
+      <>
       <NotaDato>
         El eje vertical es la <strong>variación %</strong>, no el precio: la base
         de CADAM trae unidades, no importes. Como el porcentaje se dispara sobre
@@ -379,8 +402,10 @@ export default async function BubbleChartPage({
       ))}
 
       </Seccion>
+      </>
+      )}
 
-      {ordenPrecio.length > 0 && (
+      {ver("versiones") && ordenPrecio.length > 0 && (
         <Seccion titulo="Posicionamiento por versión"
         nota="El mismo cruce de precio y volumen, pero versión por versión: es el nivel al que el cliente elige.">
         <Card>
@@ -452,7 +477,15 @@ export default async function BubbleChartPage({
         </Seccion>
       )}
 
-      {versiones.length > 0 && (
+      {!embebido && pestana === "versiones" && ordenPrecio.length === 0 && versiones.length === 0 && (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Ninguna versión con precio ni con ranking para este filtro.
+          </CardContent>
+        </Card>
+      )}
+
+      {ver("versiones") && versiones.length > 0 && (
         <Seccion titulo="Ranking por versión">
         <Card>
           <CardHeader>

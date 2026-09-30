@@ -36,21 +36,36 @@ export interface Vista {
 export function SelectorVista({
   vistas,
   porDefecto,
+  actual: actualServidor,
   anclas = {},
+  quitar = [],
 }: {
   vistas: Vista[];
   porDefecto: string;
+  /** La pestaña que resolvió el servidor, cuando la URL no trae `vista`
+   *  (un enlace viejo con `?marca=`, por ejemplo). */
+  actual?: string;
   anclas?: Record<string, string>;
+  /** Parámetros viejos que decidían la vista antes de las pestañas (en
+   *  Acciones, `marca`): se sacan al cambiar de pestaña, porque si no el
+   *  servidor volvería a leerlos y la pestaña por defecto no se podría elegir. */
+  quitar?: string[];
 }) {
   const { leer, setParams, pendiente } = useFiltroUrl();
   const sp = useSearchParams();
   const pathname = usePathname();
-  const actual = leer("vista") ?? porDefecto;
+  const actual = leer("vista") ?? actualServidor ?? porDefecto;
+  const cambios = (valor: string) => ({
+    vista: valor === porDefecto ? null : valor,
+    ...Object.fromEntries(quitar.map((k) => [k, null])),
+  });
+  const esActual = (valor: string) => valor.toLowerCase() === actual.toLowerCase();
 
   const hrefDe = (valor: string) => {
     const p = new URLSearchParams(sp.toString());
     if (valor === porDefecto) p.delete("vista");
     else p.set("vista", valor);
+    for (const k of quitar) p.delete(k);
     const q = p.toString();
     return q ? `${pathname}?${q}` : pathname;
   };
@@ -62,8 +77,8 @@ export function SelectorVista({
     resuelta.current = true;
     const ancla = window.location.hash.slice(1);
     const destino = ancla ? anclas[ancla] : undefined;
-    if (!destino || destino === actual) return;
-    setParams({ vista: destino === porDefecto ? null : destino });
+    if (!destino || esActual(destino)) return;
+    setParams(cambios(destino));
     // La sección aparece cuando llega la vista nueva: se espera a que esté.
     let intentos = 0;
     const buscar = window.setInterval(() => {
@@ -89,7 +104,7 @@ export function SelectorVista({
           subrayado. */}
       <ul role="list" className="flex gap-x-1 overflow-x-auto overscroll-x-contain shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]">
         {vistas.map((v) => {
-          const activa = v.valor === actual;
+          const activa = esActual(v.valor);
           return (
             <li key={v.valor}>
               <a
@@ -101,7 +116,7 @@ export function SelectorVista({
                   // (otra pestaña, otra ventana).
                   if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
                   e.preventDefault();
-                  if (!activa) setParams({ vista: v.valor === porDefecto ? null : v.valor });
+                  if (!activa) setParams(cambios(v.valor));
                 }}
                 className={cn(
                   "relative inline-flex h-10 items-center whitespace-nowrap border-b-2 px-2.5 text-sm font-medium transition-colors sm:px-3",

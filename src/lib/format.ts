@@ -69,3 +69,19 @@ export function formatPuntosPct(v: number): string {
   const sign = v > 0 ? "+" : "";
   return `${sign}${(v * 100).toFixed(1)} pp`;
 }
+
+/** Siglas que se escriben en mayúsculas aunque el resto del nombre no. */
+const SIGLAS_MARCA = new Set(["JAC", "JMEV", "GWM", "BYD", "MG", "BMW", "KGM", "DFSK", "GAC", "KIA"]);
+
+/**
+ * "GREAT WALL" → "Great Wall", "JAC" → "JAC". CADAM y el resto del tablero
+ * escriben las marcas en mayúsculas, que en una tabla está bien; en un
+ * rótulo corto que se repite en fila (pestañas) grita. Solo para mostrar:
+ * los filtros y las claves siguen con el nombre tal cual.
+ */
+export function nombreDeMarca(marca: string): string {
+  return marca
+    .split(/\s+/)
+    .map((p) => (SIGLAS_MARCA.has(p) || p.length <= 2 ? p : p[0] + p.slice(1).toLowerCase()))
+    .join(" ");
+}

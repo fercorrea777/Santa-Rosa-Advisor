@@ -373,7 +373,7 @@ export default async function GamaPropiaPage({
                           <TableCell className="text-xs">
                             {acc ? (
                               <Link
-                                href={`/acciones-comerciales?marca=${encodeURIComponent(d.marca)}`}
+                                href={`/acciones-comerciales?vista=${encodeURIComponent(d.marca)}`}
                                 className="inline-flex flex-wrap items-center gap-1.5 underline-offset-2 hover:underline"
                                 title={`${acc.versiones} ${acc.versiones === 1 ? "versión" : "versiones"} en la planilla${acc.aproximado ? ` (familia ${acc.aproximado})` : ""}`}
                               >
