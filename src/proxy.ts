@@ -151,6 +151,9 @@ function esDeAdmins(pathname: string): boolean {
   return (
     pathname === "/configuracion" ||
     pathname.startsWith("/configuracion/") ||
+    // Rentabilidad: margen en todas las columnas, mismo criterio que el
+    // costo en Acciones comerciales (que ahí se esconde por rol).
+    pathname === "/rentabilidad" ||
     pathname.startsWith("/api/usuarios")
   );
 }

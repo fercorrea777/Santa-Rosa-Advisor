@@ -165,6 +165,18 @@ export function IconAcciones(props: IconProps) {
   );
 }
 
+/** Cuatro cuadrantes con dos burbujas: volumen contra margen, que es la
+ *  lectura de rentabilidad. */
+export function IconRentabilidad(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 12h16M12 4v16" />
+      <circle cx="8" cy="8" r="2" />
+      <circle cx="16" cy="15.5" r="2.5" />
+    </svg>
+  );
+}
+
 /** Capas apiladas: el costo desglosado (FOB, flete, aduana…) hasta el
  *  precio, que es lo que muestra un cost break down. */
 export function IconCbd(props: IconProps) {

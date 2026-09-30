@@ -160,3 +160,185 @@ export function cruzarFamilia(
 export function claveCars(marca: string, fila: { modelo: string; version: string }): string {
   return claveFamilia(marca, fila.version) || claveFamilia(marca, fila.modelo);
 }
+
+// ---------------------------------------------------------------------------
+// CRUCE POR VERSIÓN (Excel ↔ Cars), para la pantalla de rentabilidad
+// ---------------------------------------------------------------------------
+//
+// Arriba se explica por qué el cruce del tablero es por familia: adivinar
+// versión contra versión da cruces plausibles y equivocados. Rentabilidad
+// (Fernando, 18/09/2026: "cant. vendida, ticket y margen por versión") lo
+// necesita igual, así que acá se hace, con cuatro resguardos que hacen que
+// un error se VEA en vez de pasar por dato:
+//
+//  1. Solo dentro de la misma familia (X50 con X50, nunca X50 con X70), y
+//     UNO A UNO por marca: una fila de Cars alimenta una sola versión del
+//     Excel. Las unidades no se cuentan dos veces.
+//  2. Puntaje por las palabras del Excel que Cars repite ("GLS", "PHEV",
+//     "4X4"→"4WD"), más el precio de lista cuando coincide al dólar: dos
+//     versiones de la misma familia no valen lo mismo, así que el precio
+//     desempata sin adivinar.
+//  3. Cuando el cruce no es por nombre entero se marca «≈» y se muestra el
+//     nombre de Cars, para que Fernando lo valide de un vistazo.
+//  4. Lo que queda sin pareja no desaparece: se devuelve aparte con sus
+//     unidades, y el total de la familia es el de Cars, exacto.
+//
+// Verificado el 18/09/2026 contra las 114 versiones de septiembre y las 112
+// filas de Cars de 2026: 89 cruces, 78 exactos por nombre.
+
+/** Cómo escribe una fuente lo que la otra abrevia. */
+const ALIAS_TOKEN: Record<string, string> = {
+  LUX: "LUXURY", PERFOMANCE: "PERFORMANCE", "4X4": "4WD", "4X2": "2WD",
+  INT: "INTERMEDIA", INTER: "INTERMEDIA", BAS: "BASICA", CAB: "CABINA",
+  HP: "HPE", CVT: "AT", REFRIG: "REFRIGERADO", CAMION: "REFRIGERADO",
+};
+/** Palabras que una fuente pone y no cambian la versión: facelift, series,
+ *  mercado de destino, año-modelo. */
+const RUIDO_TOKEN = new Set(["NEW", "NUEVO", "NUEVA", "ALL", "THE", "FL", "I", "II", "III", "IV", "V", "VI", "UY", "BR", "E3", "D", "DIE"]);
+
+/** Las palabras que califican la versión: todas menos las de la familia
+ *  y el ruido, con los alias aplicados. "T8 4x2 INT" → {2WD, INTERMEDIA}. */
+export function calificadores(nombre: string): Set<string> {
+  const t = tokensFamilia(nombre);
+  const out = new Set<string>();
+  for (let i = 0; i < t.length; i++) {
+    const tok = t[i];
+    // La familia ("TANK" + "300", "JOLION" + "PRO") no califica: es lo que
+    // ya se cruzó por clave.
+    if (i === 0 || (i === 1 && esApellido(tok))) continue;
+    if (RUIDO_TOKEN.has(tok) || /^20\d\d$/.test(tok)) continue;
+    out.add(ALIAS_TOKEN[tok] ?? tok);
+  }
+  return out;
+}
+
+export interface FilaCars {
+  modelo: string;
+  version: string;
+  unidades: number;
+  /** Precio de lista del stock de Cars, si lo tiene. */
+  precio: number | null;
+}
+
+export interface CruceVersion {
+  /** Fila de Cars que se le asignó, o null si no hay pareja. */
+  cars: FilaCars | null;
+  /** true cuando el nombre de Cars no repite todas las palabras del Excel
+   *  (se cruzó por parte del nombre, por precio, o por ser la única de la
+   *  familia): va con «≈». */
+  aproximado: boolean;
+}
+
+export interface CruceVersiones {
+  /** Uno por versión del Excel, en el mismo orden. */
+  cruces: CruceVersion[];
+  /** Filas de Cars de una familia del Excel que no se pudieron asignar a
+   *  ninguna versión, por clave de familia: sus unidades cuentan en el
+   *  total de la familia. */
+  sinPareja: Map<string, FilaCars[]>;
+  /** Filas de Cars de familias que el Excel no tiene. */
+  sinPlanilla: FilaCars[];
+}
+
+/** Puntaje de una pareja Excel↔Cars de la misma familia. ≥ 0,4 es cruce. */
+function puntaje(
+  e: Set<string>, c: Set<string>,
+  pvpExcel: number | null, precioCars: number | null,
+  unicaPareja: boolean
+): { total: number; aproximado: boolean } {
+  const iguales = e.size === c.size && [...e].every((x) => c.has(x));
+  if (iguales) return { total: 2, aproximado: false };
+  let total: number;
+  let aproximado = true;
+  if (e.size === 0) {
+    total = 0.4;
+  } else {
+    let comunes = 0;
+    for (const x of e) if (c.has(x)) comunes++;
+    total = comunes / e.size;
+    aproximado = comunes < e.size;
+  }
+  if (pvpExcel && precioCars && Math.round(pvpExcel) === Math.round(precioCars)) total += 0.5;
+  if (unicaPareja) total += 0.2;
+  return { total, aproximado };
+}
+
+/**
+ * Cruza las versiones del Excel de UNA marca con las filas de Cars de esa
+ * marca (una por modelo+versión, con sus unidades del período).
+ */
+export function cruzarVersiones(
+  marca: string,
+  versiones: { version: string; pvp: number | null }[],
+  filasCars: FilaCars[]
+): CruceVersiones {
+  // Cars agrupado por clave de familia.
+  const grupos = new Map<string, FilaCars[]>();
+  for (const f of filasCars) {
+    const k = claveCars(marca, f) || f.version.toUpperCase();
+    const g = grupos.get(k) ?? [];
+    g.push(f);
+    grupos.set(k, g);
+  }
+  const items = [...grupos.entries()].map(([clave, filas]) => ({ clave, valor: filas }));
+
+  // Candidatas de cada versión: las filas de Cars de su familia (exacta o
+  // la más parecida, con el mismo criterio del cruce por familia).
+  const familiaDe = versiones.map((v) => claveFamilia(marca, v.version) || v.version.toUpperCase());
+  const familiaReclamada = new Map<string, string>(); // clave Cars → clave Excel
+  const califE = versiones.map((v) => calificadores(v.version));
+  const califC = new Map<FilaCars, Set<string>>();
+  for (const f of filasCars) califC.set(f, calificadores(f.version || f.modelo));
+
+  type Pareja = { i: number; fila: FilaCars; total: number; aproximado: boolean };
+  const parejas: Pareja[] = [];
+  const candidatasDe = new Map<number, FilaCars[]>();
+  for (let i = 0; i < versiones.length; i++) {
+    const r = familiaMasParecida(familiaDe[i], items);
+    if (!r) continue;
+    const cand = r.valores.flat();
+    candidatasDe.set(i, cand);
+    for (const f of cand) {
+      const k = claveCars(marca, f) || f.version.toUpperCase();
+      if (!familiaReclamada.has(k)) familiaReclamada.set(k, familiaDe[i]);
+    }
+  }
+  const versionesPorFamilia = new Map<string, number>();
+  for (const k of familiaDe) versionesPorFamilia.set(k, (versionesPorFamilia.get(k) ?? 0) + 1);
+  for (const [i, cand] of candidatasDe) {
+    const unica = cand.length === 1 && versionesPorFamilia.get(familiaDe[i]) === 1;
+    for (const fila of cand) {
+      const p = puntaje(califE[i], califC.get(fila)!, versiones[i].pvp, fila.precio, unica);
+      if (p.total >= 0.4) parejas.push({ i, fila, total: p.total, aproximado: p.aproximado });
+    }
+  }
+  // Mejor puntaje primero; a igual puntaje, el orden del Excel y después la
+  // fila de Cars con más unidades.
+  parejas.sort((a, b) => b.total - a.total || a.i - b.i || b.fila.unidades - a.fila.unidades);
+
+  const cruces: CruceVersion[] = versiones.map(() => ({ cars: null, aproximado: false }));
+  const usadas = new Set<FilaCars>();
+  const asignadas = new Set<number>();
+  for (const p of parejas) {
+    if (asignadas.has(p.i) || usadas.has(p.fila)) continue;
+    cruces[p.i] = { cars: p.fila, aproximado: p.aproximado };
+    asignadas.add(p.i);
+    usadas.add(p.fila);
+  }
+
+  const sinPareja = new Map<string, FilaCars[]>();
+  const sinPlanilla: FilaCars[] = [];
+  for (const f of filasCars) {
+    if (usadas.has(f)) continue;
+    const k = claveCars(marca, f) || f.version.toUpperCase();
+    const familiaExcel = familiaReclamada.get(k);
+    if (!familiaExcel) {
+      sinPlanilla.push(f);
+      continue;
+    }
+    const l = sinPareja.get(familiaExcel) ?? [];
+    l.push(f);
+    sinPareja.set(familiaExcel, l);
+  }
+  return { cruces, sinPareja, sinPlanilla };
+}

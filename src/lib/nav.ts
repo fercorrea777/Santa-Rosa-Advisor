@@ -2,7 +2,7 @@
 export type IconoNav =
   | "inicio" | "mercado" | "evolucion" | "rankings" | "segmentos"
   | "combustibles" | "localidades" | "market-share" | "brecha" | "bubble" | "gama"
-  | "portafolio" | "operacion" | "acciones" | "cbd" | "carflow"
+  | "portafolio" | "operacion" | "acciones" | "rentabilidad" | "cbd" | "carflow"
   | "inteligencia" | "copiloto" | "cargas" | "calidad" | "configuracion";
 
 export interface NavItem {
@@ -77,6 +77,9 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/acciones-comerciales", label: "Acciones comerciales", icono: "acciones", implementado: true , pista: "La planilla del mes de Fernando: descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión, cruzada con lo que importa, matricula y factura cada familia." },
       { href: "/gama-propia", label: "Gama propia", icono: "gama", implementado: true , pista: "Nuestros modelos, su precio, cuánto vende cada uno y qué acción comercial tiene este mes. Tocá una burbuja para ver sus rivales." },
+      // Márgenes en todas las columnas: solo admin (mismo criterio que el
+      // costo en Acciones comerciales).
+      { href: "/rentabilidad", label: "Rentabilidad", icono: "rentabilidad", implementado: true, soloAdmin: true , pista: "Precio y margen de cada versión según la planilla, contra lo que facturamos: qué vende, a qué ticket y qué deja. En cuatro cuadrantes." },
       { href: "/operacion", label: "Nuestra operación", icono: "operacion", implementado: true , pista: "Lo nuestro: qué facturamos, qué stock hay, cómo vamos contra el presupuesto y quién vende." },
       { href: "/cbd", label: "CBD", icono: "cbd", implementado: false , pista: "Cost break down: de FOB a costo puesto en playa, versión por versión. Falta el archivo de cada marca." },
       { href: "/carflow", label: "Carflow", icono: "carflow", implementado: false , pista: "El flujo de unidades: pedido, embarque, tránsito, aduana y playa. Falta definir la fuente." },

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   IconInicio, IconMercado, IconEvolucion, IconRankings, IconSegmentos,
   IconCombustibles, IconLocalidades, IconMarketShare, IconBrecha, IconBubble,
-  IconGama, IconPortafolio, IconOperacion, IconAcciones, IconCbd, IconCarflow,
+  IconGama, IconPortafolio, IconOperacion, IconAcciones, IconRentabilidad, IconCbd, IconCarflow,
   IconInteligencia, IconCopiloto, IconCargas,
   IconCalidad, IconConfiguracion, IconChevron,
 } from "@/components/icons";
@@ -31,6 +31,7 @@ const ICONOS: Record<IconoNav, React.ComponentType<{ size?: number; className?: 
   portafolio: IconPortafolio,
   operacion: IconOperacion,
   acciones: IconAcciones,
+  rentabilidad: IconRentabilidad,
   cbd: IconCbd,
   carflow: IconCarflow,
   inteligencia: IconInteligencia,
