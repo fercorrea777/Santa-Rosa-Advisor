@@ -5,6 +5,7 @@ import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { Seccion } from "@/components/dashboard/seccion";
+import { SelectorVista } from "@/components/dashboard/selector-vista";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -247,6 +248,17 @@ export default async function MapaPage({
     f.tecnologia ? `solo ${f.tecnologia}` : null,
   ].filter(Boolean).join(" · ");
 
+  // Tres preguntas, tres pestañas (30/09/2026): la pantalla era una tira de
+  // 13.000 px — los mapas, la lista de rivales de cada modelo nuestro (la
+  // parte larga) y el precio contra el mercado, uno abajo del otro.
+  const VISTAS = [
+    { valor: "mapa", label: "Mapas", pista: "Dónde está la plata del mercado y en qué casilleros estamos o no." },
+    { valor: "rivales", label: "Rivales por modelo", pista: "Contra quién compite cada modelo nuestro en el salón." },
+    { valor: "precio", label: "Caros o baratos", pista: "Nuestro precio contra el de la misma caja en el mercado." },
+  ];
+  const vistaPedida = Array.isArray(sp.vista) ? sp.vista[0] : sp.vista;
+  const vista = VISTAS.some((v) => v.valor === vistaPedida) ? (vistaPedida as string) : "mapa";
+
   return (
     <Pagina>
       <PageHeader
@@ -277,6 +289,12 @@ export default async function MapaPage({
           />
         </div>
       </div>
+
+      <SelectorVista
+        vistas={VISTAS}
+        porDefecto="mapa"
+        anclas={{ mapa: "mapa", rivales: "rivales", "precio-relativo": "precio" }}
+      />
 
       <NotaDato>
         <strong>Qué es una clase.</strong> CADAM solo distingue SUV, pick-up,
@@ -315,6 +333,7 @@ export default async function MapaPage({
         )}
       </NotaDato>
 
+      {vista === "mapa" && (
       <Seccion titulo="Los mapas"
         nota="Dónde está la plata del mercado: cuántas unidades se venden en cada cruce de clase y precio, y en cuáles de esos casilleros estamos o no estamos." id="mapa">
       <Card>
@@ -431,7 +450,9 @@ export default async function MapaPage({
         </CardContent>
       </Card>
       </Seccion>
+      )}
 
+      {vista === "rivales" && (
       <Seccion titulo="Contra quién compite cada modelo nuestro"
         nota="Los rivales que se le cruzan al cliente en el salón: los de la misma clase, no los de la misma marca ni los del mismo segmento de CADAM." id="rivales">
       <Card>
@@ -540,7 +561,9 @@ export default async function MapaPage({
         </CardContent>
       </Card>
       </Seccion>
+      )}
 
+      {vista === "precio" && (
       <Seccion titulo="Nuestro precio contra el mercado"
         nota="Si estamos caros o baratos, comparando siempre contra la misma caja: un automático contra automáticos, un mecánico contra mecánicos." id="precio-relativo">
       <Card>
@@ -619,6 +642,7 @@ export default async function MapaPage({
         </CardContent>
       </Card>
       </Seccion>
+      )}
     </Pagina>
   );
 }

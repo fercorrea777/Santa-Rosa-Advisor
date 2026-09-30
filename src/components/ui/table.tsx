@@ -163,7 +163,10 @@ function TableHead({
           <span className="block">{children}</span>
           {/* normal-case + tracking-normal: el rotulo grita en mayusculas,
               la nota habla. font-normal para que no compita con el. */}
-          <span className="mt-1 block max-w-[24ch] text-[10px] leading-snug font-normal normal-case tracking-normal whitespace-normal opacity-75">
+          {/* in-[.text-right]:ml-auto: la nota es un bloque de ancho tope, y
+              un bloque no obedece text-align; en una columna numérica ancha
+              quedaba a la izquierda, lejos de su rótulo. */}
+          <span className="mt-1 block max-w-[24ch] text-[10px] leading-snug font-normal normal-case tracking-normal whitespace-normal opacity-75 in-[.text-right]:ml-auto">
             {nota}
           </span>
         </span>

@@ -23,6 +23,11 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
  * año, fuente y dimensión, y los tres gráficos que filtran al hacer clic—.
  * Por eso vive acá: un solo lugar donde arreglarlo.
  */
+/** Parámetros de la URL que NO son filtros: «Quitar filtros» no los cuenta
+ *  ni los borra. `vista` es la pestaña de las pantallas que se parten en
+ *  varias (ver dashboard/selector-vista.tsx). */
+const NO_SON_FILTROS = ["vista"] as const;
+
 export function useFiltroUrl() {
   const router = useRouter();
   const pathname = usePathname();
@@ -96,11 +101,18 @@ export function useFiltroUrl() {
     [leer, setParams]
   );
 
-  /** Vuelve a la pantalla sin ningún filtro. */
+  /** Vuelve a la pantalla sin ningún filtro. La pestaña elegida se queda:
+   *  no es un filtro, es en qué parte de la pantalla está uno. */
   const limpiar = React.useCallback(() => {
     setTentativo({});
-    iniciar(() => router.replace(pathname, { scroll: false }));
-  }, [pathname, router]);
+    const p = new URLSearchParams();
+    for (const k of NO_SON_FILTROS) {
+      const v = sp.get(k);
+      if (v !== null) p.set(k, v);
+    }
+    const q = p.toString();
+    iniciar(() => router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false }));
+  }, [pathname, router, sp]);
 
   /** Cuántos filtros hay puestos, contando los que todavía viajan. */
   const puestos = React.useMemo(() => {
@@ -109,6 +121,7 @@ export function useFiltroUrl() {
       if (v === null) claves.delete(k);
       else claves.add(k);
     }
+    for (const k of NO_SON_FILTROS) claves.delete(k);
     return [...claves];
   }, [sp, tentativo]);
 

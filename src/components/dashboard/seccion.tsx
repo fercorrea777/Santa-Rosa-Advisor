@@ -27,7 +27,7 @@ export function Seccion({
    *  se explica solo ("Rankings", "Detalle"). */
   nota?: string;
   /** Ancla para enlazar desde otra pantalla (las tarjetas de acción de la
-   *  home apuntan a "/operacion#pedido"). `scroll-mt-20` deja el encabezado
+   *  home apuntan a "/operacion?vista=stock#pedido"). `scroll-mt-20` deja el encabezado
    *  debajo del header fijo al aterrizar. */
   id?: string;
   /** Las tarjetas de la sección. Van adentro para que el espaciado entre el

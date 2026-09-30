@@ -479,6 +479,13 @@
   [data-slot="table"] tbody tr:nth-child(even) {
     background-color: color-mix(in oklab, var(--muted) 45%, transparent);
   }
+  /* Sin cebra: tablas con filas plegables (las ocultas cuentan para
+     :nth-child y la franja sale salteada) o con columnas fijas opacas, que
+     cortan la franja en pedazos. Esas tablas ya se ordenan con sus filas de
+     grupo. */
+  [data-slot="table"].sin-cebra tbody tr:nth-child(even) {
+    background-color: transparent;
+  }
   @media (hover: hover) and (pointer: fine) {
     [data-slot="table"] tbody tr:hover {
       background-color: color-mix(in oklab, var(--primary) 6%, transparent);

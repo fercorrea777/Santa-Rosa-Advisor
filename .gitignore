@@ -49,3 +49,4 @@ __pycache__/
 # lo escribe la app (POST /api/batalla, /api/acciones-comerciales), no se versiona
 data/batalla.json
 data/acciones-comerciales.json
+.scratch/

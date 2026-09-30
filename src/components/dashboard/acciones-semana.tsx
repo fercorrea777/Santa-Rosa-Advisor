@@ -120,7 +120,7 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           vacio="Ninguna versión con menos de un mes y medio de stock."
           frase="se venden y tienen menos de un mes y medio de stock libre, aun contando lo que viene en viaje."
           items={acciones?.pedir.slice(0, 3).map((v) => `${v.version} · ${coma(v.meses)} meses`) ?? []}
-          href="/operacion#pedido"
+          href="/operacion?vista=stock#pedido"
           tono="rojo"
         />
         <TarjetaAccion
@@ -130,7 +130,7 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           vacio="Ninguna versión con más de seis meses de stock."
           frase="tienen más de seis meses de stock o casi no se mueven. Plata parada."
           items={acciones?.empujar.slice(0, 3).map((v) => `${v.version} · ${formatUnidades(v.libres)} libres`) ?? []}
-          href="/operacion#pedido"
+          href="/operacion?vista=stock#pedido"
           tono="ambar"
         />
         <TarjetaAccion
@@ -156,7 +156,7 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
               : "venían vendiendo y el último mes no facturaron."
           }
           items={acciones?.parados.slice(0, 3).map((p) => `${p.asesor} · ${p.antes} antes`) ?? []}
-          href="/operacion#asesores"
+          href="/operacion?vista=equipo#asesores"
           tono="ambar"
         />
         <TarjetaAccion

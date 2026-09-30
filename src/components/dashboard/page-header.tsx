@@ -28,21 +28,5 @@ export function PageHeader({
   );
 }
 
-/** Aviso honesto sobre una limitacion del dato. Se usa siempre que una
- *  vista no puede mostrar todo lo que su titulo promete. */
-export function NotaDato({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      data-revelar=""
-      className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground"
-    >
-      <span
-        aria-hidden="true"
-        className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border border-amber-600/50 text-[9px] font-bold leading-none text-amber-600 dark:border-amber-500/50 dark:text-amber-500"
-      >
-        i
-      </span>
-      <span>{children}</span>
-    </div>
-  );
-}
+// La nota vive en su propio archivo (es de cliente: se pliega).
+export { NotaDato } from "./nota-dato";

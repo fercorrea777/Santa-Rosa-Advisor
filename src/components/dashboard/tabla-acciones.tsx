@@ -116,18 +116,20 @@ export function TablaAcciones({
   const conCars = etiquetas.facturadas !== null;
 
   // Versión · [ventas/mes] · stock · PVP · con descuento · [margen] ·
-  // [bono] · [seña] · [mecánica] — y las tres del mercado, que solo se
-  // llenan en la fila de familia.
+  // [bono] · [seña] — y las tres del mercado, que solo se llenan en la
+  // fila de familia. La mecánica NO es columna (30/09/2026): era el texto
+  // más largo de la fila y empujaba la tabla por debajo de las tres
+  // columnas fijas de la derecha, que la tapaban. Va abajo del nombre.
   const columnas =
     1 + (conAvg ? 1 : 0) + 1 + 2 + (esAdmin ? 1 : 0) + (conBono ? 1 : 0) + (conSenia ? 1 : 0) +
-    (conObs ? 1 : 0) + 2 + (conCars ? 1 : 0);
+    2 + (conCars ? 1 : 0);
   const antesDelMercado = columnas - 2 - (conCars ? 1 : 0);
   // Corrimiento de cada columna del mercado desde el borde derecho.
   const posMat = conCars ? 2 : 1;
   const posImp = conCars ? 1 : 0;
 
   return (
-    <Table className="text-[13px]">
+    <Table className="sin-cebra text-[13px]">
       <TableHeader>
         <TableRow>
           <TableHead className={cn(PEGADA, "min-w-[12rem]")}>Versión</TableHead>
@@ -138,7 +140,6 @@ export function TablaAcciones({
           {esAdmin && <TableHead className="text-right" nota="c/ dcto. máx.">Margen</TableHead>}
           {conBono && <TableHead className="text-right" nota="vendedor">Bono</TableHead>}
           {conSenia && <TableHead className="text-right" nota="US$">Seña</TableHead>}
-          {conObs && <TableHead nota="cómo se aplica">Mecánica</TableHead>}
           <TableHead className={cn(PEGADA_DER, "border-l text-right")} style={derecha(posMat)} nota={etiquetas.matriculaciones}>Matric.</TableHead>
           <TableHead className={cn(PEGADA_DER, "text-right")} style={derecha(posImp)} nota={etiquetas.importaciones}>Import.</TableHead>
           {conCars && (
@@ -208,6 +209,14 @@ export function TablaAcciones({
                     {v.pvp_texto && (
                       <div className="pl-6 text-xs text-muted-foreground">PVP: {v.pvp_texto}</div>
                     )}
+                    {conObs && v.observaciones && (
+                      <div
+                        className="max-w-[30ch] truncate pl-6 text-[11px] font-normal leading-snug text-muted-foreground"
+                        title={v.observaciones}
+                      >
+                        {v.observaciones}
+                      </div>
+                    )}
                   </TableCell>
                   {conAvg && (
                     <TableCell className="text-right tabular-nums text-muted-foreground">{num(v.avg_ventas, 1)}</TableCell>
@@ -252,13 +261,6 @@ export function TablaAcciones({
                   {conSenia && (
                     <TableCell className="text-right tabular-nums text-muted-foreground">{v.senia !== null ? usd(v.senia) : ""}</TableCell>
                   )}
-                  {conObs && (
-                    <TableCell>
-                      {v.observaciones && (
-                        <span className="block min-w-[12ch] max-w-[26ch] whitespace-normal text-xs leading-snug text-muted-foreground">{v.observaciones}</span>
-                      )}
-                    </TableCell>
-                  )}
                   <TableCell className={cn(PEGADA_DER, "border-l")} style={derecha(posMat)} />
                   <TableCell className={PEGADA_DER} style={derecha(posImp)} />
                   {conCars && <TableCell className={PEGADA_DER} style={derecha(0)} />}
@@ -269,8 +271,7 @@ export function TablaAcciones({
               // costo aunque la fila esté cerrada, y al encontrarlo la abre
               // (guía "search-hidden-content").
               filas.push(
-                <FilaDetalle key={`${k}-detalle`} abierta={abierta} onAbrir={() => abrir(k)}>
-                    <TableCell colSpan={columnas} className="py-2 pl-9">
+                <FilaDetalle key={`${k}-detalle`} abierta={abierta} onAbrir={() => abrir(k)} colSpan={columnas}>
                       <dl className="sticky left-9 grid w-fit max-w-[calc(100vw-22rem)] grid-cols-2 gap-x-6 gap-y-1.5 text-xs sm:grid-cols-3 lg:grid-cols-4">
                         <Dato rotulo="PVP s/IVA" valor={usd(v.pvp_sin_iva)} />
                         <Dato rotulo="Con dcto. s/IVA" valor={usd(v.precio_descuento_sin_iva)} />
@@ -298,8 +299,13 @@ export function TablaAcciones({
                         {conNipon && <Dato rotulo="Venta wholesale Nipon" valor={num(v.wholesale_nipon) || "—"} />}
                         {conNipon && <Dato rotulo="Stock final SR" valor={num(v.stock_final) || "—"} />}
                         {v.segmento && <Dato rotulo="Segmento" valor={v.segmento} />}
+                        {v.observaciones && (
+                          <div className="col-span-full flex max-w-[70ch] flex-col">
+                            <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">Mecánica</dt>
+                            <dd className="whitespace-pre-wrap leading-snug">{v.observaciones}</dd>
+                          </div>
+                        )}
                       </dl>
-                    </TableCell>
                 </FilaDetalle>
               );
               return filas;
@@ -341,17 +347,26 @@ export function TablaAcciones({
  * le saca el atributo y acá se sincroniza el estado (la fila queda abierta
  * y el chevron gira). React escribe `hidden=""` en el servidor —vale como
  * oculto— y el efecto lo cambia a `until-found` al montar.
+ *
+ * EL ATRIBUTO VA EN UN BLOQUE DENTRO DE LA CELDA, NO EN EL <tr>. Hasta el
+ * 30/09/2026 iba en la fila, y `until-found` oculta con content-visibility,
+ * que no se aplica a filas de tabla: las 114 filas de detalle se veían
+ * abiertas (117 px cada una, unos 13.000 px de más en esta pantalla). En
+ * un <div> sí pliega a alto cero; cerrada, la celda queda sin relleno ni
+ * borde para que la fila no ocupe nada.
  */
 function FilaDetalle({
   abierta,
   onAbrir,
+  colSpan,
   children,
 }: {
   abierta: boolean;
   onAbrir: () => void;
+  colSpan: number;
   children: React.ReactNode;
 }) {
-  const ref = React.useRef<HTMLTableRowElement>(null);
+  const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -365,8 +380,12 @@ function FilaDetalle({
     return () => el.removeEventListener("beforematch", onAbrir);
   }, [onAbrir]);
   return (
-    <TableRow ref={ref} hidden={!abierta} className="bg-muted/20 hover:bg-muted/20">
-      {children}
+    <TableRow className={cn("hover:bg-muted/20", abierta ? "bg-muted/20" : "border-0")}>
+      <TableCell colSpan={colSpan} className="p-0">
+        <div ref={ref} hidden={!abierta}>
+          <div className="py-2 pl-9 pr-2">{children}</div>
+        </div>
+      </TableCell>
     </TableRow>
   );
 }

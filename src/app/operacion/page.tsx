@@ -6,6 +6,8 @@ import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Seccion } from "@/components/dashboard/seccion";
+import { SelectorVista } from "@/components/dashboard/selector-vista";
+import { TablaStockModelos, type ModeloStock } from "@/components/dashboard/tabla-stock-modelos";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import {
@@ -26,7 +28,7 @@ import {
 } from "@/lib/informes/propios";
 import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import {
-  calcularCobertura, estadosDesconocidos, etiquetaAccion, RITMO_MINIMO as RITMO_MINIMO_VERSION,
+  calcularCobertura, estadosDesconocidos, RITMO_MINIMO as RITMO_MINIMO_VERSION,
 } from "@/lib/informes/cobertura";
 import { getLeadsAsesor, normalizarNombre } from "@/lib/informes/leads-asesor";
 import { getPautaMarca } from "@/lib/informes/pauta-marca";
@@ -561,10 +563,11 @@ export default async function OperacionPage({
     const porStock = suma(/stock/i);
     const porPrecio = suma(/precio|competencia/i);
     const abiertos = r.abiertos + r.negAbiertos;
-    if (porStock > 0 && libres === 0) return { texto: "Pedir: se perdió por falta de stock y hoy no hay libres", tono: "pedir" };
-    if (porStock > 0) return { texto: `Se perdió ${porStock} ${porStock === 1 ? "vez" : "veces"} por stock; hoy hay ${libres} libres`, tono: "ok" };
-    if (abiertos >= 5 && libres >= 5) return { texto: "Empujar: hay demanda abierta y stock para entregar", tono: "empujar" };
-    if (porPrecio >= 3) return { texto: "Revisar precio: se pierde por precio o competencia", tono: "precio" };
+    // `corto` es lo que entra en la celda; `texto`, el porqué (tooltip).
+    if (porStock > 0 && libres === 0) return { corto: "Pedir", texto: "Se perdió por falta de stock y hoy no hay libres.", tono: "pedir" };
+    if (porStock > 0) return { corto: `${porStock} sin stock`, texto: `Se perdió ${porStock} ${porStock === 1 ? "vez" : "veces"} por falta de stock; hoy hay ${libres} libres.`, tono: "ok" };
+    if (abiertos >= 5 && libres >= 5) return { corto: "Empujar", texto: "Hay demanda abierta y stock libre para entregar.", tono: "empujar" };
+    if (porPrecio >= 3) return { corto: "Revisar precio", texto: "Se pierde por precio o por la competencia.", tono: "precio" };
     return null;
   };
   const filasDemandaModelo = [...demandaPorModelo.values()]
@@ -580,10 +583,6 @@ export default async function OperacionPage({
   const negociosConModelo = demandaPeriodo
     .filter((d) => d.origen === "negocio" && d.modelo)
     .reduce((s, d) => s + d.cantidad, 0);
-  const versionesTabla = pedido.versiones
-    .filter((v) => v.libres + v.enViaje > 0 || v.ritmo > 0)
-    .sort((a, b) => b.libres - a.libres)
-    .slice(0, 40);
   const mesesRitmoTxt = pedido.mesesRitmo
     .map((p) => mesCorto(Number(p.slice(5, 7))))
     .join(", ");
@@ -636,16 +635,71 @@ export default async function OperacionPage({
 
   const detalle = (sync?.detalle ?? {}) as Record<string, unknown>;
 
+  // --- stock por modelo, con sus versiones adentro (pestaña Stock) --------
+  // Sale de la misma cobertura que «Qué pedir»: libres, reservadas y en
+  // viaje ya clasificados por estado. Entran las versiones con stock y las
+  // que venden sin tener stock (esas son justo las que hay que pedir).
+  const modelosStockMap = new Map<string, ModeloStock>();
+  for (const v of pedido.versiones) {
+    if (!esPropia(v.marca)) continue;
+    const total = v.libres + v.reservadas + v.enViaje + v.noVendible;
+    if (total === 0 && v.ritmo === 0) continue;
+    const k = `${v.marca}|${v.modelo}`;
+    const m = modelosStockMap.get(k) ?? {
+      marca: v.marca, modelo: v.modelo, total: 0, libres: 0, reservadas: 0, enViaje: 0,
+      noVendible: 0, ritmo: 0, meses: null, precioDesde: null, versiones: [],
+    };
+    m.total += total;
+    m.libres += v.libres;
+    m.reservadas += v.reservadas;
+    m.enViaje += v.enViaje;
+    m.noVendible += v.noVendible;
+    m.ritmo += v.ritmo;
+    if (v.precio_usd) m.precioDesde = Math.min(m.precioDesde ?? v.precio_usd, v.precio_usd);
+    m.versiones.push({
+      version: v.version, libres: v.libres, reservadas: v.reservadas, enViaje: v.enViaje,
+      noVendible: v.noVendible, ritmo: v.ritmo, meses: v.meses, precio: v.precio_usd, accion: v.accion,
+    });
+    modelosStockMap.set(k, m);
+  }
+  const unidadesDe = (x: { libres: number; reservadas: number; enViaje: number; noVendible: number }) =>
+    x.libres + x.reservadas + x.enViaje + x.noVendible;
+  const modelosStock: ModeloStock[] = [...modelosStockMap.values()]
+    .map((m) => ({
+      ...m,
+      meses: m.ritmo >= RITMO_MINIMO_VERSION ? m.libres / m.ritmo : null,
+      versiones: [...m.versiones].sort((a, b) => unidadesDe(b) - unidadesDe(a) || b.ritmo - a.ritmo),
+    }))
+    .sort((a, b) => b.total - a.total || b.ritmo - a.ritmo);
+  const otrasStock = {
+    marcas: new Set(stock.filter((s) => !esPropia(s.marca)).map((s) => s.marca)).size,
+    unidades: stock.filter((s) => !esPropia(s.marca)).reduce((s, x) => s + x.unidades, 0),
+  };
+
+  // --- motivos de pérdida del período, todas las marcas del filtro ---------
+  const motivosDemanda = [...demandaTotal.motivos.entries()].map(([nombre, valor]) => ({ nombre, valor }));
+
+  // --- pestañas ------------------------------------------------------------
+  // Nueve secciones en una tira de 13.000 px (Croman, 30/09/2026: "todo el
+  // dashboard me parece muy desordenado"). Cada pestaña contesta una
+  // pregunta; los filtros de arriba valen para las cuatro.
+  const VISTAS = [
+    { valor: "resumen", label: "Resumen", pista: "Cómo venimos: facturado, mercado, stock y plan, marca por marca." },
+    { valor: "stock", label: "Stock y pedido", pista: "Qué pedir, qué empujar con promoción y todo el stock por modelo." },
+    { valor: "demanda", label: "Demanda", pista: "Los leads de Bitrix: cuánta demanda entró, cuánta se perdió y por qué." },
+    { valor: "equipo", label: "Equipo", pista: "Quién vende y desde qué local." },
+  ];
+  const vistaPedida = Array.isArray(sp.vista) ? sp.vista[0] : sp.vista;
+  const vista = VISTAS.some((v) => v.valor === vistaPedida) ? (vistaPedida as string) : "resumen";
+
+  const conPlanTabla = hayMetas || hayPresupuesto;
+
   return (
     <Pagina>
       <PageHeader
         titulo="Nuestra operación"
-        descripcion={`Lo que facturamos y lo que tenemos en stock · ${periodo}${
-          cadamRecorta ? ` · CADAM cierra en ${hastaCadam}` : ""
-        }.`}
-        fuente={`Fuente: API de Cars (DMS propio)${
-          sync ? ` · sincronizado ${formatFechaHora(sync.actualizado_en)}` : ""
-        }${hayLeads || hayDemanda ? " · leads y demanda de Bitrix" : ""}${hayPauta ? " · pauta de Meta" : ""} · matriculaciones de CADAM.`}
+        descripcion={`Facturación, stock, demanda y equipo de venta · ${periodo}.`}
+        fuente={`Cars${sync ? ` (sinc. ${formatFechaHora(sync.actualizado_en)})` : ""}${hayLeads || hayDemanda ? " · Bitrix" : ""}${hayPauta ? " · Meta" : ""} · CADAM${cadamRecorta ? ` hasta ${hastaCadam}` : ""}`}
       />
 
       <FiltroPeriodo
@@ -656,1200 +710,1125 @@ export default async function OperacionPage({
         ]}
       />
 
-      <NotaDato>
-        <strong>Facturar no es matricular.</strong> Cars cuenta cada vehículo
-        (VIN) en el mes de su primera factura; CADAM, cuándo la DNRA lo
-        registró — y el comprador
-        matricula después, o nunca si es flota o si registra en otra plaza. Por
-        eso las dos columnas no coinciden y <strong>ninguna de las dos está
-        mal</strong>: miden momentos distintos del mismo auto.
-        {crecFacturasCadam !== null && crecMatric !== null && (
-          <>
-            {" "}{cadamRecorta ? `Hasta ${hastaCadam}, donde cierra CADAM,` : "En este período"}{" "}
-            nuestra facturación creció{" "}
-            <strong>{formatPct(crecFacturasCadam, { signed: true })}</strong> y las
-            matriculaciones de nuestras marcas en CADAM —una fuente que no es
-            nuestra—{" "}
-            <strong>{formatPct(crecMatric, { signed: true })}</strong>.{" "}
-            {/* No afirmar que "coinciden" cuando no coinciden. Con la ventana
-                hasta julio dan +122,7% y +79,0%: la matriculación va atrás
-                porque el comprador registra semanas después de la factura, así
-                que cuanto más cerca del último mes cerrado, más se abre la
-                brecha. Decirlo es más útil que redondear a "las dos dicen lo
-                mismo". */}
-            {Math.abs(crecFacturasCadam - crecMatric) <= 0.2 ? (
-              <>Dos caminos separados, la misma historia.</>
-            ) : (
-              <>
-                La diferencia entre esos dos números es esperable y no es un
-                error: la matriculación va atrás de la factura, así que cuanto
-                más cerca esté el período del último mes cerrado, más se abre la
-                brecha. Achicá el rango de meses para compararlos con la cola ya
-                registrada.
-              </>
-            )}
-          </>
-        )}
-      </NotaDato>
+      <SelectorVista
+        vistas={VISTAS}
+        porDefecto="resumen"
+        anclas={{ marcas: "resumen", plan: "resumen", canales: "resumen", pedido: "stock", stock: "stock", demanda: "demanda", sucursales: "equipo", asesores: "equipo" }}
+      />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <KpiCard
-          label="Facturado"
-          value={formatUnidades(totalFacturas)}
-          valorAnimado={totalFacturas}
-          formato="unidades"
-          periodo={periodo}
-          variacion={crecFacturas}
-          tooltip={`Contra ${formatUnidades(totalFacturasAnterior)} en el mismo período de ${f.anio - 1}.`}
-          tono="azul"
-        />
-        <KpiCard
-          label="Matriculado (CADAM)"
-          value={cadamDisponible ? formatUnidades(totalMatric) : "—"}
-          valorAnimado={totalMatric}
-          formato="unidades"
-          periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
-          tooltip={
-            cadamRecorta
-              ? `Marcas propias registradas por la DNRA hasta ${hastaCadam}, el último mes que CADAM publicó. Es otro evento, no el mismo dato.`
-              : "Marcas propias registradas por la DNRA en el mismo período. Es otro evento, no el mismo dato."
-          }
-          tono="verde"
-        />
-        <KpiCard
-          label="Participación de mercado"
-          value={mercado ? formatPct(totalMatric / mercado) : "—"}
-          valorAnimado={mercado ? totalMatric / mercado : 0}
-          formato="porcentaje"
-          periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
-          tooltip={`${formatUnidades(totalMatric)} de ${formatUnidades(mercado)} matriculaciones del país. Se mide con CADAM, no con nuestras facturas: el denominador es el mercado.`}
-          tono="tinta"
-        />
-        <KpiCard
-          label="Unidades en stock"
-          value={formatUnidades(totalStock)}
-          valorAnimado={totalStock}
-          formato="unidades"
-          periodo="Hoy"
-          tooltip={`${formatUnidades(totalReservadas)} reservadas. Incluye lo que está en viaje: ver el corte por estado.`}
-          chipIcono="segmentos"
-          chipTono="amber"
-        />
-        <KpiCard
-          label={hayPresupuesto ? `Presupuesto ${f.anio}` : "Meta del período"}
-          value={
-            hayPresupuesto && hechoTotal !== null
-              ? formatPct(hechoTotal)
-              : hayMetas && metaTotal
-                ? formatPct(totalFacturas / metaTotal)
-                : "—"
-          }
-          // Sin meta no hay número que animar: con 0 la tarjeta mostraba
-          // "0.0%", que se lee como "no vendimos nada".
-          valorAnimado={
-            hayPresupuesto && hechoTotal !== null
-              ? hechoTotal
-              : hayMetas && metaTotal
-                ? totalFacturas / metaTotal
-                : undefined
-          }
-          formato="porcentaje"
-          periodo={
-            hayPresupuesto
-              ? `plan ${presupuesto.version}: ${formatUnidades(planTotalAnio)} · facturado a ${proyectar ? mesCorto(mesCerrado) : "dic"}: ${formatUnidades(facturadoYtdTotal)}`
-              : hayMetas && metaTotal
-                ? `${formatUnidades(totalFacturas)} de ${formatUnidades(metaTotal)} · ${periodo}`
-                : "Sin metas cargadas"
-          }
-          tooltip={
-            hayPresupuesto
-              ? `Qué parte del presupuesto original del año (${formatUnidades(presupuestoTotal)} u., solo las marcas que lo tienen) ya se facturó. El plan vigente es el ejercicio de Finanzas mes a mes.`
-              : hayMetas
-                ? "Vehículos facturados contra la meta cargada en Configuración para estos meses."
-                : "Cargá metas por marca y mes en Configuración para ver el cumplimiento acá."
-          }
-          tono="tinta"
-        />
-      </div>
-
-      <Seccion titulo="Pedido de stock"
-        nota="Qué falta traer y qué hay que empujar con promoción, versión por versión. Sale de cruzar las unidades libres de hoy con lo que se vendió los últimos tres meses." id="pedido">
-      {/* Qué es cada columna lo dice la columna. Acá queda la letra chica:
-          qué meses entran en el ritmo, qué queda afuera de «libres» y desde
-          qué ritmo el cociente deja de significar algo. */}
-      <NotaDato>
-        El <strong>ritmo</strong> son los tres últimos meses cerrados
-        ({mesesRitmoTxt}): el mes en curso no entra porque está a medias.
-        De <strong>libres</strong> quedan afuera las reservadas, lo que está en
-        viaje y lo que anda en test drive o cortesía. Con menos de{" "}
-        {RITMO_MINIMO_VERSION} autos por mes no se calculan los meses de stock:
-        el número no significaría nada.
-      </NotaDato>
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Qué pedir</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Versiones que se venden y tienen menos de un mes y medio de stock
-              libre, contando también lo que viene en viaje. Primero las que
-              más venden: son las que más duele no tener.
-            </p>
-          </CardHeader>
-          <CardContent>
-            {pedido.pedir.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Nada urgente: ninguna versión con ritmo tiene menos de un mes y
-                medio de stock.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Versión</TableHead>
-                    <TableHead className="text-right" nota="ventas por mes, últimos 3 meses">Ritmo</TableHead>
-                    <TableHead className="text-right" nota="entregables hoy, sin reservadas">Libres</TableHead>
-                    <TableHead className="text-right" nota="compradas, todavía sin llegar">En viaje</TableHead>
-                    <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pedido.pedir.slice(0, 12).map((v) => (
-                    <TableRow key={`${v.marca}|${v.version}`}>
-                      <TableCell>
-                        <span className="font-medium">{v.version}</span>
-                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <LogoMarca marca={v.marca} />
-                          {v.marca}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)} /mes</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {v.enViaje ? formatUnidades(v.enViaje) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-rose-600 dark:text-rose-400">
-                        {v.meses === null ? "—" : v.meses.toFixed(1)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Qué empujar</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Versiones con más de seis meses de stock, o con cinco o más
-              unidades libres que casi no se mueven. Primero las que más plata
-              tienen parada. Acá va promoción, no pedido.
-            </p>
-          </CardHeader>
-          <CardContent>
-            {pedido.empujar.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Nada parado: ninguna versión pasa los seis meses de stock.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Versión</TableHead>
-                    <TableHead className="text-right" nota="entregables hoy, sin reservadas">Libres</TableHead>
-                    <TableHead className="text-right" nota="ventas por mes, últimos 3 meses">Ritmo</TableHead>
-                    <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
-                    <TableHead className="text-right" nota="de lista en Cars, sin descuento">Precio lista</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pedido.empujar.slice(0, 12).map((v) => (
-                    <TableRow key={`${v.marca}|${v.version}`}>
-                      <TableCell>
-                        <span className="font-medium">{v.version}</span>
-                        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <LogoMarca marca={v.marca} />
-                          {v.marca}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)} /mes</TableCell>
-                      <TableCell className="text-right tabular-nums font-semibold text-amber-600 dark:text-amber-500">
-                        {v.meses === null ? "sin ritmo" : v.meses.toFixed(1)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {v.precio_usd ? `US$ ${formatUnidades(v.precio_usd)}` : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock y ritmo por versión</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Las {versionesTabla.length} versiones con más unidades libres. La
-            última columna dice qué hacer con cada una, en una palabra.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Marca</TableHead>
-                <TableHead>Versión</TableHead>
-                <TableHead className="text-right" nota="entregables hoy, sin reservadas">Libres</TableHead>
-                <TableHead className="text-right" nota="con seña: no se ofrecen de nuevo">Reservadas</TableHead>
-                <TableHead className="text-right" nota="compradas, todavía sin llegar">En viaje</TableHead>
-                <TableHead className="text-right" nota="ventas por mes, últimos 3 meses">Ritmo</TableHead>
-                <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
-                <TableHead nota="la lectura de la fila">Qué hacer</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {versionesTabla.map((v) => (
-                <TableRow key={`${v.marca}|${v.version}`}>
-                  <TableCell className="font-medium"><Marca marca={v.marca} /></TableCell>
-                  <TableCell>{v.version}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {v.reservadas ? formatUnidades(v.reservadas) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {v.enViaje ? formatUnidades(v.enViaje) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {v.ritmo > 0 ? `${v.ritmo.toFixed(1)} /mes` : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {v.meses === null ? "—" : v.meses.toFixed(1)}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "font-medium",
-                      v.accion === "pedir" && "text-rose-600 dark:text-rose-400",
-                      v.accion === "empujar" && "text-amber-600 dark:text-amber-500",
-                      (v.accion === "ok" || v.accion === "llega") && "text-emerald-700 dark:text-emerald-400",
-                      v.accion === "sin ritmo" && "text-muted-foreground"
-                    )}
-                  >
-                    {etiquetaAccion(v.accion)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      </Seccion>
-
-      <Seccion titulo="Cómo venimos"
-        nota="Lo facturado del año contra el mismo período del año pasado, mes a mes.">
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Facturación mensual</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Unidades facturadas por mes. El año anterior va punteado.
-            </p>
-          </CardHeader>
-          <CardContent>
-            {serie.length ? (
-              <SerieAniosChart series={serie} />
-            ) : (
-              <p className="py-16 text-center text-sm text-muted-foreground">
-                Sin facturación cargada para estos años.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Stock por estado — hoy</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              «En viaje» y «sin despachar» no se pueden entregar mañana: por eso
-              el estado no se colapsa en un solo número de stock.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <DistribucionChart
-              datos={[...stock
-                .reduce((m, s) => m.set(s.estado, (m.get(s.estado) ?? 0) + s.unidades), new Map<string, number>())
-                .entries()]
-                .map(([nombre, valor]) => ({ nombre, valor }))}
+      {vista === "resumen" && (
+        <>
+          <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2", hayPresupuesto || hayMetas ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
+            <KpiCard
+              label="Facturado"
+              value={formatUnidades(totalFacturas)}
+              valorAnimado={totalFacturas}
+              formato="unidades"
+              periodo={periodo}
+              variacion={crecFacturas}
+              tooltip={`Vehículos facturados en Cars. Contra ${formatUnidades(totalFacturasAnterior)} en el mismo período de ${f.anio - 1}.`}
+              tono="tinta"
             />
-          </CardContent>
-        </Card>
-      </div>
+            <KpiCard
+              label="Matriculado (CADAM)"
+              value={cadamDisponible ? formatUnidades(totalMatric) : "—"}
+              valorAnimado={totalMatric}
+              formato="unidades"
+              periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
+              tooltip={
+                cadamRecorta
+                  ? `Marcas propias registradas por la DNRA hasta ${hastaCadam}, el último mes que CADAM publicó. Es otro evento, no el mismo dato.`
+                  : "Marcas propias registradas por la DNRA en el mismo período. Es otro evento, no el mismo dato."
+              }
+              tono="azul"
+            />
+            <KpiCard
+              label="Participación de mercado"
+              value={mercado ? formatPct(totalMatric / mercado) : "—"}
+              valorAnimado={mercado ? totalMatric / mercado : 0}
+              formato="porcentaje"
+              periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
+              tooltip={`${formatUnidades(totalMatric)} de ${formatUnidades(mercado)} matriculaciones del país. Se mide con CADAM, no con nuestras facturas: el denominador es el mercado.`}
+              chipIcono="market-share"
+              chipTono="violet"
+            />
+            <KpiCard
+              label="Unidades en stock"
+              value={formatUnidades(totalStock)}
+              valorAnimado={totalStock}
+              formato="unidades"
+              periodo="Hoy"
+              tooltip={`${formatUnidades(totalReservadas)} reservadas. Incluye lo que está en viaje: el detalle está en la pestaña Stock y pedido.`}
+              chipIcono="segmentos"
+              chipTono="amber"
+            />
+            {(hayPresupuesto || hayMetas) && (
+              <KpiCard
+                label={hayPresupuesto ? `Presupuesto ${f.anio}` : "Meta del período"}
+                value={
+                  hayPresupuesto && hechoTotal !== null
+                    ? formatPct(hechoTotal)
+                    : metaTotal
+                      ? formatPct(totalFacturas / metaTotal)
+                      : "—"
+                }
+                valorAnimado={
+                  hayPresupuesto && hechoTotal !== null
+                    ? hechoTotal
+                    : metaTotal
+                      ? totalFacturas / metaTotal
+                      : undefined
+                }
+                formato="porcentaje"
+                periodo={
+                  hayPresupuesto
+                    ? `hecho · ${formatUnidades(facturadoYtdTotal)} de ${formatUnidades(presupuestoTotal)}`
+                    : `${formatUnidades(totalFacturas)} de ${formatUnidades(metaTotal)} · ${periodo}`
+                }
+                tooltip={
+                  hayPresupuesto
+                    ? `Qué parte del presupuesto original del año (${formatUnidades(presupuestoTotal)} u., solo las marcas que lo tienen) ya se facturó, hasta ${proyectar ? mesCorto(mesCerrado) : "diciembre"}. El plan vigente (${presupuesto.version}) suma ${formatUnidades(planTotalAnio)} u.`
+                    : "Vehículos facturados contra la meta cargada en Configuración para estos meses."
+                }
+                chipIcono="evolucion"
+                chipTono="mint"
+              />
+            )}
+          </div>
 
-      </Seccion>
-
-      <Seccion titulo="Marca por marca"
-        nota="Cómo va cada marca: lo que vendimos nosotros, lo que la marca patentó en todo el país, qué stock queda y cuánto de lo que Finanzas planificó está hecho." id="marcas">
-      <Card>
-        <CardHeader>
-          <CardTitle>Marca por marca — {periodo}</CardTitle>
-          {/* Lo que cada columna significa ya lo dice la columna (ver el
-              `nota` de cada TableHead). Acá queda SOLO lo que no entra en
-              cuatro palabras al lado de un rótulo: de dónde sale el plan, el
-              método de la proyección y los totales de pauta. Antes esto eran
-              ocho renglones que repetían la tabla entera. */}
-          <p className="text-xs text-muted-foreground">
-            {hayPresupuesto
-              ? `El plan es el ejercicio de Finanzas (${presupuesto.version}, archivo del ${presupuesto.modificado.slice(0, 10)}): hasta ${realHastaMes ? mesCorto(realHastaMes) : "—"} el plan ES el real, así que el cumplimiento se mide solo sobre los meses que siguen. La proyección toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año.`
-              : hayMetas
-                ? "La meta sale de Configuración. La proyección toma lo facturado hasta el último mes cerrado y le suma lo que el año pasado se vendió en los meses que faltan, al ritmo de este año."
-                : "Cargá metas por marca y mes en Configuración y acá aparecen la meta, el cumplimiento y la proyección de cierre de año."}
-            {hayPauta && (
+          <NotaDato>
+            <strong>Facturar no es matricular.</strong> Cars cuenta cada vehículo
+            (VIN) en el mes de su primera factura; CADAM, cuándo la DNRA lo
+            registró — y el comprador matricula después, o nunca si es flota o
+            si registra en otra plaza. Por eso las dos cifras no coinciden y{" "}
+            <strong>ninguna de las dos está mal</strong>: miden momentos
+            distintos del mismo auto.
+            {crecFacturasCadam !== null && crecMatric !== null && (
               <>
-                {" "}Pauta del período: US$ {formatUnidades(Math.round(pautaTotal))} en total
-                {pautaSinMarca > 0
-                  ? `, de los cuales US$ ${formatUnidades(Math.round(pautaSinMarca))} en cuentas de usados o de varias marcas, que no se reparten entre las filas`
-                  : ""}
-                .
+                {" "}{cadamRecorta ? `Hasta ${hastaCadam}, donde cierra CADAM,` : "En este período"}{" "}
+                nuestra facturación creció{" "}
+                <strong>{formatPct(crecFacturasCadam, { signed: true })}</strong> y las
+                matriculaciones de nuestras marcas en CADAM —una fuente que no es
+                nuestra—{" "}
+                <strong>{formatPct(crecMatric, { signed: true })}</strong>.{" "}
+                {/* No afirmar que "coinciden" cuando no coinciden: la
+                    matriculación va atrás de la factura, así que cuanto más
+                    cerca del último mes cerrado, más se abre la brecha. */}
+                {Math.abs(crecFacturasCadam - crecMatric) <= 0.2 ? (
+                  <>Dos caminos separados, la misma historia.</>
+                ) : (
+                  <>
+                    La diferencia es esperable: la matriculación va atrás de la
+                    factura, así que cuanto más cerca esté el período del último
+                    mes cerrado, más se abre la brecha. Achicá el rango de meses
+                    para compararlos con la cola ya registrada.
+                  </>
+                )}
               </>
             )}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Marca</TableHead>
-                <TableHead className="text-right" nota="lo que vendimos nosotros, en Cars">Facturado</TableHead>
-                <TableHead
-                  className="text-right"
-                  nota="chapas de la marca en todo el país"
-                >
-                  Matriculado{cadamRecorta ? ` (hasta ${hastaCadam})` : ""}
-                </TableHead>
-                <TableHead className="text-right" nota="su parte del mercado">Share</TableHead>
-                <TableHead className="text-right" nota="unidades de hoy, no del período">Stock</TableHead>
-                <TableHead className="text-right" nota="con seña; van dentro del stock">Reservadas</TableHead>
-                <TableHead className="text-right" nota="meses que dura al ritmo de hoy">Meses de stock</TableHead>
-                {hayMetas && (
-                  <>
-                    <TableHead className="text-right whitespace-nowrap" nota="lo planificado para estos meses">Plan (período)</TableHead>
-                    <TableHead className="text-right" nota="facturado ÷ plan del período">Cumplimiento</TableHead>
-                  </>
-                )}
-                {hayPresupuesto && (
-                  <>
-                    <TableHead className="text-right whitespace-nowrap" nota="la cifra original del año">Presupuesto anual</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="facturado ÷ presupuesto anual">% hecho</TableHead>
-                  </>
-                )}
-                {hayMetas && (
-                  <TableHead className="text-right whitespace-nowrap" nota="cierre estimado contra el plan">Proyección / plan año</TableHead>
-                )}
-                {hayPauta && (
-                  <>
-                    <TableHead className="text-right whitespace-nowrap" nota="gasto en Meta de la marca">Pauta Meta (US$)</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="pauta ÷ facturado; es un promedio">Pauta por vehículo</TableHead>
-                  </>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filas.map((r) => (
-                <TableRow key={r.clave}>
-                  <TableCell className="font-medium">
-                    <span className="inline-flex items-center gap-2">
-                      {r.marcas.map((m) => <LogoMarca key={m} marca={m} />)}
-                      {r.etiqueta}
-                    </span>
-                    {r.esGrupo && (
-                      <span className="block text-[11px] font-normal text-muted-foreground">
-                        meta conjunta: así la presupuesta Finanzas
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.facturado ? formatUnidades(r.facturado) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.matriculado ? formatUnidades(r.matriculado) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.matriculado ? formatPct(r.share) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.stock ? formatUnidades(r.stock) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {r.reservadas ? formatUnidades(r.reservadas) : "—"}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-right tabular-nums",
-                      r.mesesStock !== null && r.mesesStock > 6 &&
-                        "text-amber-600 dark:text-amber-500"
-                    )}
-                    title={
-                      r.mesesStock === null
-                        ? `Menos de ${RITMO_MINIMO} facturas por mes: el cociente no informa nada.`
-                        : undefined
-                    }
-                  >
-                    {r.mesesStock === null ? "—" : `${r.mesesStock.toFixed(1)}`}
-                  </TableCell>
-                  {hayMetas && (
-                    <>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {r.meta ? formatUnidades(r.meta) : "—"}
-                        {r.meta && r.abiertos === 0 ? (
-                          <span className="block text-[11px]">cerrado</span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-right tabular-nums font-medium",
-                          r.cumplimiento !== null && r.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
-                          r.cumplimiento !== null && r.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
-                        )}
-                        title={
-                          r.meta && r.abiertos === 0
-                            ? "Todos los meses del filtro ya cerraron en el Excel: ahí el plan es el real."
-                            : undefined
-                        }
-                      >
-                        {r.cumplimiento !== null ? formatPct(r.cumplimiento) : "—"}
-                      </TableCell>
-                    </>
-                  )}
-                  {hayPresupuesto && (
-                    <>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {r.presupuestoAnual ? formatUnidades(r.presupuestoAnual) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">
-                        {r.hecho !== null ? formatPct(r.hecho) : "—"}
-                      </TableCell>
-                    </>
-                  )}
-                  {hayMetas && (
-                    <TableCell className="text-right tabular-nums text-muted-foreground whitespace-nowrap">
-                      {r.proyeccion !== null && r.metaAnio
-                        ? `${formatUnidades(r.proyeccion)} / ${formatUnidades(r.metaAnio)}`
-                        : r.proyeccion !== null
-                          ? formatUnidades(r.proyeccion)
-                          : "—"}
-                    </TableCell>
-                  )}
-                  {hayPauta && (
-                    <>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {r.pauta ? `US$ ${formatUnidades(Math.round(r.pauta))}` : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">
-                        {r.pauta && r.facturado ? `US$ ${formatUnidades(Math.round(r.pauta / r.facturado))}` : "—"}
-                      </TableCell>
-                    </>
-                  )}
-                </TableRow>
-              ))}
-              {resumenAjenas.marcas > 0 && (
-                <TableRow className="text-muted-foreground">
-                  <TableCell className="italic">
-                    Otras {resumenAjenas.marcas} marcas (canje y usados)
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {resumenAjenas.facturado ? formatUnidades(resumenAjenas.facturado) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">—</TableCell>
-                  <TableCell className="text-right">—</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {resumenAjenas.stock ? formatUnidades(resumenAjenas.stock) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">—</TableCell>
-                  <TableCell className="text-right">—</TableCell>
-                  {hayMetas && (
-                    <>
-                      <TableCell className="text-right">—</TableCell>
-                      <TableCell className="text-right">—</TableCell>
-                    </>
-                  )}
-                  {hayPresupuesto && (
-                    <>
-                      <TableCell className="text-right">—</TableCell>
-                      <TableCell className="text-right">—</TableCell>
-                    </>
-                  )}
-                  {hayMetas && <TableCell className="text-right">—</TableCell>}
-                  {hayPauta && (
-                    <>
-                      <TableCell className="text-right">—</TableCell>
-                      <TableCell className="text-right">—</TableCell>
-                    </>
-                  )}
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          {resumenAjenas.marcas > 0 && (
-            <p className="pt-3 text-xs text-muted-foreground">
-              Las {resumenAjenas.marcas} marcas que la casa no distribuye (unidades
-              de canje y usados, casi siempre una o dos) van resumidas en la última
-              fila: sueltas eran veinte renglones de guiones tapando las que
-              importan. Aparecen igual en el stock por modelo de abajo.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {hayPresupuesto && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Plan vs. facturado, mes a mes — {f.anio}
-              {f.marca ? ` · ${filas[0]?.etiqueta ?? f.marca}` : ""}
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Barras: el plan vigente ({presupuesto.version}) y lo facturado en Cars, por
-              mes. Los meses sombreados ya cerraron en el Excel: ahí el plan es el real.
-              La línea punteada es el presupuesto anual dividido doce, solo como
-              referencia —Finanzas no presupuestó por mes—.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <PlanVsFacturadoChart meses={mesesPlan} referenciaMensual={referenciaMensual} />
-          </CardContent>
-        </Card>
-      )}
-
-      </Seccion>
-
-      {canales.length > 0 && (
-        <Seccion titulo="Canales que Finanzas presupuesta aparte" id="canales">
-          <NotaDato>
-            <strong>CDE</strong> (la sucursal de Ciudad del Este) y <strong>Wholesale</strong>{" "}
-            (ventas mayoristas) tienen su propio objetivo en el Excel de Finanzas. Sus unidades ya
-            están dentro de las marcas de arriba: es otro corte de lo mismo, no se suma. El real de
-            acá es <strong>el de Finanzas, del mismo Excel</strong>, hasta el mes que ellos cerraron:
-            la sucursal que anota Cars no coincide con esta definición de canal (CDE en Cars: 79
-            unidades en {f.anio}; Finanzas: {formatUnidades(canales[0].realYtd)} hasta{" "}
-            {canales[0].realHastaMes ? mesCorto(canales[0].realHastaMes) : "—"}).
           </NotaDato>
-          <Card>
-            <CardHeader>
-              <CardTitle>Objetivo y real por canal — {f.anio}</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Las dos cifras salen del mismo Excel de Finanzas, no de Cars, y
-                se miden hasta el mes que ellos cerraron.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Canal</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="lo planificado hasta el mes cerrado">Objetivo a la fecha</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="lo vendido según Finanzas, no Cars">Real (Finanzas)</TableHead>
-                    <TableHead className="text-right" nota="real ÷ objetivo a la fecha">Cumplimiento</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="lo planificado para todo el año">Objetivo anual</TableHead>
-                    <TableHead className="text-right whitespace-nowrap" nota="real ÷ objetivo anual">% del año hecho</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {canales.map((c) => (
-                    <TableRow key={c.canal}>
-                      <TableCell className="font-medium">
-                        {c.canal === "CDE" ? "CDE (Ciudad del Este)" : "Wholesale (mayoristas)"}
-                        <span className="block text-[11px] font-normal text-muted-foreground">
-                          real hasta {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {formatUnidades(c.objetivoYtd)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatUnidades(c.realYtd)}</TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-right tabular-nums font-medium",
-                          c.cumplimiento !== null && c.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
-                          c.cumplimiento !== null && c.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
-                        )}
-                      >
-                        {c.cumplimiento !== null ? formatPct(c.cumplimiento) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {formatUnidades(c.objetivoAnual)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {c.objetivoAnual ? formatPct(c.realYtd / c.objetivoAnual) : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {canales.map((c) => (
-              <Card key={c.canal}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Facturación mensual</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Vehículos facturados por mes; el año anterior, punteado.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {serie.length ? (
+                  <SerieAniosChart series={serie} />
+                ) : (
+                  <p className="py-16 text-center text-sm text-muted-foreground">
+                    Sin facturación cargada para estos años.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Stock por estado — hoy</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  «En viaje» y «sin despachar» no se entregan mañana: por eso no
+                  se colapsa en un solo número.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <DistribucionChart
+                  datos={[...stock
+                    .reduce((m, s) => m.set(s.estado, (m.get(s.estado) ?? 0) + s.unidades), new Map<string, number>())
+                    .entries()]
+                    .map(([nombre, valor]) => ({ nombre, valor }))}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Seccion titulo="Marca por marca" id="marcas">
+            <Card>
+              <CardHeader>
+                <CardTitle>Mercado y stock — {periodo}</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Lo que vendimos, lo que la marca patentó en todo el país y cuánto
+                  dura el stock al ritmo de hoy.
+                  {hayPauta && (
+                    <>
+                      {" "}Pauta de Meta del período: US$ {formatUnidades(Math.round(pautaTotal))}
+                      {pautaSinMarca > 0
+                        ? ` (US$ ${formatUnidades(Math.round(pautaSinMarca))} en cuentas de usados o de varias marcas, que no se reparten)`
+                        : ""}
+                      .
+                    </>
+                  )}
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Marca</TableHead>
+                      <TableHead className="text-right" nota="vehículos, en Cars">Facturado</TableHead>
+                      <TableHead className="text-right" nota={`chapas en todo el país · su share${cadamRecorta ? ` · hasta ${hastaCadam}` : ""}`}>
+                        Matriculado
+                      </TableHead>
+                      <TableHead className="text-right" nota="hoy · con seña">Stock</TableHead>
+                      <TableHead className="text-right" nota="al ritmo del período">Meses de stock</TableHead>
+                      {hayPauta && (
+                        <TableHead className="text-right" nota="gasto en Meta · por vehículo">Pauta</TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filas.map((r) => (
+                      <TableRow key={r.clave}>
+                        <TableCell className="font-medium">
+                          <span className="inline-flex items-center gap-2">
+                            {r.marcas.map((m) => <LogoMarca key={m} marca={m} />)}
+                            {r.etiqueta}
+                          </span>
+                          {r.esGrupo && (
+                            <span className="block text-[11px] font-normal text-muted-foreground">
+                              meta conjunta: así la presupuesta Finanzas
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">
+                          {r.facturado ? formatUnidades(r.facturado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {r.matriculado ? formatUnidades(r.matriculado) : "—"}
+                          {r.matriculado > 0 && (
+                            <span className="block text-[11px] leading-tight text-muted-foreground">
+                              {formatPct(r.share)} del mercado
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {r.stock ? formatUnidades(r.stock) : "—"}
+                          {r.reservadas > 0 && (
+                            <span className="block text-[11px] leading-tight text-muted-foreground">
+                              {formatUnidades(r.reservadas)} con seña
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right tabular-nums",
+                            r.mesesStock !== null && r.mesesStock > 6 && "font-medium text-amber-600 dark:text-amber-500"
+                          )}
+                          title={
+                            r.mesesStock === null
+                              ? `Menos de ${RITMO_MINIMO} facturas por mes: el cociente no informa nada.`
+                              : undefined
+                          }
+                        >
+                          {r.mesesStock === null ? "—" : r.mesesStock.toFixed(1)}
+                        </TableCell>
+                        {hayPauta && (
+                          <TableCell className="text-right tabular-nums">
+                            {r.pauta ? `US$ ${formatUnidades(Math.round(r.pauta))}` : "—"}
+                            {r.pauta > 0 && r.facturado > 0 && (
+                              <span className="block text-[11px] leading-tight text-muted-foreground">
+                                US$ {formatUnidades(Math.round(r.pauta / r.facturado))} por vehículo
+                              </span>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                    {resumenAjenas.marcas > 0 && (
+                      <TableRow className="text-muted-foreground">
+                        <TableCell className="italic" title="Unidades de canje y usados de marcas que la casa no distribuye, casi siempre una o dos por marca.">
+                          Otras {resumenAjenas.marcas} marcas (canje y usados)
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {resumenAjenas.facturado ? formatUnidades(resumenAjenas.facturado) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">—</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {resumenAjenas.stock ? formatUnidades(resumenAjenas.stock) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">—</TableCell>
+                        {hayPauta && <TableCell className="text-right">—</TableCell>}
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </Seccion>
+
+          {conPlanTabla && (
+            <Seccion titulo="Plan y presupuesto" id="plan">
+              <Card>
                 <CardHeader>
-                  <CardTitle>
-                    {c.canal === "CDE" ? "CDE" : "Wholesale"} — objetivo vs. real, mes a mes
-                  </CardTitle>
+                  <CardTitle>Contra el plan — {periodo}</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Objetivo del Excel ({presupuesto?.version}) y real de Finanzas hasta{" "}
-                    {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}; de ahí en adelante solo hay
-                    objetivo.
+                    {hayPresupuesto
+                      ? `Plan de Finanzas (${presupuesto.version}, archivo del ${presupuesto.modificado.slice(0, 10)}). Hasta ${realHastaMes ? mesCorto(realHastaMes) : "—"} el plan ES el real: el cumplimiento se mide sobre los meses que siguen.`
+                      : "Metas cargadas en Configuración."}
+                    {" "}La proyección suma a lo facturado lo que el año pasado se vendió en los meses que faltan, al ritmo de este año.
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <PlanVsFacturadoChart
-                    meses={c.meses}
-                    referenciaMensual={null}
-                    altura={260}
-                    etiquetaPlan="Objetivo"
-                    etiquetaReal="Real (Finanzas)"
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Marca</TableHead>
+                        <TableHead className="text-right" nota="en el período">Facturado</TableHead>
+                        {hayMetas && (
+                          <>
+                            <TableHead className="text-right" nota="para estos meses">Plan</TableHead>
+                            <TableHead className="text-right" nota="facturado ÷ plan">Cumplimiento</TableHead>
+                          </>
+                        )}
+                        {hayPresupuesto && (
+                          <>
+                            <TableHead className="text-right" nota="cifra original del año">Presupuesto</TableHead>
+                            <TableHead className="text-right" nota="del presupuesto anual">Hecho</TableHead>
+                          </>
+                        )}
+                        {hayMetas && (
+                          <TableHead className="text-right" nota="cierre estimado / plan del año">Proyección</TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filas.map((r) => (
+                        <TableRow key={r.clave}>
+                          <TableCell className="font-medium">
+                            <span className="inline-flex items-center gap-2">
+                              {r.marcas.map((m) => <LogoMarca key={m} marca={m} />)}
+                              {r.etiqueta}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {r.facturado ? formatUnidades(r.facturado) : "—"}
+                          </TableCell>
+                          {hayMetas && (
+                            <>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {r.meta ? formatUnidades(r.meta) : "—"}
+                                {r.meta && r.abiertos === 0 ? (
+                                  <span className="block text-[11px]">cerrado</span>
+                                ) : null}
+                              </TableCell>
+                              <TableCell
+                                className={cn(
+                                  "text-right tabular-nums font-medium",
+                                  r.cumplimiento !== null && r.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
+                                  r.cumplimiento !== null && r.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
+                                )}
+                                title={
+                                  r.meta && r.abiertos === 0
+                                    ? "Todos los meses del filtro ya cerraron en el Excel: ahí el plan es el real."
+                                    : undefined
+                                }
+                              >
+                                {r.cumplimiento !== null ? formatPct(r.cumplimiento) : "—"}
+                              </TableCell>
+                            </>
+                          )}
+                          {hayPresupuesto && (
+                            <>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {r.presupuestoAnual ? formatUnidades(r.presupuestoAnual) : "—"}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums font-medium">
+                                {r.hecho !== null ? formatPct(r.hecho) : "—"}
+                              </TableCell>
+                            </>
+                          )}
+                          {hayMetas && (
+                            <TableCell className="text-right tabular-nums text-muted-foreground whitespace-nowrap">
+                              {r.proyeccion !== null && r.metaAnio
+                                ? `${formatUnidades(r.proyeccion)} / ${formatUnidades(r.metaAnio)}`
+                                : r.proyeccion !== null
+                                  ? formatUnidades(r.proyeccion)
+                                  : "—"}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {hayPresupuesto && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      Plan vs. facturado, mes a mes — {f.anio}
+                      {f.marca ? ` · ${filas[0]?.etiqueta ?? f.marca}` : ""}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Barras: plan vigente ({presupuesto.version}) y facturado en Cars. Los meses
+                      sombreados ya cerraron en el Excel. La línea punteada es el presupuesto anual
+                      dividido doce, solo como referencia.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <PlanVsFacturadoChart meses={mesesPlan} referenciaMensual={referenciaMensual} />
+                  </CardContent>
+                </Card>
+              )}
+
+              {canales.length > 0 && (
+                <div id="canales" className="flex scroll-mt-20 flex-col gap-4">
+                  <NotaDato>
+                    <strong>CDE y Wholesale tienen objetivo propio en el Excel de Finanzas</strong>{" "}
+                    (la sucursal de Ciudad del Este y las ventas mayoristas). Sus unidades ya
+                    están dentro de las marcas de arriba: es otro corte de lo mismo, no se suma.
+                    El real es el de Finanzas, del mismo Excel, hasta el mes que ellos cerraron:
+                    la sucursal que anota Cars no coincide con esta definición de canal (CDE en
+                    Cars: 79 unidades en {f.anio}; Finanzas: {formatUnidades(canales[0].realYtd)}{" "}
+                    hasta {canales[0].realHastaMes ? mesCorto(canales[0].realHastaMes) : "—"}).
+                  </NotaDato>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Canales que Finanzas presupuesta aparte — {f.anio}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Canal</TableHead>
+                            <TableHead className="text-right" nota="hasta el mes cerrado">Objetivo</TableHead>
+                            <TableHead className="text-right" nota="según Finanzas">Real</TableHead>
+                            <TableHead className="text-right" nota="real ÷ objetivo">Cumplimiento</TableHead>
+                            <TableHead className="text-right" nota="todo el año">Objetivo anual</TableHead>
+                            <TableHead className="text-right" nota="del objetivo anual">Hecho</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {canales.map((c) => (
+                            <TableRow key={c.canal}>
+                              <TableCell className="font-medium">
+                                {c.canal === "CDE" ? "CDE (Ciudad del Este)" : "Wholesale (mayoristas)"}
+                                <span className="block text-[11px] font-normal text-muted-foreground">
+                                  real hasta {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {formatUnidades(c.objetivoYtd)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">{formatUnidades(c.realYtd)}</TableCell>
+                              <TableCell
+                                className={cn(
+                                  "text-right tabular-nums font-medium",
+                                  c.cumplimiento !== null && c.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
+                                  c.cumplimiento !== null && c.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
+                                )}
+                              >
+                                {c.cumplimiento !== null ? formatPct(c.cumplimiento) : "—"}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-muted-foreground">
+                                {formatUnidades(c.objetivoAnual)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {c.objetivoAnual ? formatPct(c.realYtd / c.objetivoAnual) : "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    {canales.map((c) => (
+                      <Card key={c.canal}>
+                        <CardHeader>
+                          <CardTitle>
+                            {c.canal === "CDE" ? "CDE" : "Wholesale"} — objetivo vs. real, mes a mes
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground">
+                            Real de Finanzas hasta {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}; de ahí en
+                            adelante solo hay objetivo.
+                          </p>
+                        </CardHeader>
+                        <CardContent>
+                          <PlanVsFacturadoChart
+                            meses={c.meses}
+                            referenciaMensual={null}
+                            altura={260}
+                            etiquetaPlan="Objetivo"
+                            etiquetaReal="Real (Finanzas)"
+                          />
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Seccion>
+          )}
+
+          <NotaDato>
+            <strong>Acá no hay facturación en guaraníes ni dólares, a propósito.</strong>{" "}
+            Cars devuelve importes, pero no cierran: en 2026 hay 2.936 facturas
+            marcadas «DOLARES» con montos de 54 millones a 4,8 billones —o sea
+            guaraníes, con basura adentro— y 54 marcadas «GUARANIES» que arrancan en
+            29.990. Publicar facturación con esa base sería inventar una cifra. Las
+            unidades sí cierran, y son lo que se muestra. El precio de lista de las
+            unidades es harina de otro costal: ese sí está en dólares y es creíble.
+            {typeof detalle.facturas_leidas === "number" && (
+              <>
+                {" "}Última sincronización: {String(detalle.facturas_leidas)} facturas y{" "}
+                {String(detalle.unidades_leidas ?? "?")} unidades leídas de Cars,
+                agregadas antes de salir de la máquina — el Advisor nunca recibe
+                nombres, correos, teléfonos ni VIN de clientes.
+              </>
+            )}
+            {typeof detalle.vehiculos === "number" && (
+              <>
+                {" "}<strong>Una unidad es un vehículo, no una factura:</strong> de
+                esas {String(detalle.facturas_leidas)} facturas,{" "}
+                {String(detalle.vehiculos)} son vehículos distintos (1 VIN = 1
+                unidad, contado en su primera factura;{" "}
+                {String(detalle.facturas_repetidas ?? 0)} facturas repetían un VIN
+                ya contado — seña, saldo o accesorios en documentos aparte). Las{" "}
+                {String(detalle.usados_excluidos ?? 0)} facturas de LOCAL USADOS
+                quedan fuera: son usados de marcas propias, no 0km.
+              </>
+            )}
+          </NotaDato>
+        </>
+      )}
+
+      {vista === "stock" && (
+        <>
+          <Seccion titulo="Pedido de stock" id="pedido">
+            {/* Qué es cada columna lo dice la columna. Acá queda la letra
+                chica: qué meses entran en el ritmo, qué queda afuera de
+                «libres» y desde qué ritmo el cociente deja de significar algo. */}
+            <NotaDato>
+              <strong>El ritmo son los tres últimos meses cerrados ({mesesRitmoTxt})</strong>:
+              el mes en curso no entra porque está a medias. De <strong>libres</strong>{" "}
+              quedan afuera las reservadas, lo que está en viaje y lo que anda en test
+              drive o cortesía. Con menos de {RITMO_MINIMO_VERSION} autos por mes no se
+              calculan los meses de stock: el número no significaría nada.
+            </NotaDato>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Qué pedir</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Se venden y les queda menos de un mes y medio libre, aun con lo que viene
+                    en viaje. Primero las que más venden.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {pedido.pedir.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      Nada urgente: ninguna versión con ritmo tiene menos de un mes y
+                      medio de stock.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Versión</TableHead>
+                          <TableHead className="text-right" nota="por mes">Ritmo</TableHead>
+                          <TableHead className="text-right" nota="hoy">Libres</TableHead>
+                          <TableHead className="text-right" nota="sin llegar">En viaje</TableHead>
+                          <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pedido.pedir.slice(0, 12).map((v) => (
+                          <TableRow key={`${v.marca}|${v.version}`}>
+                            <TableCell>
+                              <span className="font-medium">{v.version}</span>
+                              <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <LogoMarca marca={v.marca} />
+                                {v.marca}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {v.enViaje ? formatUnidades(v.enViaje) : "—"}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums font-semibold text-rose-600 dark:text-rose-400">
+                              {v.meses === null ? "—" : v.meses.toFixed(1)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Qué empujar</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Más de seis meses de stock, o cinco o más libres que casi no se mueven.
+                    Primero las que más plata tienen parada. Promoción, no pedido.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {pedido.empujar.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      Nada parado: ninguna versión pasa los seis meses de stock.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Versión</TableHead>
+                          <TableHead className="text-right" nota="hoy">Libres</TableHead>
+                          <TableHead className="text-right" nota="por mes">Ritmo</TableHead>
+                          <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
+                          <TableHead className="text-right" nota="lista, US$">Precio</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pedido.empujar.slice(0, 12).map((v) => (
+                          <TableRow key={`${v.marca}|${v.version}`}>
+                            <TableCell>
+                              <span className="font-medium">{v.version}</span>
+                              <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <LogoMarca marca={v.marca} />
+                                {v.marca}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)}</TableCell>
+                            <TableCell className="text-right tabular-nums font-semibold text-amber-600 dark:text-amber-500">
+                              {v.meses === null ? "sin ritmo" : v.meses.toFixed(1)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {v.precio_usd ? formatUnidades(v.precio_usd) : "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </Seccion>
+
+          <Seccion titulo="Todo el stock" id="stock">
+            {estadosDesconocidos(stockCrudo).length > 0 && (
+              <NotaDato>
+                <strong>Estados de Cars que la regla de stock no conoce:{" "}
+                {estadosDesconocidos(stockCrudo).join(", ")}.</strong> Cuentan como
+                en piso hasta que alguien los clasifique en <code>cobertura.ts</code>{" "}
+                (en piso, en viaje o no vendible).
+              </NotaDato>
+            )}
+            <Card>
+              <CardHeader>
+                <CardTitle>Stock por modelo — hoy</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Una fila por modelo, del que más unidades tiene al que menos; la flecha abre
+                  sus versiones, que es donde se decide qué pedir.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <TablaStockModelos modelos={modelosStock} otras={otrasStock} />
+              </CardContent>
+            </Card>
+          </Seccion>
+        </>
+      )}
+
+      {vista === "demanda" && (
+        <>
+          {!hayDemanda ? (
+            <Card>
+              <CardContent>
+                <EmptyState
+                  title="Todavía no hay demanda de Bitrix"
+                  description="La empuja Hermes (advisor-demanda-bitrix.py) una vez por semana. Si ya pasaron unos días, revisá ese trabajo."
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <NotaDato>
+                <strong>Esto es demanda registrada en el CRM, no mercado.</strong>{" "}
+                Sale de Bitrix por mes de creación y se resume antes de salir de la
+                máquina donde se lee: ningún dato del cliente llega acá. «Abierto»,
+                «convertido» y «perdido» son la semántica de cada estado de Bitrix; el
+                motivo es el nombre del estado o de la etapa de pérdida. Los
+                descartados (spam, datos falsos, duplicados, incontactables) no cuentan
+                como demanda perdida: nunca fueron un comprador. La marca es la «marca
+                de interés» del lead, salvo que el título o la campaña nombren otra
+                marca de forma explícita («SOUEAST S09» cargado como Jetour); el modelo
+                se acepta solo si es de esa marca en el catálogo de Bitrix. Bitrix
+                reclasifica hacia atrás, así que estas cifras cambian en cada
+                actualización{demandaFecha ? ` (última: ${formatFechaHora(demandaFecha)})` : ""}.
+              </NotaDato>
+
+              <Seccion titulo="Por marca" id="demanda">
+                <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Leads y negocios — {periodo}</CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        Lo facturado acá es <strong>solo retail</strong>: las{" "}
+                        {formatUnidades(unidadesMayoristas)} unidades mayoristas (flotas y
+                        gerencia) no las trajo ningún lead.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Marca</TableHead>
+                            <TableHead className="text-right" nota="consultas que entraron">Leads</TableHead>
+                            <TableHead className="text-right" nota="sin cerrar ni perder">Abiertos</TableHead>
+                            <TableHead className="text-right" nota="pasaron a negociación">Convertidos</TableHead>
+                            <TableHead className="text-right" nota="se dieron de baja">Perdidos</TableHead>
+                            <TableHead className="text-right" nota="ya calificados">Negocios</TableHead>
+                            <TableHead className="text-right" nota="sin flotas ni gerencia">Facturado retail</TableHead>
+                            <TableHead className="text-right" nota="si sube, se desaprovecha">Leads por venta</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[...filasDemandaMarca, {
+                            marca: "Total", ...demandaTotal,
+                            facturado: Math.max(0, totalFacturas - unidadesMayoristas),
+                            mayorista: unidadesMayoristas,
+                          }].map((r, i) => {
+                            const total = i === filasDemandaMarca.length;
+                            return (
+                              <TableRow key={r.marca} className={cn(total && "bg-muted/40 font-semibold hover:bg-muted/40")}>
+                                <TableCell className="font-medium">
+                                  {total ? r.marca : <Marca marca={r.marca} />}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {formatUnidades(r.leads)}
+                                  {r.descartados > 0 && (
+                                    <span className="block text-[11px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
+                                      {formatUnidades(r.descartados)} descartados
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos)}</TableCell>
+                                <TableCell className="text-right tabular-nums">{formatUnidades(r.ganados)}</TableCell>
+                                <TableCell
+                                  className="text-right tabular-nums"
+                                  title={motivosTop(r).map(([m, n]) => `${m}: ${formatUnidades(n)}`).join("\n") || undefined}
+                                >
+                                  {formatUnidades(r.perdidos)}
+                                  {motivosTop(r, 1)[0] && (
+                                    <span className="block max-w-[11rem] truncate text-[11px] font-normal leading-tight text-muted-foreground">
+                                      {motivosTop(r, 1)[0][0]}
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {r.negocios ? formatUnidades(r.negocios) : "—"}
+                                  {r.negocios > 0 && (
+                                    <span className="block text-[11px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
+                                      {formatUnidades(r.negGanados)} ganados · {formatUnidades(r.negPerdidos)} perdidos
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {r.facturado && r.leads ? (r.leads / r.facturado).toFixed(1).replace(".", ",") : "—"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Por qué se pierde</CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        Motivo de baja de los leads y negocios perdidos del período, sin los
+                        descartados. Pasá el mouse por «Perdidos» para verlo por marca.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      {motivosDemanda.length ? (
+                        <DistribucionChart datos={motivosDemanda} maximo={7} />
+                      ) : (
+                        <p className="py-10 text-center text-sm text-muted-foreground">Sin pérdidas con motivo en el período.</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </Seccion>
+
+              <Seccion titulo="Por modelo" id="demanda-modelo">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Demanda que nombra el modelo — {periodo}</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Bitrix no tiene campo de modelo en los leads: se lee del título o de la
+                      campaña cuando lo dicen ({formatPct(leadsConModelo / (demandaTotal.leads || 1))} de
+                      los leads) y del producto de los negocios ({formatPct(negociosConModelo / (demandaTotal.negocios || 1))}).
+                      Se cruza con lo facturado retail y con el stock libre de hoy.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {filasDemandaModelo.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        Ningún lead ni negocio del período nombra el modelo.
+                      </p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Modelo</TableHead>
+                            <TableHead className="text-right" nota="leads y negocios">Demanda</TableHead>
+                            <TableHead className="text-right" nota="sin cerrar ni perder">Abiertos</TableHead>
+                            <TableHead className="text-right" nota="y el motivo principal">Perdidos</TableHead>
+                            <TableHead className="text-right" nota="sin flotas ni gerencia">Facturado retail</TableHead>
+                            <TableHead className="text-right" nota="entregables hoy">Libres hoy</TableHead>
+                            <TableHead nota="la lectura de la fila">Qué hacer</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filasDemandaModelo.map((r) => {
+                            const perdidos = r.perdidos + r.negPerdidos;
+                            const motivo = motivosTop(r, 1)[0];
+                            return (
+                              <TableRow key={`${r.marca}|${r.modelo}`}>
+                                <TableCell>
+                                  <span className="flex items-center gap-2">
+                                    <LogoMarca marca={r.marca} />
+                                    <span className="min-w-0">
+                                      <span className="block font-medium">{r.modelo}</span>
+                                      <span className="block text-[11px] leading-tight text-muted-foreground">{r.marca}</span>
+                                    </span>
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums font-semibold">
+                                  {formatUnidades(r.leads + r.negocios)}
+                                  {r.negocios > 0 && (
+                                    <span className="block text-[11px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
+                                      {formatUnidades(r.negocios)} {r.negocios === 1 ? "negocio" : "negocios"}
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos + r.negAbiertos)}</TableCell>
+                                <TableCell
+                                  className="text-right tabular-nums"
+                                  title={motivosTop(r).map(([m, n]) => `${m}: ${formatUnidades(n)}`).join("\n") || undefined}
+                                >
+                                  {perdidos ? formatUnidades(perdidos) : "—"}
+                                  {perdidos > 0 && motivo && (
+                                    <span className="block max-w-[11rem] truncate text-[11px] leading-tight text-muted-foreground">
+                                      {motivo[0]}
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
+                                <TableCell className="text-right tabular-nums">{r.libres ? formatUnidades(r.libres) : "—"}</TableCell>
+                                <TableCell
+                                  className={cn(
+                                    "text-xs font-medium",
+                                    r.senal?.tono === "pedir" && "text-rose-600 dark:text-rose-400",
+                                    r.senal?.tono === "empujar" && "text-emerald-700 dark:text-emerald-400",
+                                    r.senal?.tono === "precio" && "text-amber-600 dark:text-amber-500",
+                                    (!r.senal || r.senal.tono === "ok") && "text-muted-foreground"
+                                  )}
+                                  title={r.senal?.texto}
+                                >
+                                  {r.senal?.corto ?? "—"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </Seccion>
+            </>
+          )}
+        </>
+      )}
+
+      {vista === "equipo" && (
+        <>
+          <Seccion titulo="Asesores" id="asesores">
+            {asesoresPeriodo.length === 0 ? (
+              <Card>
+                <CardContent>
+                  <EmptyState
+                    title="Todavía no hay ranking de asesores"
+                    description="Hace falta que Hermes corra el push de Cars para que este período tenga datos. Si ya pasaron unas horas, revisá el trabajo advisor-datos-propios."
                   />
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </Seccion>
-      )}
+            ) : (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Ranking retail — {periodo}</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Los {Math.min(15, rankingAsesores.length)} de {rankingAsesores.length}{" "}
+                      asesores retail con más vehículos facturados
+                      {f.marca ? ` de ${f.marca}` : ""}. Flotas y gerencia van aparte.
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>#</TableHead>
+                          <TableHead>Asesor</TableHead>
+                          <TableHead nota="de la que más vende a la que menos">Marcas</TableHead>
+                          <TableHead className="text-right" nota="facturados en el período">Vehículos</TableHead>
+                          <TableHead className="text-right" nota="de todo lo retail">% del total</TableHead>
+                          {hayLeads && (
+                            <>
+                              <TableHead className="text-right" nota="los que Bitrix le asignó">Leads</TableHead>
+                              <TableHead className="text-right" nota="nadie los tocó">Sin contactar</TableHead>
+                              <TableHead className="text-right" nota="de sus leads, cuántos cerraron">Lead → venta</TableHead>
+                            </>
+                          )}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rankingAsesores.slice(0, 15).map((a, i) => (
+                          <TableRow key={a.asesor}>
+                            <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
+                            <TableCell
+                              className={cn("font-medium", noEsPersona(a.asesor) && "italic text-muted-foreground")}
+                              title={noEsPersona(a.asesor) ? "No es una persona: bucket interno de Cars." : undefined}
+                            >
+                              {a.asesor}
+                            </TableCell>
+                            <TableCell
+                              className="text-xs text-muted-foreground"
+                              title={
+                                marcasDe(a.asesor).length > 1
+                                  ? `Factura ${marcasDe(a.asesor).length} marcas, de la que más vende a la que menos.`
+                                  : undefined
+                              }
+                            >
+                              {marcasDe(a.asesor).slice(0, 3).join(" · ") || "—"}
+                              {marcasDe(a.asesor).length > 3 ? ` +${marcasDe(a.asesor).length - 3}` : ""}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums font-semibold">
+                              {formatUnidades(a.unidades)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums text-muted-foreground">
+                              {formatPct(a.unidades / unidadesConAsesor)}
+                            </TableCell>
+                            {hayLeads && (() => {
+                              const l = leadsDe(a.asesor);
+                              return (
+                                <>
+                                  <TableCell className="text-right tabular-nums">{l ? formatUnidades(l.leads) : "—"}</TableCell>
+                                  <TableCell
+                                    className={cn(
+                                      "text-right tabular-nums",
+                                      l && l.leads && l.sinContacto / l.leads > 0.3
+                                        ? "font-medium text-rose-600 dark:text-rose-400"
+                                        : "text-muted-foreground"
+                                    )}
+                                  >
+                                    {l ? formatUnidades(l.sinContacto) : "—"}
+                                  </TableCell>
+                                  <TableCell
+                                    className="text-right tabular-nums"
+                                    title={
+                                      l && l.leads && (l.leads < 20 || a.unidades > l.leads)
+                                        ? "Bitrix le asigna pocos leads a este asesor (los recibe quien califica): la conversión no se puede calcular con sentido."
+                                        : undefined
+                                    }
+                                  >
+                                    {l && l.leads >= 20 && a.unidades <= l.leads ? formatPct(a.unidades / l.leads) : "—"}
+                                  </TableCell>
+                                </>
+                              );
+                            })()}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
 
-      <Seccion titulo="Demanda que no cerró"
-        nota="Los leads de Bitrix que no terminaron en venta: por qué se cayeron, de qué modelos eran y si hoy habría stock para atenderlos." id="demanda">
-      {!hayDemanda ? (
-        <Card>
-          <CardContent>
-            <EmptyState
-              title="Todavía no hay demanda de Bitrix"
-              description="Se agrega el 06/09/2026: hace falta que Hermes corra advisor-demanda-bitrix.py. Si ya pasaron unas horas, revisá ese trabajo."
-            />
-          </CardContent>
-        </Card>
-      ) : (
-      <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Por marca — {periodo}</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Leads de Bitrix creados en el período. Lo facturado acá es{" "}
-            <strong>solo retail</strong>: las{" "}
-            {formatUnidades(unidadesMayoristas)} unidades mayoristas del período
-            (flotas y ventas de gerencia) no las trajo ningún lead, y contarlas
-            haría parecer que la demanda se aprovecha mejor de lo que se
-            aprovecha.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Marca</TableHead>
-                <TableHead className="text-right" nota="consultas que entraron a Bitrix">Leads</TableHead>
-                <TableHead className="text-right" nota="siguen sin cerrarse ni perderse">Abiertos</TableHead>
-                <TableHead className="text-right" nota="pasaron a negociación">Convertidos</TableHead>
-                <TableHead className="text-right" nota="se dieron de baja">Perdidos</TableHead>
-                <TableHead nota="los motivos que más se repiten">Por qué se perdieron</TableHead>
-                <TableHead className="text-right" nota="ya calificados: abiertos / ganados / perdidos">
-                  Negocios
-                </TableHead>
-                <TableHead className="text-right" nota="sin flotas ni ventas de gerencia">Facturado retail</TableHead>
-                <TableHead className="text-right" nota="leads por vehículo retail: si sube, se desaprovecha">
-                  Leads
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...filasDemandaMarca, {
-                marca: "Total", ...demandaTotal,
-                facturado: Math.max(0, totalFacturas - unidadesMayoristas),
-                mayorista: unidadesMayoristas,
-              }].map((r, i) => (
-                <TableRow key={r.marca} className={cn(i === filasDemandaMarca.length && "font-medium")}>
-                  <TableCell className="font-medium">
-                    {r.marca === "Total" ? r.marca : <Marca marca={r.marca} />}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatUnidades(r.leads)}
-                    {r.descartados > 0 && (
-                      <span className="block text-[11px] font-normal text-muted-foreground whitespace-nowrap">
-                        {formatUnidades(r.descartados)} descartados
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatUnidades(r.ganados)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatUnidades(r.perdidos)}</TableCell>
-                  <TableCell className="max-w-72 whitespace-normal text-xs font-normal leading-snug text-muted-foreground">
-                    {motivosTop(r).map(([m, n]) => `${m} ${formatUnidades(n)}`).join(" · ") || "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.negocios ? `${r.negAbiertos} / ${r.negGanados} / ${r.negPerdidos}` : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.facturado && r.leads ? (r.leads / r.facturado).toFixed(1).replace(".", ",") : "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          </div>
-        </CardContent>
-      </Card>
+                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>El mejor de cada marca — {periodo}</CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        Quién vendió más de cada marca, y entre cuántos asesores se reparte.
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Marca</TableHead>
+                            <TableHead nota="el que más vendió de esa marca">Asesor</TableHead>
+                            <TableHead className="text-right" nota="de esa marca">Vehículos</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {mejorPorMarca.map((m) => (
+                            <TableRow key={m.marca}>
+                              <TableCell className="font-medium"><Marca marca={m.marca} /></TableCell>
+                              <TableCell
+                                className={cn(noEsPersona(m.mejorNombre) && "italic text-muted-foreground")}
+                                title={noEsPersona(m.mejorNombre) ? "No es una persona: bucket interno de Cars." : undefined}
+                              >
+                                {m.mejorNombre}
+                                <span className="block text-[11px] leading-tight text-muted-foreground">
+                                  de {m.asesoresDistintos} {m.asesoresDistintos === 1 ? "asesor" : "asesores"} que la venden
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {formatUnidades(m.mejorUnidades)}
+                                <span className="block text-[11px] leading-tight text-muted-foreground">
+                                  de {formatUnidades(m.totalMarca)}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Por modelo — {periodo}</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Solo la demanda que nombra el modelo: Bitrix no tiene campo de
-            modelo en los leads, así que se lee del título o de la campaña
-            cuando lo dicen ({formatPct(leadsConModelo / (demandaTotal.leads || 1))} de los
-            leads del período) y del producto cargado en los negocios
-            ({formatPct(negociosConModelo / (demandaTotal.negocios || 1))} de los negocios).
-            Se cruza con lo facturado retail en Cars —sin flotas ni ventas de
-            gerencia— y con el stock libre de hoy para decir qué hacer.
-          </p>
-        </CardHeader>
-        <CardContent>
-          {filasDemandaModelo.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Ningún lead ni negocio del período nombra el modelo.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Modelo</TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="leads y negocios que nombran el modelo">Demanda</TableHead>
-                  <TableHead className="text-right" nota="siguen sin cerrarse ni perderse">Abiertos</TableHead>
-                  <TableHead className="text-right" nota="se dieron de baja">Perdidos</TableHead>
-                  <TableHead nota="los motivos que más se repiten">Por qué se perdieron</TableHead>
-                  <TableHead className="text-right" nota="sin flotas ni ventas de gerencia">Facturado retail</TableHead>
-                  <TableHead className="text-right whitespace-nowrap" nota="entregables hoy, sin reservadas">Libres hoy</TableHead>
-                  <TableHead nota="la lectura de la fila">Qué hacer</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filasDemandaModelo.map((r) => (
-                  <TableRow key={`${r.marca}|${r.modelo}`}>
-                    <TableCell>
-                      <span className="font-medium">{r.modelo}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <LogoMarca marca={r.marca} />
-                        {r.marca}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatUnidades(r.leads + r.negocios)}
-                      <span className="block text-[11px] text-muted-foreground whitespace-nowrap">
-                        {formatUnidades(r.leads)} leads · {formatUnidades(r.negocios)} neg.
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUnidades(r.abiertos + r.negAbiertos)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUnidades(r.perdidos + r.negPerdidos)}</TableCell>
-                    <TableCell className="max-w-72 whitespace-normal text-xs leading-snug text-muted-foreground">
-                      {motivosTop(r).map(([m, n]) => `${m} ${formatUnidades(n)}`).join(" · ") || "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUnidades(r.libres)}</TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-xs",
-                        r.senal?.tono === "pedir" && "font-medium text-amber-600 dark:text-amber-500",
-                        r.senal?.tono === "empujar" && "font-medium text-emerald-700 dark:text-emerald-400",
-                        r.senal?.tono === "precio" && "font-medium text-amber-600 dark:text-amber-500",
-                        (!r.senal || r.senal.tono === "ok") && "text-muted-foreground"
-                      )}
-                    >
-                      {r.senal?.texto ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <NotaDato>
-        <strong>Esto es demanda registrada en el CRM, no mercado.</strong>{" "}
-        Sale de Bitrix por mes de creación y se resume antes de salir de la
-        máquina donde se lee: ningún dato del cliente llega acá. «Abierto»,
-        «convertido» y «perdido» son la semántica de cada estado de Bitrix;
-        el motivo es el nombre del estado o de la etapa de pérdida. Los
-        descartados (spam, datos falsos, duplicados, incontactables) no
-        cuentan como demanda perdida: nunca fueron un comprador. La marca de
-        interés está cargada en dos de cada tres leads; cuando falta, se lee
-        del título. Bitrix reclasifica hacia atrás, así que estas cifras
-        cambian en cada actualización
-        {demandaFecha ? ` (último: ${formatFechaHora(demandaFecha)})` : ""}.
-      </NotaDato>
-      </>
-      )}
-      </Seccion>
-
-      <Seccion titulo="Stock"
-        nota="Qué hay hoy en piso y en viaje, modelo por modelo, con su precio de lista.">
-      {estadosDesconocidos(stockCrudo).length > 0 && (
-        <NotaDato>
-          Estados de Cars que la regla de stock no conoce:{" "}
-          <strong>{estadosDesconocidos(stockCrudo).join(", ")}</strong>. Cuentan como
-          en piso hasta que alguien los clasifique en <code>cobertura.ts</code>
-          (en piso, en viaje o no vendible).
-        </NotaDato>
-      )}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock por modelo — hoy</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Los 25 modelos con más unidades. El precio es el de lista de Cars,
-            en dólares: la mediana del modelo, porque un modelo con versiones de
-            30k y 39k no tiene un &laquo;promedio&raquo; que exista en la lista.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Marca</TableHead>
-                <TableHead>Modelo</TableHead>
-                <TableHead className="text-right" nota="en stock hoy, todos los estados">Unidades</TableHead>
-                <TableHead className="text-right" nota="mediana de lista, en US$">Precio lista</TableHead>
-                <TableHead nota="cómo está cada unidad en Cars">Estados</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...stock
-                .reduce((m, s) => {
-                  const k = `${s.marca}|${s.modelo}`;
-                  const x = m.get(k) ?? {
-                    marca: s.marca, modelo: s.modelo, unidades: 0,
-                    precio: s.precio_usd, estados: [] as string[],
-                  };
-                  x.unidades += s.unidades;
-                  x.precio = x.precio ?? s.precio_usd;
-                  x.estados.push(`${s.estado} ${s.unidades}`);
-                  return m.set(k, x);
-                }, new Map<string, { marca: string; modelo: string; unidades: number; precio: number | null; estados: string[] }>())
-                .values()]
-                .sort((a, b) => b.unidades - a.unidades)
-                .slice(0, 25)
-                .map((m) => (
-                  <TableRow key={`${m.marca}|${m.modelo}`}>
-                    <TableCell className="font-medium"><Marca marca={m.marca} /></TableCell>
-                    <TableCell>{m.modelo}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatUnidades(m.unidades)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {m.precio ? `US$ ${formatUnidades(m.precio)}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {m.estados.join(" · ")}
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      </Seccion>
-
-      {haySucursal && (
-        <Seccion titulo="Sucursales"
-        nota="Desde qué local se factura cada vehículo y cómo se reparte la venta entre los locales." id="sucursales">
-        <Card>
-          <CardHeader>
-            <CardTitle>Ventas por sucursal — {periodo}</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Vehículos facturados desde cada local, cuántos asesores
-              facturaron algo ahí y quién más vendió. La sucursal es la que
-              Cars registra en la factura.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Sucursal</TableHead>
-                  <TableHead className="text-right" nota="facturados desde ese local">Vehículos</TableHead>
-                  <TableHead className="text-right" nota="su parte de todo lo facturado">% del total</TableHead>
-                  <TableHead className="text-right" nota="cuántos facturaron algo ahí">Asesores</TableHead>
-                  <TableHead nota="el que más vendió en el local">Mejor asesor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sucursales.map((s) => (
-                  <TableRow key={s.sucursal}>
-                    <TableCell className="font-medium">{s.sucursal}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUnidades(s.unidades)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatPct(s.unidades / (unidadesConAsesor || 1))}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">{s.asesores}</TableCell>
-                    <TableCell className={cn(s.top && noEsPersona(s.top[0]) && "italic text-muted-foreground")}>
-                      {s.top ? `${s.top[0]} · ${formatUnidades(s.top[1])}` : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        </Seccion>
-      )}
-
-      <Seccion titulo="Asesores"
-        nota="Quién vende y cuánto. El retail va aparte del mayorista: son dos negocios distintos y mezclarlos aplasta el ranking." id="asesores">
-      {asesoresPeriodo.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ranking de asesores — {periodo}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EmptyState
-              title="Todavía no hay ranking de asesores"
-              description="Se agrega el 03/09/2026: hace falta que Hermes corra el push de Cars de nuevo para que este período tenga datos. Si ya pasaron unas horas, revisá el trabajo advisor-datos-propios."
-            />
-          </CardContent>
-        </Card>
-      ) : (
-      <>
-        {/* A lo ancho: con las columnas de leads son ocho columnas y a media
-            pantalla la tabla se corta y hay que arrastrarla. */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ranking retail — {periodo}</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Los {Math.min(15, rankingAsesores.length)} de {rankingAsesores.length}{" "}
-              asesores retail con más vehículos facturados
-              {f.marca ? ` de ${f.marca}` : ""}. Las ventas mayoristas van
-              aparte, más abajo.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Asesor</TableHead>
-                  <TableHead nota="la que más vende de las suyas">Marca</TableHead>
-                  <TableHead className="text-right" nota="facturados por él en el período">Vehículos</TableHead>
-                  <TableHead className="text-right" nota="su parte de todo lo facturado">% del total</TableHead>
-                  {hayLeads && (
-                    <>
-                      <TableHead className="text-right" nota="los que Bitrix le asignó">Leads</TableHead>
-                      <TableHead className="text-right" nota="nadie los tocó todavía">Sin contactar</TableHead>
-                      <TableHead className="text-right whitespace-nowrap" nota="cuántos de sus leads cerraron">Lead → venta</TableHead>
-                    </>
+                  {mayoristasPeriodo.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Ventas mayoristas — {periodo}</CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          Flotas y ventas de gerencia: otro negocio, fuera del ranking. La lista
+                          de quiénes son mayoristas la mantiene Sistemas.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Vendedor mayorista</TableHead>
+                              <TableHead className="text-right" nota="flotas y gerencia">Vehículos</TableHead>
+                              <TableHead className="text-right" nota="de todo lo facturado">% del total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {mayoristasPeriodo.map((m) => (
+                              <TableRow key={m.asesor}>
+                                <TableCell className="font-medium">{m.asesor}</TableCell>
+                                <TableCell className="text-right tabular-nums">{formatUnidades(m.unidades)}</TableCell>
+                                <TableCell className="text-right tabular-nums text-muted-foreground">
+                                  {formatPct(m.unidades / (totalFacturas || 1))}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
                   )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rankingAsesores.slice(0, 15).map((a, i) => (
-                  <TableRow key={a.asesor}>
-                    <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
-                    <TableCell
-                      className={cn("font-medium", noEsPersona(a.asesor) && "italic text-muted-foreground")}
-                      title={noEsPersona(a.asesor) ? "No es una persona: bucket interno de Cars." : undefined}
-                    >
-                      {a.asesor}
-                    </TableCell>
-                    <TableCell
-                      className="text-xs text-muted-foreground"
-                      title={
-                        marcasDe(a.asesor).length > 1
-                          ? `Factura ${marcasDe(a.asesor).length} marcas, de la que más vende a la que menos.`
-                          : undefined
-                      }
-                    >
-                      {marcasDe(a.asesor).slice(0, 3).join(" · ") || "—"}
-                      {marcasDe(a.asesor).length > 3 ? ` +${marcasDe(a.asesor).length - 3}` : ""}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatUnidades(a.unidades)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatPct(a.unidades / unidadesConAsesor)}
-                    </TableCell>
-                    {hayLeads && (() => {
-                      const l = leadsDe(a.asesor);
-                      return (
-                        <>
-                          <TableCell className="text-right tabular-nums">{l ? formatUnidades(l.leads) : "—"}</TableCell>
-                          <TableCell
-                            className={cn(
-                              "text-right tabular-nums",
-                              l && l.leads && l.sinContacto / l.leads > 0.3
-                                ? "font-medium text-rose-600 dark:text-rose-400"
-                                : "text-muted-foreground"
-                            )}
-                          >
-                            {l ? formatUnidades(l.sinContacto) : "—"}
-                          </TableCell>
-                          <TableCell
-                            className="text-right tabular-nums"
-                            title={
-                              l && l.leads && (l.leads < 20 || a.unidades > l.leads)
-                                ? "Bitrix le asigna pocos leads a este asesor (los recibe quien califica): la conversión no se puede calcular con sentido."
-                                : undefined
-                            }
-                          >
-                            {l && l.leads >= 20 && a.unidades <= l.leads ? formatPct(a.unidades / l.leads) : "—"}
-                          </TableCell>
-                        </>
-                      );
-                    })()}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </div>
+              </>
+            )}
+            <NotaDato>
+              <strong>Esto es desempeño individual, no un dato de mercado.</strong>{" "}
+              Sale de <code>Vendedor</code> en las facturas de Cars, ya sumado por
+              vendedor antes de salir de la máquina — nunca viaja factura por
+              factura. Una unidad es un vehículo (un VIN), contado en su primera
+              factura. De los {formatUnidades(totalFacturas)} vehículos del período:{" "}
+              <strong>{formatUnidades(unidadesConAsesor)} retail</strong> (el ranking),{" "}
+              <strong>{formatUnidades(unidadesMayoristas)} mayoristas</strong>
+              {totalFacturas - unidadesConAsesor - unidadesMayoristas > 0
+                ? ` y ${formatUnidades(totalFacturas - unidadesConAsesor - unidadesMayoristas)} sin vendedor cargado en Cars`
+                : ""}
+              . Si algún nombre en cursiva no es una persona (una razón social,
+              por ejemplo), Cars lo cargó en el mismo campo que a un asesor.
+              {hayLeads && (
+                <>
+                  {" "}<strong>Sobre los leads:</strong> son los de Bitrix, por
+                  responsable y mes. El CRM le asigna la mayoría a quienes califican
+                  (el equipo que llama primero), no a quien cierra, así que muchos
+                  vendedores aparecen con pocos leads o ninguno. «Lead → venta» solo
+                  se calcula cuando el asesor tiene al menos 20 leads asignados y no
+                  vende más de lo que le asignan; si no, sería un porcentaje sin
+                  sentido, y se muestra «—».
+                </>
+              )}
+            </NotaDato>
+          </Seccion>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>El mejor de cada marca — {periodo}</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Quién vendió más de cada marca en el período, y cuántos asesores
-              distintos facturaron algo de esa marca.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Marca</TableHead>
-                  <TableHead nota="el que más vendió de esa marca">Asesor top</TableHead>
-                  <TableHead className="text-right" nota="las que facturó él, no la marca">Sus unidades</TableHead>
-                  <TableHead className="text-right" nota="cuántos facturaron algo de la marca">Asesores</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mejorPorMarca.map((m) => (
-                  <TableRow key={m.marca}>
-                    <TableCell className="font-medium"><Marca marca={m.marca} /></TableCell>
-                    <TableCell
-                      className={cn(noEsPersona(m.mejorNombre) && "italic text-muted-foreground")}
-                      title={noEsPersona(m.mejorNombre) ? "No es una persona: bucket interno de Cars." : undefined}
-                    >
-                      {m.mejorNombre}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatUnidades(m.mejorUnidades)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {m.asesoresDistintos}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      {mayoristasPeriodo.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ventas mayoristas — {periodo}</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Flotas y ventas de gerencia. Es otro negocio: no compite con los
-              asesores retail y por eso no está en el ranking. La lista de
-              quiénes son mayoristas la mantiene Sistemas: hoy son Ventas
-              Gerencia, Ventas Gerencia Externa y Eduardo Vigorito.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendedor mayorista</TableHead>
-                  <TableHead className="text-right" nota="flotas y ventas de gerencia">Vehículos</TableHead>
-                  <TableHead className="text-right" nota="su parte de todo lo facturado">% de lo facturado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mayoristasPeriodo.map((m) => (
-                  <TableRow key={m.asesor}>
-                    <TableCell className="font-medium">{m.asesor}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUnidades(m.unidades)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatPct(m.unidades / (totalFacturas || 1))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+          {haySucursal && (
+            <Seccion titulo="Sucursales" id="sucursales">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ventas por sucursal — {periodo}</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Vehículos facturados desde cada local (la sucursal que Cars registra en la
+                    factura) y quién más vendió ahí.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Sucursal</TableHead>
+                        <TableHead className="text-right" nota="facturados desde ese local">Vehículos</TableHead>
+                        <TableHead className="text-right" nota="de todo lo facturado">% del total</TableHead>
+                        <TableHead className="text-right" nota="facturaron algo ahí">Asesores</TableHead>
+                        <TableHead nota="el que más vendió en el local">Mejor asesor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sucursales.map((s) => (
+                        <TableRow key={s.sucursal}>
+                          <TableCell className="font-medium">{s.sucursal}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatUnidades(s.unidades)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                            {formatPct(s.unidades / (unidadesConAsesor || 1))}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-muted-foreground">{s.asesores}</TableCell>
+                          <TableCell className={cn(s.top && noEsPersona(s.top[0]) && "italic text-muted-foreground")}>
+                            {s.top ? `${s.top[0]} · ${formatUnidades(s.top[1])}` : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </Seccion>
+          )}
+        </>
       )}
-        </div>
-      </>
-      )}
-      <NotaDato>
-        <strong>Esto es desempeño individual, no un dato de mercado.</strong>{" "}
-        Sale de <code>Vendedor</code> en las facturas de Cars, ya sumado por
-        vendedor antes de salir de la máquina — nunca viaja factura por
-        factura. Una unidad es un vehículo (un VIN), contado en su primera
-        factura. De los {formatUnidades(totalFacturas)} vehículos del período:{" "}
-        <strong>{formatUnidades(unidadesConAsesor)} retail</strong> (el ranking),{" "}
-        <strong>{formatUnidades(unidadesMayoristas)} mayoristas</strong>
-        {totalFacturas - unidadesConAsesor - unidadesMayoristas > 0
-          ? ` y ${formatUnidades(totalFacturas - unidadesConAsesor - unidadesMayoristas)} sin vendedor cargado en Cars`
-          : ""}
-        . Si algún nombre en cursiva no es una persona (una razón social,
-        por ejemplo), Cars lo cargó en el mismo campo que a un asesor.
-        {hayLeads && (
-          <>
-            {" "}<strong>Sobre los leads:</strong> son los de Bitrix, por
-            responsable y mes. El CRM le asigna la mayoría a quienes califican
-            (el equipo que llama primero), no a quien cierra, así que muchos
-            vendedores aparecen con pocos leads o ninguno. «Lead → venta» solo
-            se calcula cuando el asesor tiene al menos 20 leads asignados y no
-            vende más de lo que le asignan; si no, sería un porcentaje sin
-            sentido, y se muestra «—».
-          </>
-        )}
-      </NotaDato>
-      </Seccion>
-
-      <NotaDato>
-        <strong>Acá no hay facturación en guaraníes ni dólares, a propósito.</strong>{" "}
-        Cars devuelve importes, pero no cierran: en 2026 hay 2.936 facturas
-        marcadas «DOLARES» con montos de 54 millones a 4,8 billones —o sea
-        guaraníes, con basura adentro— y 54 marcadas «GUARANIES» que arrancan en
-        29.990. Publicar facturación con esa base sería inventar una cifra. Las
-        unidades sí cierran, y son lo que se muestra. El precio de lista de las
-        unidades es harina de otro costal: ese sí está en dólares y es creíble.
-        {typeof detalle.facturas_leidas === "number" && (
-          <>
-            {" "}Última sincronización: {String(detalle.facturas_leidas)} facturas y{" "}
-            {String(detalle.unidades_leidas ?? "?")} unidades leídas de Cars,
-            agregadas antes de salir de la máquina — el Advisor nunca recibe
-            nombres, correos, teléfonos ni VIN de clientes.
-          </>
-        )}
-        {typeof detalle.vehiculos === "number" && (
-          <>
-            {" "}<strong>Una unidad es un vehículo, no una factura:</strong> de
-            esas {String(detalle.facturas_leidas)} facturas,{" "}
-            {String(detalle.vehiculos)} son vehículos distintos (1 VIN = 1
-            unidad, contado en su primera factura;{" "}
-            {String(detalle.facturas_repetidas ?? 0)} facturas repetían un VIN
-            ya contado — seña, saldo o accesorios en documentos aparte). Las{" "}
-            {String(detalle.usados_excluidos ?? 0)} facturas de LOCAL USADOS
-            quedan fuera: son usados de marcas propias, no 0km.
-          </>
-        )}
-      </NotaDato>
     </Pagina>
   );
 }
