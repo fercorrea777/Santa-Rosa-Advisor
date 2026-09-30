@@ -41,14 +41,15 @@ export const NAV_GROUPS: NavGroup[] = [
     // del mercado". La ruta "/" sigue viva — es donde cae quien entra al
     // dominio pelado y adonde lleva el logo — pero no ocupa un renglón del
     // menú al lado de su propio duplicado.
-    titulo: "Panorama",
+    //
+    // Grupos rehechos el 30/09/2026 ("todo el dashboard me parece muy
+    // desordenado"): "Panorama" era un grupo de UN ítem y "Análisis" uno de
+    // diez que mezclaba el mercado con el producto. Ahora el mercado va
+    // junto (del resumen al detalle) y lo de producto y precio, aparte. Los
+    // ítems no cambiaron de orden.
+    titulo: "Mercado",
     items: [
       { href: "/mercado", label: "Resumen del mercado", icono: "mercado", implementado: true , pista: "Cómo viene el mercado entero: unidades, segmentos, tecnologías y quién gana o pierde participación." },
-    ],
-  },
-  {
-    titulo: "Análisis",
-    items: [
       { href: "/evolucion", label: "Evolución mensual", icono: "evolucion", implementado: true , pista: "El mercado mes a mes, un año contra otro. Para ver la estacionalidad y proyectar el cierre." },
       { href: "/rankings", label: "Rankings", icono: "rankings", implementado: true , pista: "Marcas y modelos ordenados por unidades, en matriculación y en importación." },
       { href: "/segmentos", label: "Segmentos", icono: "segmentos", implementado: true , pista: "Qué tipo de vehículo compra el paraguayo y cuánto de cada segmento es nuestro." },
@@ -56,6 +57,11 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/localidades", label: "Localidades", icono: "localidades", implementado: true , pista: "En qué ciudades se pone la chapa. Dice dónde hay mercado sin local nuestro." },
       { href: "/market-share", label: "Market Share", icono: "market-share", implementado: true , pista: "Nuestra parte del mercado y la de cada competidor, contra el año pasado." },
       { href: "/brecha", label: "Import. vs matric.", icono: "brecha", implementado: true , pista: "Lo que entró al país y todavía no sacó chapa: stock que ya está acá y aún no se vendió." },
+    ],
+  },
+  {
+    titulo: "Producto y precio",
+    items: [
       { href: "/bubble-chart", label: "Bubble chart", icono: "bubble", implementado: true , pista: "El cuadro de producto: cada modelo contra sus rivales, por precio y por volumen." },
       { href: "/mapa", label: "Dónde competir", icono: "market-share", implementado: true , pista: "Contra quién compite cada modelo nuestro y si estamos caros o baratos frente a ellos." },
       { href: "/portafolio", label: "Portafolio por marca", icono: "portafolio", implementado: true , pista: "La gama de cualquier marca, modelo por modelo: precio de lista, cuánto vende cada uno y qué hueco deja." },

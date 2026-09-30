@@ -80,7 +80,14 @@ export function SelectorVista({
 
   return (
     <nav aria-label="Vistas de la pantalla" aria-busy={pendiente} data-revelar="">
-      <ul role="list" className="flex flex-wrap gap-x-1 border-b border-border">
+      {/* Una sola fila siempre: en el celular se desliza de lado en vez de
+          partirse en dos renglones (una pestaña suelta abajo parecía otra
+          cosa). */}
+      {/* La línea de base es una sombra interior y no un borde: con
+          overflow-x la pestaña activa no puede montarse sobre un borde de
+          afuera (-mb-px se recorta), y la sombra queda debajo de su
+          subrayado. */}
+      <ul role="list" className="flex gap-x-1 overflow-x-auto overscroll-x-contain shadow-[inset_0_-1px_0_var(--border)] [scrollbar-width:none]">
         {vistas.map((v) => {
           const activa = v.valor === actual;
           return (
@@ -97,7 +104,7 @@ export function SelectorVista({
                   if (!activa) setParams({ vista: v.valor === porDefecto ? null : v.valor });
                 }}
                 className={cn(
-                  "relative -mb-px inline-flex h-10 items-center border-b-2 px-3 text-sm font-medium transition-colors",
+                  "relative inline-flex h-10 items-center whitespace-nowrap border-b-2 px-2.5 text-sm font-medium transition-colors sm:px-3",
                   "focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
                   activa
                     ? "border-primary text-foreground"
