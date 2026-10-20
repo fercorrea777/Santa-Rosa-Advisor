@@ -151,6 +151,30 @@ def tecnologia(valor) -> str | None:
     return TECNOLOGIA.get(norm_txt(valor))
 
 
+# La tecnologia que el NOMBRE del modelo dice sin ambiguedad (DATOS.md 4.8).
+# Es la regla con la que se armaron las 125 correcciones de
+# correcciones.sql; aca sirve para versiones que no estan en esa tabla
+# porque se escribieron distinto un solo mes. Manda la primera que aparece.
+# EVOQUE, EVOLUTION y EVO no son 'EV': el \b lo evita.
+_TEC_POR_NOMBRE = [
+    (re.compile(r"\b(PHEV|DM-?I|PLUG-?IN)\b"), TEC_PHEV),
+    (re.compile(r"\b(MHEV|MILD)\b"), TEC_MHEV),
+    (re.compile(r"\bE-?POWER\b"), TEC_REEV),
+    (re.compile(r"\b(HEV|HIBRIDO|HYBRID)\b"), TEC_HEV),
+    (re.compile(r"\b(EV|BEV)\b"), TEC_EV),
+]
+
+
+def tecnologia_por_nombre(modelo) -> str | None:
+    """'SONG PLUS DM-I 112' -> PHEV, 'TACOMA TRD HIBRIDO' -> HEV. None si
+    el nombre no lo dice."""
+    s = norm_txt(modelo)
+    for patron, tec in _TEC_POR_NOMBRE:
+        if patron.search(s):
+            return tec
+    return None
+
+
 # --- marca -------------------------------------------------------------
 # Variantes reales detectadas en los archivos de CADAM. Se normaliza a la
 # grafia que usa el informe oficial para poder cruzar fuentes.

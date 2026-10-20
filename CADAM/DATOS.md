@@ -134,6 +134,8 @@ Las dos fuentes usan taxonomías distintas. Se mapean a un conjunto común:
   archivo original: los otros 11 meses de 2022 tienen ~400 filas cada uno y
   febrero no aparece. No es un error de parseo. Se muestra como *sin dato*,
   nunca como cero.
+- **Falta agosto 2026** en el `matriculaciones.xlsx` del 19/10/2026 (trae
+  septiembre). Se completa desde el archivo por combustible: ver §4.9.
 
 ## 4.6 Controles automáticos en cada carga
 
@@ -239,6 +241,38 @@ tecnología**.
 > Orden importante: la corrección de tecnología se aplica **después** de
 > unificar las grafías de modelo. Al revés, las filas que todavía venían con la
 > grafía original (`SONG PRO DM-I`) quedaban sin corregir.
+
+La misma regla de tokens existe como código en
+`normalize.tecnologia_por_nombre()`, pero solo la usa el complemento de §4.9
+para versiones que no están en la tabla de correcciones. El detalle sigue
+corrigiéndose con la tabla.
+
+### 4.9 Un mes que un archivo no trae se completa desde otro, rotulado
+
+Dos casos, los dos con columna `fuente` en la tabla y aviso en *Calidad de
+datos*. Ninguno toca un mes que el detalle ya tiene, y los dos se deshacen
+solos: la ingesta del detalle borra el snapshot y lo reescribe.
+
+| Tabla | Hueco | De dónde se completa | Módulo |
+|---|---|---|---|
+| `importacion` | el detalle llega después que el informe (ago-2026 entró el 15/09 con el detalle en julio) | Cuadro 8 del informe estadístico, `fuente='informe'` | `cadam/complemento.py` |
+| `matriculacion` | el detalle saltea un mes que el archivo por combustible sí trae | `matriculacion_movilidad`, `fuente='movilidad'` | `cadam/complemento_movilidad.py` |
+
+**Agosto 2026 de matriculación.** El `matriculaciones.xlsx` que llegó el
+19/10/2026 va de 2022-01 a 2026-09 **sin 2026-08**; movilidad y localidad sí
+lo traen (4.161 en los dos). El archivo por combustible coincide con el
+detalle versión por versión en los 20 meses que tienen los dos, así que sus
+filas de agosto entran como detalle. Lo que no trae (segmento, tecnología,
+importador) sale, en orden: de la misma versión en el mes más cercano; si la
+DNRA la escribió distinto ese mes, segmento e importador de su modelo
+(catálogo de importación) y tecnología de su nombre o su combustible; si no
+hay modelo, *Sin clasificar*. Resultado: 4.161 en 568 versiones, 22 vehículos
+sin segmento. Si el total de algún mes en común no coincidiera, no se
+completa nada y queda el aviso.
+
+El control contra el informe oficial excluye solo las filas `fuente='informe'`
+(compararlas contra sí mismas no prueba nada); las de movilidad entran, porque
+son otro archivo.
 
 ## 5. Correcciones manuales
 

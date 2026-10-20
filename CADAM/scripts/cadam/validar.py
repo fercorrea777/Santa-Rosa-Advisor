@@ -74,9 +74,11 @@ def _vs_informe(con, snapshot):
         # control daba un descuadre de exactamente el total de junio
         # (24.047). Paso el 15/09/2026 al cargar el informe de agosto.
         # Y sin las filas que vinieron DEL informe (cadam/complemento.py):
-        # compararlas contra si mismas daria un "coincide" vacio.
+        # compararlas contra si mismas daria un "coincide" vacio. Las que
+        # vinieron del archivo por combustible (complemento_movilidad.py)
+        # SI entran: son otro archivo, y el informe las controla.
         cols = {r[1] for r in con.execute(f"PRAGMA table_info({tabla})")}
-        solo_rowlevel = " AND fuente = 'row-level'" if "fuente" in cols else ""
+        solo_rowlevel = " AND fuente <> 'informe'" if "fuente" in cols else ""
         filas = con.execute(f"""
             SELECT r.anio, SUM(r.u), SUM(o.u), COUNT(*) FROM
               (SELECT anio, mes, SUM(unidades) u FROM {tabla}

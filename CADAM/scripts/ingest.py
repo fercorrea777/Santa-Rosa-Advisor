@@ -36,7 +36,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from cadam import complemento, detect, schema, validar  # noqa: E402
+from cadam import complemento, complemento_movilidad, detect, schema, validar  # noqa: E402
 from cadam.rowlevel import PARSERS, Log  # noqa: E402
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -312,6 +312,19 @@ def main():
             "INSERT INTO carga_log (snapshot, archivo, nivel, categoria, mensaje, n) "
             "VALUES (?,?,?,?,?,?)", total_log)
         con.commit()
+
+        # Un mes que el detalle de matriculacion saltea y el archivo por
+        # combustible trae (agosto 2026, en la carga del 19/10): se completa
+        # ANTES de derivar modelos y de los controles, asi esas filas tienen
+        # modelo base y el control de meses faltantes no lo cuenta.
+        for periodo in sorted(por_periodo):
+            hallazgos = complemento_movilidad.complementar(con, periodo)
+            con.executemany(
+                "INSERT INTO carga_log (snapshot, archivo, nivel, categoria, mensaje, n) "
+                "VALUES (?,?,?,?,?,?)", hallazgos)
+            con.commit()
+            for _s, _a, _n, _c, msg, _k in hallazgos:
+                print(f"\n  [complemento] {msg}")
 
         # Separar modelo de version: necesita TODOS los archivos del
         # snapshot ya cargados (el catalogo sale de importacion), asi que
