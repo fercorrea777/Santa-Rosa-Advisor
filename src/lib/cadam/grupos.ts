@@ -15,6 +15,11 @@
  * nuevas, entonces, caen en Otros hasta que alguien las ponga acá; la pantalla
  * nombra las marcas de Otros para que se vea cuándo falta asignar una.
  *
+ * Dos marcas NO están en el Excel de Fernando (su base es de vehículos livianos
+ * importados) y las puso Croman el 20/10/2026 porque la matriculación sí las
+ * trae y la DNRA las registra con esos grupos: HINO con Toyotoshi y SCANIA con
+ * Diesa.
+ *
  * Los nombres de marca son los de CADAM (VOLKSWAGEN y no VW, LYNK&CO sin
  * espacios), que es contra lo que se cruza.
  */
@@ -29,8 +34,8 @@ export const GRUPO_RESTO = "OTROS";
 export const MARCAS_POR_GRUPO: Record<string, string[]> = {
   "GARDEN": ["CHERY", "FIAT", "ICAUR", "JEEP", "KIA", "MAZDA", "MINI", "NISSAN", "RAM", "VOLVO"],
   "AUTOMOTOR": ["GEELY", "HYUNDAI", "ISUZU", "KGM", "LYNK&CO", "LOTUS", "MAHINDRA", "MASERATI"],
-  "TOYOTOSHI": ["TOYOTA", "LEXUS", "JAECOO", "OMODA"],
-  "DIESA": ["AUDI", "BYD", "HONDA", "PORSCHE", "VOLKSWAGEN"],
+  "TOYOTOSHI": ["TOYOTA", "LEXUS", "JAECOO", "OMODA", "HINO"],
+  "DIESA": ["AUDI", "BYD", "HONDA", "PORSCHE", "VOLKSWAGEN", "SCANIA"],
   "CHACOMER": ["DFSK", "JIM", "JMC", "SUZUKI"],
   [GRUPO_PROPIO]: [
     "GREAT WALL", "JAC", "JETOUR", "JMEV", "LEAPMOTOR", "MITSUBISHI", "RENAULT", "SOUEAST", "XPENG", "ZEEKR",
