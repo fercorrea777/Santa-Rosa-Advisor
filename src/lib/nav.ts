@@ -102,6 +102,39 @@ export const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+/**
+ * Otros nombres con los que la gente conoce cada pantalla, para el buscador
+ * (Ctrl K). El rótulo del menú es uno, pero el equipo habla de «la brecha»,
+ * «el mapa» o «nafta y diésel»: sin esto, buscar «brecha» no encontraba
+ * «Import. vs matric.» porque esa palabra no está en su rótulo. Va aparte de
+ * NAV_GROUPS para no ensuciar la definición del menú; el buscador ya no
+ * distingue tildes ni mayúsculas.
+ */
+export const ALIAS_NAV: Record<string, string> = {
+  "/mercado": "resumen mercado inicio home panorama",
+  "/evolucion": "mensual estacionalidad proyeccion cierre meses",
+  "/rankings": "marcas modelos ranking top posiciones",
+  "/segmentos": "suv pick up pickup automovil camion furgon tipo de vehiculo",
+  "/combustibles": "nafta diesel gasoil hibrido electrico tecnologia motor propulsion",
+  "/localidades": "ciudades departamentos asuncion capital interior donde",
+  "/market-share": "participacion share cuota porcentaje",
+  "/brecha": "brecha importaciones matriculaciones stock en camino diferencia",
+  "/bubble-chart": "burbujas cuadro producto precio volumen",
+  "/mapa": "mapa rivales competidores competencia donde competir caro barato",
+  "/portafolio": "gama marca modelos portafolio versiones",
+  "/acciones-comerciales": "promociones descuentos bono mecanica planilla fernando",
+  "/gama-propia": "nuestros modelos gama propia precios",
+  "/rentabilidad": "margen ticket precio ganancia",
+  "/operacion": "facturacion stock presupuesto vendedores asesores ventas",
+  "/cbd": "costos fob puesto en playa",
+  "/carflow": "flujo embarque aduana transito pedido",
+  "/inteligencia": "informe lectura alertas oportunidades centro",
+  "/copiloto": "chat preguntas asistente ia ayuda",
+  "/cargas": "fuentes fechas actualizacion cadam cars estado",
+  "/calidad-datos": "controles errores avisos validacion",
+  "/configuracion": "metas marcas competidores usuarios admin",
+};
+
 /** El menú que le toca a un rol. Los grupos que quedan sin items desaparecen
  *  enteros, para no dejar un encabezado de sección colgado sin nada debajo. */
 export function navPara(esAdmin: boolean): NavGroup[] {

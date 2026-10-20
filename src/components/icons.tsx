@@ -320,3 +320,83 @@ export function IconOjoTachado(props: IconProps) {
     </svg>
   );
 }
+
+/** Lupa: buscador de pantallas (menú lateral y paleta de comandos). */
+export function IconBuscar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="10.5" cy="10.5" r="6" />
+      <path d="M15 15l5 5" />
+    </svg>
+  );
+}
+
+/** Puerta con flecha de salida: cerrar sesión. */
+export function IconSalir(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2H10" />
+      <path d="M15 8l4 4-4 4" />
+      <path d="M19 12H9.5" />
+    </svg>
+  );
+}
+
+/** Cámara: cambiar la foto de perfil. */
+export function IconCamara(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 8.5a1.5 1.5 0 0 1 1.5-1.5h2L9 5h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z" />
+      <circle cx="12" cy="13" r="3.25" />
+    </svg>
+  );
+}
+
+/** Doble chevron hacia la izquierda: plegar el menú a solo íconos. */
+export function IconColapsar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12.5 7l-5 5 5 5" />
+      <path d="M18.5 7l-5 5 5 5" />
+    </svg>
+  );
+}
+
+/** Doble chevron hacia la derecha: volver a desplegar el menú. */
+export function IconExpandir(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M11.5 7l5 5-5 5" />
+      <path d="M5.5 7l5 5-5 5" />
+    </svg>
+  );
+}
+
+export function IconCheck(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+
+/** Flecha hacia arriba sobre una base: subir un archivo. */
+export function IconSubir(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 16V5" />
+      <path d="M7.5 9.5L12 5l4.5 4.5" />
+      <path d="M5 19h14" />
+    </svg>
+  );
+}
+
+/** Sobre: revisá tu correo. */
+export function IconCorreo(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+      <path d="M4 7.5l8 6 8-6" />
+    </svg>
+  );
+}

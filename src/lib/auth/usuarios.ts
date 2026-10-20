@@ -221,6 +221,19 @@ export async function crearTablaUsuarios(): Promise<void> {
   await pool.query(
     `create index if not exists auditoria_acceso_momento on auditoria_acceso (momento desc)`
   );
+  // Foto de perfil (19/10/2026): una por persona, en la propia base (bytea,
+  // unos 30 KB: el navegador la recorta y la comprime antes de subirla). Va en
+  // tabla aparte y no como columna de `usuarios` para que el login y la
+  // vigencia, que leen esa tabla en cada entrada, no arrastren bytes que no
+  // usan; y `on delete cascade` la borra sola junto con la cuenta.
+  await pool.query(`
+    create table if not exists usuario_fotos (
+      usuario_id     bigint primary key references usuarios(id) on delete cascade,
+      tipo           text not null,
+      datos          bytea not null,
+      actualizado_en timestamptz not null default now()
+    );
+  `);
 }
 
 const COLUMNAS = `id, usuario, nombre, rol, activo, debe_cambiar, sesion_version,
@@ -294,6 +307,72 @@ export async function getVigencia(id: number): Promise<{ activo: boolean; sesion
   await asegurarTabla();
   const { rows } = await getPool().query<{ activo: boolean; sesion_version: number }>(
     `select activo, sesion_version from usuarios where id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+// ------------------------------------------------------------------ foto
+
+export interface FotoPerfil {
+  tipo: string;
+  datos: Buffer;
+  /** Marca de la última subida, en milisegundos. Viaja en la URL de la imagen
+   *  (`?v=`) para que el navegador la guarde para siempre y aun así vea la
+   *  nueva en cuanto cambia. No es un contador que arranque de 1: si lo
+   *  fuera, quitar la foto y poner otra repetiría un número ya cacheado. */
+  version: string;
+}
+
+/** La foto de una persona, o null si no puso ninguna. */
+export async function getFoto(id: number): Promise<FotoPerfil | null> {
+  await asegurarTabla();
+  const { rows } = await getPool().query<FotoPerfil>(
+    `select tipo, datos,
+            (extract(epoch from actualizado_en) * 1000)::bigint::text as version
+     from usuario_fotos where usuario_id = $1`,
+    [id]
+  );
+  return rows[0] ?? null;
+}
+
+/** Guarda (o reemplaza) la foto. Devuelve la marca de versión nueva. */
+export async function guardarFoto(id: number, tipo: string, datos: Buffer): Promise<string> {
+  await asegurarTabla();
+  const { rows } = await getPool().query<{ version: string }>(
+    `insert into usuario_fotos (usuario_id, tipo, datos)
+     values ($1, $2, $3)
+     on conflict (usuario_id) do update
+       set tipo = excluded.tipo, datos = excluded.datos, actualizado_en = now()
+     returning (extract(epoch from actualizado_en) * 1000)::bigint::text as version`,
+    [id, tipo, datos]
+  );
+  return rows[0].version;
+}
+
+export async function borrarFoto(id: number): Promise<void> {
+  await asegurarTabla();
+  await getPool().query(`delete from usuario_fotos where usuario_id = $1`, [id]);
+}
+
+/** Lo que el menú necesita saber de la persona que está mirando: nombre, rol,
+ *  correo y si tiene foto. Una sola consulta con la foto por `left join`, sin
+ *  traer los bytes. */
+export async function getPerfil(id: number): Promise<{
+  nombre: string;
+  usuario: string;
+  rol: RolUsuario;
+  ultimo_acceso: string | null;
+  creado_en: string;
+  foto_version: string | null;
+} | null> {
+  await asegurarTabla();
+  const { rows } = await getPool().query(
+    `select u.nombre, u.usuario, u.rol, u.ultimo_acceso, u.creado_en,
+            (extract(epoch from f.actualizado_en) * 1000)::bigint::text as foto_version
+     from usuarios u
+     left join usuario_fotos f on f.usuario_id = u.id
+     where u.id = $1`,
     [id]
   );
   return rows[0] ?? null;

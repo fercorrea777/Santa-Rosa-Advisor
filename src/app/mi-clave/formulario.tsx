@@ -47,7 +47,7 @@ export function FormularioMiClave({ quien }: { quien: string | null }) {
               className={cn(
                 "rounded-md border px-3 py-2 text-xs",
                 estado.error
-                  ? "border-rose-500/30 bg-rose-500/5 text-rose-600 dark:text-rose-400"
+                  ? "border-rose-500/30 bg-rose-500/5 text-rose-700 dark:text-rose-400"
                   : "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
               )}
             >

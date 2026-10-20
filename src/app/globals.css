@@ -64,9 +64,9 @@
    proyector a cinco. Por eso el contraste de los números es alto y la
    decoración vive en los bordes, nunca encima del dato.
 
-   El modo claro NO es el mismo tema invertido: es una variante técnica fría
-   (nada de crema), pensada para oficina con ventana. El oscuro es el
-   principal.
+   Ningún modo es el otro invertido. El claro (técnico, frío, nada de crema) es
+   el que se abre por defecto: oficina con ventana. El oscuro es la variante
+   para la sala de reuniones y el proyector.
 --------------------------------------------------------------------------- */
 
 :root {
@@ -292,6 +292,15 @@
   }
   html {
     @apply font-sans;
+    /* Un velo del acento en vez del destello gris por defecto al tocar. */
+    -webkit-tap-highlight-color: color-mix(in oklab, var(--primary) 16%, transparent);
+  }
+  /* Sin la espera ni el zoom por doble toque en lo que se aprieta (guía de
+     interfaces web: touch-action: manipulation). No afecta el scroll ni el
+     pellizco sobre el resto de la página. */
+  a, button, summary, select, label, [role="button"], [role="tab"],
+  input[type="checkbox"], input[type="radio"] {
+    touch-action: manipulation;
   }
   /* Los números se leen a cinco metros en la reunión del lunes: mono y
      tabulares para que las columnas no bailen entre filas. */
@@ -560,6 +569,36 @@
     }
   }
 
+  /* Fondo de una barra pegajosa cuyas piezas tienen huecos entre sí (el
+     selector de fuente y la tarjeta de filtros de /mercado). Transparente
+     mientras la barra está en su lugar —así se funde con el lienzo, que en
+     oscuro no es plano— y opaco solo cuando está pegada arriba, que es cuando
+     el contenido pasa por detrás y asomaría entre las dos piezas. z-index -1:
+     va debajo de las piezas, dentro del contexto de apilamiento de la barra.
+     Sin soporte de scroll-state queda un velo casi opaco con desenfoque. */
+  .pegada-fondo {
+    position: absolute;
+    /* Sube 8 px (el aire entre el header de la app y la barra pegada): sin
+       eso, por esa franja se veía pasar el borde de las tarjetas. */
+    inset: -0.5rem 0 0 0;
+    z-index: -1;
+    border-radius: 0 0 0.75rem 0.75rem;
+    background: transparent;
+    transition: background-color 200ms;
+    pointer-events: none;
+  }
+  @container barra scroll-state(stuck: top) {
+    .pegada-fondo {
+      background: var(--background);
+    }
+  }
+  @supports not (container-type: scroll-state) {
+    .pegada-fondo {
+      background: color-mix(in oklab, var(--background) 92%, transparent);
+      backdrop-filter: blur(8px);
+    }
+  }
+
   /* Secciones largas debajo del primer pliegue: el navegador no calcula
      su layout hasta que se acercan (guía "defer-rendering-heavy-content").
      `contain-intrinsic-size` reserva un alto estimado para que el scroll
@@ -800,7 +839,161 @@
   border-color: color-mix(in oklab, var(--destructive) 70%, var(--border));
 }
 .input-base:user-invalid:focus-visible,
-.campo-acceso:user-invalid:focus-visible {
+.campo-acceso:user-invalid:focus-visible,
+.campo-acceso-tema:user-invalid:focus-visible {
   border-color: var(--destructive);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 35%, transparent);
+}
+.campo-acceso-tema:user-invalid {
+  border-color: color-mix(in oklab, var(--destructive) 70%, var(--border));
+}
+
+/* ---------------------------------------------------------------------------
+   PANTALLAS DE ACCESO (components/acceso/*) — 19/10/2026
+
+   Campos de las pantallas de acceso con el tema (claro u oscuro): antes eran
+   blancos sobre navy fijo; ahora el formulario vive sobre la superficie de la
+   app y el navy queda en el panel ilustrado de al lado. Mismo problema de
+   siempre con el autocompletado de Chrome: pinta el campo con su propio fondo y
+   color de texto, y ahí el ojito de la clave desaparecía (Croman, 16/09/2026).
+   La sombra interior es lo único que el autofill respeta para el fondo, y el
+   texto se devuelve al color del tema.
+--------------------------------------------------------------------------- */
+.campo-acceso-tema:-webkit-autofill,
+.campo-acceso-tema:-webkit-autofill:hover,
+.campo-acceso-tema:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  border-color: var(--input);
+}
+
+/* ---- El globito (components/ui/globito.tsx) -------------------------------
+   La flotación es CSS y no Motion para que la regla global de movimiento
+   reducido (más arriba) la apague sola: con duración de 0,01 ms y una sola
+   vuelta termina en el último cuadro, que es el de reposo. */
+@keyframes globito-flota {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5%); }
+}
+@keyframes globito-sombra {
+  0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.6; }
+  50% { transform: translateX(-50%) scaleX(0.78); opacity: 0.34; }
+}
+.globito-flota {
+  animation: globito-flota 4.8s ease-in-out infinite;
+}
+.globito-sombra {
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.42 0.13 262 / 0.55), transparent);
+  filter: blur(3px);
+  transform: translateX(-50%);
+  animation: globito-sombra 4.8s ease-in-out infinite;
+}
+
+/* ---- Panel ilustrado del acceso -------------------------------------------
+   Cada animación TERMINA en el estado «completo» (la línea dibujada, el texto
+   escrito, la tarjeta en su lugar): con prefers-reduced-motion la regla global
+   las lleva al último cuadro y el panel se ve terminado, no a medio dibujar. */
+.acceso-tarjeta {
+  background: linear-gradient(160deg, oklch(0.36 0.085 277 / 0.82), oklch(0.28 0.08 277 / 0.82));
+  border: 1px solid oklch(1 0 0 / 0.13);
+  border-radius: 1.1rem;
+  box-shadow:
+    0 26px 48px -26px oklch(0.12 0.06 277 / 0.85),
+    inset 0 1px 0 oklch(1 0 0 / 0.1);
+}
+@keyframes acceso-entra {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes acceso-flota-a {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+@keyframes acceso-flota-b {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(7px) rotate(0.6deg); }
+}
+.acceso-entra {
+  animation: acceso-entra 0.8s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+  animation-delay: var(--retraso, 0s);
+}
+.acceso-flota-a {
+  animation: acceso-flota-a 7.5s ease-in-out infinite;
+  animation-delay: var(--retraso, 0s);
+}
+.acceso-flota-b {
+  animation: acceso-flota-b 9s ease-in-out infinite;
+  animation-delay: var(--retraso, 0s);
+}
+/* La línea se dibuja sola (pathLength = 1 en el SVG). */
+@keyframes acceso-traza {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.acceso-traza {
+  stroke-dasharray: 1;
+  animation: acceso-traza 2.2s 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes acceso-aparece {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.acceso-area {
+  animation: acceso-aparece 1.4s 1.2s ease-out both;
+}
+@keyframes acceso-pulso {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+.acceso-pulso {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: acceso-pulso 2.6s 2.4s ease-out infinite;
+}
+/* Los arcos del anillo se van llenando. */
+@keyframes acceso-arco {
+  from { stroke-dasharray: 0 100; }
+  to { stroke-dasharray: var(--largo) 100; }
+}
+.acceso-arco {
+  animation: acceso-arco 1.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation-delay: var(--retraso, 0.4s);
+}
+/* Dos barras que respiran. scaleX y no width: no se anima el layout. */
+@keyframes acceso-barra {
+  from { transform: scaleX(0.55); }
+  to { transform: scaleX(0.92); }
+}
+.acceso-barra {
+  transform-origin: left center;
+  animation: acceso-barra 3.8s ease-in-out infinite alternate;
+  animation-delay: var(--retraso, 0s);
+}
+/* La pregunta del Copiloto se escribe de a una letra, se queda, y vuelve a
+   empezar. clip-path y no width: no se anima el layout. */
+@keyframes acceso-escribe {
+  0% { clip-path: inset(0 100% 0 0); animation-timing-function: steps(43, end); }
+  30% { clip-path: inset(0 0 0 0); }
+  94% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 100% 0 0); }
+}
+@keyframes acceso-respuesta {
+  0%, 32% { opacity: 0; transform: translateY(6px); }
+  42%, 94% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(6px); }
+}
+.acceso-escribe {
+  animation: acceso-escribe 11s linear infinite;
+}
+.acceso-respuesta {
+  animation: acceso-respuesta 11s ease-out infinite;
+}
+/* Con movimiento reducido los bucles de lectura (escribir, responder) quedan
+   en su último cuadro de la regla global — que para estos dos es el de
+   RECOMIENZO, o sea vacío. Se fuerza el estado completo. */
+@media (prefers-reduced-motion: reduce) {
+  .acceso-escribe { clip-path: inset(0 0 0 0); }
+  .acceso-respuesta { opacity: 1; transform: none; }
 }

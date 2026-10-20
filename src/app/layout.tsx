@@ -8,7 +8,9 @@ import { ProveedorMovimiento } from "@/components/movimiento/proveedor";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { vigenciaDe } from "@/lib/auth/vigencia";
+import { perfilDe } from "@/lib/auth/perfil";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
+import { COOKIE_MENU, MENU_PLEGADO } from "@/lib/menu";
 
 // Historia: Nunito Sans -> Inter (2026-07-23, "mejorar las fuentes") ->
 // Archivo (2026-08-27, "que sea mas moderno").
@@ -73,6 +75,11 @@ export const metadata: Metadata = {
 // en <html>): solo le avisa al navegador que la página soporta los dos.
 export const viewport: Viewport = {
   colorScheme: "light dark",
+  // El navy de la barra de marca (--barra en claro): en el celular tiñe la
+  // barra del navegador del mismo color que la nuestra, así la cabecera se lee
+  // como una sola pieza. Es el color de una barra que existe en los dos
+  // temas; el oscuro la baja un punto, una diferencia que no se nota.
+  themeColor: "#1b1c4e",
 };
 
 export default async function RootLayout({
@@ -86,8 +93,9 @@ export default async function RootLayout({
   // agrega seguridad, solo latencia. Sin clave configurada no hay sesiones y
   // todo el mundo ve todo, que es lo mismo que ya pasaba.
   const clave = process.env.ADVISOR_CLAVE;
+  const almacen = await cookies();
   const sesion = clave
-    ? leerSesion((await cookies()).get(NOMBRE_COOKIE)?.value, clave)
+    ? leerSesion(almacen.get(NOMBRE_COOKIE)?.value, clave)
     : null;
   // La firma cerró, pero ¿la cuenta sigue viva y con la misma versión de
   // sesión? (baja, cambio de clave o de rol). La puerta no puede mirar la
@@ -98,6 +106,13 @@ export default async function RootLayout({
     redirect("/api/sesion/cerrar?motivo=sesion-cortada");
   }
   const esAdmin = !clave || sesion?.rol === "admin";
+  // Quién está mirando, para la tarjeta de perfil del menú (nombre, rol, foto).
+  // Con la misma caché de un minuto que la vigencia, y si la base no responde
+  // el menú se arma igual, sin foto.
+  const perfil = sesion ? await perfilDe(sesion) : null;
+  // El menú plegado se recuerda en una cookie para que el servidor dibuje el
+  // ancho correcto desde el primer byte (ver lib/menu.ts).
+  const menuPlegadoInicial = almacen.get(COOKIE_MENU)?.value === MENU_PLEGADO;
   // `?embed=1` (el iframe de presentacion.santarosa.lat): el layout no ve la
   // query, así que la puerta la deja en una cabecera. Ver src/proxy.ts.
   const embebidoPorUrl = (await headers()).get("x-advisor-embed") === "1";
@@ -119,7 +134,13 @@ export default async function RootLayout({
               {/* `sinClave` se lee ACA, en el layout, que es Server Component:
                   AppShell es "use client" y ahi process.env no existe. Ver
                   src/proxy.ts para por que la puerta falla abierta. */}
-              <AppShell sinClave={!clave} esAdmin={esAdmin} embebidoPorUrl={embebidoPorUrl}>
+              <AppShell
+                sinClave={!clave}
+                esAdmin={esAdmin}
+                embebidoPorUrl={embebidoPorUrl}
+                perfil={perfil}
+                menuPlegadoInicial={menuPlegadoInicial}
+              >
                 {children}
               </AppShell>
             </ProveedorMovimiento>
