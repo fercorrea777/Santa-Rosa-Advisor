@@ -398,6 +398,16 @@ export interface FilaRanking {
   posicionAnterior: number | null;
   cambioPosicion: number | null;
   esPropia: boolean;
+  /** Solo en un ranking FILTRADO (ver conPuestoDeMercado): el puesto que esta
+   *  fila ocupa en el mercado ENTERO, mismo período y sin ningún otro filtro.
+   *  `posicion` es el puesto dentro del filtro (la lista que se está viendo);
+   *  este es el real. undefined = el ranking no está filtrado y los dos son
+   *  el mismo; null = no figura en el ranking sin filtrar. */
+  posicionMercado?: number | null;
+  /** Lo mismo para la participación: `participacion` es sobre el total del
+   *  filtro («cuánto de Santa Rosa es Jetour»); esta es sobre el mercado entero,
+   *  que es el share de verdad. */
+  participacionMercado?: number | null;
 }
 
 /** Unidades totales del período, sin recortes. Es el denominador honesto
@@ -513,6 +523,11 @@ export interface FilaGrupo {
   /** Puestos que subió (positivo) o bajó (negativo). */
   cambioPosicion: number | null;
   esPropio: boolean;
+  /** Solo con segmento o tecnología puestos: el puesto y la participación del
+   *  grupo en el mercado ENTERO (mismo período, sin esos filtros). Ver
+   *  FilaRanking.posicionMercado. */
+  posicionMercado?: number | null;
+  participacionMercado?: number | null;
 }
 
 /**
@@ -563,6 +578,17 @@ export function getRankingGrupos(fuente: Fuente, filtro: Filtro): FilaGrupo[] {
 
   const actual = porGrupo(act);
   const previo = porGrupo(ant);
+  // Con segmento o tecnología puestos, además del puesto «en el segmento», el
+  // del mercado entero. En importación la tecnología no recorta nada.
+  const recorta = !!act.segmento || (fuente === "matriculacion" && !!act.tecnologia);
+  const entero = recorta ? porGrupo({ anio: act.anio, mesDesde: act.mesDesde, mesHasta: act.mesHasta }) : null;
+  const totalEntero = entero ? [...entero.values()].reduce((t, g) => t + g.unidades, 0) || 1 : 1;
+  const posEntero = new Map(
+    [...(entero ?? new Map<string, Acum>()).entries()]
+      .map(([nombre, g]) => ({ nombre, u: g.unidades }))
+      .sort((a, b) => b.u - a.u || a.nombre.localeCompare(b.nombre))
+      .map((x, i) => [x.nombre, i + 1] as const)
+  );
   const totalAct = [...actual.values()].reduce((t, g) => t + g.unidades, 0) || 1;
   const totalPrev = [...previo.values()].reduce((t, g) => t + g.unidades, 0) || 1;
   // Desempate por nombre: sin él, dos grupos con las mismas unidades cambiarían
@@ -599,6 +625,12 @@ export function getRankingGrupos(fuente: Fuente, filtro: Filtro): FilaGrupo[] {
       posicionAnterior: posAnt,
       cambioPosicion: posAnt ? posAnt - (i + 1) : null,
       esPropio: nombre === GRUPO_PROPIO,
+      ...(entero
+        ? {
+            posicionMercado: posEntero.get(nombre) ?? null,
+            participacionMercado: entero.has(nombre) ? entero.get(nombre)!.unidades / totalEntero : null,
+          }
+        : {}),
     };
   });
 }
@@ -675,6 +707,59 @@ export function getRankingModelos(fuente: Fuente, f: Filtro, limite = 300): Fila
  *  tiene ese nivel de detalle. */
 export function getRankingVersiones(f: Filtro, limite = 300): FilaRanking[] {
   return rankingPorColumna("matriculacion", "modelo", f, limite);
+}
+
+/** ¿El filtro recorta algo ADEMÁS del período? Tecnología y versión solo
+ *  existen en matriculación (en importación no hacen nada, ver where()). */
+export function hayRecorte(fuente: Fuente, f: Filtro): boolean {
+  return !!(
+    f.segmento || f.marca || f.empresa || f.modelo ||
+    (fuente === "matriculacion" && (f.tecnologia || f.version))
+  );
+}
+
+/**
+ * A un ranking filtrado le agrega el puesto y la participación que cada fila
+ * tiene en el MERCADO ENTERO (mismo período, sin ningún otro filtro).
+ *
+ * Por qué hace falta: con un filtro puesto, `posicion` y `participacion` son
+ * relativas a lo que queda. Con «Importador: Santa Rosa» la participación de
+ * Jetour es «cuánto de Santa Rosa es Jetour» (35 %), no su parte del mercado
+ * (2,2 %), y su puesto es el 2 de la lista, no el 11 del mercado. El share se
+ * mide sobre el mercado, así que las dos medidas conviven: la del filtro, para
+ * ver cómo se reparte lo que se está mirando, y esta, para saber dónde está
+ * parada de verdad.
+ *
+ * Sin filtro devuelve las filas tal cual (las dos medidas serían la misma).
+ * `nivel` dice qué es una fila: la marca, el modelo o la versión.
+ */
+export function conPuestoDeMercado(
+  fuente: Fuente,
+  filas: FilaRanking[],
+  filtro: Filtro,
+  nivel: "marca" | "modelo" | "version"
+): FilaRanking[] {
+  if (!hayRecorte(fuente, filtro)) return filas;
+  const f = acotarAFuente(fuente, { anio: filtro.anio, mesDesde: filtro.mesDesde, mesHasta: filtro.mesHasta });
+  const w = where(fuente, f);
+  const columna =
+    nivel === "marca" ? null
+    : nivel === "version" ? "modelo"
+    : fuente === "matriculacion" ? "modelo_base" : "modelo";
+  const clave = columna ? `marca || ' ' || ${columna}` : "marca";
+  const grupo = columna ? `marca, ${columna}` : "marca";
+  const base = getDb()
+    .prepare(
+      `SELECT ${clave} clave, SUM(unidades) u FROM ${vista(fuente)}
+       WHERE ${w.sql} GROUP BY ${grupo} HAVING u > 0 ORDER BY u DESC, clave`
+    )
+    .all(...w.args) as { clave: string; u: number }[];
+  const total = base.reduce((t, r) => t + r.u, 0) || 1;
+  const puesto = new Map(base.map((r, i) => [r.clave, { posicion: i + 1, u: r.u }] as const));
+  return filas.map((fila) => {
+    const b = puesto.get(fila.clave);
+    return { ...fila, posicionMercado: b?.posicion ?? null, participacionMercado: b ? b.u / total : null };
+  });
 }
 
 /** Cuántas versiones distintas (texto de la DNRA) registró cada modelo en

@@ -8,7 +8,7 @@ import { Seccion } from "@/components/dashboard/seccion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   acotarAFuente, getCobertura, getMarcasDeImportador, getOpcionesFiltro, getRankingGrupos,
-  getRankingMarcas, getRankingModelos, TECNOLOGIAS,
+  conPuestoDeMercado, getRankingMarcas, getRankingModelos, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
 import {
   asignarPrecios, fichasDeModelos, type PrecioCandidato,
@@ -48,15 +48,18 @@ export default async function RankingsPage({
   const periodoImp = etiquetaPeriodo(fImp.anio, fImp.mesDesde, fImp.mesHasta);
   const opciones = getOpcionesFiltro();
 
-  const marcasMat = getRankingMarcas("matriculacion", fMat);
-  const marcasImp = getRankingMarcas("importacion", fImp);
+  // Con un filtro puesto, cada fila trae además su puesto y su participación en
+  // el mercado ENTERO: «Part.» y «#» son sobre lo filtrado, y con Importador:
+  // Santa Rosa decían cuánto de Santa Rosa es cada marca, no su share.
+  const marcasMat = conPuestoDeMercado("matriculacion", getRankingMarcas("matriculacion", fMat), fMat, "marca");
+  const marcasImp = conPuestoDeMercado("importacion", getRankingMarcas("importacion", fImp), fImp, "marca");
   // Por grupo: las marcas juntas por el importador que las representa. Se
   // arma aparte de las marcas porque no respeta Marca ni Importador (ver
   // getRankingGrupos).
   const gruposMat = getRankingGrupos("matriculacion", fMat);
   const gruposImp = getRankingGrupos("importacion", fImp);
-  const modelosMat = getRankingModelos("matriculacion", fMat, 500);
-  const modelosImp = getRankingModelos("importacion", fImp, 500);
+  const modelosMat = conPuestoDeMercado("matriculacion", getRankingModelos("matriculacion", fMat, 500), fMat, "modelo");
+  const modelosImp = conPuestoDeMercado("importacion", getRankingModelos("importacion", fImp, 500), fImp, "modelo");
   // En importación el importador se infiere por marca (la base no lo trae):
   // se le dice al usuario qué marcas quedaron adentro.
   const marcasDelImportador = f.empresa ? getMarcasDeImportador(f.empresa, f.anio) : [];

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { cn } from "@/lib/utils";
-import { CambioPosicion, Variacion } from "@/components/dashboard/celdas-ranking";
+import { CambioPosicion, Variacion, ParteYPuesto } from "@/components/dashboard/celdas-ranking";
 import { formatPct, formatUnidades } from "@/lib/format";
 import {
   claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha,
@@ -17,7 +17,8 @@ import {
 import type { FilaRanking } from "@/lib/cadam/mercado";
 
 type Campo = "posicion" | "marca" | "modelo" | "segmento" | "unidades"
-  | "participacion" | "variacion" | "cambioPosicion";
+  | "participacion" | "variacion" | "cambioPosicion"
+  | "participacionMercado";
 
 const TOPES = [5, 10, 20, 50, 0] as const;
 
@@ -80,6 +81,10 @@ export function TablaRanking({
   };
   const [busqueda, setBusqueda] = React.useState("");
   const [tope, setTope] = React.useState<number>(20);
+  // Con un filtro puesto las filas traen ADEMÁS el puesto y la participación en
+  // el mercado entero (ver conPuestoDeMercado): `posicion` y `participacion`
+  // pasan a ser «dentro del filtro» y se agregan las del mercado.
+  const conMercado = filas.some((f) => f.posicionMercado !== undefined);
 
   // La mecánica de "que el filtro se quede quieto" vive en el hook.
   const { leer: filtroDe, alternar: alternarFiltro, pendiente } = useFiltroUrl();
@@ -110,15 +115,21 @@ export function TablaRanking({
     const cab = ["Posicion", "Marca"];
     if (mostrarModelo) cab.push("Modelo");
     if (mostrarSegmento) cab.push("Segmento");
-    cab.push("Unidades", "Participacion %", "Variacion %", "Unidades periodo anterior",
-      "Posicion anterior", "Cambio posicion", "Marca propia");
+    cab.push("Unidades", conMercado ? "Participacion en el filtro %" : "Participacion %");
+    if (conMercado) cab.push("Participacion mercado %", "Posicion mercado");
+    cab.push("Variacion %", "Unidades periodo anterior", "Posicion anterior", "Cambio posicion", "Marca propia");
     const filasCsv = filtradas.map((f) => {
       const c: (string | number)[] = [f.posicion, f.marca];
       if (mostrarModelo) c.push(f.modelo ?? "");
       if (mostrarSegmento) c.push(f.segmento ?? "");
+      c.push(f.unidades, (f.participacion * 100).toFixed(2));
+      if (conMercado) {
+        c.push(
+          f.participacionMercado == null ? "" : (f.participacionMercado * 100).toFixed(2),
+          f.posicionMercado ?? "",
+        );
+      }
       c.push(
-        f.unidades,
-        (f.participacion * 100).toFixed(2),
         f.variacion === null ? "" : (f.variacion * 100).toFixed(2),
         f.unidadesAnterior,
         f.posicionAnterior ?? "",
@@ -140,8 +151,12 @@ export function TablaRanking({
     URL.revokeObjectURL(url);
   };
 
-  const th = (campo: Campo, label: string, alinearDerecha = false, nota?: string) => (
-    <TableHead className={alinearDerecha ? "text-right" : undefined} nota={nota}>
+  // compacta: sin el piso de 6,5 rem que TableHead le pone a una columna con
+  // nota. Con las dos medidas (mercado y filtro) la tabla suma columnas, y en un
+  // ranking de modelos (10) esos pisos la llevaban a 1138 px: más que el área de
+  // contenido de un monitor de 1440.
+  const th = (campo: Campo, label: string, alinearDerecha = false, nota?: string, compacta = false) => (
+    <TableHead className={cn(alinearDerecha && "text-right", compacta && "min-w-0")} nota={nota}>
       <button
         type="button"
         onClick={() =>
@@ -266,6 +281,13 @@ export function TablaRanking({
                 {mostrarSegmento && f.segmento}
               </div>
             )}
+            {conMercado && (
+              <p className="pl-6 text-xs text-muted-foreground">
+                En el mercado: <span className="font-medium text-foreground">{f.posicionMercado ? `#${f.posicionMercado}` : "—"}</span>
+                {" · "}
+                <span className="tabular-nums">{f.participacionMercado == null ? "—" : formatPct(f.participacionMercado)}</span>
+              </p>
+            )}
             <div className="flex items-baseline justify-between pl-6">
               {/* Unidades es el numero que se viene a buscar: mono, grande,
                   tal como pide DESIGN.md para cifras que se leen a distancia. */}
@@ -273,8 +295,8 @@ export function TablaRanking({
                 {formatUnidades(f.unidades)}
               </span>
               <span className="flex items-center gap-3 text-xs">
-                <span className="tabular-nums text-muted-foreground">
-                  {formatPct(f.participacion)}
+                <span className="tabular-nums text-muted-foreground" title={conMercado ? "Participación dentro del filtro" : undefined}>
+                  {formatPct(f.participacion)}{conMercado ? " del filtro" : ""}
                 </span>
                 <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0} />
               </span>
@@ -291,14 +313,15 @@ export function TablaRanking({
         <Table>
           <TableHeader>
             <TableRow>
-              {th("posicion", "#")}
+              {th("posicion", "#", false, conMercado ? "en el filtro" : undefined, true)}
               {th("marca", columnaClave)}
               {mostrarModelo && th("modelo", etiquetaModelo)}
               {mostrarSegmento && th("segmento", "Segmento")}
-              {th("unidades", "Unidades", true, "las del período")}
-              {th("participacion", "Part.", true, "su parte del mercado")}
-              {th("variacion", "Var.", true, "contra el año pasado")}
-              {th("cambioPosicion", "Pos.", true, "puestos que subió o bajó")}
+              {th("unidades", "Unidades", true, "las del período", conMercado)}
+              {conMercado && th("participacionMercado", "Mercado", true, "parte y puesto, sin filtros", true)}
+              {th("participacion", conMercado ? "Part. filtro" : "Part.", true, conMercado ? "sobre lo filtrado" : "su parte del mercado")}
+              {th("variacion", "Var.", true, "contra el año pasado", conMercado)}
+              {th("cambioPosicion", "Pos.", true, "puestos que subió o bajó", conMercado)}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -343,6 +366,11 @@ export function TablaRanking({
                   <TableCell className="text-muted-foreground">{f.segmento}</TableCell>
                 )}
                 <TableCell className="text-right tabular-nums">{formatUnidades(f.unidades)}</TableCell>
+                {conMercado && (
+                  <TableCell className="text-right tabular-nums">
+                    <ParteYPuesto parte={f.participacionMercado} puesto={f.posicionMercado} />
+                  </TableCell>
+                )}
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatPct(f.participacion)}
                 </TableCell>
@@ -361,6 +389,9 @@ export function TablaRanking({
 
       <p className="text-xs text-muted-foreground">
         Mostrando {filtradas.length} de {filas.length}.
+        {conMercado
+          ? " «Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Part. filtro», sobre lo que queda con el filtro."
+          : ""}
         {notaVariacion ? ` ${notaVariacion}` : ""}
         {fichas ? " Tocá una fila para ver contra quién compite ese modelo." : ""}
       </p>

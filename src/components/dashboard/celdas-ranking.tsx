@@ -2,9 +2,10 @@ import { cn } from "@/lib/utils";
 import { formatPct } from "@/lib/format";
 
 /**
- * Las dos celdas que repiten todos los rankings: la variación contra el año
- * pasado y el cambio de puesto. Viven acá (y no dentro de TablaRanking) para
- * que la tabla de grupos y la de marcas digan lo mismo del mismo modo.
+ * Las celdas que repiten todos los rankings: la variación contra el año
+ * pasado, el cambio de puesto y la parte/puesto en el mercado entero. Viven acá
+ * (y no dentro de TablaRanking) para que la tabla de grupos y la de marcas
+ * digan lo mismo del mismo modo.
  */
 
 export function Variacion({ v, entrante }: { v: number | null; entrante: boolean }) {
@@ -51,5 +52,33 @@ export function CambioPosicion({
       <span aria-hidden="true">{sube ? "▲" : "▼"}</span>
       {Math.abs(cambio)}
     </span>
+  );
+}
+
+/**
+ * La participación en el mercado ENTERO y el puesto que se ocupa en él, en dos
+ * renglones: arriba la parte («2,2%»), que es lo que se compara de una fila a
+ * otra; abajo el puesto («#11»). Van juntas en una columna y no en dos porque
+ * con las medidas del filtro al lado la tabla de modelos pasaba de 1138 px y
+ * se desbordaba en un monitor de 1440; es el mismo patrón que ya usa «Part.»
+ * del ranking por grupo con su variación en puntos debajo.
+ */
+export function ParteYPuesto({
+  parte, puesto,
+}: { parte: number | null | undefined; puesto: number | null | undefined }) {
+  return (
+    <>
+      <span className="block">{parte == null ? "—" : formatPct(parte)}</span>
+      <span className="block text-[11px] text-muted-foreground">
+        {puesto ? (
+          <>
+            <span aria-hidden="true">#{puesto}</span>
+            <span className="sr-only">puesto {puesto}</span>
+          </>
+        ) : (
+          "—"
+        )}
+      </span>
+    </>
   );
 }

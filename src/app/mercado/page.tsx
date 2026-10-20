@@ -13,8 +13,8 @@ import { SelectorAniosSerie } from "@/components/dashboard/selector-anios-serie"
 import { Seccion } from "@/components/dashboard/seccion";
 import { AccionesSemana } from "@/components/dashboard/acciones-semana";
 import {
-  acotarAFuente, getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
-  getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
+  acotarAFuente, conPuestoDeMercado, getCobertura, getKpi, getOpcionesFiltro, getPorDimension,
+  getRankingMarcas, getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getParametros } from "@/lib/cadam/config";
 import { aniosDeSerie, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
@@ -401,7 +401,7 @@ export default async function MercadoPage({
 
             <TabsContent value="marcas" className="mt-3">
               <TablaRanking
-                filas={marcas}
+                filas={conPuestoDeMercado(fuente, marcas, f, "marca")}
                 filtrarPor={{ marca: "marca" }}
                 nombreArchivo={`ranking-marcas-${fuente}-${f.anio}`}
                 notaVariacion={notaVar}
@@ -410,7 +410,7 @@ export default async function MercadoPage({
 
             <TabsContent value="modelos" className="mt-3">
               <TablaRanking
-                filas={modelos}
+                filas={conPuestoDeMercado(fuente, modelos, f, "modelo")}
                 mostrarModelo
                 mostrarSegmento
                 etiquetaModelo="Modelo"
@@ -430,7 +430,7 @@ export default async function MercadoPage({
               ) : (
                 <>
                   <TablaRanking
-                    filas={versiones}
+                    filas={conPuestoDeMercado("matriculacion", versiones, f, "version")}
                     mostrarModelo
                     mostrarSegmento
                     etiquetaModelo="Versión"
