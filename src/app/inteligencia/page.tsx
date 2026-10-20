@@ -221,7 +221,7 @@ function ItemCard({ item }: { item: Item }) {
           <span className="font-medium">Impacto potencial: </span>{item.impacto}
         </p>
       )}
-      <p className="text-[11px] text-muted-foreground/70">Período analizado: {item.periodo}</p>
+      <p className="text-[11px] text-muted-foreground">Período analizado: {item.periodo}</p>
     </li>
   );
 }
@@ -233,7 +233,7 @@ function PrioridadBadge({ prioridad }: { prioridad: Prioridad }) {
       className={cn(
         "h-5 px-1.5 text-[10px] font-normal capitalize",
         prioridad === "alta" && "border-rose-500/40 text-rose-700 dark:text-rose-400",
-        prioridad === "media" && "border-amber-500/40 text-amber-600 dark:text-amber-500",
+        prioridad === "media" && "border-amber-500/40 text-amber-700 dark:text-amber-400",
         prioridad === "baja" && "text-muted-foreground"
       )}
     >

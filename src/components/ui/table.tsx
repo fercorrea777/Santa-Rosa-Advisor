@@ -6,10 +6,35 @@ import { cn } from "@/lib/utils"
 import { DURACION, gsap, menosMovimiento, SUAVE } from "@/lib/movimiento"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const caja = React.useRef<HTMLDivElement>(null)
+  const [seDesplaza, setSeDesplaza] = React.useState(false)
+
+  // Cuando las columnas no entran, la caja se desplaza de costado. Una región
+  // que se desplaza tiene que poder enfocarse con el teclado: si no, quien no
+  // usa mouse no llega a las columnas de la derecha (axe: scrollable-region-
+  // focusable). Solo se enfoca cuando de verdad se desplaza: una parada de Tab
+  // por cada tabla sería ruido. ResizeObserver avisa al empezar a observar y en
+  // cada cambio de tamaño (de la caja o de la tabla), así que no hace falta
+  // medir dentro del efecto.
+  React.useEffect(() => {
+    const el = caja.current
+    if (!el) return
+    const medir = () => setSeDesplaza(el.scrollWidth > el.clientWidth + 1)
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    const tabla = el.querySelector("table")
+    if (tabla) ro.observe(tabla)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <div
+      ref={caja}
       data-slot="table-container"
-      className="tabla-scroll relative w-full overflow-x-auto"
+      className="tabla-scroll relative w-full overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      {...(seDesplaza
+        ? { tabIndex: 0, role: "region", "aria-label": "Tabla: se desplaza hacia los costados" }
+        : {})}
     >
       {/* Fundido en el borde derecho mientras haya más columnas para ver
           (ver .tabla-pista en globals.css). */}
@@ -162,11 +187,13 @@ function TableHead({
         <span className="block">
           <span className="block">{children}</span>
           {/* normal-case + tracking-normal: el rotulo grita en mayusculas,
-              la nota habla. font-normal para que no compita con el. */}
+              la nota habla. font-normal para que no compita con el. Sin
+              opacity: con el 75% daba 3,35:1 sobre blanco; el peso y el
+              tamaño ya la dejan por debajo del rótulo. */}
           {/* in-[.text-right]:ml-auto: la nota es un bloque de ancho tope, y
               un bloque no obedece text-align; en una columna numérica ancha
               quedaba a la izquierda, lejos de su rótulo. */}
-          <span className="mt-1 block max-w-[24ch] text-[10px] leading-snug font-normal normal-case tracking-normal whitespace-normal opacity-75 in-[.text-right]:ml-auto">
+          <span className="mt-1 block max-w-[24ch] text-[11px] leading-snug font-normal normal-case tracking-normal whitespace-normal in-[.text-right]:ml-auto">
             {nota}
           </span>
         </span>

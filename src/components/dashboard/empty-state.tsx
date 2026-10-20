@@ -8,7 +8,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-10 text-center">
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <p className="max-w-sm text-xs text-muted-foreground/80">{description}</p>
+      <p className="max-w-sm text-xs text-muted-foreground">{description}</p>
     </div>
   );
 }

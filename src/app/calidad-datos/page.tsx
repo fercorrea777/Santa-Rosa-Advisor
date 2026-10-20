@@ -84,7 +84,7 @@ export default function CalidadDatosPage() {
                     "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
                     l.nivel === "error"
                       ? "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-                      : "bg-amber-500/15 text-amber-600 dark:text-amber-500"
+                      : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
                   )}
                 >
                   {l.nivel === "error" ? "✕" : "!"}
@@ -205,7 +205,7 @@ function Contador({
 }: { label: string; n: number; tono: "error" | "aviso" | "ok" }) {
   const color = {
     error: "text-rose-700 dark:text-rose-400",
-    aviso: "text-amber-600 dark:text-amber-500",
+    aviso: "text-amber-700 dark:text-amber-400",
     ok: "text-emerald-700 dark:text-emerald-400",
   }[tono];
   return (

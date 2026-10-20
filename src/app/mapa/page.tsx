@@ -670,7 +670,7 @@ function Casillero({ l, tipo }: { l: LecturaCasillero; tipo: "entrar" | "defende
         </span>
         <span className="text-xs tabular-nums text-muted-foreground">
           {formatUnidades(l.celda.mercado)} u. en el casillero ·{" "}
-          <strong className={cn("font-semibold", entrar ? "text-amber-600 dark:text-amber-500" : "text-emerald-700 dark:text-emerald-400")}>
+          <strong className={cn("font-semibold", entrar ? "text-amber-700 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400")}>
             {formatUnidades(l.celda.propias)} nuestras · {formatPct(l.share)}
           </strong>
         </span>
@@ -765,7 +765,7 @@ function Diferencia({ valor }: { valor: number | null }) {
     <TableCell
       className={cn(
         "text-right tabular-nums font-semibold",
-        valor > 0.05 && "text-amber-600 dark:text-amber-500",
+        valor > 0.05 && "text-amber-700 dark:text-amber-400",
         valor < -0.05 && "text-emerald-700 dark:text-emerald-400"
       )}
     >

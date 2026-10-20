@@ -47,7 +47,7 @@ const ETIQUETA: Record<AccionStock, string> = {
 };
 const TONO: Record<AccionStock, string> = {
   pedir: "text-rose-700 dark:text-rose-400",
-  empujar: "text-amber-600 dark:text-amber-500",
+  empujar: "text-amber-700 dark:text-amber-400",
   llega: "text-emerald-700 dark:text-emerald-400",
   ok: "text-emerald-700 dark:text-emerald-400",
   "sin ritmo": "text-muted-foreground",

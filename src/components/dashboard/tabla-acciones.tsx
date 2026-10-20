@@ -416,7 +416,7 @@ function Dato({ rotulo, valor }: { rotulo: string; valor: string }) {
  *  esa fuente no tiene la familia con ese nombre exacto; el tooltip (que
  *  también se abre con teclado) dice qué se sumó. */
 function Cruce({ c }: { c: CruceFamilia | null }) {
-  if (!c) return <span className="text-muted-foreground/60">—</span>;
+  if (!c) return <span className="text-muted-foreground">—</span>;
   const etiqueta = c.aproximado
     ? `Esa fuente no tiene la familia con este nombre exacto; se muestra «${c.aproximado.split(" + ").map(nombreDeClave).join(" + ")}»: ${c.modelos.join(", ")}.`
     : `Suma de: ${c.modelos.join(", ")}.`;

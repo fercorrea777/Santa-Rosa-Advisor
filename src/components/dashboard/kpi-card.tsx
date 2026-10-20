@@ -98,7 +98,7 @@ export function KpiCard({
         </CardHeader>
         <CardContent className="px-4">
           <p className="text-lg font-medium text-muted-foreground">Sin datos cargados</p>
-          <p className="text-xs text-muted-foreground/70">Pendiente de ingesta</p>
+          <p className="text-xs text-muted-foreground">Pendiente de ingesta</p>
         </CardContent>
       </Card>
     );
@@ -153,8 +153,17 @@ export function KpiCard({
                 // verde no llega a 4,5:1.
                 "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums",
                 // Sobre la tile tinta (navy) el 700 se pierde: ahí van los tonos claros.
-                isUp && (tono === "tinta" ? "bg-emerald-400/15 text-emerald-300" : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"),
-                isDown && (tono === "tinta" ? "bg-rose-400/15 text-rose-300" : "bg-rose-500/12 text-rose-700 dark:text-rose-400"),
+                // Sobre una tile teñida (azul, verde, ámbar) el 700 daba 3,9:1: el 800.
+                isUp && (tono === "tinta"
+                  ? "bg-emerald-400/15 text-emerald-300"
+                  : tono
+                    ? "bg-emerald-700/12 text-emerald-800 dark:bg-emerald-500/12 dark:text-emerald-400"
+                    : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"),
+                isDown && (tono === "tinta"
+                  ? "bg-rose-400/15 text-rose-300"
+                  : tono
+                    ? "bg-rose-700/12 text-rose-800 dark:bg-rose-500/12 dark:text-rose-400"
+                    : "bg-rose-500/12 text-rose-700 dark:text-rose-400"),
                 !isUp && !isDown && (tono === "tinta" ? "bg-white/10 text-white/70" : "bg-muted text-muted-foreground")
               )}
             >
@@ -218,7 +227,7 @@ function InfoTip({ text }: { text: string }) {
           anuncia "botón, signo de interrogación". */}
       <TooltipTrigger
         aria-label={text}
-        className="relative flex size-3.5 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40 bg-transparent p-0 text-[9px] font-bold leading-none text-muted-foreground/70 before:absolute before:-inset-[15px] before:content-['']"
+        className="relative flex size-3.5 shrink-0 items-center justify-center rounded-full border border-muted-foreground/60 bg-transparent p-0 text-[9px] font-bold leading-none text-muted-foreground before:absolute before:-inset-[15px] before:content-['']"
       >
         ?
       </TooltipTrigger>

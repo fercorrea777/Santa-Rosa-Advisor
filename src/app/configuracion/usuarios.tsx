@@ -116,7 +116,7 @@ export function PanelUsuarios({
                   </span>
                   <span className="font-medium">{e.correo ?? "—"}</span>
                   {e.detalle && <span className="text-muted-foreground">{e.detalle}</span>}
-                  {e.ip && <span className="ml-auto text-[11px] text-muted-foreground/70">{e.ip}</span>}
+                  {e.ip && <span className="ml-auto text-[11px] text-muted-foreground">{e.ip}</span>}
                 </li>
               ))}
             </ul>

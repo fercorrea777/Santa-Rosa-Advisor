@@ -117,7 +117,7 @@ export function TablaShare({
                 </span>
                 {divergente(f) && (
                   <span
-                    className="shrink-0 text-amber-600 dark:text-amber-500"
+                    className="shrink-0 text-amber-700 dark:text-amber-400"
                     role="img"
                     aria-label="Unidades y participación van en sentido contrario"
                   >
@@ -181,7 +181,7 @@ export function TablaShare({
                     <span className="inline-flex items-center gap-2">
                       {divergente(f) && (
                         <span
-                          className="shrink-0 text-amber-600 dark:text-amber-500"
+                          className="shrink-0 text-amber-700 dark:text-amber-400"
                           role="img"
                           aria-label="Unidades y participación van en sentido contrario"
                         >
@@ -220,7 +220,7 @@ export function TablaShare({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Las filas con <span className="text-amber-600 dark:text-amber-500">⚠</span>{" "}
+        Las filas con <span className="text-amber-700 dark:text-amber-400">⚠</span>{" "}
         crecen en unidades pero pierden participación (o al revés): el mercado
         se movió más rápido que ellas.
       </p>

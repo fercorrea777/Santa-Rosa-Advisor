@@ -313,7 +313,7 @@ export default async function GamaPropiaPage({
                 {hayCars ? ", lo que facturamos nosotros según Cars en el mismo período" : ""}
                 {mesAcciones ? (
                   <>
-                    {" "}y la <Link href="/acciones-comerciales" className="text-primary underline-offset-2 hover:underline">acción comercial</Link> de {mesAcciones}: el descuento máximo de la familia, si tiene bono al vendedor y si hay una mecánica especial
+                    {" "}y la <Link href="/acciones-comerciales" className="text-primary underline underline-offset-2 hover:text-foreground">acción comercial</Link> de {mesAcciones}: el descuento máximo de la familia, si tiene bono al vendedor y si hay una mecánica especial
                   </>
                 ) : ""}.
               </p>

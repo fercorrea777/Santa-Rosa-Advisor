@@ -109,14 +109,17 @@
      acento chico y conviven con tarjetas blancas. Cuatro familias, cada
      una con su propio hue — "paleta completa" a propósito, como la
      referencia (violeta/menta/ámbar/rosa, no una escala mono-hue). */
+  /* Los fg de menta, ámbar y rosa bajaron de luminosidad el 19/10/2026: con
+     los de antes daban 4,12 / 3,83 / 4,01:1 sobre su fondo, y las iniciales del
+     avatar (texto de 14 px) piden 4,5:1. Ahora 5,34 / 5,37 / 5,18:1. */
   --chip-violet: oklch(0.93 0.045 285);
   --chip-violet-fg: oklch(0.5 0.2 285);
   --chip-mint: oklch(0.9 0.07 168);
-  --chip-mint-fg: oklch(0.5 0.13 168);
+  --chip-mint-fg: oklch(0.44 0.12 168);
   --chip-amber: oklch(0.91 0.08 80);
-  --chip-amber-fg: oklch(0.55 0.15 65);
+  --chip-amber-fg: oklch(0.47 0.14 65);
   --chip-pink: oklch(0.91 0.05 8);
-  --chip-pink-fg: oklch(0.55 0.18 8);
+  --chip-pink-fg: oklch(0.49 0.18 8);
 
   /* Barra superior en el azul de MARCA (el navy del monograma SR del logo
      oficial, ver public/logo-santa-rosa.png), no el cian de acento. Es el

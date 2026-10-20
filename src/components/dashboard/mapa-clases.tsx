@@ -163,16 +163,26 @@ export function MapaClases({
                             className="w-full cursor-pointer px-2 py-2 text-right transition-colors hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
                           >
                             <span className="block tabular-nums font-semibold">{formatUnidades(x.mercado)}</span>
-                            <span className="block text-[11px] tabular-nums text-muted-foreground">
+                            {/* Sobre un casillero teñido el gris tenue no llegaba a 4,5:1
+                                (2,6 a 4,3 según el tinte): con nuestras unidades va en el
+                                color de texto pleno; el «—» de los vacíos sigue gris. */}
+                            <span
+                              className={cn(
+                                "block text-[11px] tabular-nums",
+                                x.propias ? "text-foreground" : "text-muted-foreground"
+                              )}
+                            >
                               {x.propias ? `${formatUnidades(x.propias)} nuestras · ${formatPct(share)}` : "—"}
                             </span>
                             {accion && (
+                              // Una chapa con fondo propio y no solo color de texto: el verde
+                              // o el ámbar sobre el tinte del casillero daban 2,6:1.
                               <span
                                 className={cn(
-                                  "mt-0.5 block text-[10px] font-semibold uppercase tracking-wide",
+                                  "mt-1 inline-block rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide",
                                   accion === "entrar"
-                                    ? "text-amber-600 dark:text-amber-500"
-                                    : "text-emerald-700 dark:text-emerald-400"
+                                    ? "bg-amber-700 text-white dark:bg-amber-300 dark:text-amber-950"
+                                    : "bg-emerald-700 text-white dark:bg-emerald-300 dark:text-emerald-950"
                                 )}
                               >
                                 {accion}
@@ -252,7 +262,7 @@ function Leyenda() {
         />
         <strong className="font-medium text-foreground">Defender</strong>: pesa y mandamos nosotros
       </span>
-      <span className="text-muted-foreground/80">Tocá cualquier casillero para ver el detalle.</span>
+      <span className="text-muted-foreground">Tocá cualquier casillero para ver el detalle.</span>
     </div>
   );
 }

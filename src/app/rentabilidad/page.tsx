@@ -190,7 +190,7 @@ export default async function RentabilidadPage({
               <CardTitle>Versión por versión — base y ventas</CardTitle>
               <p className="text-xs text-muted-foreground">
                 A la izquierda, lo que dice la{" "}
-                <Link href="/acciones-comerciales" className="text-primary underline-offset-2 hover:underline">planilla</Link>{" "}
+                <Link href="/acciones-comerciales" className="text-primary underline underline-offset-2 hover:text-foreground">planilla</Link>{" "}
                 de {mesPlanilla} (PVP, margen sin descuento y margen %); a la derecha, lo que
                 facturamos en {periodo} y su ticket y margen a precio de acción. Debajo de cada
                 valor, qué parte del total del filtro es. La fila de cada familia suma lo que Cars
@@ -245,7 +245,7 @@ function SinPlanilla() {
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
           El precio y el margen de cada versión salen de la planilla mensual de Fernando. Cuando Hermes la cargue
-          (<Link href="/acciones-comerciales" className="text-primary underline-offset-2 hover:underline">Acciones comerciales</Link>),
+          (<Link href="/acciones-comerciales" className="text-primary underline underline-offset-2 hover:text-foreground">Acciones comerciales</Link>),
           esta pantalla se arma sola.
         </CardContent>
       </Card>

@@ -185,11 +185,11 @@ export function TablaRentabilidad({
                     </span>
                   )}
                 </TableCell>
-                <TableCell colSpan={3} className="py-1.5 text-center text-muted-foreground/60">—</TableCell>
+                <TableCell colSpan={3} className="py-1.5 text-center text-muted-foreground">—</TableCell>
                 <TableCell className={cn("py-1.5 text-right", CORTE)}>
                   <Valor valor={formatUnidades(s.unidades)} parte={pct(parteU(s.unidades))} tenue />
                 </TableCell>
-                <TableCell colSpan={3} className="py-1.5 text-center text-muted-foreground/60">—</TableCell>
+                <TableCell colSpan={3} className="py-1.5 text-center text-muted-foreground">—</TableCell>
               </TableRow>
             );
           }

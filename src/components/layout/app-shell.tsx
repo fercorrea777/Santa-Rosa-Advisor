@@ -159,12 +159,14 @@ export function AppShell({
       {/* Enlace para saltar el menú: invisible hasta que recibe el foco
           con Tab. Quien navega con teclado o lector de pantalla no tiene
           que pasar por veintidós renglones en cada página. */}
-      <a
-        href="#contenido"
-        className="sr-only z-[60] rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
-      >
-        Saltar al contenido
-      </a>
+      <nav aria-label="Atajos">
+        <a
+          href="#contenido"
+          className="sr-only z-[60] rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+        >
+          Saltar al contenido
+        </a>
+      </nav>
       <BarraMarca
         onAbrirMenu={() => setMobileOpen(true)}
         onBuscar={abrirPaleta}

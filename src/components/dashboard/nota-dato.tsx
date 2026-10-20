@@ -42,7 +42,7 @@ export function NotaDato({ children }: { children: React.ReactNode }) {
     >
       <span
         aria-hidden="true"
-        className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border border-amber-600/50 text-[9px] font-bold leading-none text-amber-600 dark:border-amber-500/50 dark:text-amber-500"
+        className="mt-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border border-amber-600/50 text-[9px] font-bold leading-none text-amber-700 dark:border-amber-500/50 dark:text-amber-400"
       >
         i
       </span>

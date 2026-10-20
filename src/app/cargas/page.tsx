@@ -399,7 +399,7 @@ function TarjetaFuente({ fuente }: { fuente: Fuente }) {
 
   const tono = {
     ok: "text-emerald-700 dark:text-emerald-400",
-    tibio: "text-amber-600 dark:text-amber-500",
+    tibio: "text-amber-700 dark:text-amber-400",
     frio: "text-rose-700 dark:text-rose-400",
   }[estado];
 

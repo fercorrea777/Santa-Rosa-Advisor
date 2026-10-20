@@ -936,7 +936,7 @@ export default async function OperacionPage({
                         <TableCell
                           className={cn(
                             "text-right tabular-nums",
-                            r.mesesStock !== null && r.mesesStock > 6 && "font-medium text-amber-600 dark:text-amber-500"
+                            r.mesesStock !== null && r.mesesStock > 6 && "font-medium text-amber-700 dark:text-amber-400"
                           )}
                           title={
                             r.mesesStock === null
@@ -1319,7 +1319,7 @@ export default async function OperacionPage({
                             </TableCell>
                             <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatDecimal(v.ritmo)}</TableCell>
-                            <TableCell className="text-right tabular-nums font-semibold text-amber-600 dark:text-amber-500">
+                            <TableCell className="text-right tabular-nums font-semibold text-amber-700 dark:text-amber-400">
                               {v.meses === null ? "sin ritmo" : formatDecimal(v.meses)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
@@ -1556,7 +1556,7 @@ export default async function OperacionPage({
                                     "text-xs font-medium",
                                     r.senal?.tono === "pedir" && "text-rose-700 dark:text-rose-400",
                                     r.senal?.tono === "empujar" && "text-emerald-700 dark:text-emerald-400",
-                                    r.senal?.tono === "precio" && "text-amber-600 dark:text-amber-500",
+                                    r.senal?.tono === "precio" && "text-amber-700 dark:text-amber-400",
                                     (!r.senal || r.senal.tono === "ok") && "text-muted-foreground"
                                   )}
                                   title={r.senal?.texto}
