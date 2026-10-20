@@ -26,13 +26,22 @@ export function CampoClave({
   className,
   claseBoton,
   visiblePorDefecto = false,
+  onVisibleChange,
   ...props
 }: Omit<React.ComponentProps<"input">, "type"> & {
-  /** Clases del botón, para el login (que va sobre navy) */
+  /** Clases del botón, para cuando va sobre un fondo que no es el de la app. */
   claseBoton?: string;
   visiblePorDefecto?: boolean;
+  /** Avisa cuando se muestra u oculta la clave. Lo usa el globito del login:
+   *  se tapa los ojos mientras se escribe una clave oculta y mira cuando se ve. */
+  onVisibleChange?: (visible: boolean) => void;
 }) {
   const [visible, setVisible] = React.useState(visiblePorDefecto);
+  const alternar = () => {
+    const nuevo = !visible;
+    setVisible(nuevo);
+    onVisibleChange?.(nuevo);
+  };
 
   return (
     <div className="relative">
@@ -46,7 +55,7 @@ export function CampoClave({
       />
       <button
         type="button" // NO submit: sin esto, mostrar la clave manda el formulario
-        onClick={() => setVisible((v) => !v)}
+        onClick={alternar}
         // aria-pressed y no un aria-label que cambie: quien usa lector de
         // pantalla escucha "mostrar clave, activado" en vez de que el botón
         // le cambie de nombre abajo del dedo.

@@ -14,6 +14,10 @@ import { anotarFallo, bloqueadoPor, esHttps, ipDe, limpiarFallos } from "@/lib/a
 
 export interface EstadoLogin {
   error: string;
+  /** El correo que se escribió, para que el formulario lo conserve: React 19
+   *  vacía los campos sin controlar al terminar la acción, y escribir el correo
+   *  de nuevo en cada intento fallido es la peor parte de equivocarse de clave. */
+  usuario?: string;
 }
 
 /** Cinco fallos por IP → un minuto. Ocho fallos sobre la misma cuenta desde
@@ -36,6 +40,15 @@ function destinoSeguro(d: string | null): string {
 }
 
 export async function entrar(
+  prev: EstadoLogin | null,
+  form: FormData
+): Promise<EstadoLogin> {
+  const r = await intentar(prev, form);
+  // Solo se devuelve el correo (no la clave), y solo si el acceso falló.
+  return { ...r, usuario: String(form.get("usuario") ?? "").slice(0, 200) };
+}
+
+async function intentar(
   _prev: EstadoLogin | null,
   form: FormData
 ): Promise<EstadoLogin> {

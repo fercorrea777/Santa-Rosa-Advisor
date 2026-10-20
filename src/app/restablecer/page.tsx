@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FormularioRestablecer } from "./formulario";
+import { MarcoAcceso } from "@/components/acceso/marco-acceso";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { LARGO_MINIMO_CLAVE, usuarioDeRecuperacion } from "@/lib/auth/usuarios";
 import type { SearchParams } from "@/lib/periodo";
 
@@ -33,30 +36,30 @@ export default async function RestablecerPage({
 
   if (!persona) {
     return (
-      <div
-        className="flex min-h-screen items-center justify-center p-6"
-        style={{ backgroundColor: "var(--barra)" }}
+      <MarcoAcceso
+        estado="error"
+        titulo={errorBase ? "No se pudo verificar el enlace" : "Este enlace ya no sirve"}
+        subtitulo={
+          errorBase
+            ? "La base no respondió. Probá de nuevo en un rato."
+            : "Venció, ya se usó o no es válido. Los enlaces valen una hora y se usan una sola vez."
+        }
       >
-        <div className="flex w-full max-w-sm flex-col gap-4 text-center">
-          <h1 className="text-lg font-bold tracking-tight text-white">
-            {errorBase ? "No se pudo verificar el enlace" : "Este enlace ya no sirve"}
-          </h1>
-          <p className="text-sm text-white/60">
-            {errorBase
-              ? "La base no respondió. Probá de nuevo en un rato."
-              : "Venció, ya se usó o no es válido. Los enlaces valen una hora y se usan una sola vez."}
-          </p>
-          <p className="text-sm">
-            <Link href="/entrar/olvide" className="text-white underline underline-offset-2">
-              Pedir un enlace nuevo
-            </Link>
-            <span className="text-white/40"> · </span>
-            <Link href="/entrar" className="text-white/70 underline underline-offset-2 hover:text-white">
-              Volver a entrar
-            </Link>
-          </p>
+        <div className="flex flex-col gap-3">
+          <Link
+            href="/entrar/olvide"
+            className={cn(buttonVariants(), "h-11 w-full rounded-xl text-[0.95rem]")}
+          >
+            Pedir un enlace nuevo
+          </Link>
+          <Link
+            href="/entrar"
+            className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full rounded-xl text-[0.95rem]")}
+          >
+            Volver a entrar
+          </Link>
         </div>
-      </div>
+      </MarcoAcceso>
     );
   }
 

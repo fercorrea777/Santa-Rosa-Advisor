@@ -1,10 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import * as React from "react";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
+import { MarcoAcceso } from "@/components/acceso/marco-acceso";
+import type { EstadoGlobito, MiradaGlobito } from "@/components/ui/globito";
+import { useCampoConFoco } from "@/lib/foco-campo";
 import { sincronizarAriaInvalid } from "@/lib/utils";
 import { entrar, type EstadoLogin } from "./acciones";
 
@@ -20,8 +23,11 @@ import { entrar, type EstadoLogin } from "./acciones";
  * no está enlazado, para que la pantalla que ve todo el mundo pida una
  * identidad de persona y no una contraseña compartida.
  *
- * Sobre el navy de la marca, con el mismo velo de profundidad que el menú
- * lateral: entrar y estar adentro se ven parte de la misma app.
+ * Desde el 19/10/2026 vive dentro del marco ilustrado (MarcoAcceso), con el
+ * globito arriba. El globito mira el campo que se está llenando, se tapa los
+ * ojos cuando se escribe una clave oculta, piensa mientras se envía y se
+ * sacude si el acceso falla; nada de eso reemplaza al texto (el error sigue
+ * con su `role="alert"`).
  */
 export function FormularioLogin({
   destino,
@@ -39,144 +45,181 @@ export function FormularioLogin({
     entrar,
     null
   );
+  const gesto = useGestoGlobito(estado?.error ? estado : null, pendiente);
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center p-6"
-      style={{
-        backgroundColor: "var(--barra)",
-        backgroundImage:
-          "radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,0.08), transparent 60%), linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.3) 100%)",
-      }}
-    >
-      <div className="flex w-full max-w-sm flex-col gap-7">
-        <div className="flex flex-col items-center gap-3 text-center">
-          {/* brightness-0 primero aplana el azul del monograma; invert lo
-              pasa a blanco parejo sobre el navy. */}
-          <Image
-            src="/logo-santa-rosa.png"
-            alt="Santa Rosa"
-            width={311}
-            height={32}
-            priority
-            className="h-5 w-auto brightness-0 invert"
-          />
-          <div className="flex flex-col gap-1">
-            <h1 className="text-lg font-bold tracking-tight text-white">
-              Mercado Automotor
-            </h1>
-            <p className="text-xs uppercase tracking-[0.14em] text-white/50">
-              Inteligencia comercial · Paraguay
-            </p>
-          </div>
-        </div>
-
-        {aviso && (
-          <p role="status" className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 px-3 py-2 text-center text-sm text-emerald-100">
-            {aviso}
-          </p>
-        )}
-
-        <form action={enviar} className="flex flex-col gap-3">
-          <input type="hidden" name="destino" value={destino} />
-          {emergencia ? (
-            <>
-              <input type="hidden" name="modo" value="emergencia" />
-              <p className="rounded-lg border border-amber-300/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
-                Acceso de emergencia con la clave general del equipo. Abre una
-                sesión de administrador por 24 horas y queda registrado.
-              </p>
-            </>
-          ) : (
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-white/70">Correo</span>
-              <input
-                name="usuario"
-                type="email"
-                inputMode="email"
-                autoComplete="username"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                required
-                autoFocus
-                pattern={patronCorreo(dominio)}
-                title={`Tiene que ser un correo @${dominio}`}
-                onBlur={sincronizarAriaInvalid}
-                onInput={sincronizarAriaInvalid}
-                className={campo}
-                placeholder={`nombre@${dominio}`}
-              />
-            </label>
-          )}
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-white/70">
-              {emergencia ? "Clave general" : "Clave"}
-            </span>
-            <CampoClave
-              name="clave"
-              autoComplete="current-password"
-              required
-              autoFocus={emergencia}
-              onBlur={sincronizarAriaInvalid}
-              onInput={sincronizarAriaInvalid}
-              className={campo}
-              // El ojito va sobre el navy: el gris de la app no se ve ahi.
-              claseBoton="text-white/70 hover:text-white hover:bg-white/15"
-              placeholder="••••••••"
-            />
-          </label>
-
-          <Button
-            type="submit"
-            disabled={pendiente}
-            className="w-full bg-white text-[color:var(--barra)] hover:bg-white/90"
-          >
-            {pendiente ? "Entrando…" : "Entrar"}
-          </Button>
-
-          {estado?.error && (
-            // role=alert: quien usa lector de pantalla se entera del rechazo
-            // sin tener que ir a buscar el texto.
-            <p role="alert" className="text-center text-sm text-rose-300">
-              {estado.error}
-            </p>
-          )}
-        </form>
-
-        {emergencia ? (
-          <p className="text-center text-[11px] leading-relaxed text-white/40">
-            <Link href="/entrar" className="underline underline-offset-2 hover:text-white">
+    <MarcoAcceso
+      estado={gesto.estado}
+      mirada={gesto.mirada}
+      titulo={emergencia ? "Acceso de emergencia" : "Entrá a tu tablero"}
+      subtitulo={
+        emergencia
+          ? "Con la clave general del equipo. Abre una sesión de administrador por 24 horas y queda registrado."
+          : `Con tu correo @${dominio} y tu clave.`
+      }
+      pie={
+        emergencia ? (
+          <p className="text-center text-xs">
+            <Link href="/entrar" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
               Volver a entrar con mi correo
             </Link>
           </p>
         ) : (
-          <div className="flex flex-col items-center gap-2 text-center text-[11px] leading-relaxed text-white/40">
+          <div className="flex flex-col items-center gap-2.5 text-center">
             <Link
               href="/entrar/olvide"
-              className="text-xs text-white/70 underline underline-offset-2 hover:text-white"
+              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
               Olvidé mi clave
             </Link>
-            <p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
               Solo entran correos @{dominio}. ¿No tenés cuenta? Pedísela a Croman.
               <br />
               El tablero incluye precios y stock propios: no compartas tu clave.
             </p>
           </div>
+        )
+      }
+    >
+      {aviso && (
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-emerald-600/25 bg-emerald-500/10 px-3.5 py-2.5 text-sm text-emerald-800 dark:text-emerald-200"
+        >
+          {aviso}
+        </p>
+      )}
+
+      <form action={enviar} className="flex flex-col gap-4" {...gesto.alForm}>
+        <input type="hidden" name="destino" value={destino} />
+        {emergencia ? (
+          <>
+            <input type="hidden" name="modo" value="emergencia" />
+            <p className="rounded-xl border border-amber-600/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-900 dark:text-amber-100">
+              Esta entrada no es de una persona: queda como administrador por un día y
+              deja constancia en la auditoría.
+            </p>
+          </>
+        ) : (
+          <label data-campo="correo" className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Correo</span>
+            <input
+              name="usuario"
+              type="email"
+              inputMode="email"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              required
+              autoFocus
+              // React 19 vacía los campos al terminar la acción: el correo
+              // vuelve desde el estado para no obligar a tipearlo otra vez.
+              defaultValue={estado?.usuario}
+              pattern={patronCorreo(dominio)}
+              title={`Tiene que ser un correo @${dominio}`}
+              onBlur={sincronizarAriaInvalid}
+              onInput={(e) => {
+                sincronizarAriaInvalid(e);
+                gesto.alEscribirCorreo(e.currentTarget.value.length);
+              }}
+              className={campo}
+              placeholder={`nombre@${dominio}`}
+            />
+          </label>
         )}
-      </div>
-    </div>
+        <label data-campo="clave" className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">{emergencia ? "Clave general" : "Clave"}</span>
+          <CampoClave
+            name="clave"
+            autoComplete="current-password"
+            required
+            autoFocus={emergencia}
+            onBlur={sincronizarAriaInvalid}
+            onInput={sincronizarAriaInvalid}
+            onVisibleChange={gesto.alMostrarClave}
+            className={campo}
+            placeholder="••••••••"
+          />
+        </label>
+
+        <Button type="submit" disabled={pendiente} className="mt-1 h-11 w-full rounded-xl text-[0.95rem]">
+          {pendiente ? "Entrando…" : "Entrar"}
+        </Button>
+
+        {estado?.error && (
+          // role=alert: quien usa lector de pantalla se entera del rechazo
+          // sin tener que ir a buscar el texto.
+          <p role="alert" className="text-center text-sm text-destructive">
+            {estado.error}
+          </p>
+        )}
+      </form>
+    </MarcoAcceso>
   );
 }
 
-/** Campo sobre el navy. `campo-acceso` (globals.css) mantiene este mismo
- *  aspecto cuando el navegador autocompleta, así el ojito de la clave sigue
- *  viéndose. */
+/**
+ * Traduce lo que pasa en el formulario al gesto del globito.
+ *
+ * Prioridad: enviando > falló y todavía no se tocó nada > qué campo tiene el
+ * foco. Con el foco en una clave oculta se tapa los ojos; en un campo visible
+ * mira hacia él (en el correo, siguiendo lo que se va escribiendo, de izquierda
+ * a derecha). El error se «da por visto» en cuanto la persona empieza a
+ * corregir, así no queda con la cara fruncida mientras escribe de nuevo.
+ *
+ * El foco sale de `useCampoConFoco`, que lo lee del documento: el correo llega
+ * con `autoFocus` y el navegador lo enfoca antes de que React hidrate.
+ *
+ * Exportado porque «olvidé mi clave» y «poner clave nueva» lo comparten.
+ */
+export function useGestoGlobito(error: object | null, pendiente: boolean) {
+  const foco = useCampoConFoco();
+  const [claveVisible, setClaveVisible] = React.useState(false);
+  const [largoCorreo, setLargoCorreo] = React.useState(0);
+  const [visto, setVisto] = React.useState<object | null>(null);
+
+  let estado: EstadoGlobito = "reposo";
+  let mirada: MiradaGlobito | null = null;
+  if (pendiente) {
+    estado = "pensando";
+    mirada = { x: 0.55, y: -0.8 };
+  } else if (error && error !== visto) {
+    estado = "error";
+  } else if (foco === "clave" && !claveVisible) {
+    estado = "privado";
+  } else if (foco === "clave") {
+    estado = "atento";
+    mirada = { x: 0.2, y: 0.9 };
+  } else if (foco === "correo") {
+    estado = "atento";
+    mirada = { x: Math.max(-0.85, Math.min(0.85, -0.85 + largoCorreo / 18)), y: 0.9 };
+  }
+
+  const alForm = {
+    // Empezar a corregir da el error por visto.
+    onInput: () => {
+      if (error) setVisto(error);
+    },
+  };
+
+  return {
+    estado,
+    mirada,
+    alForm,
+    alEscribirCorreo: setLargoCorreo,
+    alMostrarClave: setClaveVisible,
+  };
+}
+
 /** Patrón HTML para el correo del dominio: valida en el navegador al salir
  *  del campo (ver :user-invalid en globals.css). Los puntos van escapados. */
 export const patronCorreo = (dominio: string) =>
   `[a-z0-9._+\\-]+@${dominio.replace(/\./g, "\\.")}`;
 
+/** Campo de las pantallas de acceso, con el tema. `campo-acceso-tema`
+ *  (globals.css) mantiene este aspecto cuando el navegador autocompleta, así el
+ *  ojito de la clave sigue viéndose. `pointer-coarse:text-base`: en iOS un campo
+ *  de menos de 16 px hace que Safari amplíe la página al enfocarlo. */
 export const campo =
-  "campo-acceso w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/35 focus-visible:border-white/40 focus-visible:outline-none";
+  "campo-acceso-tema h-11 w-full rounded-xl border border-input bg-background px-3.5 text-[0.95rem] text-foreground shadow-[var(--card-shadow)] outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 aria-invalid:border-destructive pointer-coarse:text-base";

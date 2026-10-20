@@ -5,7 +5,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento";
 import { Button } from "@/components/ui/button";
+import { Globito, type EstadoGlobito, type MiradaGlobito } from "@/components/ui/globito";
 import { IconCopiloto } from "@/components/icons";
+import { useCampoConFoco } from "@/lib/foco-campo";
 
 /** Variantes del estado vacío: el padre escalona y cada bloque sube. */
 const ENTRADA = {
@@ -32,6 +34,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
   const [cargando, setCargando] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const finRef = React.useRef<HTMLDivElement>(null);
+  const escribiendo = useCampoConFoco() === "pregunta";
 
   React.useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -81,6 +84,13 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
 
   const vacio = turnos.length === 0;
 
+  // La cara del Copiloto mira la pregunta que se está escribiendo (de izquierda
+  // a derecha, según el largo) y se queda quieta pensando mientras consulta.
+  const estadoGlobito: EstadoGlobito = cargando ? "pensando" : escribiendo ? "atento" : "reposo";
+  const miradaGlobito: MiradaGlobito | null = escribiendo
+    ? { x: Math.max(-0.85, Math.min(0.85, -0.85 + texto.length / 28)), y: 0.9 }
+    : null;
+
   // ESTADO VACÍO: hero centrado (referencia del usuario) — el input es el
   // protagonista en el medio, no una barra al pie. Al enviar el primer
   // mensaje pasa al layout de conversación (lista + input abajo).
@@ -93,9 +103,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
         className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-4 py-10"
       >
         <motion.div variants={ENTRADA} className="flex flex-col items-center gap-2 text-center">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
-            <IconCopiloto size={22} />
-          </span>
+          <Globito estado={estadoGlobito} mirada={miradaGlobito} tamano={88} className="mb-2" />
           <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-balance">
             ¿En qué te ayudo <span className="text-primary">hoy</span>?
           </h2>
@@ -130,7 +138,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
         </motion.div>
 
         {error && (
-          <p className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-600 dark:text-rose-400">
+          <p className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-700 dark:text-rose-400">
             {error}
           </p>
         )}
@@ -154,8 +162,15 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: DURACION.corta * 0.7 }}
-                className="flex items-center gap-2 pl-9 text-sm text-muted-foreground"
+                className="flex items-center gap-2.5 text-sm text-muted-foreground"
               >
+                <Globito
+                  estado="pensando"
+                  mirada={{ x: 0.55, y: -0.8 }}
+                  tamano={28}
+                  flotar={false}
+                  seguirPuntero={false}
+                />
                 <span className="inline-flex gap-1">
                   <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.2s]" />
                   <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]" />
@@ -170,7 +185,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
       </div>
 
       {error && (
-        <p className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-600 dark:text-rose-400">
+        <p className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-700 dark:text-rose-400">
           {error}
         </p>
       )}
@@ -201,6 +216,13 @@ function InputBar({
   hero?: boolean;
 }) {
   const enviable = !cargando && texto.trim().length > 0;
+  const entradaRef = React.useRef<HTMLInputElement>(null);
+
+  // La pregunta arranca enfocada solo con mouse: en el celular, enfocar al
+  // abrir levanta el teclado y tapa las sugerencias antes de que se vean.
+  React.useEffect(() => {
+    if (hero && window.matchMedia("(pointer: fine)").matches) entradaRef.current?.focus();
+  }, [hero]);
 
   if (hero) {
     return (
@@ -208,13 +230,21 @@ function InputBar({
         onSubmit={(e) => { e.preventDefault(); onEnviar(); }}
         className="w-full max-w-2xl"
       >
-        <div className="relative rounded-2xl border bg-card shadow-[var(--card-shadow)] transition-shadow focus-within:border-ring/50 focus-within:ring-3 focus-within:ring-ring/25">
+        <div
+          // data-campo: de acá lee el globito qué campo tiene el foco.
+          data-campo="pregunta"
+          className="relative rounded-2xl border bg-card shadow-[var(--card-shadow)] transition-shadow focus-within:border-ring/50 focus-within:ring-3 focus-within:ring-ring/25"
+        >
           <input
+            ref={entradaRef}
+            name="pregunta"
+            aria-label="Pregunta para el Copiloto"
+            autoComplete="off"
+            enterKeyHint="send"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Preguntá al copiloto…"
             disabled={cargando}
-            autoFocus
             // pointer-coarse:text-base — Safari iOS hace zoom al enfocar un
             // campo de menos de 16px y deja la página ampliada. Este input no
             // usa .input-base (fondo transparente, alto propio), así que la
@@ -240,6 +270,10 @@ function InputBar({
       className="flex gap-2"
     >
       <input
+        name="pregunta"
+        aria-label="Pregunta para el Copiloto"
+        autoComplete="off"
+        enterKeyHint="send"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         placeholder="Ej.: ¿cómo viene GREAT WALL en SUV contra GEELY?"
@@ -266,14 +300,13 @@ function Mensaje({ turno }: { turno: Turno }) {
       transition={{ duration: DURACION.corta, ease: SUAVE_BEZIER }}
       className={cn("flex gap-2.5", esUsuario && "flex-row-reverse")}
     >
-      <div
-        className={cn(
-          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold uppercase tracking-wide",
-          esUsuario ? "bg-primary text-primary-foreground" : "border bg-muted text-muted-foreground"
-        )}
-      >
-        {esUsuario ? "Vos" : "IA"}
-      </div>
+      {esUsuario ? (
+        <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+          Vos
+        </div>
+      ) : (
+        <Globito tamano={28} flotar={false} seguirPuntero={false} className="mt-0.5 shrink-0" />
+      )}
       <div
         className={cn(
           "max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed",
