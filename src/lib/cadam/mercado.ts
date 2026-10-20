@@ -725,7 +725,7 @@ export function hayRecorte(fuente: Fuente, f: Filtro): boolean {
  * Por qué hace falta: con un filtro puesto, `posicion` y `participacion` son
  * relativas a lo que queda. Con «Importador: Santa Rosa» la participación de
  * Jetour es «cuánto de Santa Rosa es Jetour» (35 %), no su parte del mercado
- * (2,2 %), y su puesto es el 2 de la lista, no el 11 del mercado. El share se
+ * (2,2 %), y su puesto es el 1 de la lista, no el 11 del mercado. El share se
  * mide sobre el mercado, así que las dos medidas conviven: la del filtro, para
  * ver cómo se reparte lo que se está mirando, y esta, para saber dónde está
  * parada de verdad.
