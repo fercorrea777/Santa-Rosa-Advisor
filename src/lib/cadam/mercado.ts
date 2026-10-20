@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { getMarcasPropiasSet } from "./config";
+import { GRUPO_PROPIO, repartirUnidades } from "./grupos";
 import { normalizarTecnologias } from "../informes/segmento-version";
 
 /**
@@ -485,6 +486,121 @@ export function getRankingMarcas(fuente: Fuente, filtro: Filtro): FilaRanking[] 
     totalUnidades(fuente, f),
     totalUnidades(fuente, { ...f, anio: f.anio - 1 })
   );
+}
+
+// ---------------------------------------------------------- ranking por grupo
+
+export interface FilaGrupo {
+  posicion: number;
+  /** El grupo con el nombre del Excel de Fernando (GARDEN, TOYOTOSHI, SANTA ROSA,
+   *  OTROS…). Ver grupos.ts. */
+  grupo: string;
+  /** Sus marcas en el período, de más a menos unidades. `parte` viene solo en
+   *  las marcas repartidas entre grupos (Chevrolet): la fracción que le toca a
+   *  ESTE grupo. */
+  marcas: { marca: string; unidades: number; parte?: number }[];
+  unidades: number;
+  participacion: number;
+  /** null = el grupo no vendía en el período anterior (o no hay período anterior). */
+  variacion: number | null;
+  unidadesAnterior: number;
+  participacionAnterior: number;
+  /** Diferencia de participación en PUNTOS (participacion - participacionAnterior). */
+  deltaShare: number | null;
+  /** Dónde estaba el grupo en el mismo período del año anterior. null = no
+   *  figuraba (no vendía) o no hay período anterior contra qué medir. */
+  posicionAnterior: number | null;
+  /** Puestos que subió (positivo) o bajó (negativo). */
+  cambioPosicion: number | null;
+  esPropio: boolean;
+}
+
+/**
+ * Ranking por GRUPO: las marcas agrupadas por el importador que las representa.
+ *
+ * El grupo de cada marca sale de la lista de Fernando (grupos.ts): lo que no
+ * está va a Otros, y Chevrolet se reparte entre Garden, De la Sobera y Otros.
+ * Sirve igual para matriculación y para importación, que no trae empresa y es
+ * la fuente de la base de Fernando. El reparto de Chevrolet se hace MES A MES
+ * (y no sobre el total del período) para dar las mismas cifras que su Excel:
+ * redondear cada mes y sumar no es lo mismo que redondear la suma.
+ *
+ * Respeta período, segmento y tecnología (en importación la tecnología no
+ * existe). NO respeta marca, modelo, versión ni importador: un ranking de
+ * grupos filtrado por uno de ellos tendría una sola fila.
+ */
+export function getRankingGrupos(fuente: Fuente, filtro: Filtro): FilaGrupo[] {
+  const act = acotarAFuente(fuente, {
+    anio: filtro.anio, mesDesde: filtro.mesDesde, mesHasta: filtro.mesHasta,
+    segmento: filtro.segmento, tecnologia: filtro.tecnologia,
+  });
+  const ant: Filtro = { ...act, anio: act.anio - 1 };
+  const hayBase = hayDatos(fuente, ant.anio, ant.mesDesde, ant.mesHasta);
+
+  type Acum = { unidades: number; marcas: Map<string, { unidades: number; parte?: number }> };
+  const porGrupo = (f: Filtro): Map<string, Acum> => {
+    const w = where(fuente, f);
+    const filas = getDb()
+      .prepare(
+        `SELECT marca, mes, SUM(unidades) unidades FROM ${vista(fuente)}
+         WHERE ${w.sql} GROUP BY marca, mes HAVING unidades > 0`
+      )
+      .all(...w.args) as { marca: string; mes: number; unidades: number }[];
+    const grupos = new Map<string, Acum>();
+    for (const r of filas) {
+      for (const parte of repartirUnidades(r.marca, r.unidades)) {
+        if (parte.unidades <= 0) continue;
+        let g = grupos.get(parte.grupo);
+        if (!g) grupos.set(parte.grupo, (g = { unidades: 0, marcas: new Map() }));
+        g.unidades += parte.unidades;
+        const m = g.marcas.get(r.marca) ?? { unidades: 0, parte: parte.parte ?? undefined };
+        m.unidades += parte.unidades;
+        g.marcas.set(r.marca, m);
+      }
+    }
+    return grupos;
+  };
+
+  const actual = porGrupo(act);
+  const previo = porGrupo(ant);
+  const totalAct = [...actual.values()].reduce((t, g) => t + g.unidades, 0) || 1;
+  const totalPrev = [...previo.values()].reduce((t, g) => t + g.unidades, 0) || 1;
+  // Desempate por nombre: sin él, dos grupos con las mismas unidades cambiarían
+  // de puesto entre una carga y la siguiente.
+  const porUnidades = <T extends { nombre: string; u: number }>(a: T, b: T) =>
+    b.u - a.u || a.nombre.localeCompare(b.nombre);
+  const ordenAct = [...actual.entries()]
+    .map(([nombre, g]) => ({ nombre, u: g.unidades, g }))
+    .sort(porUnidades);
+  const posPrev = new Map(
+    [...previo.entries()]
+      .map(([nombre, g]) => ({ nombre, u: g.unidades }))
+      .sort(porUnidades)
+      .map((x, i) => [x.nombre, i + 1] as const)
+  );
+
+  return ordenAct.map(({ nombre, g }, i) => {
+    const antes = previo.get(nombre)?.unidades ?? 0;
+    const posAnt = hayBase ? posPrev.get(nombre) ?? null : null;
+    const part = g.unidades / totalAct;
+    const partAnt = hayBase ? antes / totalPrev : 0;
+    return {
+      posicion: i + 1,
+      grupo: nombre,
+      marcas: [...g.marcas.entries()]
+        .map(([marca, m]) => ({ marca, unidades: m.unidades, ...(m.parte !== undefined ? { parte: m.parte } : {}) }))
+        .sort((a, b) => b.unidades - a.unidades || a.marca.localeCompare(b.marca)),
+      unidades: g.unidades,
+      participacion: part,
+      variacion: hayBase && antes ? variacion(g.unidades, antes) : null,
+      unidadesAnterior: antes,
+      participacionAnterior: partAnt,
+      deltaShare: hayBase ? part - partAnt : null,
+      posicionAnterior: posAnt,
+      cambioPosicion: posAnt ? posAnt - (i + 1) : null,
+      esPropio: nombre === GRUPO_PROPIO,
+    };
+  });
 }
 
 /**

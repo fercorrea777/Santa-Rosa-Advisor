@@ -3,10 +3,12 @@ import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
+import { TablaGrupos } from "@/components/dashboard/tabla-grupos";
+import { Seccion } from "@/components/dashboard/seccion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  acotarAFuente, getCobertura, getMarcasDeImportador, getOpcionesFiltro, getRankingMarcas,
-  getRankingModelos, TECNOLOGIAS,
+  acotarAFuente, getCobertura, getMarcasDeImportador, getOpcionesFiltro, getRankingGrupos,
+  getRankingMarcas, getRankingModelos, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
 import {
   asignarPrecios, fichasDeModelos, type PrecioCandidato,
@@ -48,6 +50,11 @@ export default async function RankingsPage({
 
   const marcasMat = getRankingMarcas("matriculacion", fMat);
   const marcasImp = getRankingMarcas("importacion", fImp);
+  // Por grupo: las marcas juntas por el importador que las representa. Se
+  // arma aparte de las marcas porque no respeta Marca ni Importador (ver
+  // getRankingGrupos).
+  const gruposMat = getRankingGrupos("matriculacion", fMat);
+  const gruposImp = getRankingGrupos("importacion", fImp);
   const modelosMat = getRankingModelos("matriculacion", fMat, 500);
   const modelosImp = getRankingModelos("importacion", fImp, 500);
   // En importación el importador se infiere por marca (la base no lo trae):
@@ -202,6 +209,58 @@ export default async function RankingsPage({
           </Panel>
         </TabsContent>
       </Tabs>
+
+      {/* Más abajo, aparte: el ranking de arriba es de marcas y modelos; este
+          es de grupos (pedido de Croman, 20/10/2026: «¿en qué puesto estaba
+          Garden, Toyota, Santa Rosa?»). */}
+      <Seccion
+        id="grupos"
+        titulo="Ranking por grupo"
+        nota="Las marcas juntas por el importador que las representa: en qué puesto está cada grupo y en cuál estaba hace un año. Respeta Año, Meses, Segmento y Tecnología; no Marca ni Importador, porque compara a los grupos entre sí."
+      >
+        <Tabs defaultValue="grupos-mat">
+          <TabsList className="flex-wrap">
+            <TabsTrigger value="grupos-mat">Matriculación</TabsTrigger>
+            <TabsTrigger value="grupos-imp">Importación</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="grupos-mat">
+            <Panel
+              titulo={`Grupos por matriculación (${gruposMat.length}) · ${periodoMat}`}
+              nota="Quién puso más chapas, sumando todas las marcas que representa."
+            >
+              {matricRecorta && (
+                <NotaDato>
+                  CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
+                  ranking llega hasta {mesCorto(fMat.mesHasta)}.
+                </NotaDato>
+              )}
+              <TablaGrupos filas={gruposMat} anioAnterior={f.anio - 1} />
+            </Panel>
+          </TabsContent>
+
+          <TabsContent value="grupos-imp">
+            <Panel
+              titulo={`Grupos por importación (${gruposImp.length}) · ${periodoImp}`}
+              nota="Quién trajo más unidades al país. Un grupo puede liderar acá y todavía no en matriculación: es stock en camino."
+            >
+              {importRecorta && (
+                <NotaDato>
+                  CADAM todavía no publicó la importación de {mesCorto(f.mesHasta)}: este
+                  ranking llega hasta {mesCorto(fImp.mesHasta)}.
+                </NotaDato>
+              )}
+              {f.tecnologia && (
+                <NotaDato>
+                  El filtro de tecnología solo aplica a matriculación: la base de
+                  importación no dice si el vehículo es híbrido o eléctrico.
+                </NotaDato>
+              )}
+              <TablaGrupos filas={gruposImp} anioAnterior={f.anio - 1} />
+            </Panel>
+          </TabsContent>
+        </Tabs>
+      </Seccion>
     </Pagina>
   );
 }

@@ -108,7 +108,10 @@ export function nombreDeSegmento(segmento: string): string {
 }
 
 /** Siglas que se escriben en mayúsculas aunque el resto del nombre no. */
-const SIGLAS_MARCA = new Set(["JAC", "JMEV", "GWM", "BYD", "MG", "BMW", "KGM", "DFSK", "GAC", "KIA"]);
+const SIGLAS_MARCA = new Set([
+  "JAC", "JMEV", "GWM", "BYD", "MG", "BMW", "KGM", "DFSK", "GAC", "KIA",
+  "JMC", "BAIC", "FAW", "SAIC", "RAM", "AION",
+]);
 
 /**
  * "GREAT WALL" → "Great Wall", "JAC" → "JAC". CADAM y el resto del tablero
@@ -117,8 +120,30 @@ const SIGLAS_MARCA = new Set(["JAC", "JMEV", "GWM", "BYD", "MG", "BMW", "KGM", "
  * los filtros y las claves siguen con el nombre tal cual.
  */
 export function nombreDeMarca(marca: string): string {
+  if (marca === "LYNK&CO") return "Lynk&Co";
   return marca
     .split(/\s+/)
     .map((p) => (SIGLAS_MARCA.has(p) || p.length <= 2 ? p : p[0] + p.slice(1).toLowerCase()))
+    .join(" ");
+}
+
+/**
+ * Un grupo de marcas (el importador que las representa) como se lee: CADAM lo
+ * escribe en mayúsculas en EMPRESA (GARDEN, TAPE RUVICHA, DE LA SOBERA). OTROS
+ * es el cajón de los importadores chicos. Lo que ya viene con minúsculas (la
+ * etiqueta de «sin representante») se deja como está.
+ */
+export function nombreDeGrupo(grupo: string): string {
+  if (grupo === "OTROS") return "Otros importadores";
+  if (grupo !== grupo.toUpperCase()) return grupo;
+  const chicas = new Set(["DE", "DEL", "LA", "LOS", "Y"]);
+  return grupo
+    .split(/\s+/)
+    .map((p, i) =>
+      chicas.has(p)
+        // «De la Sobera»: la partícula va en minúscula salvo al empezar.
+        ? i > 0 ? p.toLowerCase() : p[0] + p.slice(1).toLowerCase()
+        : nombreDeMarca(p)
+    )
     .join(" ");
 }
