@@ -150,7 +150,7 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
                 className="text-right"
                 nota={conMercado ? "sobre lo filtrado y cuánto cambió" : "su parte y cuánto cambió en puntos"}
               >
-                {conMercado ? "Part. filtro" : "Part."}
+                {conMercado ? "Filtro" : "Part."}
               </TableHead>
               <TableHead className={cn("text-right", conMercado && "min-w-0")} nota="contra el año pasado">Var.</TableHead>
               <TableHead className={cn("text-right", conMercado && "min-w-0")} nota={`su puesto en ${anioAnterior}`}>Antes</TableHead>
@@ -196,7 +196,7 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
         está en ella va a Otros. Chevrolet se reparte: {repartoDeChevrolet}. «Antes» es el puesto
         del grupo en el mismo período de {anioAnterior}.
         {conMercado
-          ? " «Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Part. filtro», sobre lo que queda con el filtro."
+          ? " «Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Filtro», sobre lo que queda con el filtro."
           : ""}
       </p>
     </div>

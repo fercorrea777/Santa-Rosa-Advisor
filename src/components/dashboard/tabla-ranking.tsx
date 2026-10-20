@@ -319,7 +319,7 @@ export function TablaRanking({
               {mostrarSegmento && th("segmento", "Segmento")}
               {th("unidades", "Unidades", true, "las del período", conMercado)}
               {conMercado && th("participacionMercado", "Mercado", true, "parte y puesto, sin filtros", true)}
-              {th("participacion", conMercado ? "Part. filtro" : "Part.", true, conMercado ? "sobre lo filtrado" : "su parte del mercado")}
+              {th("participacion", conMercado ? "Filtro" : "Part.", true, conMercado ? "su parte de lo filtrado" : "su parte del mercado", conMercado)}
               {th("variacion", "Var.", true, "contra el año pasado", conMercado)}
               {th("cambioPosicion", "Pos.", true, "puestos que subió o bajó", conMercado)}
             </TableRow>
@@ -390,7 +390,7 @@ export function TablaRanking({
       <p className="text-xs text-muted-foreground">
         Mostrando {filtradas.length} de {filas.length}.
         {conMercado
-          ? " «Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Part. filtro», sobre lo que queda con el filtro."
+          ? " «Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Filtro», sobre lo que queda con el filtro."
           : ""}
         {notaVariacion ? ` ${notaVariacion}` : ""}
         {fichas ? " Tocá una fila para ver contra quién compite ese modelo." : ""}
