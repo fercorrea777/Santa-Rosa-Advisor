@@ -51,12 +51,15 @@ export interface PartedeMarca {
 /**
  * Marcas que no tienen un solo grupo: se reparten por porcentaje.
  *
- * CHEVROLET: el Excel de Fernando la parte en Garden 40 %, De la Sobera 30 % y
- * Otros 30 % (los renglones «CHEVROLET -GARDEN», «-DLS» y «-OTHER»; el total
- * viene aparte, como EXCLUIR). Fernando le escribió a Croman «Garden 40 %, DLS
- * 35 % y lo demás a Otros»; el Excel usa 30 % para De la Sobera en los catorce
- * meses que trae (39,7 a 40,2 / 29,6 a 30,2 / 29,7 a 30,6), así que acá va 30 %
- * hasta que lo confirme. Es un número, y cambia en una línea.
+ * CHEVROLET: Garden 40 %, De la Sobera 35 % y Otros 25 % (lo que sobra). Es lo
+ * que Fernando le escribió a Croman («garden tiene 40 %, dls 35 % y lo demás va
+ * todo en otros») y lo que Croman dejó el 20/10/2026. OJO: el Excel «base
+ * mercado.xlsx» de Fernando usa 30 % para De la Sobera y 30 % para Otros en los
+ * catorce meses que trae (los renglones «CHEVROLET -GARDEN», «-DLS» y «-OTHER»,
+ * con el total aparte como EXCLUIR), así que con este reparto Garden, De la
+ * Sobera y Otros ya no dan EXACTAMENTE las cifras de ese Excel: De la Sobera
+ * suma 5 puntos de Chevrolet y Otros los pierde. Es una decisión, y cambia en
+ * estos tres números.
  *
  * El ÚLTIMO de cada lista recibe lo que sobra: así las partes siempre suman el
  * total y el redondeo no inventa ni pierde chapas.
@@ -64,8 +67,8 @@ export interface PartedeMarca {
 export const REPARTO_POR_MARCA: Record<string, PartedeMarca[]> = {
   CHEVROLET: [
     { grupo: "GARDEN", parte: 0.4 },
-    { grupo: "DE LA SOBERA", parte: 0.3 },
-    { grupo: GRUPO_RESTO, parte: 0.3 },
+    { grupo: "DE LA SOBERA", parte: 0.35 },
+    { grupo: GRUPO_RESTO, parte: 0.25 },
   ],
 };
 
@@ -96,15 +99,19 @@ export function grupoDeMarca(marca: string): string {
 }
 
 /** Cómo se reparten las unidades de UN mes de una marca entre grupos.
- *  Cada parte se redondea y la última recibe el resto (mismo criterio que el
- *  Excel de Fernando, que da 168 / 126 / 125 sobre 419 chapas de Chevrolet). */
+ *  Cada parte se redondea (mitades hacia arriba) y la última recibe el resto:
+ *  mismo criterio que el Excel de Fernando, que da 168 / 126 / 125 sobre 419
+ *  chapas de Chevrolet con 40 / 30 / 30. La cuenta se hace con el porcentaje
+ *  entero y no con la fracción: 0,35 × 10 en punto flotante da 3,4999… o 3,5
+ *  según el caso, y el redondeo de una mitad no puede depender de eso. */
 export function repartirUnidades(marca: string, unidades: number): { grupo: string; unidades: number; parte: number | null }[] {
   const m = normalizarMarca(marca);
   const reparto = REPARTO_POR_MARCA[m];
   if (!reparto) return [{ grupo: GRUPO_DE_MARCA.get(m) ?? GRUPO_RESTO, unidades, parte: null }];
   let asignado = 0;
   return reparto.map((p, i) => {
-    const u = i === reparto.length - 1 ? unidades - asignado : Math.round(unidades * p.parte);
+    const pct = Math.round(p.parte * 100);
+    const u = i === reparto.length - 1 ? unidades - asignado : Math.floor((unidades * pct + 50) / 100);
     asignado += u;
     return { grupo: p.grupo, unidades: u, parte: p.parte };
   });
