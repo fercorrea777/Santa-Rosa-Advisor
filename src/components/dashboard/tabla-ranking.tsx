@@ -414,8 +414,8 @@ function Variacion({ v, entrante }: { v: number | null; entrante: boolean }) {
     <span
       className={cn(
         "inline-flex items-center gap-0.5",
-        up && "text-emerald-600 dark:text-emerald-400",
-        down && "text-rose-600 dark:text-rose-400"
+        up && "text-emerald-700 dark:text-emerald-400",
+        down && "text-rose-700 dark:text-rose-400"
       )}
     >
       <span aria-hidden="true">{up ? "▲" : down ? "▼" : "–"}</span>
@@ -438,7 +438,7 @@ function CambioPosicion({
     <span
       className={cn(
         "inline-flex items-center gap-0.5",
-        sube ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+        sube ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"
       )}
       title={`Posición anterior: ${anterior}`}
     >

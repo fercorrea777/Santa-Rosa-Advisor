@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import { DistribucionChart } from "@/components/charts/distribucion-chart";
 import { SelectorFuente } from "@/components/dashboard/selector-fuente";
+import { SelectorAniosSerie } from "@/components/dashboard/selector-anios-serie";
 import { Seccion } from "@/components/dashboard/seccion";
 import { AccionesSemana } from "@/components/dashboard/acciones-semana";
 import {
@@ -18,7 +19,7 @@ import {
 import { getParametros } from "@/lib/cadam/config";
 import { aniosDeSerie, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { serieAAnios } from "@/lib/serie";
+import { serieAAnios, techoComun } from "@/lib/serie";
 
 export default async function MercadoPage({
   searchParams,
@@ -70,7 +71,8 @@ export default async function MercadoPage({
   const aniosImp = aniosDeSerie(sp, f.anio, cobertura.importacion.anios);
   const serieMat = serieAAnios(getSerieMensual("matriculacion", aniosMat, cortes), aniosMat);
   const serieImp = serieAAnios(getSerieMensual("importacion", aniosImp, cortes), aniosImp);
-
+  // Los dos gráficos van lado a lado: con el mismo techo, la altura compara.
+  const techoSerie = techoComun(serieMat, serieImp);
 
   const opciones = getOpcionesFiltro();
   const segmentos = getPorDimension(fuente, "segmento", f);
@@ -102,6 +104,20 @@ export default async function MercadoPage({
   const propiasU = marcas.filter((m) => m.esPropia).reduce((s, m) => s + m.unidades, 0);
   // Sin datos en el filtro, totalU es 0: la división daría NaN.
   const participacionPropias = totalU > 0 ? propiasU / totalU : null;
+  // Lo mismo un año antes, sobre el mismo tramo de meses. Sale del ranking del
+  // período previo y no de `marcas`: ahí solo están las que vendieron AHORA, y
+  // una marca nuestra que se apagó dejaría la participación previa más chica
+  // de lo que fue y el cambio, inflado.
+  const baseComparable = (esImportacion ? import_ : matric).baseDisponible;
+  const marcasPrevias = baseComparable ? getRankingMarcas(fuente, { ...f, anio: f.anio - 1 }) : [];
+  const totalPrevU = marcasPrevias.reduce((s, m) => s + m.unidades, 0);
+  const propiasPrevU = marcasPrevias.filter((m) => m.esPropia).reduce((s, m) => s + m.unidades, 0);
+  const cambioParticipacion =
+    participacionPropias === null
+      ? undefined
+      : totalPrevU > 0
+        ? participacionPropias - propiasPrevU / totalPrevU
+        : null;
   // La lista sale de parametros.json, no escrita a mano: el tooltip que había
   // en la home enumeraba 10 marcas y se había quedado sin HAVAL.
   const nombresPropias = getParametros()
@@ -150,15 +166,20 @@ export default async function MercadoPage({
           dos tarjetas por donde asomaría el contenido de atrás. */}
       <div
         data-revelar=""
-        className="-mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end sm:bg-background/85 sm:backdrop-blur-md"
+        className="barra-pegajosa relative -mx-1 flex flex-col gap-3 rounded-xl px-1 py-1 sm:sticky sm:top-16 sm:z-30 sm:flex-row sm:flex-wrap sm:items-end"
       >
+        {/* Fondo y sombra solo cuando la barra está pegada arriba (ver
+            .barra-pegajosa en globals.css). El fondo es opaco: el texto que
+            pasa por detrás asomaba entre las dos tarjetas con el velo
+            translúcido de antes. */}
+        <span aria-hidden="true" className="pegada-fondo" />
+        <span aria-hidden="true" className="pegada-sombra" />
         <SelectorFuente porDefecto="matriculacion" fuente={fuente} />
         <div className="min-w-0 sm:flex-1">
           <FiltroPeriodo
             pegajoso={false}
             anios={cobertura[fuente].anios}
             mesMaximoPorAnio={mesMax}
-            aniosSerie
             opciones={[
               { param: "marca", label: "Marca", valores: opciones.marcas },
               { param: "segmento", label: "Segmento", valores: opciones.segmentos },
@@ -214,24 +235,29 @@ export default async function MercadoPage({
         <KpiCard
           label="Participación marcas propias"
           value={participacionPropias === null ? "—" : formatPct(participacionPropias)}
+          variacionPp={cambioParticipacion}
           periodo={participacionPropias === null ? undefined : `${formatUnidades(propiasU)} u.`}
           tooltip={`${nombresPropias}, sobre el total de ${etiquetaFuente} del período filtrado.`}
         />
       </section>
 
       <Seccion titulo="Evolución del mercado"
-        nota="Cómo se mueve el mercado mes a mes, en chapas puestas y en unidades que entraron al país.">
+        nota="Cómo se mueve el mercado mes a mes, en chapas puestas y en unidades que entraron al país. Los dos gráficos comparten escala."
+        accion={<SelectorAniosSerie anios={cobertura[fuente].anios} />}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Evolución mensual — matriculaciones</CardTitle>
-            <p className="text-xs text-muted-foreground">
+            {/* lg:min-h-8 (dos renglones) en los dos subtítulos: con uno de
+                una línea y otro de dos, los gráficos arrancaban a alturas
+                distintas y la escala compartida no se podía comparar a ojo. */}
+            <p className="text-xs text-muted-foreground lg:min-h-8">
               Chapas puestas por mes, una línea por año. Es el mercado que ya se
               vendió.
             </p>
           </CardHeader>
           <CardContent>
-            <SerieAniosChart series={serieMat} />
+            <SerieAniosChart series={serieMat} maximo={techoSerie} />
             {cobertura.mesesFaltantes.matriculacion.length > 0 && (
               <p className="mt-2 text-xs text-muted-foreground">
                 Los meses sin dato quedan como hueco en la línea, no como cero.
@@ -245,14 +271,14 @@ export default async function MercadoPage({
         <Card>
           <CardHeader>
             <CardTitle>Evolución mensual — importaciones</CardTitle>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground lg:min-h-8">
               Unidades que entraron al país por mes. Va adelante de la
               matriculación: lo que sube acá se vende en los meses que siguen.
             </p>
           </CardHeader>
           <CardContent>
             {serieImp.length ? (
-              <SerieAniosChart series={serieImp} />
+              <SerieAniosChart series={serieImp} maximo={techoSerie} />
             ) : (
               <p className="py-16 text-center text-sm text-muted-foreground">
                 Sin datos de importación para estos años.
@@ -333,18 +359,18 @@ export default async function MercadoPage({
       </Seccion>
 
       <Seccion titulo="Quién gana y quién pierde"
-        nota="Las marcas que más participación ganaron y las que más perdieron contra el año pasado.">
+        nota="Las marcas que más unidades sumaron y las que más perdieron contra el mismo período del año pasado.">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MoviminetoCard
           titulo={`Principales ganadores — ${etiquetaFuente}`}
-          subtitulo={`Unidades ganadas frente a ${periodoPrevio} (mismo período del año anterior). El % es solo referencia.`}
+          subtitulo={`Unidades ganadas frente a ${periodoPrevio} (mismo período del año anterior). El % solo se muestra con una base de ${BASE_MINIMA_PCT} u. o más.`}
           filas={ganadores}
           positivo
           disponible={(esImportacion ? import_ : matric).baseDisponible}
         />
         <MoviminetoCard
           titulo={`Principales perdedores — ${etiquetaFuente}`}
-          subtitulo={`Unidades perdidas frente a ${periodoPrevio} (mismo período del año anterior). El % es solo referencia.`}
+          subtitulo={`Unidades perdidas frente a ${periodoPrevio} (mismo período del año anterior). El % solo se muestra con una base de ${BASE_MINIMA_PCT} u. o más.`}
           filas={perdedores}
           positivo={false}
           disponible={(esImportacion ? import_ : matric).baseDisponible}
@@ -431,6 +457,12 @@ export default async function MercadoPage({
   );
 }
 
+/** Debajo de esta base (unidades del año anterior) el % no dice nada: una marca
+ *  que pasó de 1 a 2 «creció 100%» y una que pasó de 2 a 1 «cayó 50%» (FORLAND,
+ *  QUANTUM y AGRALE salían en la lista de los que más perdieron con −50%). Las
+ *  unidades sí se muestran: son lo que mueve el mercado. */
+const BASE_MINIMA_PCT = 30;
+
 function MoviminetoCard({
   titulo, subtitulo, filas, positivo, disponible,
 }: {
@@ -463,11 +495,15 @@ function MoviminetoCard({
                 <li key={m.marca} className="flex items-baseline justify-between gap-3 text-sm">
                   <Marca marca={m.marca} claseNombre="font-medium" />
                   <span className="flex items-baseline gap-3 tabular-nums">
-                    <span className={positivo ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                    {/* 700 y no 600: a 14 px sobre blanco el 600 no llega a 4,5:1. */}
+                    <span className={positivo ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}>
                       {delta > 0 ? "+" : ""}{formatUnidades(delta)} u.
                     </span>
-                    <span className="w-16 text-right text-xs text-muted-foreground">
-                      {formatPct(m.variacion, { signed: true })}
+                    <span
+                      className="w-16 text-right text-xs text-muted-foreground"
+                      title={m.unidadesAnterior < BASE_MINIMA_PCT ? `Base de ${m.unidadesAnterior} u.: el % no es comparable` : undefined}
+                    >
+                      {m.unidadesAnterior >= BASE_MINIMA_PCT ? formatPct(m.variacion, { signed: true }) : "—"}
                     </span>
                   </span>
                 </li>

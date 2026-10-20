@@ -4,7 +4,7 @@ import { EchartsAuto } from "@/components/charts/echarts-auto";
 import {
   etiquetaValor, FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme,
 } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
+import { decimal, formatUnidades } from "@/lib/format";
 import { MESES_CORTOS } from "@/lib/periodo";
 
 export interface SerieAnio {
@@ -34,11 +34,16 @@ export function SerieAniosChart({
   // reciente a más viejo (2026 arriba). La leyenda, en cambio, queda en
   // orden natural. Market Share pasa "seriesAsc" para respetar el ranking.
   ordenTooltip = "seriesDesc",
+  maximo,
 }: {
   series: SerieAnio[];
   tipo?: "line" | "bar";
   altura?: number;
   ordenTooltip?: "seriesAsc" | "seriesDesc";
+  /** Techo del eje Y. Se pasa cuando dos gráficos van lado a lado y tienen que
+   *  compartir escala (ver `techoComun` en lib/serie.ts). Sin esto el eje se
+   *  ajusta solo a los datos de cada gráfico. */
+  maximo?: number;
 }) {
   const theme = useChartTheme();
 
@@ -87,7 +92,7 @@ export function SerieAniosChart({
           v === null || v === undefined
             ? "Sin datos"
             : series[0]?.unidad === "porcentaje"
-              ? `${v.toFixed(1)}%`
+              ? `${decimal(v, 1)}%`
               : formatUnidades(v);
         const cabecera = filas[0]?.axisValueLabel ?? "";
         const cuerpo = filas
@@ -122,6 +127,7 @@ export function SerieAniosChart({
     },
     yAxis: {
       type: "value",
+      ...(maximo ? { min: 0, max: maximo } : {}),
       splitLine: { lineStyle: { color: theme.grid } },
       axisLabel: {
         color: theme.text,
@@ -164,7 +170,7 @@ export function SerieAniosChart({
         ? { show: false }
         : etiquetaValor(theme, {
             formatter: (v) =>
-              series[0]?.unidad === "porcentaje" ? `${v.toFixed(1)}%` : formatUnidades(v),
+              series[0]?.unidad === "porcentaje" ? `${decimal(v, 1)}%` : formatUnidades(v),
           }),
       emphasis: { focus: "series" as const },
       // Relleno degradado bajo la serie principal (las punteadas son

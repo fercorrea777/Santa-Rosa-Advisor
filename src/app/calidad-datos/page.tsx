@@ -54,7 +54,7 @@ export default function CalidadDatosPage() {
               <p key={i} className="flex items-start gap-2 text-sm">
                 <span
                   aria-hidden="true"
-                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-600 dark:text-emerald-400"
+                  className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-700 dark:text-emerald-400"
                 >
                   ✓
                 </span>
@@ -83,7 +83,7 @@ export default function CalidadDatosPage() {
                   className={cn(
                     "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
                     l.nivel === "error"
-                      ? "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                      ? "bg-rose-500/15 text-rose-700 dark:text-rose-400"
                       : "bg-amber-500/15 text-amber-600 dark:text-amber-500"
                   )}
                 >
@@ -204,9 +204,9 @@ function Contador({
   label, n, tono,
 }: { label: string; n: number; tono: "error" | "aviso" | "ok" }) {
   const color = {
-    error: "text-rose-600 dark:text-rose-400",
+    error: "text-rose-700 dark:text-rose-400",
     aviso: "text-amber-600 dark:text-amber-500",
-    ok: "text-emerald-600 dark:text-emerald-400",
+    ok: "text-emerald-700 dark:text-emerald-400",
   }[tono];
   return (
     <Card className="gap-1 py-4">

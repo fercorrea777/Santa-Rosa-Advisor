@@ -18,6 +18,7 @@ export function Seccion({
   titulo,
   nota,
   id,
+  accion,
   children,
 }: {
   titulo: string;
@@ -30,6 +31,10 @@ export function Seccion({
    *  home apuntan a "/operacion?vista=stock#pedido"). `scroll-mt-20` deja el encabezado
    *  debajo del header fijo al aterrizar. */
   id?: string;
+  /** Un control que gobierna lo que hay en la sección (los años que dibujan
+   *  los gráficos, por ejemplo). Va a la derecha de la nota, debajo del filete:
+   *  pegado a lo que cambia y no perdido en la barra de filtros de arriba. */
+  accion?: React.ReactNode;
   /** Las tarjetas de la sección. Van adentro para que el espaciado entre el
    *  encabezado y su contenido lo decida este componente y no cada página. */
   children: React.ReactNode;
@@ -38,12 +43,22 @@ export function Seccion({
     // `data-seccion`: la entrada de página (movimiento/pagina.tsx) anima el
     // encabezado de cada sección junto con las tarjetas.
     <section id={id} data-seccion="" className="flex flex-col gap-4 scroll-mt-20">
-      {nota ? (
+      {nota || accion ? (
         <div>
+          {/* El h2 va solo en su fila: el filete que lo sigue (`.seccion-hd::after`)
+              tiene que correr hasta el borde de la página, no hasta donde
+              termina la nota. */}
           <h2 className="seccion-hd">{titulo}</h2>
-          <p className="mt-1.5 max-w-[85ch] text-[13px] leading-relaxed text-muted-foreground">
-            {nota}
-          </p>
+          <div className="mt-1.5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+            {nota ? (
+              <p className="max-w-[85ch] text-[13px] leading-relaxed text-muted-foreground">
+                {nota}
+              </p>
+            ) : (
+              <span />
+            )}
+            {accion}
+          </div>
         </div>
       ) : (
         <h2 className="seccion-hd">{titulo}</h2>

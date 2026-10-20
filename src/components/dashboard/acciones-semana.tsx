@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Cifra } from "@/components/movimiento/cifra";
+import { Seccion } from "@/components/dashboard/seccion";
 import {
   acotarAFuente, getRankingMarcas, getRankingModelos, type Filtro,
 } from "@/lib/cadam/mercado";
@@ -9,18 +10,33 @@ import {
   getStockPropio, getVentasAsesor, getVentasPropias, hayDatosPropios,
 } from "@/lib/informes/propios";
 import { calcularCobertura, type CoberturaVersion } from "@/lib/informes/cobertura";
-import { formatUnidades } from "@/lib/format";
+import { formatDecimal, formatPuntosPct, formatUnidades } from "@/lib/format";
 import { mesCorto } from "@/lib/periodo";
 import { anioActual, resumenPresupuesto } from "@/lib/informes/tablero";
 import { cn } from "@/lib/utils";
 
+/** Una fila de la tarjeta: a la izquierda qué (se corta si no entra), a la
+ *  derecha cuánto (nunca se corta: es lo que se lee). */
+interface Fila {
+  nombre: string;
+  valor: string;
+}
+
 /**
- * "Acciones de la semana": cinco tarjetas que dicen qué hacer, con el
+ * "Acciones de la semana": seis tarjetas que dicen qué hacer, con el
  * número, una frase en palabras de negocio y adónde ir a verlo.
  *
  * Todo calculado acá, en código. La lección del 03/09/2026: el Copiloto
  * cita bien las cifras y concluye al revés. Las tarjetas no interpretan,
  * cuentan.
+ *
+ * ALCANCE. Estas tarjetas miran TODO el mercado: usan el período de la barra
+ * de filtros (Año, Desde, Hasta) y nada más. Marca, Segmento y Tecnología no
+ * les cambian nada, y está dicho en el encabezado. Antes los rivales sí
+ * recibían esos filtros, y con «Marca: TOYOTA» la tarjeta de rivales quedaba
+ * en cero (sin marcas nuestras en el recorte no hay «segmentos donde
+ * vendemos») sin que nada lo explicara. Las de Cars (stock, asesores, plan)
+ * nunca dependieron de la barra.
  *
  * Es un Server Component asíncrono para que una sola línea lo ponga en
  * cualquier pantalla (hoy en /mercado, que es la home real: "/" redirige
@@ -29,25 +45,27 @@ import { cn } from "@/lib/utils";
  */
 export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: string }) {
   const propias = getMarcasPropiasSet();
+  // Solo el período: ver «ALCANCE» arriba.
+  const fMercado: Filtro = { anio: f.anio, mesDesde: f.mesDesde, mesHasta: f.mesHasta };
   // «Rivales cargando stock» compara importaciones contra matriculaciones:
   // las dos sobre el tramo que tienen ambas. Con un mes de ventaja de una
   // fuente (importación en sep-2026, matriculación en oct-2026) la
   // comparación dejaba pasar o inventaba marcas que cargan stock.
   const hastaComun = Math.max(
-    f.mesDesde,
+    fMercado.mesDesde,
     Math.min(
-      acotarAFuente("matriculacion", f).mesHasta,
-      acotarAFuente("importacion", f).mesHasta
+      acotarAFuente("matriculacion", fMercado).mesHasta,
+      acotarAFuente("importacion", fMercado).mesHasta
     )
   );
-  const fComun = { ...f, mesHasta: hastaComun };
+  const fComun = { ...fMercado, mesHasta: hastaComun };
   const marcas = getRankingMarcas("matriculacion", fComun);
   const marcasImp = getRankingMarcas("importacion", fComun);
 
   // Rivales en alza: modelos de OTRAS marcas que más participación ganaron
   // en los segmentos donde nosotros vendemos (20+ u. propias en el período),
   // con base mínima de 30 u. para que el salto no sea ruido.
-  const modelos = getRankingModelos("matriculacion", f, 800);
+  const modelos = getRankingModelos("matriculacion", fMercado, 800);
   const segsPropios = new Map<string, number>();
   for (const m of modelos) {
     if (m.esPropia && m.segmento) {
@@ -124,16 +142,26 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
   const hayPresupuestoCargado = getPresupuesto(anioActual()) !== null;
 
   return (
-    <section aria-labelledby="acciones-titulo" data-seccion="" className="flex flex-col gap-3">
-      <h2 id="acciones-titulo" className="seccion-hd">Acciones de la semana</h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <Seccion
+      titulo="Acciones de la semana"
+      nota="Los rivales miran todo el mercado del período; stock, asesores y plan, lo último de Cars. Ninguna cambia con Marca, Segmento ni Tecnología."
+    >
+      {/* En el celular, una tira que se desliza (cada tarjeta al 82% para que
+          asome la siguiente): seis tarjetas apiladas eran más de mil píxeles
+          de scroll antes de la primera cifra del mercado. Desde sm, grilla.
+          Tres columnas hasta 2xl: con seis, cada tarjeta medía ~190 px y los
+          nombres de versión salían cortados. */}
+      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scroll-padding-inline:1rem] [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 2xl:grid-cols-6 [&::-webkit-scrollbar]:hidden">
         <TarjetaAccion
           titulo="Pedir stock"
           numero={acciones ? acciones.pedir.length : null}
           unidad="versiones"
           vacio="Ninguna versión con menos de un mes y medio de stock."
           frase="se venden y tienen menos de un mes y medio de stock libre, aun contando lo que viene en viaje."
-          items={acciones?.pedir.slice(0, 3).map((v) => `${v.version} · ${coma(v.meses)} meses`) ?? []}
+          filas={acciones?.pedir.slice(0, 3).map((v) => ({
+            nombre: v.version,
+            valor: `${formatDecimal(v.meses)} meses`,
+          })) ?? []}
           href="/operacion?vista=stock#pedido"
           tono="rojo"
         />
@@ -143,7 +171,10 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           unidad="versiones"
           vacio="Ninguna versión con más de seis meses de stock."
           frase="tienen más de seis meses de stock o casi no se mueven. Plata parada."
-          items={acciones?.empujar.slice(0, 3).map((v) => `${v.version} · ${formatUnidades(v.libres)} libres`) ?? []}
+          filas={acciones?.empujar.slice(0, 3).map((v) => ({
+            nombre: v.version,
+            valor: `${formatUnidades(v.libres)} libres`,
+          })) ?? []}
           href="/operacion?vista=stock#pedido"
           tono="ambar"
         />
@@ -153,9 +184,10 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           unidad="modelos"
           vacio="Ningún modelo rival ganó participación de forma notable."
           frase={`de otras marcas ganaron más participación en los segmentos donde vendemos · ${periodo}.`}
-          items={rivalesEnAlza.map(
-            (m) => `${m.marca} ${m.modelo} +${coma((m.deltaShare ?? 0) * 100)} pts`
-          )}
+          filas={rivalesEnAlza.map((m) => ({
+            nombre: `${m.marca} ${m.modelo}`,
+            valor: formatPuntosPct(m.deltaShare ?? 0),
+          }))}
           href="/rankings"
           tono="tinta"
         />
@@ -169,7 +201,10 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
               ? `venían vendiendo y en ${mesCerrado} no facturaron ningún vehículo.`
               : "venían vendiendo y el último mes no facturaron."
           }
-          items={acciones?.parados.slice(0, 3).map((p) => `${p.asesor} · ${p.antes} antes`) ?? []}
+          filas={acciones?.parados.slice(0, 3).map((p) => ({
+            nombre: p.asesor,
+            valor: `${p.antes} antes`,
+          })) ?? []}
           href="/operacion?vista=equipo#asesores"
           tono="ambar"
         />
@@ -179,9 +214,10 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           unidad="marcas"
           vacio="Ninguna marca rival importa muy por encima de lo que matricula."
           frase="importaron al menos 50% más de lo que matricularon: stock que va a salir a la calle."
-          items={rivalesCargando.map(
-            (x) => `${x.marca}: ${formatUnidades(x.imp)} imp. vs ${formatUnidades(x.matric)} mat.`
-          )}
+          filas={rivalesCargando.map((x) => ({
+            nombre: x.marca,
+            valor: `${formatUnidades(x.imp)} imp. · ${formatUnidades(x.matric)} mat.`,
+          }))}
           href="/brecha"
           tono="tinta"
         />
@@ -189,28 +225,30 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           titulo="Atrasados contra el plan"
           numero={presupuesto ? presupuesto.atrasados.length : null}
           unidad="marcas"
-          vacio={
-            presupuesto
-              ? "Todas las marcas al ritmo del plan."
-              : hayPresupuestoCargado
-                ? "Hay presupuesto cargado pero Cars no respondió: sin facturas no hay ritmo que comparar."
-                : "Sin presupuesto cargado: se lee solo del Excel de Finanzas, una vez por hora."
+          vacio="Todas las marcas al ritmo del plan."
+          // Acá null no siempre es «Cars no respondió»: también es «no hay
+          // presupuesto cargado», y la tarjeta decía lo primero en los dos casos.
+          sinDatosTexto={
+            hayPresupuestoCargado
+              ? "Hay presupuesto cargado pero Cars no respondió: sin facturas no hay ritmo que comparar."
+              : "Sin presupuesto cargado: se lee solo del Excel de Finanzas, una vez por hora."
           }
           frase={
             presupuesto
               ? `van más lento que lo que pide el plan ${presupuesto.version} para lo que queda del año.`
               : "van más lento que el plan del año."
           }
-          items={
-            presupuesto?.atrasados
-              .slice(0, 3)
-              .map((a) => `${a.marcas.join(" + ")} · falta ${coma(a.faltaPorMes)}/mes`) ?? []
+          filas={
+            presupuesto?.atrasados.slice(0, 3).map((a) => ({
+              nombre: a.marcas.join(" + "),
+              valor: `falta ${formatDecimal(a.faltaPorMes)}/mes`,
+            })) ?? []
           }
           href={presupuesto ? "/operacion#marcas" : "/cargas"}
           tono="rojo"
         />
       </div>
-    </section>
+    </Seccion>
   );
 }
 
@@ -219,21 +257,18 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
  * no respondió (Cars caído): se dice, no se muestra un cero que parecería
  * "no hay nada que hacer".
  */
-/** Un decimal con coma, como se lee acá: 1,4 y no 1.4. */
-function coma(n: number | null | undefined): string {
-  return n === null || n === undefined ? "—" : n.toFixed(1).replace(".", ",");
-}
-
 function TarjetaAccion({
-  titulo, numero, unidad, vacio, frase, items, href, tono,
+  titulo, numero, unidad, vacio, sinDatosTexto = "Sin datos de Cars ahora mismo.", frase, filas, href, tono,
 }: {
   titulo: string;
   numero: number | null;
   unidad: string;
   /** Qué decir cuando el número es 0: en singular y en positivo. */
   vacio: string;
+  /** Qué decir cuando no hay número (la fuente no respondió o no hay carga). */
+  sinDatosTexto?: string;
   frase: string;
-  items: string[];
+  filas: Fila[];
   href: string;
   tono: "rojo" | "ambar" | "tinta";
 }) {
@@ -242,13 +277,15 @@ function TarjetaAccion({
   return (
     <Link
       href={href}
-      className="group flex rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex w-[82%] shrink-0 snap-start rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:shrink"
     >
       <Card
         className={cn(
           "flex w-full flex-col gap-2 py-4 transition-shadow group-hover:shadow-md",
-          !sinDatos && !nada && tono === "rojo" && "border-rose-300/70 dark:border-rose-900",
-          !sinDatos && !nada && tono === "ambar" && "border-amber-300/70 dark:border-amber-900"
+          // El borde de color es el refuerzo del número, no el único aviso:
+          // con el 300 casi no se distinguía del fondo.
+          !sinDatos && !nada && tono === "rojo" && "border-rose-400/70 dark:border-rose-800",
+          !sinDatos && !nada && tono === "ambar" && "border-amber-400/80 dark:border-amber-800"
         )}
       >
         <CardContent className="flex flex-1 flex-col px-4">
@@ -270,16 +307,23 @@ function TarjetaAccion({
             )}
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            {sinDatos ? "Sin datos de Cars ahora mismo." : nada ? vacio : `${unidad} ${frase}`}
+            {sinDatos ? sinDatosTexto : nada ? vacio : `${unidad} ${frase}`}
           </p>
-          {items.length > 0 && (
-            <ul className="mt-2 flex flex-col gap-0.5 text-xs">
-              {items.map((it) => (
-                <li key={it} className="truncate font-medium" title={it}>{it}</li>
+          {filas.length > 0 && (
+            <ul className="mt-3 flex flex-col text-xs">
+              {filas.map((fila) => (
+                <li
+                  key={fila.nombre}
+                  title={`${fila.nombre} · ${fila.valor}`}
+                  className="flex items-baseline justify-between gap-3 border-t border-border/60 py-1.5 first:border-t-0 first:pt-0"
+                >
+                  <span className="min-w-0 truncate font-medium">{fila.nombre}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">{fila.valor}</span>
+                </li>
               ))}
             </ul>
           )}
-          <span className="mt-auto pt-2 text-xs font-medium text-primary">Ver →</span>
+          <span className="mt-auto pt-2 text-xs font-medium text-primary">Ver <span aria-hidden="true">→</span></span>
         </CardContent>
       </Card>
     </Link>

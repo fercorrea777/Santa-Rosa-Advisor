@@ -373,7 +373,7 @@ export default async function GamaPropiaPage({
                                 title={`${acc.versiones} ${acc.versiones === 1 ? "versión" : "versiones"} en la planilla${acc.aproximado ? ` (familia ${acc.aproximado})` : ""}`}
                               >
                                 {acc.descuento > 0 ? (
-                                  <span className="font-semibold text-rose-600 dark:text-rose-400">−US$ {formatUnidades(acc.descuento)}</span>
+                                  <span className="font-semibold text-rose-700 dark:text-rose-400">−US$ {formatUnidades(acc.descuento)}</span>
                                 ) : (
                                   <span className="text-muted-foreground">sin descuento</span>
                                 )}

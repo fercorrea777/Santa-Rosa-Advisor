@@ -75,7 +75,7 @@ function Valor({
   fuerte?: boolean;
 }) {
   return (
-    <span className={cn("block tabular-nums", fuerte && "font-semibold", tenue && "text-muted-foreground", negativo && "font-semibold text-rose-600 dark:text-rose-400")}>
+    <span className={cn("block tabular-nums", fuerte && "font-semibold", tenue && "text-muted-foreground", negativo && "font-semibold text-rose-700 dark:text-rose-400")}>
       {valor}
       {parte !== null && parte !== undefined && (
         <span className="block text-[11px] font-normal leading-tight text-muted-foreground">{formatPct(parte)}</span>

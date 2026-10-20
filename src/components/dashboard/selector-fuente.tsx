@@ -65,6 +65,8 @@ export function SelectorFuente({
         Analizar
       </span>
       <div
+        role="group"
+        aria-label="Analizar"
         aria-busy={pendiente}
         className={cn(
           "flex gap-1 rounded-md border bg-card p-1 transition-opacity",

@@ -153,7 +153,7 @@ function Aviso({ estado }: { estado: EstadoUsuarios | null }) {
       className={cn(
         "rounded-md border px-3 py-2 text-xs break-words",
         estado.error
-          ? "border-rose-500/30 bg-rose-500/5 text-rose-600 dark:text-rose-400"
+          ? "border-rose-500/30 bg-rose-500/5 text-rose-700 dark:text-rose-400"
           : "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
       )}
     >
@@ -284,7 +284,7 @@ function FilaUsuario({ usuario, dominio, hayCorreo }: { usuario: Usuario; domini
           {usuario.rol === "admin" ? "Admin" : "Lector"}
         </span>
         {!usuario.activo && (
-          <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-600 dark:text-rose-400">
+          <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700 dark:text-rose-400">
             De baja
           </span>
         )}

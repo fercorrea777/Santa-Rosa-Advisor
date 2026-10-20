@@ -232,7 +232,7 @@ export function TablaAcciones({
                     {dcto > 0 ? (
                       <>
                         <span className="font-semibold">{usd(v.precio_descuento)}</span>
-                        <span className="block text-[11px] leading-tight text-rose-600 dark:text-rose-400">
+                        <span className="block text-[11px] leading-tight text-rose-700 dark:text-rose-400">
                           −{usd(dcto)}{dctoPct !== null ? ` · ${formatPct(dctoPct)}` : ""}
                         </span>
                       </>
@@ -394,7 +394,7 @@ function Margen({ valor, pct }: { valor: number | null; pct: number | null }) {
   if (valor === null) return null;
   const negativo = valor < 0;
   return (
-    <span className={cn(negativo && "font-semibold text-rose-600 dark:text-rose-400")}>
+    <span className={cn(negativo && "font-semibold text-rose-700 dark:text-rose-400")}>
       {usd(valor)}
       {pct !== null && (
         <span className="block text-[11px] leading-tight text-muted-foreground">{formatPct(pct)}</span>

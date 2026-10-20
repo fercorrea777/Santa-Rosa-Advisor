@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento";
 import { useFiltroUrl } from "@/lib/filtro-url";
+import { nombreDeSegmento } from "@/lib/format";
 import { MESES_CORTOS } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,6 @@ export function FiltroPeriodo({
   anios = [],
   mesMaximoPorAnio = {},
   opciones = [],
-  aniosSerie = false,
   pegajoso = true,
   sinPeriodo = false,
 }: {
@@ -46,10 +46,6 @@ export function FiltroPeriodo({
    *  (la planilla de acciones comerciales es de un mes) pero que quieren la
    *  misma barra que el resto del tablero. */
   sinPeriodo?: boolean;
-  /** Muestra los chips de "Años en el gráfico" (param `anios`). Solo en las
-   *  pantallas que dibujan series: en las que no, seria un control que no
-   *  cambia nada de lo que se ve. */
-  aniosSerie?: boolean;
   /** Queda fijo al hacer scroll. Apagarlo solo cuando la barra vive dentro
    *  de otra fila que ya es pegajosa (mercado, que le suma el selector de
    *  fuente): dos sticky anidados se pisan. */
@@ -62,16 +58,6 @@ export function FiltroPeriodo({
   const anioActual = Number(leer("anio")) || anios[anios.length - 1];
   const topeMes = mesMaximoPorAnio[anioActual] ?? 12;
   const desde = Math.min(Number(leer("desde")) || 1, topeMes);
-  // Mismo criterio que aniosDeSerie() del servidor: sin param, el año del
-  // filtro y el anterior. Se replica acá porque este componente es de
-  // cliente y no puede importar del módulo de servidor.
-  const defectoAnios = [anioActual - 1, anioActual]
-    .filter((a) => anios.includes(a))
-    .join(",");
-  const crudoAnios = leer("anios");
-  const aniosPuestos = (crudoAnios ? crudoAnios.split(",") : defectoAnios.split(","))
-    .map(Number)
-    .filter((a) => anios.includes(a));
   const hasta = Math.min(Number(leer("hasta")) || topeMes, topeMes);
 
   return (
@@ -102,45 +88,6 @@ export function FiltroPeriodo({
           className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
         />
       )}
-      {aniosSerie && !sinPeriodo && (
-        <Campo label="Años en el gráfico">
-          {/* Chips y no un <select multiple>: son cinco años y el multiple
-              nativo obliga a ctrl+clic —que nadie descubre— y ocupa cuatro
-              renglones. Acá se ve de un vistazo cuáles están puestos. */}
-          <div className="flex flex-wrap items-center gap-1">
-            {anios.map((a) => {
-              const puesto = aniosPuestos.includes(a);
-              return (
-                <button
-                  key={a}
-                  type="button"
-                  aria-pressed={puesto}
-                  onClick={() => {
-                    const siguiente = puesto
-                      ? aniosPuestos.filter((x) => x !== a)
-                      : [...aniosPuestos, a].sort((x, y) => x - y);
-                    // Nunca dejar cero años: un gráfico vacío no es un
-                    // estado que alguien quiera pedir, es un clic de más.
-                    if (!siguiente.length) return;
-                    setParams({
-                      anios: siguiente.join(",") === defectoAnios ? null : siguiente.join(","),
-                    });
-                  }}
-                  className={cn(
-                    "rounded-md px-2 py-1 text-xs font-medium tabular-nums transition-colors pointer-coarse:min-h-9 pointer-coarse:px-3",
-                    puesto
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  {a}
-                </button>
-              );
-            })}
-          </div>
-        </Campo>
-      )}
-
       {!sinPeriodo && (<>
       <Campo label="Año">
         <select
@@ -196,7 +143,11 @@ export function FiltroPeriodo({
             <option value="todos">Todos</option>
             {o.valores.map((v) => {
               const valor = typeof v === "string" ? v : v.valor;
-              const label = typeof v === "string" ? v : v.label;
+              const label = typeof v === "string"
+                // Los segmentos llegan sin tilde de CADAM (CAMION): se leen
+                // con ella, el valor que viaja a la URL no cambia.
+                ? (o.param === "segmento" ? nombreDeSegmento(v) : v)
+                : v.label;
               return <option key={valor} value={valor}>{label}</option>;
             })}
           </select>

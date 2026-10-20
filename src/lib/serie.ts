@@ -19,6 +19,30 @@ export function serieAAnios(puntos: PuntoMensual[], anios: number[]): SerieAnio[
   });
 }
 
+/**
+ * Techo "lindo" del eje Y que sirve para VARIAS series a la vez.
+ *
+ * Dos gráficos lado a lado con ejes propios invitan a una lectura falsa: cada
+ * uno se estira hasta llenar su caja, y una línea que llega a 5.500 parece tan
+ * alta como otra que llega a 8.200. Con el mismo techo, la altura compara.
+ * Redondea hacia arriba a 1, 1,2, 1,5, 2, 2,5, 3, 4, 5, 6, 8 o 10 por una
+ * potencia de diez, para que las marcas del eje caigan en números redondos.
+ * undefined = no hay ningún dato (el gráfico se arregla solo).
+ */
+export function techoComun(...grupos: SerieAnio[][]): number | undefined {
+  let max = 0;
+  for (const g of grupos) {
+    for (const serie of g) {
+      for (const v of serie.valores) if (v !== null && v > max) max = v;
+    }
+  }
+  if (max <= 0) return undefined;
+  const exp = 10 ** Math.floor(Math.log10(max));
+  const m = max / exp;
+  const paso = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((x) => m <= x) ?? 10;
+  return paso * exp;
+}
+
 /** Promedio de los meses CON dato (ignora los huecos). */
 export function promedioMensual(valores: (number | null)[]): number | null {
   const con = valores.filter((v): v is number => v !== null);

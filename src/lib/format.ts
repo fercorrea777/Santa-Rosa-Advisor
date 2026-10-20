@@ -58,16 +58,53 @@ export function formatUnidades(n: number): string {
   return new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);
 }
 
+/**
+ * Un decimal con coma, como se lee en Paraguay: 12,1 y no 12.1.
+ *
+ * Las unidades ya salen con punto de miles (`formatUnidades`: 42.328); un
+ * porcentaje con punto decimal al lado ("+49.8%") se lee como cuarenta y nueve
+ * mil ochocientos. Todo lo que muestre un decimal pasa por acá.
+ *
+ * Un redondeo que cae en cero no lleva signo: `(-0.04).toFixed(1)` da "-0.0",
+ * y una variación de "-0,0%" parece un dato en rojo que no es.
+ */
+export function decimal(n: number, d = 1): string {
+  const t = n.toFixed(d).replace(".", ",");
+  return /^-0(,0+)?$/.test(t) ? t.slice(1) : t;
+}
+
 export function formatPct(v: number | null, opts?: { signed?: boolean }): string {
   if (v === null || !Number.isFinite(v)) return "—";
   const pct = v * 100;
   const sign = opts?.signed && pct > 0 ? "+" : "";
-  return `${sign}${pct.toFixed(1)}%`;
+  return `${sign}${decimal(pct, 1)}%`;
 }
 
 export function formatPuntosPct(v: number): string {
   const sign = v > 0 ? "+" : "";
-  return `${sign}${(v * 100).toFixed(1)} pp`;
+  return `${sign}${decimal(v * 100, 1)} pp`;
+}
+
+/** Cuántos meses de stock, ritmo, razones: un decimal con coma, "—" si no hay. */
+export function formatDecimal(n: number | null | undefined, d = 1): string {
+  return n === null || n === undefined || !Number.isFinite(n) ? "—" : decimal(n, d);
+}
+
+/**
+ * CADAM manda los segmentos sin tilde (CAMION, FURGON, OMNIBUS) y así quedan
+ * como clave en la base y en la URL. Esto es solo para MOSTRARLOS: nunca se
+ * usa como valor de un filtro.
+ */
+const SEGMENTO_CON_TILDE: Record<string, string> = {
+  automovil: "Automóvil",
+  camion: "Camión",
+  furgon: "Furgón",
+  minibus: "Minibús",
+  omnibus: "Ómnibus",
+};
+
+export function nombreDeSegmento(segmento: string): string {
+  return SEGMENTO_CON_TILDE[segmento.trim().toLowerCase()] ?? segmento;
 }
 
 /** Siglas que se escriben en mayúsculas aunque el resto del nombre no. */

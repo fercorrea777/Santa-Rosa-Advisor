@@ -398,9 +398,9 @@ function TarjetaFuente({ fuente }: { fuente: Fuente }) {
     h === null ? "frio" : h > fuente.frioH ? "frio" : h > fuente.tibioH ? "tibio" : "ok";
 
   const tono = {
-    ok: "text-emerald-600 dark:text-emerald-500",
+    ok: "text-emerald-700 dark:text-emerald-400",
     tibio: "text-amber-600 dark:text-amber-500",
-    frio: "text-rose-600 dark:text-rose-500",
+    frio: "text-rose-700 dark:text-rose-400",
   }[estado];
 
   const etiqueta = { ok: "Al día", tibio: "Envejeciendo", frio: "Atrasado" }[estado];

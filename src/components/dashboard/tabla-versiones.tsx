@@ -131,8 +131,8 @@ export function TablaVersiones({
                       <span
                         className={cn(
                           "w-16 tabular-nums",
-                          d > 0 && "text-emerald-600 dark:text-emerald-400",
-                          d < 0 && "text-rose-600 dark:text-rose-400"
+                          d > 0 && "text-emerald-700 dark:text-emerald-400",
+                          d < 0 && "text-rose-700 dark:text-rose-400"
                         )}
                       >
                         {formatPuntosPct(d)}

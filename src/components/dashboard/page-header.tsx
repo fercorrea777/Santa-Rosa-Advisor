@@ -20,7 +20,9 @@ export function PageHeader({
         </p>
       )}
       {fuente && (
-        <p className="w-fit rounded-full bg-card px-3 py-1 font-mono text-[11px] uppercase tracking-wide text-muted-foreground shadow-[var(--card-shadow)]">
+        // rounded-xl y no full: en el celular la fuente del Copiloto baja a
+        // cuatro líneas y una píldora de verdad se vuelve una mancha.
+        <p className="w-fit rounded-xl bg-card px-3 py-1 font-mono text-[11px] uppercase leading-relaxed tracking-wide text-muted-foreground shadow-[var(--card-shadow)]">
           {fuente}
         </p>
       )}

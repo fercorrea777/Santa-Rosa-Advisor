@@ -192,8 +192,8 @@ export default async function EvolucionPage({
                         </span>
                         {f.varYtd !== null && (
                           <span className={f.varYtd >= 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-rose-600 dark:text-rose-400"}>
+                            ? "text-emerald-700 dark:text-emerald-400"
+                            : "text-rose-700 dark:text-rose-400"}>
                             {formatPct(f.varYtd, { signed: true })} vs. año previo
                           </span>
                         )}
@@ -260,8 +260,8 @@ export default async function EvolucionPage({
                               (f.varYtd === null
                                 ? ""
                                 : f.varYtd >= 0
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : "text-rose-600 dark:text-rose-400")
+                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  : "text-rose-700 dark:text-rose-400")
                             }
                           >
                             {f.varYtd === null ? "—" : formatPct(f.varYtd, { signed: true })}

@@ -330,8 +330,8 @@ export default async function CombustiblesPage({
                                 "text-right tabular-nums",
                                 c.variacion !== null &&
                                   (c.variacion > 0
-                                    ? "text-emerald-600 dark:text-emerald-500"
-                                    : "text-rose-600 dark:text-rose-500")
+                                    ? "text-emerald-700 dark:text-emerald-400"
+                                    : "text-rose-700 dark:text-rose-400")
                               )}
                             >
                               {/* null = entrante o sin base: nunca 0% ni un
@@ -347,8 +347,8 @@ export default async function CombustiblesPage({
                                 "text-right tabular-nums",
                                 c.deltaParticipacion !== null &&
                                   (c.deltaParticipacion > 0
-                                    ? "text-emerald-600 dark:text-emerald-500"
-                                    : "text-rose-600 dark:text-rose-500")
+                                    ? "text-emerald-700 dark:text-emerald-400"
+                                    : "text-rose-700 dark:text-rose-400")
                               )}
                             >
                               {c.deltaParticipacion === null

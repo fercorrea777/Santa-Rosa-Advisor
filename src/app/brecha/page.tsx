@@ -20,7 +20,7 @@ import {
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
-import { formatUnidades } from "@/lib/format";
+import { decimal, formatPct, formatUnidades } from "@/lib/format";
 import {
   aclaracionCortes, corteComun, etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl,
   fuenteAdelantada, mesCorto, type SearchParams,
@@ -187,7 +187,7 @@ export default async function BrechaPage({
         />
         <KpiCard
           label="Relación matric. / import."
-          value={ratio === null ? "—" : ratio.toFixed(2)}
+          value={ratio === null ? "—" : decimal(ratio, 2)}
           periodo={ratio === null ? undefined
             : ratio > 1 ? "se patenta más de lo que entra" : "se patenta menos de lo que entra"}
           tooltip="Por cada unidad importada, cuántas se patentaron. Sostenido por debajo de 1 sugiere acumulación; por encima de 1, salida de inventario previo."
@@ -231,7 +231,7 @@ export default async function BrechaPage({
                 <div className="flex items-baseline justify-between">
                   <span className="font-medium">{mesCorto(p.mes)}</span>
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    ratio {p.ratio === null ? "—" : p.ratio.toFixed(2)}
+                    ratio {p.ratio === null ? "—" : decimal(p.ratio, 2)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -279,7 +279,7 @@ export default async function BrechaPage({
                         `${p.diferencia > 0 ? "+" : ""}${formatUnidades(p.diferencia)}`}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {p.ratio === null ? "—" : p.ratio.toFixed(2)}
+                      {p.ratio === null ? "—" : decimal(p.ratio, 2)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -374,7 +374,7 @@ async function UnaFuente({
         <KpiCard
           label="Marcas propias"
           value={formatUnidades(propiasU)}
-          periodo={kpi.valor ? `${((propiasU / kpi.valor) * 100).toFixed(1)}% del total` : undefined}
+          periodo={kpi.valor ? `${formatPct(propiasU / kpi.valor)} del total` : undefined}
           tooltip={`Unidades de nuestras marcas en ${NOMBRE[fuente]} del período.`}
         />
         <KpiCard

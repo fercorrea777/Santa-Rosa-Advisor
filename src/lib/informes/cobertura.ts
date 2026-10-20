@@ -163,12 +163,25 @@ export function calcularCobertura(
 
   // Pedir: primero lo que más vende (es lo que más duele quedarse sin).
   // Empujar: primero lo que más plata tiene parada (unidades × precio).
+  // Con el mismo ritmo (pasa: son promedios de unidades enteras), primero la
+  // que tiene menos stock, y después el nombre: el orden no puede depender de
+  // cómo vino la lista, o la tarjeta de la home cambiaría de versiones entre
+  // una carga y la siguiente sin que nada haya cambiado.
   const pedir = versiones
     .filter((v) => v.accion === "pedir")
-    .sort((a, b) => b.ritmo - a.ritmo);
+    .sort(
+      (a, b) =>
+        b.ritmo - a.ritmo ||
+        (a.meses ?? 0) - (b.meses ?? 0) ||
+        a.version.localeCompare(b.version)
+    );
   const empujar = versiones
     .filter((v) => v.accion === "empujar")
-    .sort((a, b) => b.libres * (b.precio_usd ?? 1) - a.libres * (a.precio_usd ?? 1));
+    .sort(
+      (a, b) =>
+        b.libres * (b.precio_usd ?? 1) - a.libres * (a.precio_usd ?? 1) ||
+        a.version.localeCompare(b.version)
+    );
 
   return { versiones, mesesRitmo, pedir, empujar };
 }

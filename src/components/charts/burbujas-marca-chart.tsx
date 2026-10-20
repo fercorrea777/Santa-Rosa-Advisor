@@ -7,7 +7,7 @@ import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import {
   claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha,
 } from "@/lib/cadam/bandas";
-import { formatUnidades } from "@/lib/format";
+import { decimal, formatUnidades } from "@/lib/format";
 
 export interface Burbuja {
   marca: string;
@@ -152,7 +152,7 @@ export function BurbujasMarcaChart({
         `<b>${p.data.marca}</b> · ${p.name}<br/>` +
         `${formatUnidades(p.value[2])} u. ` +
         `<span style="opacity:.7">(antes ${formatUnidades(p.data.anterior)})</span><br/>` +
-        `<b>${p.data.real >= 0 ? "+" : ""}${p.data.real.toFixed(1)}%</b> vs. año anterior` +
+        `<b>${p.data.real >= 0 ? "+" : ""}${decimal(p.data.real, 1)}%</b> vs. año anterior` +
         (p.data.recortada
           ? `<br/><span style="font-size:11px;opacity:.75">Se sale del eje: dibujada en el tope de +${TECHO_VARIACION}%</span>`
           : ""),

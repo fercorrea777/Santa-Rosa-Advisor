@@ -26,7 +26,7 @@ import {
   getEstadoSyncPropio, getStockPropio, getVentasAsesor, getVentasPropias,
   hayDatosPropios,
 } from "@/lib/informes/propios";
-import { formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
+import { formatDecimal, formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import {
   calcularCobertura, estadosDesconocidos, RITMO_MINIMO as RITMO_MINIMO_VERSION,
 } from "@/lib/informes/cobertura";
@@ -944,7 +944,7 @@ export default async function OperacionPage({
                               : undefined
                           }
                         >
-                          {r.mesesStock === null ? "—" : r.mesesStock.toFixed(1)}
+                          {formatDecimal(r.mesesStock)}
                         </TableCell>
                         {hayPauta && (
                           <TableCell className="text-right tabular-nums">
@@ -1038,7 +1038,7 @@ export default async function OperacionPage({
                               <TableCell
                                 className={cn(
                                   "text-right tabular-nums font-medium",
-                                  r.cumplimiento !== null && r.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
+                                  r.cumplimiento !== null && r.cumplimiento < 0.85 && "text-rose-700 dark:text-rose-400",
                                   r.cumplimiento !== null && r.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
                                 )}
                                 title={
@@ -1139,7 +1139,7 @@ export default async function OperacionPage({
                               <TableCell
                                 className={cn(
                                   "text-right tabular-nums font-medium",
-                                  c.cumplimiento !== null && c.cumplimiento < 0.85 && "text-rose-600 dark:text-rose-400",
+                                  c.cumplimiento !== null && c.cumplimiento < 0.85 && "text-rose-700 dark:text-rose-400",
                                   c.cumplimiento !== null && c.cumplimiento >= 1 && "text-emerald-700 dark:text-emerald-400"
                                 )}
                               >
@@ -1267,13 +1267,13 @@ export default async function OperacionPage({
                                 {v.marca}
                               </span>
                             </TableCell>
-                            <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatDecimal(v.ritmo)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
                             <TableCell className="text-right tabular-nums text-muted-foreground">
                               {v.enViaje ? formatUnidades(v.enViaje) : "—"}
                             </TableCell>
-                            <TableCell className="text-right tabular-nums font-semibold text-rose-600 dark:text-rose-400">
-                              {v.meses === null ? "—" : v.meses.toFixed(1)}
+                            <TableCell className="text-right tabular-nums font-semibold text-rose-700 dark:text-rose-400">
+                              {formatDecimal(v.meses)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1318,9 +1318,9 @@ export default async function OperacionPage({
                               </span>
                             </TableCell>
                             <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{v.ritmo.toFixed(1)}</TableCell>
+                            <TableCell className="text-right tabular-nums">{formatDecimal(v.ritmo)}</TableCell>
                             <TableCell className="text-right tabular-nums font-semibold text-amber-600 dark:text-amber-500">
-                              {v.meses === null ? "sin ritmo" : v.meses.toFixed(1)}
+                              {v.meses === null ? "sin ritmo" : formatDecimal(v.meses)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
                               {v.precio_usd ? formatUnidades(v.precio_usd) : "—"}
@@ -1456,7 +1456,7 @@ export default async function OperacionPage({
                                 </TableCell>
                                 <TableCell className="text-right tabular-nums">{r.facturado ? formatUnidades(r.facturado) : "—"}</TableCell>
                                 <TableCell className="text-right tabular-nums">
-                                  {r.facturado && r.leads ? (r.leads / r.facturado).toFixed(1).replace(".", ",") : "—"}
+                                  {r.facturado && r.leads ? formatDecimal(r.leads / r.facturado) : "—"}
                                 </TableCell>
                               </TableRow>
                             );
@@ -1554,7 +1554,7 @@ export default async function OperacionPage({
                                 <TableCell
                                   className={cn(
                                     "text-xs font-medium",
-                                    r.senal?.tono === "pedir" && "text-rose-600 dark:text-rose-400",
+                                    r.senal?.tono === "pedir" && "text-rose-700 dark:text-rose-400",
                                     r.senal?.tono === "empujar" && "text-emerald-700 dark:text-emerald-400",
                                     r.senal?.tono === "precio" && "text-amber-600 dark:text-amber-500",
                                     (!r.senal || r.senal.tono === "ok") && "text-muted-foreground"
@@ -1654,7 +1654,7 @@ export default async function OperacionPage({
                                     className={cn(
                                       "text-right tabular-nums",
                                       l && l.leads && l.sinContacto / l.leads > 0.3
-                                        ? "font-medium text-rose-600 dark:text-rose-400"
+                                        ? "font-medium text-rose-700 dark:text-rose-400"
                                         : "text-muted-foreground"
                                     )}
                                   >

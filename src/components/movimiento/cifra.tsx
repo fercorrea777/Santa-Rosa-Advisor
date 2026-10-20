@@ -62,8 +62,10 @@ export function Cifra({
     const tween = gsap.to(obj, {
       n: partes.numero,
       // Desde cero (primera vez) cuenta más largo; el retarget por un
-      // filtro es más corto, porque el ojo ya está en el número.
-      duration: anterior.current === null ? DURACION.larga : DURACION.media,
+      // filtro es el más corto: el ojo ya está en el número, y con seis o
+      // siete cifras recontando a la vez cada cambio de filtro, medio segundo
+      // de conteo era ruido, no información.
+      duration: anterior.current === null ? DURACION.larga : DURACION.corta,
       ease: "power2.out",
       onUpdate: escribir,
       onComplete: () => {

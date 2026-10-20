@@ -36,10 +36,10 @@ function Antiguedad({ d }: { d: number | null }) {
   const texto = d === 0 ? "hoy" : d === 1 ? "ayer" : `hace ${d} días`;
   const tono =
     d >= DIAS_FRIO
-      ? "text-rose-600 dark:text-rose-500"
+      ? "text-rose-700 dark:text-rose-400"
       : d >= DIAS_TIBIO
         ? "text-amber-600 dark:text-amber-500"
-        : "text-emerald-600 dark:text-emerald-500";
+        : "text-emerald-700 dark:text-emerald-400";
   return <span className={tono}>{texto}</span>;
 }
 

@@ -8,6 +8,7 @@ import {
 } from "./historico";
 import { getMarcasPropiasSet, getParametros } from "./config";
 import { etiquetaPeriodo as rotuloPeriodo, MESES_LARGOS, mesCorto } from "@/lib/periodo";
+import { decimal } from "@/lib/format";
 
 /**
  * Centro de Inteligencia Comercial (spec sec. 19).
@@ -53,8 +54,8 @@ export interface Informe {
 }
 
 const pct = (v: number | null) =>
-  v === null ? "—" : `${v > 0 ? "+" : ""}${(v * 100).toFixed(1)}%`;
-const pp = (v: number) => `${v > 0 ? "+" : ""}${(v * 100).toFixed(1)} pp`;
+  v === null ? "—" : `${v > 0 ? "+" : ""}${decimal(v * 100, 1)}%`;
+const pp = (v: number) => `${v > 0 ? "+" : ""}${decimal(v * 100, 1)} pp`;
 const u = (n: number) => new Intl.NumberFormat("es-PY").format(n);
 
 export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
@@ -129,7 +130,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   if (marcas.length) {
     resumen.push(
       `Lidera ${marcas[0].marca} con ${u(marcas[0].unidades)} unidades ` +
-      `(${(marcas[0].participacion * 100).toFixed(1)}% del mercado).`
+      `(${decimal(marcas[0].participacion * 100, 1)}% del mercado).`
     );
   }
   const propiasU = marcas.filter((m) => propias.has(m.marca))
@@ -137,7 +138,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   const totalU = marcas.reduce((s, m) => s + m.unidades, 0) || 1;
   resumen.push(
     `Las marcas propias suman ${u(propiasU)} unidades, ` +
-    `${((propiasU / totalU) * 100).toFixed(1)}% del mercado.`
+    `${decimal((propiasU / totalU) * 100, 1)}% del mercado.`
   );
 
   // -------------------------------------------------------- hallazgos
@@ -219,7 +220,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         ? "Está creciendo más rápido que el mercado: se lleva participación de los demás."
         : "Crece menos que el mercado (o cae): otros segmentos le sacan participación.",
       evidencia: `${u(s.unidadesAnterior)} → ${u(s.unidades)} u. (${pct(s.variacion)}), ` +
-                 `participación ${pp(s.deltaParticipacion)} hasta ${(s.participacion * 100).toFixed(1)}%`,
+                 `participación ${pp(s.deltaParticipacion)} hasta ${decimal(s.participacion * 100, 1)}%`,
       prioridad: Math.abs(s.deltaParticipacion * 100) >= 3 ? "alta" : "media",
       periodo: etiquetaPeriodo,
     });
@@ -266,7 +267,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         ? "Un salto de esta magnitud cambia el equilibrio competitivo del período."
         : "Una caída de esta magnitud sobre una base relevante requiere explicación.",
       evidencia: `${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)}), ` +
-                 `participación ${(m.participacion * 100).toFixed(1)}%` +
+                 `participación ${decimal(m.participacion * 100, 1)}%` +
                  (m.cambioPosicion
                    ? `, ${m.cambioPosicion > 0 ? "sube" : "baja"} ${Math.abs(m.cambioPosicion)} ` +
                      `posición${Math.abs(m.cambioPosicion) === 1 ? "" : "es"} ` +
@@ -311,7 +312,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         motivo: "Una brecha sostenida sugiere un cambio de ritmo entre el ingreso de unidades y su venta. " +
                 "Es orientativo: no equivale a stock real.",
         evidencia: `Importación ${u(totImp)} u. vs matriculación ${u(totMat)} u. ` +
-                   `Relación matric./import. ${rel.toFixed(2)}` +
+                   `Relación matric./import. ${decimal(rel, 2)}` +
                    (comunRecorta ? ` · ${rotuloComun}, el tramo que tienen las dos fuentes` : ""),
         prioridad: "media",
         periodo: etiquetaPeriodo,
@@ -356,7 +357,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         titulo: `Baja participación propia en ${s.valor}, que además está creciendo`,
         motivo: "Segmento en expansión donde las marcas propias casi no están presentes.",
         evidencia: `Segmento ${u(s.unidades)} u. (${pct(s.variacion)}); marcas propias ` +
-                   `${u(propiasSeg)} u. = ${(share * 100).toFixed(1)}% del segmento`,
+                   `${u(propiasSeg)} u. = ${decimal(share * 100, 1)}% del segmento`,
         prioridad: "alta",
         impacto: `Cada punto de participación en este segmento son ~${u(Math.round(s.unidades / 100))} unidades`,
         periodo: etiquetaPeriodo,
@@ -380,7 +381,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         ? "Tecnología emergente donde todavía hay espacio para entrar."
         : "Las marcas propias están sobre-representadas en una tecnología que crece.",
       evidencia: `${t.valor}: ${u(t.unidadesAnterior)} → ${u(t.unidades)} u. (${pct(t.variacion)}); ` +
-                 `marcas propias ${u(propiasTec)} u. = ${(share * 100).toFixed(1)}%`,
+                 `marcas propias ${u(propiasTec)} u. = ${decimal(share * 100, 1)}%`,
       prioridad: "alta",
       periodo: etiquetaPeriodo,
     });
@@ -425,7 +426,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         titulo: `${marca} depende de un solo modelo`,
         motivo: "Una caída de ese modelo arrastra a toda la marca; poco margen para compensar.",
         evidencia: `${lider.modelo} concentra ${u(lider.unidades)} de ${u(totalMarca)} u. ` +
-                   `= ${(conc * 100).toFixed(0)}% de la marca`,
+                   `= ${decimal(conc * 100, 0)}% de la marca`,
         prioridad: conc > 0.75 ? "alta" : "media",
         periodo: etiquetaPeriodo,
       });
@@ -441,7 +442,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
       titulo: `${m.marca} (competidor clave) más que duplicó su volumen`,
       motivo: "Un competidor directo acelerando a este ritmo redistribuye participación del resto.",
       evidencia: `${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)}), ` +
-                 `ahora ${(m.participacion * 100).toFixed(1)}% del mercado`,
+                 `ahora ${decimal(m.participacion * 100, 1)}% del mercado`,
       prioridad: "alta",
       periodo: etiquetaPeriodo,
     });
@@ -462,9 +463,9 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
       tipo: "historico",
       titulo: `El mercado tiene estacionalidad real: ${mesNombre(est.mesMasFuerte)} fuerte, ${mesNombre(est.mesMasDebil)} débil`,
       motivo: "Comparar un mes contra el anterior sin descontar este patrón lleva a conclusiones falsas.",
-      evidencia: `Índice de ${mesNombre(est.mesMasFuerte)}: ${est.indice[est.mesMasFuerte - 1].toFixed(2)} ` +
-                 `(${((est.indice[est.mesMasFuerte - 1] - 1) * 100).toFixed(0)}% sobre un mes promedio); ` +
-                 `${mesNombre(est.mesMasDebil)}: ${est.indice[est.mesMasDebil - 1].toFixed(2)}. ` +
+      evidencia: `Índice de ${mesNombre(est.mesMasFuerte)}: ${decimal(est.indice[est.mesMasFuerte - 1], 2)} ` +
+                 `(${decimal((est.indice[est.mesMasFuerte - 1] - 1) * 100, 0)}% sobre un mes promedio); ` +
+                 `${mesNombre(est.mesMasDebil)}: ${decimal(est.indice[est.mesMasDebil - 1], 2)}. ` +
                  `Calculado sobre ${est.aniosUsados.length} años completos (${est.aniosUsados.join(", ")}).`,
       prioridad: "media",
       periodo: `${est.aniosUsados[0]}–${est.aniosUsados[est.aniosUsados.length - 1]}`,
@@ -493,7 +494,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         titulo: `${mesNombre(a.mes)} ${a.anio} fue atípico incluso para un ${mesNombre(a.mes)}`,
         motivo: "Se desvía de lo esperable ya descontada la estacionalidad: hubo algo más que el calendario.",
         evidencia: `${u(a.unidades)} unidades contra ~${u(a.esperado)} esperables ` +
-                   `(${a.sigmas > 0 ? "+" : ""}${a.sigmas.toFixed(1)}σ)`,
+                   `(${a.sigmas > 0 ? "+" : ""}${decimal(a.sigmas, 1)}σ)`,
         prioridad: Math.abs(a.sigmas) >= 3 ? "alta" : "media",
         periodo: `${mesNombre(a.mes)} ${a.anio}`,
       });

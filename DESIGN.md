@@ -1,8 +1,10 @@
 # Sistema visual — Telemetría
 
-La referencia es un **tablero de instrumentos**, no una web de SaaS. Superficie
-azul-negra, retícula tenue de fondo, paneles con borde luminoso y una esquina
-recortada, y el número como protagonista.
+La referencia es un **tablero de instrumentos**, no una web de SaaS: el número
+es el protagonista. Desde el rediseño de julio de 2026 la forma es **bento**:
+lienzo gris frío, tarjetas blancas de radio generoso con una sombra difusa
+corta, y el navy de la marca en el encabezado, el menú lateral y el panel del
+acceso.
 
 Register: **product**. La decoración vive en los bordes; nunca encima del dato.
 
@@ -15,8 +17,11 @@ Del PRODUCT.md: se usa en dos situaciones a la vez — **notebook a un metro** y
 - La densidad aguanta de cerca: tablas de 80 filas, paneles con muchas etiquetas.
 - El acento marca estado y selección, nunca decora.
 
-El **modo oscuro es el principal**. El claro no es el mismo tema invertido: es
-una variante técnica fría (nada de crema ni beige) para oficina con ventana.
+El **modo claro es el que se abre por defecto** (oficina con ventana, notebook a
+un metro). El oscuro —azul-negro con resplandores fríos— queda como variante
+para la sala de reuniones y el proyector. Ninguno es el otro invertido: cada uno
+tiene sus propios tokens, y el claro es una variante técnica fría (nada de crema
+ni beige).
 
 ## Tokens
 
@@ -24,11 +29,18 @@ Todo en OKLCH, en `src/app/globals.css`.
 
 | Rol | Oscuro | Claro |
 |---|---|---|
-| Fondo | `#070e16` | casi blanco frío |
+| Fondo | `#070e16` | `oklch(0.968 0.004 250)`, gris frío |
 | Panel (`--card`) | `#111a24` | blanco |
 | Texto principal | `#f2f6f9` | tinta azulada |
 | Texto secundario | `#9fb1bc` | gris azulado |
-| Acento (`--primary`) | cian `#00cfe0` | cian oscuro |
+| Acento (`--primary`) | cian `#00cfe0` | cian oscuro `oklch(0.5 0.13 205)` |
+| Marca (`--barra`) | `#13143c` | navy `#1b1c4e` (header, menú, panel del acceso) |
+
+Verde y rojo de **texto chico** (variaciones, deltas) van en el 700 en claro
+(`emerald-700`, `rose-700`) y en el 400 en oscuro: el 600 no llega a 4,5:1 a
+12–14 px sobre el tinte de la propia chapa. En las cifras grandes (36 px) el 600
+alcanza. Sobre la tile `tinta` (navy) las chapas de variación usan tonos claros
+(`emerald-300`, `rose-300`).
 
 Contraste medido sobre el panel oscuro: principal **16,1:1**, secundario
 **7,9:1**, acento **9,2:1**, destructivo **5,5:1**. Todos por encima de 4,5:1.
@@ -44,19 +56,22 @@ Contraste medido sobre el panel oscuro: principal **16,1:1**, secundario
 > (`--chip-violet`) **se dejan en violeta a propósito**: son una paleta
 > categórica para gráficos, no el acento del sistema.
 
-## El panel HUD (Telemetría 2.0)
+## La tarjeta (tile bento)
 
 `[data-slot="card"]` en `globals.css`:
 
-- Borde luminoso cian a 1px (`box-shadow`, no `border`, para no alterar el
-  layout) más un `inset` superior que simula el bisel.
-- **Radio suave** (`0.875rem`) en las 4 esquinas — reemplaza la muesca
-  recortada de la v1 (era `clip-path` en la esquina inferior derecha).
-- Glow radial suave desde la esquina superior izquierda, solo en oscuro.
-- Título en versalitas espaciadas, como etiqueta de instrumento.
+- Borde de 1 px apenas visible (`--panel-edge` al 70 %) y `--card-shadow`: la
+  elevación la da la sombra, no un marco duro. Sin glow de borde ni bisel (eso
+  era el panel HUD de la v1, ya retirado).
+- **Radio de 13 px** (`0.8125rem`). Con más, la esquina se come la primera celda
+  de las tablas que viven adentro.
+- Título de tarjeta en caja baja, negrita y oscuro; el encabezado de **sección**
+  (`<Seccion>`) es el que lleva versalitas espaciadas y el filete.
+- Tiles teñidas (`tile-azul|verde|ambar|tinta`) para el dato destacado: el
+  tinte es la identidad; nunca una franja al costado.
 
 > El componente `Card` **no** lleva `ring-*` ni `rounded-*`: las utilidades de
-> Tailwind pisan el `box-shadow` del panel. El estilo lo dueña el CSS.
+> Tailwind pisan el `box-shadow`. El estilo lo dueña el CSS.
 
 ## Tipografía
 
@@ -122,6 +137,58 @@ los dos modos**, porque el resultado depende de la superficie sobre la que se
 dibuja. El comando está en el skill `dataviz`:
 `node scripts/validate_palette.js "<los 8 hex>" --mode light --surface "#ffffff"`.
 
+## Números: es-PY, siempre
+
+Miles con punto (`42.328`), decimales con coma (`12,1 %`, `+1,8 pp`). Un `+49.8%`
+junto a un `42.328` se lee como cuarenta y nueve mil. Todo decimal pasa por
+`src/lib/format.ts`: `formatUnidades`, `formatPct`, `formatPuntosPct`,
+`formatDecimal`/`decimal`. `<Cifra>` entiende la coma al animar. Los CSV que se
+exportan quedan con punto: son para máquinas.
+
+Los segmentos llegan de CADAM sin tilde (`CAMION`, `OMNIBUS`) y así viajan por
+la URL; para **mostrarlos** se pasan por `nombreDeSegmento` (Camión, Ómnibus,
+Furgón, Minibús, Automóvil).
+
+## Barra de filtros pegajosa
+
+Se pega a 64 px del borde (8 px de aire bajo el header de 56). El fondo y la
+sombra aparecen **solo cuando está pegada** (`scroll-state(stuck: top)`:
+`.pegada-fondo`, `.pegada-sombra`): en su lugar se funde con el lienzo, que en
+oscuro no es plano. Sin soporte, un velo casi opaco con desenfoque. Lo que
+gobierna solo los gráficos (los años de las series) **no va en la barra**: vive
+en el encabezado de la sección que cambia (`<Seccion accion={…}>`), porque en la
+barra parece un filtro más y no mueve ninguna cifra.
+
+## Menú lateral, perfil y búsqueda
+
+- El menú se **pliega** a 72 px (cookie `advisor_menu`, que el servidor lee para
+  dibujarlo plegado desde el primer cuadro) y tiene búsqueda de pantallas
+  (Ctrl K, `paleta-comandos`, con alias de `ALIAS_NAV` en `lib/nav.ts`).
+- Arriba lleva la **tarjeta de perfil**: foto (o iniciales), nombre, rol y
+  salir. Lleva a `/mi-cuenta`, donde cada persona sube su foto (recortador
+  cuadrado, JPEG de 384 px, validado en el servidor) y cambia su clave.
+- Íconos: set **propio** de línea (`components/icons.tsx`, sin librería externa),
+  siempre con `aria-hidden` y el rótulo en texto al lado.
+
+## Acceso y el globito
+
+`/entrar`, `/entrar/olvide` y `/restablecer` comparten el marco `MarcoAcceso`:
+panel navy ilustrado a la izquierda (nunca cambia de tema) y a la derecha el
+globito, el título y el formulario (sigue el tema). En el celular solo el
+formulario, con el logo arriba.
+
+**El globito** (`ui/globito.tsx`) es la mascota: una esfera con cara que mira el
+campo que se llena (`useCampoConFoco`, leído del documento porque el `autoFocus`
+llega antes de hidratar), se tapa los ojos con una clave oculta, piensa mientras
+se envía, se sacude si el acceso falla y salta si salió bien. También es la cara
+del Copiloto. Es **decorativo** (`aria-hidden`): nada de lo que expresa deja de
+estar en texto (el error lleva su `role="alert"`). Con `prefers-reduced-motion`
+no flota, no parpadea ni sigue el puntero, pero la cara sí cambia: es
+información.
+
+**Favicon**: el monograma del logo de Santa Rosa (`icon.svg`, `favicon.ico` de
+16/32/48 px y `apple-icon.png`), navy sobre blanco.
+
 ## Prohibiciones que este proyecto respeta
 
 - **Nada de franjas de color al costado** de tarjetas, filas o avisos. La
@@ -131,9 +198,11 @@ dibuja. El comando está en el skill `dataviz`:
 - Sin glassmorphism decorativo (el glow del panel es tenue y con propósito).
 - Sin "eyebrow" en versalitas encima de cada sección: las versalitas se usan
   solo en títulos de panel y etiquetas de campo, que es su función real.
-- **Sin librería de íconos.** `lucide-react` se removió (Telemetría 2.0): la
-  interfaz comunica estado con tipografía, glifos Unicode (▲ ▼ ⚠ ✓ ✕ · i ?) y
-  texto — nunca con SVGs decorativos.
+- **Sin librería de íconos externa.** `lucide-react` se removió (Telemetría
+  2.0). Hay un set propio y chico de íconos de línea (`components/icons.tsx`) para
+  menú, KPIs y búsqueda; el estado se comunica además con tipografía, glifos
+  Unicode (▲ ▼ ⚠ ✓ ✕ · i ?) y texto — nunca solo con color ni con un SVG
+  decorativo suelto.
 
 ## Motion
 
@@ -142,13 +211,15 @@ Dos capas:
 - **Estado y feedback** (hover, focus, selección de filtro): 150–250 ms, sin
   cambios respecto a la v1.
 - **Entrada** (Telemetría 2.0, desvío intencional de la v1): paneles con
-  aparición escalonada (`.reveal` + `.reveal-d1`..`.reveal-d6`, 420 ms,
-  `cubic-bezier(0.16, 0.84, 0.44, 1)`), cifras de KPI con count-up
-  (`useCountUp`, 900 ms), y los 4 gráficos de ECharts con animación de
+  aparición escalonada y revelado al scroll (GSAP, `components/movimiento/
+  pagina.tsx`: toda `page.tsx` va envuelta en `<Pagina>`; `data-revelar` es el
+  opt-in para lo que no es tarjeta ni sección), cifras de KPI con count-up
+  (`<Cifra>`, GSAP: 900 ms desde cero, 280 ms al cambiar un filtro: el ojo ya
+  está en el número), y los gráficos de ECharts con animación de
   entrada nativa (`animationDuration`/`animationEasing` en el `option`, sin
   librería nueva).
 
 `prefers-reduced-motion` está cubierto globalmente en `globals.css` para toda
-animación CSS (incluida `.reveal`); `useCountUp` lo respeta explícitamente
-(salta directo al valor final). Los gráficos de ECharts no leen el media
+animación CSS; `<Cifra>` lo respeta explícitamente (salta
+directo al valor final). Los gráficos de ECharts no leen el media
 query automáticamente — limitación conocida, no bloqueante.

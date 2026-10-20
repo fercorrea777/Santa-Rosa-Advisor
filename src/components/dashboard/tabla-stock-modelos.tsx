@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/table";
 import { IconChevron } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { formatUnidades } from "@/lib/format";
+import { decimal, formatDecimal, formatUnidades } from "@/lib/format";
 
 export type AccionStock = "pedir" | "llega" | "empujar" | "ok" | "sin ritmo";
 
@@ -46,7 +46,7 @@ const ETIQUETA: Record<AccionStock, string> = {
   "sin ritmo": "Vende poco",
 };
 const TONO: Record<AccionStock, string> = {
-  pedir: "text-rose-600 dark:text-rose-400",
+  pedir: "text-rose-700 dark:text-rose-400",
   empujar: "text-amber-600 dark:text-amber-500",
   llega: "text-emerald-700 dark:text-emerald-400",
   ok: "text-emerald-700 dark:text-emerald-400",
@@ -59,8 +59,8 @@ const n = (v: number) => (v ? formatUnidades(v) : "—");
 const Sub = ({ children }: { children: React.ReactNode }) => (
   <span className="block text-[11px] leading-tight text-muted-foreground">{children}</span>
 );
-const ritmoTxt = (r: number) => (r > 0 ? `${r.toFixed(1)} /mes` : "—");
-const mesesTxt = (m: number | null) => (m === null ? "—" : m.toFixed(1));
+const ritmoTxt = (r: number) => (r > 0 ? `${decimal(r, 1)} /mes` : "—");
+const mesesTxt = (m: number | null) => formatDecimal(m);
 
 /**
  * Todo el stock en UNA tabla: una fila por modelo, y sus versiones adentro.

@@ -3,7 +3,7 @@
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { useFiltroUrl } from "@/lib/filtro-url";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
+import { decimal, formatUnidades, nombreDeSegmento } from "@/lib/format";
 
 export interface Parte {
   nombre: string;
@@ -73,7 +73,11 @@ export function DistribucionChart({
     alternar(param, p.name);
   };
 
-  const pct = (v: number) => `${((v / total) * 100).toFixed(1)}%`;
+  const pct = (v: number) => `${decimal((v / total) * 100, 1)}%`;
+
+  /** Lo que se LEE. El valor crudo (CAMION, OMNIBUS: así llegan de CADAM, sin
+   *  tilde) sigue siendo lo que viaja a la URL y lo que compara `activo`. */
+  const etiqueta = (nombre: string) => (param === "segmento" ? nombreDeSegmento(nombre) : nombre);
 
   /** Arranque translucido del degradado. Los tokens --chart-N son hex de 6
    *  digitos, asi que pegarles el alfa alcanza; si alguna vez pasan a
@@ -103,7 +107,7 @@ export function DistribucionChart({
       ...TOOLTIP_BASE,
       trigger: "item",
       formatter: (p: { name: string; value: number }) =>
-        `${p.name}<br/><b>${formatUnidades(p.value)}</b> u. · <b>${pct(p.value)}</b>` +
+        `${etiqueta(p.name)}<br/><b>${formatUnidades(p.value)}</b> u. · <b>${pct(p.value)}</b>` +
         (param && !p.name.startsWith("Otros (")
           ? `<br/><span style="font-size:11px;opacity:.75">${
               activo === p.name ? "Clic para quitar el filtro" : "Clic para filtrar"
@@ -134,6 +138,7 @@ export function DistribucionChart({
         // mitad del ancho de la tarjeta.
         width: 120,
         overflow: "truncate" as const,
+        formatter: (v: string) => etiqueta(v),
       },
     },
     series: [

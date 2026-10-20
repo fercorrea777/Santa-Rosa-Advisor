@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import { Cifra } from "@/components/movimiento/cifra";
 import { IconBrecha, IconEvolucion, IconMarketShare, IconSegmentos } from "@/components/icons";
 
@@ -29,6 +29,10 @@ interface KpiCardProps {
   value: string;
   periodo?: string;
   variacion?: number | null;
+  /** Cambio en PUNTOS PORCENTUALES (0,004 = «+0,4 pp»), para las cifras que ya
+   *  son un porcentaje: la participación sube o baja en puntos, no «en %». Se
+   *  usa en lugar de `variacion`; si vienen las dos, manda `variacion`. */
+  variacionPp?: number | null;
   tooltip?: string;
   disponible?: boolean;
   /** Número crudo, formateado acá según `formato`. Es de antes de que
@@ -67,6 +71,7 @@ export function KpiCard({
   value,
   periodo,
   variacion,
+  variacionPp,
   tooltip,
   disponible = true,
   valorAnimado,
@@ -99,19 +104,34 @@ export function KpiCard({
     );
   }
 
-  const isUp = (variacion ?? 0) > 0;
-  const isDown = (variacion ?? 0) < 0;
+  // Un solo chip de cambio: porcentaje (unidades) o puntos (participación).
+  const textoCambio =
+    variacion !== undefined && variacion !== null
+      ? formatPct(variacion, { signed: true })
+      : variacionPp !== undefined && variacionPp !== null
+        ? formatPuntosPct(variacionPp)
+        : null;
+  const valorCambio = variacion ?? variacionPp ?? 0;
+  // Menos de 0,05 de cambio se muestra como «+0,0»: ni sube ni baja, y el
+  // verde o el rojo ahí serían una señal que el dato no tiene.
+  const plano = Math.abs(valorCambio) < 0.0005;
+  const isUp = !plano && valorCambio > 0;
+  const isDown = !plano && valorCambio < 0;
+  const sinBase = variacion === null || (variacion === undefined && variacionPp === null);
 
   return (
     <Card className={cn("group/kpi w-full gap-2 py-4", tono && `tile-${tono}`)}>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 px-4">
+      {/* sm:min-h reserva dos renglones de rótulo: con uno de una línea y otro
+          de dos en la misma fila, las cifras quedaban a alturas distintas y
+          no se comparaban de un vistazo. */}
+      <CardHeader className="flex flex-row items-start justify-between gap-2 px-4 sm:min-h-[2.4rem]">
         <div className="flex min-w-0 items-center gap-3">
           {ChipIcono && (
             <span className={`chip-${chipTono ?? "violet"}`}>
               <ChipIcono size={18} />
             </span>
           )}
-          <span className="min-w-0 text-[0.7rem] font-semibold uppercase tracking-[0.07em] text-muted-foreground">
+          <span className="min-w-0 text-[0.7rem] font-semibold uppercase leading-[1.35] tracking-[0.07em] text-muted-foreground">
             {label}
           </span>
         </div>
@@ -124,21 +144,24 @@ export function KpiCard({
         {/* El peso lo fija .metric (700); no agregar font-* aca o lo pisa. */}
         <Cifra como="p" texto={valorMostrado} className="metric text-[2rem] text-foreground" />
         <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2">
-          {variacion !== undefined && variacion !== null ? (
+          {textoCambio !== null ? (
             <span
               className={cn(
                 // Fondo tenue del propio color: la variacion se lee de lejos
-                // sin que el numero principal pierda protagonismo.
+                // sin que el numero principal pierda protagonismo. El texto va
+                // en el 700 y no en el 600: a 12 px sobre el tinte, el 600 del
+                // verde no llega a 4,5:1.
                 "inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums",
-                isUp && "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
-                isDown && "bg-rose-500/12 text-rose-600 dark:text-rose-400",
-                !isUp && !isDown && "bg-muted text-muted-foreground"
+                // Sobre la tile tinta (navy) el 700 se pierde: ahí van los tonos claros.
+                isUp && (tono === "tinta" ? "bg-emerald-400/15 text-emerald-300" : "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400"),
+                isDown && (tono === "tinta" ? "bg-rose-400/15 text-rose-300" : "bg-rose-500/12 text-rose-700 dark:text-rose-400"),
+                !isUp && !isDown && (tono === "tinta" ? "bg-white/10 text-white/70" : "bg-muted text-muted-foreground")
               )}
             >
               <span aria-hidden="true">{isUp ? "▲" : isDown ? "▼" : "–"}</span>
-              {formatPct(variacion, { signed: true })}
+              {textoCambio}
             </span>
-          ) : variacion === null ? (
+          ) : sinBase ? (
             <span className="text-xs text-muted-foreground">Sin base comparativa</span>
           ) : null}
           {periodo && <span className="text-xs text-muted-foreground">{periodo}</span>}

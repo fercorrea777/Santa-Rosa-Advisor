@@ -322,8 +322,8 @@ export default async function LocalidadesPage({
                         (f.unidadesAnterior < BASE_MINIMA
                           ? "text-muted-foreground"
                           : f.variacion > 0
-                            ? "text-emerald-600 dark:text-emerald-500"
-                            : "text-rose-600 dark:text-rose-500")
+                            ? "text-emerald-700 dark:text-emerald-400"
+                            : "text-rose-700 dark:text-rose-400")
                     )}
                     title={
                       f.variacion !== null && f.unidadesAnterior < BASE_MINIMA
@@ -343,7 +343,7 @@ export default async function LocalidadesPage({
                     className={cn(
                       "text-right tabular-nums",
                       f.deltaParticipacion !== null &&
-                        (f.deltaParticipacion > 0 ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-500")
+                        (f.deltaParticipacion > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")
                     )}
                   >
                     {f.deltaParticipacion === null

@@ -93,8 +93,8 @@ export function EditorConfiguracion({
                 role="status"
                 className={
                   estado.ok
-                    ? "text-sm text-emerald-600 dark:text-emerald-500"
-                    : "text-sm text-rose-600 dark:text-rose-500"
+                    ? "text-sm text-emerald-700 dark:text-emerald-400"
+                    : "text-sm text-rose-700 dark:text-rose-400"
                 }
               >
                 {estado.mensaje}

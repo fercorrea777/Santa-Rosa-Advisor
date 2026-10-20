@@ -143,7 +143,7 @@ export function TablaPortafolio({
                 <TableCell
                   className={cn(
                     "text-right tabular-nums",
-                    f.variacion !== null && (f.variacion > 0 ? "text-emerald-600 dark:text-emerald-500" : f.variacion < 0 ? "text-rose-600 dark:text-rose-500" : "")
+                    f.variacion !== null && (f.variacion > 0 ? "text-emerald-700 dark:text-emerald-400" : f.variacion < 0 ? "text-rose-700 dark:text-rose-400" : "")
                   )}
                 >
                   {f.variacion === null ? "Nuevo" : formatPct(f.variacion, { signed: true })}

@@ -232,7 +232,7 @@ function PrioridadBadge({ prioridad }: { prioridad: Prioridad }) {
       variant="outline"
       className={cn(
         "h-5 px-1.5 text-[10px] font-normal capitalize",
-        prioridad === "alta" && "border-rose-500/40 text-rose-600 dark:text-rose-400",
+        prioridad === "alta" && "border-rose-500/40 text-rose-700 dark:text-rose-400",
         prioridad === "media" && "border-amber-500/40 text-amber-600 dark:text-amber-500",
         prioridad === "baja" && "text-muted-foreground"
       )}
