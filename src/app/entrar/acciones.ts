@@ -32,11 +32,26 @@ function igual(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-/** Solo rutas internas: `destino` viene de la URL y sin este filtro sería
- *  un redirect abierto — un enlace a nuestro dominio que termina en otro. */
+/**
+ * Solo rutas internas: `destino` viene de la URL y sin este filtro sería un
+ * redirect abierto — un enlace a nuestro dominio que termina en otro.
+ *
+ * No alcanza con descartar el prefijo «//»: los navegadores leen «\» como «/»
+ * en las URL con esquema web y descartan tabuladores y saltos de línea, así que
+ * «/\evil.com» y «/<tab>/evil.com» terminan siendo «//evil.com». Se resuelve el
+ * destino con el mismo parser que usa el navegador (WHATWG URL) contra un origen
+ * de mentira: si el resultado no queda en ese origen, no era una ruta nuestra.
+ * Lo que se devuelve es la ruta ya normalizada, no el texto que llegó.
+ */
 function destinoSeguro(d: string | null): string {
-  if (!d || !d.startsWith("/") || d.startsWith("//") || d.startsWith("/entrar")) return "/mercado";
-  return d;
+  if (!d || !d.startsWith("/")) return "/mercado";
+  try {
+    const u = new URL(d, "http://interno.invalid");
+    if (u.origin !== "http://interno.invalid" || u.pathname.startsWith("/entrar")) return "/mercado";
+    return u.pathname + u.search;
+  } catch {
+    return "/mercado";
+  }
 }
 
 export async function entrar(

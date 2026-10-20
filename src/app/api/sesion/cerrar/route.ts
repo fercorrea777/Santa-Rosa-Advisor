@@ -15,12 +15,19 @@ export const dynamic = "force-dynamic";
  */
 export function GET(request: NextRequest) {
   const motivo = request.nextUrl.searchParams.get("motivo");
-  const url = request.nextUrl.clone();
-  url.pathname = "/entrar";
-  url.search = "";
-  if (motivo === "sesion-cortada" || motivo === "vencida") url.searchParams.set("aviso", motivo);
-  const r = NextResponse.redirect(url);
+  const params = new URLSearchParams();
+  if (motivo === "sesion-cortada" || motivo === "vencida") params.set("aviso", motivo);
+  // Location RELATIVO. `request.nextUrl` trae el host INTERNO del contenedor
+  // (localhost:3000) detrás del proxy de Coolify: con `NextResponse.redirect`
+  // sobre una copia de esa URL, quien tenía la sesión cortada aterrizaba en una
+  // dirección muerta. El navegador resuelve el relativo contra el host público.
+  const r = new NextResponse(null, {
+    status: 307,
+    headers: {
+      Location: params.size ? `/entrar?${params}` : "/entrar",
+      "Cache-Control": "no-store",
+    },
+  });
   r.cookies.delete(NOMBRE_COOKIE);
-  r.headers.set("Cache-Control", "no-store");
   return r;
 }

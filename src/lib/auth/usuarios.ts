@@ -324,6 +324,18 @@ export interface FotoPerfil {
   version: string;
 }
 
+/** Solo la marca de versión de la foto, sin los bytes: alcanza para contestar un
+ *  304 sin leer hasta 200 KB de la base en cada revalidación. */
+export async function getVersionFoto(id: number): Promise<string | null> {
+  await asegurarTabla();
+  const { rows } = await getPool().query<{ version: string }>(
+    `select (extract(epoch from actualizado_en) * 1000)::bigint::text as version
+     from usuario_fotos where usuario_id = $1`,
+    [id]
+  );
+  return rows[0]?.version ?? null;
+}
+
 /** La foto de una persona, o null si no puso ninguna. */
 export async function getFoto(id: number): Promise<FotoPerfil | null> {
   await asegurarTabla();
@@ -459,6 +471,15 @@ export async function borrarUsuario(id: number): Promise<void> {
   await getPool().query(`delete from usuarios where id = $1`, [id]);
 }
 
+let hashDescarte: string | null = null;
+/** Hash válido de una clave que nadie conoce, con los mismos parámetros que los
+ *  reales, calculado una sola vez por proceso. Sirve para gastar el mismo tiempo
+ *  cuando el usuario no existe. */
+function hashDeDescarte(): string {
+  hashDescarte ??= hashear("comparacion-de-descarte");
+  return hashDescarte;
+}
+
 /**
  * Verifica correo + clave.
  *
@@ -472,15 +493,20 @@ export async function verificarCredenciales(
   clave: string
 ): Promise<Usuario | null> {
   await asegurarTabla();
+  // Se calcula ANTES de saber si la cuenta existe: así la primera consulta de
+  // todas, exista o no, paga lo mismo.
+  const descarte = hashDeDescarte();
   const { rows } = await getPool().query<Usuario & { hash: string }>(
     `select ${COLUMNAS}, hash from usuarios where usuario = $1`,
     [normalizarUsuario(usuario)]
   );
   const fila = rows[0];
   if (!fila) {
-    // Hash de descarte para que el "no existe" tarde lo mismo que el
-    // "clave incorrecta".
-    verificarHash(clave, hashear("comparacion-de-descarte"));
+    // Un solo scrypt, como el "clave incorrecta". Antes se hasheaba acá mismo
+    // un descarte nuevo en cada intento: dos scrypt contra uno, y esa
+    // diferencia (~2×) alcanzaba para distinguir un correo que existe de uno
+    // que no, con las ocho muestras que deja pasar el freno.
+    verificarHash(clave, descarte);
     return null;
   }
   if (!verificarHash(clave, fila.hash)) return null;

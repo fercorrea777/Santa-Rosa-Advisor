@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { leerSesion, NOMBRE_COOKIE, type Sesion } from "@/lib/auth/sesion";
 import { vigenciaDe } from "@/lib/auth/vigencia";
-import { borrarFoto, getFoto, guardarFoto } from "@/lib/auth/usuarios";
+import { borrarFoto, getFoto, getVersionFoto, guardarFoto } from "@/lib/auth/usuarios";
 import { olvidarPerfil, urlDeFoto } from "@/lib/auth/perfil";
 import { anotarFallo, bloqueadoPor } from "@/lib/auth/freno";
 import { MAX_BYTES_FOTO, TIPO_FOTO, validarFoto } from "@/lib/foto-perfil";
@@ -95,25 +95,34 @@ export async function GET(request: Request) {
   const sesion = await sesionDeUsuario();
   if (sesion instanceof Response) return sesion;
 
-  const foto = await getFoto(sesion.id);
-  if (!foto) return new Response(null, { status: 404, headers: { "Cache-Control": "private, no-cache" } });
-
-  const etag = `"${foto.version}"`;
   // La URL que arma el menú lleva `?v=<versión>`: con esa versión la imagen no
   // cambia nunca, así que el navegador la guarda un año. Sin ella (o con una
   // vieja) se revalida con el ETag.
   const pedida = new URL(request.url).searchParams.get("v");
-  const cache = pedida === foto.version ? "private, max-age=31536000, immutable" : "private, no-cache";
-  if (request.headers.get("if-none-match") === etag) {
-    return new Response(null, { status: 304, headers: { ETag: etag, "Cache-Control": cache } });
+  const cabeceras = (version: string) => ({
+    ETag: `"${version}"`,
+    "Cache-Control": pedida === version ? "private, max-age=31536000, immutable" : "private, no-cache",
+  });
+
+  // Primero solo la versión: si el navegador ya la tiene (el caso de siempre) se
+  // contesta 304 sin leer los bytes. Pedir la imagen entera para compararla y
+  // tirarla era hasta 200 KB por visita, y el pool de conexiones es chico y lo
+  // comparte el login.
+  const version = await getVersionFoto(sesion.id);
+  if (!version) return new Response(null, { status: 404, headers: { "Cache-Control": "private, no-cache" } });
+  if (request.headers.get("if-none-match") === `"${version}"`) {
+    return new Response(null, { status: 304, headers: cabeceras(version) });
   }
+
+  const foto = await getFoto(sesion.id);
+  // Se pudo haber quitado entre las dos consultas.
+  if (!foto) return new Response(null, { status: 404, headers: { "Cache-Control": "private, no-cache" } });
   return new Response(new Uint8Array(foto.datos), {
     headers: {
       "Content-Type": foto.tipo,
       "Content-Length": String(foto.datos.length),
       "Content-Disposition": "inline",
-      ETag: etag,
-      "Cache-Control": cache,
+      ...cabeceras(foto.version),
     },
   });
 }
