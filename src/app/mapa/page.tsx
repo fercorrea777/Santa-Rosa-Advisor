@@ -24,7 +24,7 @@ import { SIN_DATO_TECNOLOGIA } from "@/lib/informes/segmento-version";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { formatFecha, formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
+import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, aclaracionCortes } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -68,12 +68,7 @@ export default async function MapaPage({
   for (const a of cobertura[fuente].anios) {
     mesMax[a] = a === cobertura[fuente].ultimo?.anio ? cobertura[fuente].ultimo.mes : 12;
   }
-  const ultMat = cobertura.matriculacion.ultimo;
-  const ultImp = cobertura.importacion.ultimo;
-  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
-  const aclaracion = desparejas && ultMat && ultImp
-    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
-    : undefined;
+  const aclaracion = aclaracionCortes(cobertura);
   const rango = { anio: f.anio, mesDesde: f.mesDesde, mesHasta: f.mesHasta };
   // La clase es un param propio de esta pantalla (no está en filtroDesdeUrl).
   const claseFiltro = typeof sp.clase === "string" && sp.clase && sp.clase !== "todos" ? sp.clase : undefined;

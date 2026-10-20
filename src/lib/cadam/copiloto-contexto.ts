@@ -73,7 +73,13 @@ const REGLAS = `
 6. Falta febrero 2022 en matriculacion (hueco real del origen). Un mes
    sin datos NO es cero.
 7. Al comparar periodos usa solo los meses presentes en AMBOS: un anio
-   parcial contra uno completo da una caida falsa.
+   parcial contra uno completo da una caida falsa. Esto vale tambien entre
+   fuentes: matriculacion e importacion NO terminan siempre en el mismo mes
+   (el estado de la base, abajo, dice hasta cual llega cada una; unos meses
+   va adelante una y otros la otra). Para restar o dividir una contra la
+   otra, corta las dos en el ultimo mes que tienen ambas y decilo en la
+   respuesta; sumar ene-sep de una contra ene-ago de la otra inventa una
+   brecha de un mes entero.
 8. Variaciones porcentuales sobre bases menores a ~30 unidades no
    significan nada; mostrá las unidades absolutas en esos casos.
 9. Una marca puede crecer en unidades Y perder participacion si el

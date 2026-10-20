@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/cadam/db";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import type { Filtro, Fuente } from "@/lib/cadam/mercado";
+import { acotarAFuente, type Filtro, type Fuente } from "@/lib/cadam/mercado";
 import { normalizarTecnologias } from "@/lib/informes/segmento-version";
 
 /**
@@ -80,8 +80,12 @@ function ventasSql(fuente: Fuente, marcasIn: string): string {
        HAVING unidades > 0`;
 }
 
-export function getGamaPropiaConPrecio(f: Filtro, fuente: Fuente = "matriculacion"): ModeloConPrecio[] {
+export function getGamaPropiaConPrecio(filtro: Filtro, fuente: Fuente = "matriculacion"): ModeloConPrecio[] {
   if (!hayPrecios()) return [];
+  // Hasta donde llega la fuente pedida: el tope de la lista de precios sale
+  // del ultimo mes del rango, y un rango que pasa del ultimo dato de la
+  // fuente tomaba la lista de un mes sin ventas.
+  const f = acotarAFuente(fuente, filtro);
   const propias = [...getMarcasPropiasSet()];
   if (!propias.length) return [];
 

@@ -10,7 +10,7 @@ import {
 import { getCobertura, getSerieMensual, type Fuente } from "@/lib/cadam/mercado";
 import { serieAAnios, promedioMensual, proyeccionCierre } from "@/lib/serie";
 import { formatPct, formatUnidades } from "@/lib/format";
-import { mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
+import { mesCorto, type SearchParams, etiquetaCortes, aclaracionCortes } from "@/lib/periodo";
 
 export default async function EvolucionPage({
   searchParams,
@@ -35,12 +35,7 @@ export default async function EvolucionPage({
   // Por defecto los ultimos 3 anios con datos (2 con las dos fuentes).
   const anios = pedidos.length ? pedidos.sort((a, b) => a - b) : disponibles.slice(vista === "ambas" ? -2 : -3);
 
-  const ultMat = cobertura.matriculacion.ultimo;
-  const ultImp = cobertura.importacion.ultimo;
-  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
-  const aclaracion = desparejas && ultMat && ultImp
-    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
-    : undefined;
+  const aclaracion = aclaracionCortes(cobertura);
 
   // Rango de meses: se aplica a TODOS los anios elegidos. Es lo que
   // permite comparar acumulados equivalentes (Ene-Jun de cada ano) en vez

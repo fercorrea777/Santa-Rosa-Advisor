@@ -5,8 +5,8 @@ import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
 import { TablaRanking } from "@/components/dashboard/tabla-ranking";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  getCobertura, getMarcasDeImportador, getOpcionesFiltro, getRankingMarcas, getRankingModelos,
-  TECNOLOGIAS,
+  acotarAFuente, getCobertura, getMarcasDeImportador, getOpcionesFiltro, getRankingMarcas,
+  getRankingModelos, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
 import {
   asignarPrecios, fichasDeModelos, type PrecioCandidato,
@@ -24,11 +24,12 @@ export default async function RankingsPage({
   const cobertura = getCobertura();
   // Las dos fuentes conviven en pestanas con un solo filtro. Por defecto
   // el periodo llega hasta el ultimo mes que CADAM publico de CUALQUIERA de
-  // las dos (la importacion suele ir un mes adelante): asi lo mas nuevo se
-  // ve sin tocar nada (Croman, 15/09/2026: "actualizá lo de agosto
-  // importaciones"). Las pestanas de matriculacion se recortan a su propio
-  // ultimo mes y lo avisan: comparar ocho meses de 2026 contra ocho de 2025
-  // cuando solo hay siete cargados daria variaciones falsas.
+  // las dos: asi lo mas nuevo se ve sin tocar nada (Croman, 15/09/2026:
+  // "actualizá lo de agosto importaciones"). Va adelante la importacion o la
+  // matriculacion segun el mes (sep-2026 una, oct-2026 la otra). Las
+  // pestanas de la fuente que va atras se recortan a su propio ultimo mes y
+  // lo avisan: comparar ocho meses de 2026 contra ocho de 2025 cuando solo
+  // hay siete cargados daria variaciones falsas.
   const ultMat = cobertura.matriculacion.ultimo;
   const ultImp = cobertura.importacion.ultimo;
   const ultimo =
@@ -37,15 +38,18 @@ export default async function RankingsPage({
       : ultMat;
   const f = filtroDesdeUrl(sp, ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
-  const matricRecorta = !!ultMat && f.anio === ultMat.anio && f.mesHasta > ultMat.mes;
-  const fMat = matricRecorta && ultMat ? { ...f, mesHasta: Math.max(f.mesDesde, ultMat.mes) } : f;
+  const fMat = acotarAFuente("matriculacion", f);
+  const fImp = acotarAFuente("importacion", f);
+  const matricRecorta = fMat.mesHasta < f.mesHasta;
+  const importRecorta = fImp.mesHasta < f.mesHasta;
   const periodoMat = etiquetaPeriodo(fMat.anio, fMat.mesDesde, fMat.mesHasta);
+  const periodoImp = etiquetaPeriodo(fImp.anio, fImp.mesDesde, fImp.mesHasta);
   const opciones = getOpcionesFiltro();
 
   const marcasMat = getRankingMarcas("matriculacion", fMat);
-  const marcasImp = getRankingMarcas("importacion", f);
+  const marcasImp = getRankingMarcas("importacion", fImp);
   const modelosMat = getRankingModelos("matriculacion", fMat, 500);
-  const modelosImp = getRankingModelos("importacion", f, 500);
+  const modelosImp = getRankingModelos("importacion", fImp, 500);
   // En importación el importador se infiere por marca (la base no lo trae):
   // se le dice al usuario qué marcas quedaron adentro.
   const marcasDelImportador = f.empresa ? getMarcasDeImportador(f.empresa, f.anio) : [];
@@ -54,7 +58,7 @@ export default async function RankingsPage({
   for (const a of [...new Set([...cobertura.matriculacion.anios, ...cobertura.importacion.anios])].sort()) {
     mesMax[a] = a === ultimo?.anio ? ultimo.mes : 12;
   }
-  const nota = `Variación y cambio de posición contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`;
+  const nota = `Variación y cambio de posición contra ${periodoImp.replace(String(f.anio), String(f.anio - 1))}.`;
   const notaMat = `Variación y cambio de posición contra ${periodoMat.replace(String(f.anio), String(f.anio - 1))}.`;
 
   // --- ficha de cada modelo, para abrirla desde su fila -------------------
@@ -87,7 +91,7 @@ export default async function RankingsPage({
     <Pagina>
       <PageHeader
         titulo="Rankings"
-        descripcion={`Marcas y modelos, matriculación e importación · ${periodo}${matricRecorta ? ` (matriculación hasta ${mesCorto(fMat.mesHasta)})` : ""}.`}
+        descripcion={`Marcas y modelos, matriculación e importación · ${periodo}${matricRecorta ? ` (matriculación hasta ${mesCorto(fMat.mesHasta)})` : ""}${importRecorta ? ` (importación hasta ${mesCorto(fImp.mesHasta)})` : ""}.`}
         fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
@@ -124,10 +128,10 @@ export default async function RankingsPage({
             titulo={`Marcas por matriculación (${marcasMat.length}) · ${periodoMat}`}
             nota="Las marcas ordenadas por chapas puestas. Tocá una y toda la pantalla queda filtrada por ella; tocala de nuevo y se quita."
           >
-            {matricRecorta && ultMat && (
+            {matricRecorta && (
               <NotaDato>
                 CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
-                ranking llega hasta {mesCorto(ultMat.mes)}. La importación de{" "}
+                ranking llega hasta {mesCorto(fMat.mesHasta)}. La importación de{" "}
                 {mesCorto(f.mesHasta)} ya está, en las pestañas de importación.
               </NotaDato>
             )}
@@ -139,9 +143,16 @@ export default async function RankingsPage({
 
         <TabsContent value="marcas-imp">
           <Panel
-            titulo={`Marcas por importación (${marcasImp.length}) · ${periodo}`}
+            titulo={`Marcas por importación (${marcasImp.length}) · ${periodoImp}`}
             nota="Lo mismo, pero por unidades que entraron al país. Una marca puede liderar acá y todavía no aparecer en matriculación: es stock en camino."
           >
+            {importRecorta && (
+              <NotaDato>
+                CADAM todavía no publicó la importación de {mesCorto(f.mesHasta)}: este
+                ranking llega hasta {mesCorto(fImp.mesHasta)}. La matriculación de{" "}
+                {mesCorto(f.mesHasta)} ya está, en las pestañas de matriculación.
+              </NotaDato>
+            )}
             <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />
             <TablaRanking filas={marcasImp} notaVariacion={nota}
               filtrarPor={{ marca: "marca" }}
@@ -154,10 +165,10 @@ export default async function RankingsPage({
             titulo={`Modelos por matriculación (${modelosMat.length}) · ${periodoMat}`}
             nota="Modelo por modelo, con su segmento. Tocá una fila y se abre contra quién compite ese modelo: su clase, sus rivales y a qué precio."
           >
-            {matricRecorta && ultMat && (
+            {matricRecorta && (
               <NotaDato>
                 CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
-                ranking llega hasta {mesCorto(ultMat.mes)}.
+                ranking llega hasta {mesCorto(fMat.mesHasta)}.
               </NotaDato>
             )}
             <TablaRanking filas={modelosMat} mostrarModelo mostrarSegmento
@@ -171,14 +182,20 @@ export default async function RankingsPage({
 
         <TabsContent value="modelos-imp">
           <Panel
-            titulo={`Modelos por importación (${modelosImp.length}) · ${periodo}`}
+            titulo={`Modelos por importación (${modelosImp.length}) · ${periodoImp}`}
             nota="Los modelos por unidades importadas. Sirve para ver qué se está trayendo antes de que llegue al mercado."
           >
+            {importRecorta && (
+              <NotaDato>
+                CADAM todavía no publicó la importación de {mesCorto(f.mesHasta)}: este
+                ranking llega hasta {mesCorto(fImp.mesHasta)}.
+              </NotaDato>
+            )}
             <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />
             <TablaRanking filas={modelosImp} mostrarModelo mostrarSegmento
               notaVariacion={nota}
               fichas={fichasImp}
-              periodo={periodo}
+              periodo={periodoImp}
               fuente="importacion"
               filtrarPor={{ marca: "marca" }}
               nombreArchivo={`ranking-modelos-importacion-${f.anio}`} />

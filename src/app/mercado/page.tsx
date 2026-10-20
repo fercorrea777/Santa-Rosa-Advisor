@@ -12,7 +12,7 @@ import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { Seccion } from "@/components/dashboard/seccion";
 import { AccionesSemana } from "@/components/dashboard/acciones-semana";
 import {
-  getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
+  acotarAFuente, getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
   getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getParametros } from "@/lib/cadam/config";
@@ -37,19 +37,28 @@ export default async function MercadoPage({
   const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
 
-  // Si el rango pasa del ultimo mes de matriculacion, los KPIs que la usan
-  // se calculan hasta donde llega y lo dicen; comparar importacion de ocho
-  // meses contra matriculacion de siete seria un numero inventado.
-  const topeMatric = cobertura.matriculacion.ultimo;
-  const matricHasta =
-    topeMatric && f.anio === topeMatric.anio ? Math.min(f.mesHasta, topeMatric.mes) : f.mesHasta;
-  const matricRecorta = matricHasta < f.mesHasta;
-  const fComun = matricRecorta ? { ...f, mesHasta: Math.max(f.mesDesde, matricHasta) } : f;
-  const periodoMatric = etiquetaPeriodo(fComun.anio, fComun.mesDesde, fComun.mesHasta);
+  // Las dos fuentes no llegan parejas, y no siempre va adelante la misma:
+  // en sep-2026 era la importación (agosto contra julio) y en oct-2026 es la
+  // matriculación (septiembre contra agosto). Cada KPI se calcula hasta donde
+  // llega SU fuente y lo dice; la diferencia importación − matriculación usa
+  // el tramo que tienen las dos, porque restar un mes que una no publicó
+  // todavía sería un número inventado.
+  const fMat = acotarAFuente("matriculacion", f);
+  const fImp = acotarAFuente("importacion", f);
+  const fComun = { ...f, mesHasta: Math.max(f.mesDesde, Math.min(fMat.mesHasta, fImp.mesHasta)) };
+  const matricRecorta = fMat.mesHasta < f.mesHasta;
+  const importRecorta = fImp.mesHasta < f.mesHasta;
+  const comunRecorta = fComun.mesHasta < f.mesHasta;
+  const periodoMat = etiquetaPeriodo(fMat.anio, fMat.mesDesde, fMat.mesHasta);
+  const periodoImp = etiquetaPeriodo(fImp.anio, fImp.mesDesde, fImp.mesHasta);
+  const periodoComun = etiquetaPeriodo(fComun.anio, fComun.mesDesde, fComun.mesHasta);
+  const mesesSinPublicar = (desde: number, hasta: number) =>
+    desde >= hasta ? mesCorto(hasta) : `${mesCorto(desde)}–${mesCorto(hasta)}`;
 
-  const matric = getKpi("matriculacion", fComun);
+  const matric = getKpi("matriculacion", f);
   const import_ = getKpi("importacion", f);
-  const importComun = matricRecorta ? getKpi("importacion", fComun) : import_;
+  const matricComun = comunRecorta ? getKpi("matriculacion", fComun) : matric;
+  const importComun = comunRecorta ? getKpi("importacion", fComun) : import_;
 
   // Los graficos respetan los mismos filtros que los KPIs (segmento,
   // tecnologia, marca), pero NO el rango de meses: muestran el ano
@@ -121,7 +130,10 @@ export default async function MercadoPage({
   }
 
   // Sobre el mismo rango de meses para las dos, si no la resta no significa nada.
-  const diferencia = importComun.valor - matric.valor;
+  // Si una de las dos no tiene ni un mes de la ventana pedida (solo septiembre,
+  // con la importación en agosto), no hay tramo común y no se resta.
+  const diferenciaPosible = !importComun.sinDatos && !matricComun.sinDatos;
+  const diferencia = importComun.valor - matricComun.valor;
 
   return (
     <Pagina>
@@ -170,23 +182,27 @@ export default async function MercadoPage({
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          label={matricRecorta ? `Matriculaciones (hasta ${mesCorto(matricHasta)})` : "Matriculaciones"}
-          value={formatUnidades(matric.valor)}
-          variacion={matric.variacion}
-          periodo={periodoMatric}
-          tooltip={`Unidades matriculadas en el período. Comparación contra ${periodoMatric.replace(String(f.anio), String(f.anio - 1))}: ${formatUnidades(matric.baseValor)} u.${matricRecorta ? ` CADAM todavía no publicó la matriculación de ${mesCorto(f.mesHasta)}: la importación de ese mes ya está, la matriculación no.` : ""}`}
+          label={matricRecorta ? `Matriculaciones (hasta ${mesCorto(fMat.mesHasta)})` : "Matriculaciones"}
+          value={matric.sinDatos ? "—" : formatUnidades(matric.valor)}
+          variacion={matric.sinDatos ? undefined : matric.variacion}
+          periodo={matric.sinDatos ? `${periodoMat} · todavía sin publicar` : periodoMat}
+          tooltip={`Unidades matriculadas en el período. Comparación contra ${periodoMat.replace(String(f.anio), String(f.anio - 1))}: ${formatUnidades(matric.baseValor)} u.${matricRecorta ? ` CADAM todavía no publicó la matriculación de ${mesesSinPublicar(fMat.mesHasta + 1, f.mesHasta)}: la importación de ese mes ya está, la matriculación no.` : ""}`}
         />
         <KpiCard
-          label="Importaciones"
-          value={formatUnidades(import_.valor)}
-          variacion={import_.variacion}
-          periodo={periodo}
-          tooltip="Unidades importadas de vehículos livianos, una por una, según CADAM. No incluye camiones: se reportan aparte."
+          label={importRecorta ? `Importaciones (hasta ${mesCorto(fImp.mesHasta)})` : "Importaciones"}
+          value={import_.sinDatos ? "—" : formatUnidades(import_.valor)}
+          variacion={import_.sinDatos ? undefined : import_.variacion}
+          periodo={import_.sinDatos ? `${periodoImp} · todavía sin publicar` : periodoImp}
+          tooltip={`Unidades importadas de vehículos livianos, una por una, según CADAM. No incluye camiones: se reportan aparte. Comparación contra ${periodoImp.replace(String(f.anio), String(f.anio - 1))}: ${formatUnidades(import_.baseValor)} u.${importRecorta ? ` CADAM todavía no publicó la importación de ${mesesSinPublicar(fImp.mesHasta + 1, f.mesHasta)}: la matriculación de ese mes ya está, la importación no.` : ""}`}
         />
         <KpiCard
           label="Diferencia import. − matric."
-          value={formatUnidades(Math.abs(diferencia))}
-          periodo={`${diferencia >= 0 ? "importación por encima" : "matriculación por encima"}${matricRecorta ? ` · ${periodoMatric}` : ""}`}
+          value={diferenciaPosible ? formatUnidades(Math.abs(diferencia)) : "—"}
+          periodo={
+            diferenciaPosible
+              ? `${diferencia >= 0 ? "importación por encima" : "matriculación por encima"}${comunRecorta ? ` · ${periodoComun}` : ""}`
+              : "las dos fuentes no tienen este período"
+          }
           tooltip="Señal orientativa, NO stock real: hay desfasajes temporales, unidades importadas en períodos anteriores, reexportaciones y registros tardíos."
         />
         <KpiCard

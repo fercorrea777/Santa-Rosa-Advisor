@@ -22,7 +22,8 @@ import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
 import { formatUnidades } from "@/lib/format";
 import {
-  etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams,
+  aclaracionCortes, corteComun, etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl,
+  fuenteAdelantada, mesCorto, type SearchParams,
 } from "@/lib/periodo";
 
 const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
@@ -36,34 +37,37 @@ export default async function BrechaPage({
   const cobertura = getCobertura();
   // Tres vistas (Croman, 15/09/2026: "el mismo selector en Segmentos y
   // Brecha"). "Ambas" es la brecha de siempre: las dos fuentes sobre la
-  // ventana común, y el mes que la importación ya tiene y la matriculación
-  // no, se ve en el gráfico y la tabla con la matriculación "sin dato".
+  // ventana común, y el mes que solo tiene una de las dos (importación en
+  // sep-2026, matriculación en oct-2026) se ve en el gráfico y la tabla con
+  // la otra "sin dato".
   // "Importaciones" o "Matriculaciones" es una sola fuente hasta su propio
   // último mes: total, evolución y ranking por marca.
   const vista: FuenteVista =
     sp.fuente === "importacion" ? "importacion" : sp.fuente === "matriculacion" ? "matriculacion" : "ambas";
-  const ultMat = cobertura.matriculacion.ultimo;
-  const ultImp = cobertura.importacion.ultimo;
-  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
-  const aclaracion = desparejas && ultMat && ultImp
-    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
-    : undefined;
+  const aclaracion = aclaracionCortes(cobertura);
 
   if (vista !== "ambas") {
     return <UnaFuente sp={sp} fuente={vista} cobertura={cobertura} aclaracion={aclaracion} />;
   }
 
-  const f = filtroDesdeUrl(sp, ultMat);
+  // Ventana común: hasta el último mes que tienen LAS DOS. Antes era
+  // siempre el de la matriculación, que en sep-2026 era el más corto; en
+  // oct-2026 la matriculación llegó a septiembre con la importación en
+  // agosto, y la brecha restaba septiembre contra nada.
+  const corte = corteComun(cobertura);
+  const adelante = fuenteAdelantada(cobertura);
+  const ultLider = adelante ? cobertura[adelante].ultimo : null;
+  const f = filtroDesdeUrl(sp, corte);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
 
   // La serie del gráfico y la tabla llegan hasta el último mes que tenga
-  // CUALQUIERA de las dos fuentes (si la URL no fija el "hasta"): agosto
-  // aparece con su importación y la matriculación "sin dato", en vez de
-  // quedar escondido. Los KPIs y la brecha por marca siguen sobre la
-  // ventana común: restar un mes que una fuente todavía no tiene sería
-  // inventar stock.
+  // CUALQUIERA de las dos fuentes (si la URL no fija el "hasta"): el mes que
+  // solo tiene una aparece con la otra "sin dato", en vez de quedar
+  // escondido. Los KPIs y la brecha por marca siguen sobre la ventana
+  // común: restar un mes que una fuente todavía no tiene sería inventar
+  // stock (o inventar ventas de stock viejo).
   const hastaSerie =
-    !sp.hasta && ultImp && f.anio === ultImp.anio ? Math.max(f.mesHasta, ultImp.mes) : f.mesHasta;
+    !sp.hasta && ultLider && f.anio === ultLider.anio ? Math.max(f.mesHasta, ultLider.mes) : f.mesHasta;
   const serie = getBrecha([f.anio], f.marca)
     .filter((p) => p.mes >= f.mesDesde && p.mes <= hastaSerie);
   const comun = serie.filter((p) => p.mes <= f.mesHasta);
@@ -97,25 +101,33 @@ export default async function BrechaPage({
   const masImporta = marcas.slice(0, 10);
   const masMatricula = [...marcas].reverse().slice(0, 10);
 
-  // El mes que ya entró y todavía no tiene chapa posible se dice aparte,
-  // con sus marcas: es justamente lo que está por salir a la calle.
-  const mesesExtra = hastaSerie > f.mesHasta ? { desde: f.mesHasta + 1, hasta: hastaSerie } : null;
-  const extraImp = mesesExtra
-    ? getRankingMarcas("importacion", { ...f, mesDesde: mesesExtra.desde, mesHasta: mesesExtra.hasta })
-    : [];
-  const extraTotal = extraImp.reduce((s, r) => s + r.unidades, 0);
+  // El mes que solo tiene una fuente se dice aparte, con sus marcas. Si es
+  // importación, es lo que ya entró y está por salir a la calle; si es
+  // matriculación, lo que se patentó y todavía no tiene su importación al
+  // lado (livianos, igual que la brecha).
+  const mesesExtra = hastaSerie > f.mesHasta && adelante
+    ? { desde: f.mesHasta + 1, hasta: hastaSerie, fuente: adelante }
+    : null;
+  const fExtra = mesesExtra ? { ...f, mesDesde: mesesExtra.desde, mesHasta: mesesExtra.hasta } : null;
+  const extraMarcas = !fExtra || !mesesExtra
+    ? []
+    : mesesExtra.fuente === "importacion"
+      ? getRankingMarcas("importacion", fExtra).map((r) => ({ marca: r.marca, unidades: r.unidades }))
+      : [...getMarcasMatriculacionLivianos(fExtra)]
+          .map(([marca, unidades]) => ({ marca, unidades }))
+          .sort((a, b) => b.unidades - a.unidades);
+  const extraTotal = extraMarcas.reduce((s, r) => s + r.unidades, 0);
 
   const mesMax: Record<number, number> = {};
   for (const a of cobertura.matriculacion.anios) {
-    mesMax[a] = a === cobertura.matriculacion.ultimo?.anio
-      ? cobertura.matriculacion.ultimo.mes : 12;
+    mesMax[a] = corte && a === corte.anio ? corte.mes : 12;
   }
 
   return (
     <Pagina>
       <PageHeader
         titulo="Importaciones vs. matriculaciones"
-        descripcion={`Brecha entre lo que entra al país y lo que se patenta · ${periodo}${mesesExtra ? ` (importación hasta ${mesCorto(mesesExtra.hasta)})` : ""}.`}
+        descripcion={`Brecha entre lo que entra al país y lo que se patenta · ${periodo}${mesesExtra ? ` (${mesesExtra.fuente === "importacion" ? "importación" : "matriculación"} hasta ${mesCorto(mesesExtra.hasta)})` : ""}.`}
         fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
       />
 
@@ -149,16 +161,16 @@ export default async function BrechaPage({
       {mesesExtra && extraTotal > 0 && (
         <NotaDato>
           <strong>
-            {mesesExtra.desde === mesesExtra.hasta
-              ? `En ${mesCorto(mesesExtra.hasta)} entraron ${formatUnidades(extraTotal)} unidades más`
-              : `Entre ${mesCorto(mesesExtra.desde)} y ${mesCorto(mesesExtra.hasta)} entraron ${formatUnidades(extraTotal)} unidades más`}
+            {`${mesesExtra.desde === mesesExtra.hasta
+              ? `En ${mesCorto(mesesExtra.hasta)}`
+              : `Entre ${mesCorto(mesesExtra.desde)} y ${mesCorto(mesesExtra.hasta)}`} ${
+              mesesExtra.fuente === "importacion" ? "entraron" : "se patentaron"} ${formatUnidades(extraTotal)} ${
+              mesesExtra.fuente === "importacion" ? "unidades" : "livianos"} más`}
           </strong>{" "}
-          que no entran en los totales ni en la brecha por marca: CADAM ya publicó
-          esa importación pero todavía no la matriculación de ese mes, así que
-          compararlas sería contar stock que no tuvo tiempo de sacar chapa. En el
-          gráfico y la tabla de abajo ese mes aparece con la matriculación «sin
-          dato». Las que más trajeron:{" "}
-          {extraImp.slice(0, 6).map((r) => `${r.marca} ${formatUnidades(r.unidades)}`).join(" · ")}.
+          {mesesExtra.fuente === "importacion"
+            ? "que no entran en los totales ni en la brecha por marca: CADAM ya publicó esa importación pero todavía no la matriculación de ese mes, así que compararlas sería contar stock que no tuvo tiempo de sacar chapa. En el gráfico y la tabla de abajo ese mes aparece con la matriculación «sin dato». Las que más trajeron: "
+            : "que no entran en los totales ni en la brecha por marca: CADAM ya publicó esa matriculación pero todavía no la importación de ese mes, así que restarlas haría parecer que se vendió stock viejo. En el gráfico y la tabla de abajo ese mes aparece con la importación «sin dato». Las que más patentaron: "}
+          {extraMarcas.slice(0, 6).map((r) => `${r.marca} ${formatUnidades(r.unidades)}`).join(" · ")}.
         </NotaDato>
       )}
 

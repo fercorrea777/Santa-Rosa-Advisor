@@ -218,6 +218,44 @@ function where(fuente: Fuente, f: Filtro, alias = "") {
   return { sql: cond.join(" AND "), args };
 }
 
+type Corte = { anio: number; mes: number };
+const ultimoPorDb = new WeakMap<object, Map<Fuente, Corte | null>>();
+
+/** Último mes con datos de la fuente. Se cachea por conexión: la base no
+ *  cambia sin reiniciar el proceso (actualizar-datos-advisor.sh reinicia). */
+function ultimoMes(fuente: Fuente): Corte | null {
+  const db = getDb();
+  let porFuente = ultimoPorDb.get(db);
+  if (!porFuente) {
+    porFuente = new Map();
+    ultimoPorDb.set(db, porFuente);
+  }
+  if (!porFuente.has(fuente)) {
+    const r = db
+      .prepare(`SELECT anio, mes FROM ${vista(fuente)} ORDER BY anio DESC, mes DESC LIMIT 1`)
+      .get() as Corte | undefined;
+    porFuente.set(fuente, r ?? null);
+  }
+  return porFuente.get(fuente) ?? null;
+}
+
+/**
+ * El filtro, recortado a los meses que la fuente tiene en el año pedido.
+ *
+ * Las dos fuentes no llegan parejas, y no siempre gana la misma: en sep-2026
+ * la importación iba un mes adelante (el informe sale antes que el
+ * detalle) y en oct-2026 la matriculación llegaba a septiembre con la
+ * importación en agosto. Sin el recorte, «importaciones Ene–Sep 2026»
+ * sumaba ocho meses y los comparaba contra nueve de 2025: una caída que no
+ * existe. Se recorta ANTES de armar el año anterior, así las dos puntas de
+ * la comparación tienen los mismos meses. Cada getter de abajo lo aplica.
+ */
+export function acotarAFuente(fuente: Fuente, f: Filtro): Filtro {
+  const ult = ultimoMes(fuente);
+  if (!ult || f.anio !== ult.anio || f.mesHasta <= ult.mes) return f;
+  return { ...f, mesHasta: Math.max(f.mesDesde, ult.mes) };
+}
+
 /** Variacion relativa. null cuando no hay base contra la que comparar,
  *  para que la UI diga "sin base comparativa" en vez de mostrar +100%. */
 export function variacion(actual: number, base: number): number | null {
@@ -254,18 +292,27 @@ export interface Kpi {
   /** false cuando el periodo comparativo no tiene datos cargados. */
   baseDisponible: boolean;
   baseValor: number;
+  /** true cuando la fuente no tiene NINGUN mes de la ventana pedida (ej.
+   *  septiembre en una fuente que llega hasta agosto). El valor viene en 0,
+   *  pero eso es «todavía no publicado», no «no se vendió nada»: quien dibuja
+   *  tiene que mostrar «—», no un 0 con −100%. Un cero real (la fuente tiene
+   *  el mes y el filtro no deja filas) NO es sinDatos. */
+  sinDatos: boolean;
 }
 
-export function getKpi(fuente: Fuente, f: Filtro): Kpi {
+export function getKpi(fuente: Fuente, filtro: Filtro): Kpi {
+  const f = acotarAFuente(fuente, filtro);
+  const sinDatos = !hayDatos(fuente, f.anio, f.mesDesde, f.mesHasta);
   const valor = total(fuente, f);
   const anterior: Filtro = { ...f, anio: f.anio - 1 };
   const base = total(fuente, anterior);
-  const disponible = hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta);
+  const disponible = !sinDatos && hayDatos(fuente, f.anio - 1, f.mesDesde, f.mesHasta);
   return {
     valor,
     variacion: disponible ? variacion(valor, base) : null,
     baseDisponible: disponible,
     baseValor: base,
+    sinDatos,
   };
 }
 
@@ -356,8 +403,8 @@ export interface FilaRanking {
  *  del share: las consultas de ranking traen LIMIT y su suma no es el
  *  mercado. Exportado tambien para /operacion, que mide nuestras
  *  matriculaciones sobre el mercado ENTERO, no sobre las marcas propias. */
-export function totalUnidades(fuente: Fuente, f: Filtro): number {
-  const w = where(fuente, f);
+export function totalUnidades(fuente: Fuente, filtro: Filtro): number {
+  const w = where(fuente, acotarAFuente(fuente, filtro));
   const r = getDb()
     .prepare(`SELECT SUM(unidades) t FROM ${vista(fuente)} WHERE ${w.sql}`)
     .get(...w.args) as { t: number | null };
@@ -411,8 +458,9 @@ export function armarRanking(
   });
 }
 
-export function getRankingMarcas(fuente: Fuente, f: Filtro): FilaRanking[] {
+export function getRankingMarcas(fuente: Fuente, filtro: Filtro): FilaRanking[] {
   const db = getDb();
+  const f = acotarAFuente(fuente, filtro);
   const w = where(fuente, f);
   const actual = db
     .prepare(
@@ -454,10 +502,11 @@ export function getRankingMarcas(fuente: Fuente, f: Filtro): FilaRanking[] {
 function rankingPorColumna(
   fuente: Fuente,
   columna: string,
-  f: Filtro,
+  filtro: Filtro,
   limite: number
 ): FilaRanking[] {
   const db = getDb();
+  const f = acotarAFuente(fuente, filtro);
   const w = where(fuente, f);
   const actual = db
     .prepare(
@@ -515,7 +564,7 @@ export function getRankingVersiones(f: Filtro, limite = 300): FilaRanking[] {
 /** Cuántas versiones distintas (texto de la DNRA) registró cada modelo en
  *  el período. Solo matriculación: importación no baja a versión. */
 export function getVersionesPorModelo(f: Filtro): Map<string, number> {
-  const w = where("matriculacion", f);
+  const w = where("matriculacion", acotarAFuente("matriculacion", f));
   const filas = getDb()
     .prepare(
       `SELECT modelo_base modelo, COUNT(DISTINCT modelo) n FROM v_matriculacion
@@ -559,7 +608,7 @@ export interface ModeloTecnologia {
  */
 export function getModelosPorTecnologia(f: Filtro): ModeloTecnologia[] {
   const propias = getMarcasPropiasSet();
-  const fSinTec: Filtro = { ...f };
+  const fSinTec: Filtro = { ...acotarAFuente("matriculacion", f) };
   delete fSinTec.tecnologia;
   const w = where("matriculacion", fSinTec);
   const filas = getDb()
@@ -584,9 +633,10 @@ export function getModelosPorTecnologia(f: Filtro): ModeloTecnologia[] {
 export function getPorDimension(
   fuente: Fuente,
   dimension: "segmento" | "tecnologia" | "empresa" | "marca" | "tipo_detalle",
-  f: Filtro
+  filtro: Filtro
 ): FilaDimension[] {
   const db = getDb();
+  const f = acotarAFuente(fuente, filtro);
   // El filtro sobre la PROPIA dimension se ignora aca: si no, al elegir
   // "PHEV" el corte por tecnologia devolveria una sola fila con 100% de
   // participacion. La participacion se mide siempre contra el mercado que
@@ -673,7 +723,7 @@ function getSerieMensualSinPesados(anios: number[], marca?: string): PuntoMensua
  *  forma de compararlas contra la base de importacion, que es de livianos. */
 export function getMarcasMatriculacionLivianos(f: Filtro): Map<string, number> {
   const db = getDb();
-  const w = where("matriculacion", f);
+  const w = where("matriculacion", acotarAFuente("matriculacion", f));
   const filas = db
     .prepare(
       `SELECT marca, SUM(unidades) u FROM v_matriculacion

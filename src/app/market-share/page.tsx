@@ -12,7 +12,11 @@ import {
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import {
-  etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams,
+  etiquetaCortes,
+  etiquetaPeriodo,
+  filtroDesdeUrl,
+  type SearchParams,
+  aclaracionCortes,
 } from "@/lib/periodo";
 
 const DIMENSIONES = {
@@ -56,12 +60,7 @@ export default async function MarketSharePage({
     return { ...f0, mesHasta: Math.max(f0.mesDesde, ult.mes) };
   };
 
-  const ultMat = cobertura.matriculacion.ultimo;
-  const ultImp = cobertura.importacion.ultimo;
-  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
-  const aclaracion = desparejas && ultMat && ultImp
-    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
-    : undefined;
+  const aclaracion = aclaracionCortes(cobertura);
 
   // Un bloque por fuente: la tabla de participación y la evolución del top 5.
   const bloques = fuentes.map((fuente) => {

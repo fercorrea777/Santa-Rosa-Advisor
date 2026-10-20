@@ -19,7 +19,11 @@ import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
 import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
 import {
-  etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams,
+  etiquetaCortes,
+  etiquetaPeriodo,
+  filtroDesdeUrl,
+  type SearchParams,
+  aclaracionCortes,
 } from "@/lib/periodo";
 
 const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
@@ -54,12 +58,7 @@ export default async function SegmentosPage({
   const periodo = etiquetaPeriodo(fPrin.anio, fPrin.mesDesde, fPrin.mesHasta);
   const periodoSec = fSec ? etiquetaPeriodo(fSec.anio, fSec.mesDesde, fSec.mesHasta) : "";
 
-  const ultMat = cobertura.matriculacion.ultimo;
-  const ultImp = cobertura.importacion.ultimo;
-  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
-  const aclaracion = desparejas && ultMat && ultImp
-    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
-    : undefined;
+  const aclaracion = aclaracionCortes(cobertura);
 
   const segmentos = getPorDimension(principal, "segmento", fPrin);
   const otros: Map<string, FilaDimension> = new Map(

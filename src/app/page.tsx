@@ -11,7 +11,7 @@ import { BarrasFiltroChart } from "@/components/charts/barras-filtro-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccionesSemana } from "@/components/dashboard/acciones-semana";
 import {
-  getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
+  acotarAFuente, getCobertura, getKpi, getOpcionesFiltro, getPorDimension, getRankingMarcas,
   getSerieMensual, SEGMENTO_SIN_CLASIFICAR, TECNOLOGIAS,
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
@@ -81,7 +81,17 @@ export default async function InicioPage({
 
   const propiasU = marcas.filter((m) => propias.has(m.marca)).reduce((s, m) => s + m.unidades, 0);
   const totalU = marcas.reduce((s, m) => s + m.unidades, 0) || 1;
-  const diferencia = importa.valor - matric.valor;
+  // Restadas sobre el tramo que tienen las dos fuentes: con un mes de ventaja
+  // de una, la resta seria de un mes contra nada.
+  const hastaComun = Math.max(
+    f.mesDesde,
+    Math.min(acotarAFuente("matriculacion", f).mesHasta, acotarAFuente("importacion", f).mesHasta)
+  );
+  const fComun = { ...f, mesHasta: hastaComun };
+  const comunRecorta = hastaComun < f.mesHasta;
+  const diferencia = comunRecorta
+    ? getKpi("importacion", fComun).valor - getKpi("matriculacion", fComun).valor
+    : importa.valor - matric.valor;
 
   // ------- series (anio completo, para ver la estacionalidad)
   const aniosMat = [f.anio - 1, f.anio].filter((a) => cobertura.matriculacion.anios.includes(a));
@@ -229,7 +239,7 @@ export default async function InicioPage({
             value={formatUnidades(Math.abs(diferencia))}
             valorAnimado={Math.abs(diferencia)}
             formato="unidades"
-            periodo={diferencia >= 0 ? "importación por encima" : "matriculación por encima"}
+            periodo={`${diferencia >= 0 ? "importación por encima" : "matriculación por encima"}${comunRecorta ? ` · ${etiquetaPeriodo(fComun.anio, fComun.mesDesde, fComun.mesHasta)}` : ""}`}
             tooltip="Señal orientativa, no stock real. El detalle está en la sección Import. vs matric."
           />
         </div>

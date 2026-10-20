@@ -74,6 +74,20 @@ export function getCoberturaCorte(c: Corte): CoberturaCorte {
   return { anios, ultimo: ultimo ?? null };
 }
 
+/**
+ * La ventana, recortada a los meses que ESTE archivo tiene. Combustible y
+ * localidad son archivos aparte y pueden llegar a otro mes que la
+ * matriculacion de la que sale el filtro: con `hasta` pasado de su ultimo
+ * mes, este año sumaria menos meses que el anterior y la variacion saldria
+ * falsa. Se recorta antes de pedir el año anterior, asi las dos puntas
+ * comparan los mismos meses.
+ */
+function acotarACorte<T extends RangoMeses>(c: Corte, r: T): T {
+  const ult = getCoberturaCorte(c).ultimo;
+  if (!ult || r.anio !== ult.anio || r.mesHasta <= ult.mes) return r;
+  return { ...r, mesHasta: Math.max(r.mesDesde, ult.mes) };
+}
+
 /** Suma del corte en una ventana de meses. */
 function totalEn(c: Corte, r: RangoMeses): number {
   const { tabla } = CORTES[c];
@@ -104,10 +118,11 @@ export interface ResultadoCorte {
  * siete meses contra doce. Todo lo que devuelve esta funcion compara
  * ene–jul contra ene–jul.
  */
-export function getPorCorte(c: Corte, r: RangoMeses): ResultadoCorte {
+export function getPorCorte(c: Corte, rango: RangoMeses): ResultadoCorte {
   if (!hayCorte(c)) {
     return { filas: [], total: 0, totalAnterior: 0, baseDisponible: false };
   }
+  const r = acotarACorte(c, rango);
   const { tabla, columna } = CORTES[c];
   const db = getDb();
 
@@ -236,10 +251,11 @@ export interface FilaMarcaCombustible {
  */
 export function getMarcasPorCombustible(
   combustible: string,
-  r: RangoMeses,
+  rango: RangoMeses,
   tope = 10
 ): FilaMarcaCombustible[] {
   if (!hayCorte("combustible")) return [];
+  const r = acotarACorte("combustible", rango);
   const filas = getDb()
     .prepare(
       `SELECT marca, SUM(unidades) unidades FROM matriculacion_movilidad

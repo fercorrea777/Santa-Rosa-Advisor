@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Cifra } from "@/components/movimiento/cifra";
-import { getRankingMarcas, getRankingModelos, type Filtro } from "@/lib/cadam/mercado";
+import {
+  acotarAFuente, getRankingMarcas, getRankingModelos, type Filtro,
+} from "@/lib/cadam/mercado";
 import { getAsesoresMayoristasSet, getMarcasPropiasSet, getPresupuesto } from "@/lib/cadam/config";
 import {
   getStockPropio, getVentasAsesor, getVentasPropias, hayDatosPropios,
@@ -27,8 +29,20 @@ import { cn } from "@/lib/utils";
  */
 export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: string }) {
   const propias = getMarcasPropiasSet();
-  const marcas = getRankingMarcas("matriculacion", f);
-  const marcasImp = getRankingMarcas("importacion", f);
+  // «Rivales cargando stock» compara importaciones contra matriculaciones:
+  // las dos sobre el tramo que tienen ambas. Con un mes de ventaja de una
+  // fuente (importación en sep-2026, matriculación en oct-2026) la
+  // comparación dejaba pasar o inventaba marcas que cargan stock.
+  const hastaComun = Math.max(
+    f.mesDesde,
+    Math.min(
+      acotarAFuente("matriculacion", f).mesHasta,
+      acotarAFuente("importacion", f).mesHasta
+    )
+  );
+  const fComun = { ...f, mesHasta: hastaComun };
+  const marcas = getRankingMarcas("matriculacion", fComun);
+  const marcasImp = getRankingMarcas("importacion", fComun);
 
   // Rivales en alza: modelos de OTRAS marcas que más participación ganaron
   // en los segmentos donde nosotros vendemos (20+ u. propias en el período),

@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/cadam/db";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { getPool } from "@/lib/informes/db";
-import type { Filtro, Fuente } from "@/lib/cadam/mercado";
+import { acotarAFuente, type Filtro, type Fuente } from "@/lib/cadam/mercado";
 import type { ModeloConPrecio } from "@/lib/cadam/precios";
 import { normalizarTecnologias } from "@/lib/informes/segmento-version";
 
@@ -120,9 +120,11 @@ export interface GamaPropiaCars {
  * tecnología por unidad.
  */
 export async function getGamaPropiaDesdeCars(
-  f: Filtro,
+  filtro: Filtro,
   fuente: Fuente = "matriculacion"
 ): Promise<GamaPropiaCars> {
+  // Hasta donde llega la fuente pedida (ver acotarAFuente).
+  const f = acotarAFuente(fuente, filtro);
   const propias = [...getMarcasPropiasSet()];
   const vacio: GamaPropiaCars = {
     conPrecio: [], sinPrecio: [], sincronizado: null, error: null,

@@ -20,7 +20,7 @@ import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { tokens } from "@/lib/informes/segmento-version";
 import { formatPct, formatUnidades } from "@/lib/format";
 import {
-  etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams,
+  aclaracionCortes, etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, type SearchParams,
 } from "@/lib/periodo";
 
 /**
@@ -95,12 +95,7 @@ export default async function PortafolioPage({
   }
 
   // Aclaración de hasta dónde llega cada fuente, al lado del selector.
-  const ultMat = cobertura.matriculacion.ultimo;
-  const ultImp = cobertura.importacion.ultimo;
-  const desparejas = !!ultMat && !!ultImp && (ultMat.anio !== ultImp.anio || ultMat.mes !== ultImp.mes);
-  const aclaracion = desparejas && ultMat && ultImp
-    ? `Matriculaciones hasta ${mesCorto(ultMat.mes)} · importaciones hasta ${mesCorto(ultImp.mes)}: CADAM ya publicó la importación de ${mesCorto(ultImp.mes)}, la matriculación de ese mes todavía no.`
-    : undefined;
+  const aclaracion = aclaracionCortes(cobertura);
 
   // --- la gama: modelos de la fuente principal, con su precio ---------------
   const modelos = getRankingModelos(principal, fmPrin, 300);
@@ -244,19 +239,19 @@ export default async function PortafolioPage({
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Matriculaciones"
-          value={formatUnidades(kpiMat.valor)}
-          variacion={kpiMat.variacion}
-          periodo={periodoMat}
+          value={kpiMat.sinDatos ? "—" : formatUnidades(kpiMat.valor)}
+          variacion={kpiMat.sinDatos ? undefined : kpiMat.variacion}
+          periodo={kpiMat.sinDatos ? `${periodoMat} · todavía sin publicar` : periodoMat}
           tono={principal === "matriculacion" ? "azul" : undefined}
           tooltip={`Chapas puestas de ${marca} en ${periodoMat}, contra el mismo período de ${f.anio - 1}.`}
         />
         <KpiCard
           label="Importaciones"
-          value={formatUnidades(kpiImp.valor)}
-          variacion={kpiImp.variacion}
-          periodo={periodoImp}
+          value={kpiImp.sinDatos ? "—" : formatUnidades(kpiImp.valor)}
+          variacion={kpiImp.sinDatos ? undefined : kpiImp.variacion}
+          periodo={kpiImp.sinDatos ? `${periodoImp} · todavía sin publicar` : periodoImp}
           tono={principal === "importacion" ? "verde" : undefined}
-          tooltip={`Unidades de ${marca} que entraron al país en ${periodoImp}, contra el mismo período de ${f.anio - 1}. Lo que importa y no matricula es stock en camino.${desparejas && ultImp ? ` La importación ya tiene ${mesCorto(ultImp.mes)}; la matriculación de ese mes CADAM todavía no la publicó.` : ""}`}
+          tooltip={`Unidades de ${marca} que entraron al país en ${periodoImp}, contra el mismo período de ${f.anio - 1}. Lo que importa y no matricula es stock en camino.${aclaracion ? ` ${aclaracion}` : ""}`}
         />
         <KpiCard
           label="Participación de mercado"

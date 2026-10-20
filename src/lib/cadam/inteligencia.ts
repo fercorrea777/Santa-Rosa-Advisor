@@ -1,5 +1,5 @@
 import {
-  getBrecha, getCobertura, getKpi, getPorDimension, getRankingMarcas,
+  acotarAFuente, getBrecha, getCobertura, getKpi, getPorDimension, getRankingMarcas,
   getRankingModelos, TECNOLOGIAS, type Filtro,
 } from "./mercado";
 import {
@@ -7,7 +7,7 @@ import {
   getSerieHistorica, getTrayectorias, proyectarCierre,
 } from "./historico";
 import { getMarcasPropiasSet, getParametros } from "./config";
-import { MESES_LARGOS } from "@/lib/periodo";
+import { etiquetaPeriodo as rotuloPeriodo, MESES_LARGOS, mesCorto } from "@/lib/periodo";
 
 /**
  * Centro de Inteligencia Comercial (spec sec. 19).
@@ -77,6 +77,16 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
 
   const kpiMat = getKpi("matriculacion", f);
   const kpiImp = getKpi("importacion", f);
+  // Lo que se resta o se divide entre las dos fuentes (diferencia, relación
+  // matric./import.) va sobre el tramo que tienen las dos: con un mes de
+  // ventaja de una fuente, restarlas inventa una brecha de ese mes entero.
+  const hastaImp = acotarAFuente("importacion", f).mesHasta;
+  const hastaMat = acotarAFuente("matriculacion", f).mesHasta;
+  const fComun: Filtro = { ...f, mesHasta: Math.max(f.mesDesde, Math.min(hastaImp, hastaMat)) };
+  const comunRecorta = fComun.mesHasta < f.mesHasta;
+  const kpiMatComun = comunRecorta ? getKpi("matriculacion", fComun) : kpiMat;
+  const kpiImpComun = comunRecorta ? getKpi("importacion", fComun) : kpiImp;
+  const rotuloComun = rotuloPeriodo(fComun.anio, fComun.mesDesde, fComun.mesHasta);
   const marcas = getRankingMarcas("matriculacion", f);
   const modelos = getRankingModelos("matriculacion", f, 400);
   const segmentos = getPorDimension("matriculacion", "segmento", f);
@@ -95,13 +105,27 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         `frente a las ${u(kpiMat.baseValor)} del mismo período de ${anioPrevio}.`
       : `. No hay período anterior cargado para comparar.`)
   );
-  resumen.push(
-    `Las importaciones sumaron ${u(kpiImp.valor)} unidades` +
-    (kpiImp.variacion !== null ? ` (${pct(kpiImp.variacion)})` : "") +
-    `. La diferencia contra matriculación es de ${u(Math.abs(kpiImp.valor - kpiMat.valor))} ` +
-    `unidades a favor de ${kpiImp.valor > kpiMat.valor ? "la importación" : "la matriculación"}, ` +
-    `una señal orientativa y no una medida de stock.`
-  );
+  if (kpiImp.sinDatos) {
+    resumen.push(
+      `CADAM todavía no publicó la importación de ${etiquetaPeriodo}: no hay cifra de ` +
+      `importaciones ni diferencia contra matriculación para este período.`
+    );
+  } else {
+    const impAtrasada = hastaImp < f.mesHasta;
+    const mesesImpFaltan = hastaImp + 1 === f.mesHasta
+      ? mesCorto(f.mesHasta)
+      : `${mesCorto(hastaImp + 1)}–${mesCorto(f.mesHasta)}`;
+    resumen.push(
+      `Las importaciones sumaron ${u(kpiImp.valor)} unidades` +
+      (impAtrasada ? ` hasta ${mesCorto(hastaImp)}` : "") +
+      (kpiImp.variacion !== null ? ` (${pct(kpiImp.variacion)})` : "") +
+      (impAtrasada ? `, porque CADAM todavía no publicó la importación de ${mesesImpFaltan}` : "") +
+      `. La diferencia contra matriculación es de ${u(Math.abs(kpiImpComun.valor - kpiMatComun.valor))} ` +
+      `unidades a favor de ${kpiImpComun.valor > kpiMatComun.valor ? "la importación" : "la matriculación"}` +
+      (comunRecorta ? ` en ${rotuloComun}, el tramo que tienen las dos fuentes` : "") +
+      `, una señal orientativa y no una medida de stock.`
+    );
+  }
   if (marcas.length) {
     resumen.push(
       `Lidera ${marcas[0].marca} con ${u(marcas[0].unidades)} unidades ` +
@@ -273,7 +297,7 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   }
 
   // Brecha importacion/matriculacion.
-  const brecha = getBrecha([f.anio]).filter((p) => p.mes >= f.mesDesde && p.mes <= f.mesHasta);
+  const brecha = getBrecha([f.anio]).filter((p) => p.mes >= f.mesDesde && p.mes <= fComun.mesHasta);
   const totImp = brecha.reduce((s, p) => s + (p.importaciones ?? 0), 0);
   const totMat = brecha.reduce((s, p) => s + (p.matriculaciones ?? 0), 0);
   if (totImp && totMat) {
@@ -287,7 +311,8 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
         motivo: "Una brecha sostenida sugiere un cambio de ritmo entre el ingreso de unidades y su venta. " +
                 "Es orientativo: no equivale a stock real.",
         evidencia: `Importación ${u(totImp)} u. vs matriculación ${u(totMat)} u. ` +
-                   `Relación matric./import. ${rel.toFixed(2)}`,
+                   `Relación matric./import. ${rel.toFixed(2)}` +
+                   (comunRecorta ? ` · ${rotuloComun}, el tramo que tienen las dos fuentes` : ""),
         prioridad: "media",
         periodo: etiquetaPeriodo,
       });

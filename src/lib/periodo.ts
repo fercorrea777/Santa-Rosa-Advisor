@@ -54,6 +54,55 @@ export function etiquetaCortes(cobertura: {
   return `datos hasta ${etiquetaCorte(cobertura.snapshot)}`;
 }
 
+type Cortes = { matriculacion: { ultimo: Corte }; importacion: { ultimo: Corte } };
+
+const orden = (c: { anio: number; mes: number }) => c.anio * 12 + c.mes;
+
+/** La fuente que llega más lejos, o null si van parejas (o falta una). */
+export function fuenteAdelantada(cobertura: Cortes): "matriculacion" | "importacion" | null {
+  const m = cobertura.matriculacion.ultimo;
+  const i = cobertura.importacion.ultimo;
+  if (!m || !i || orden(m) === orden(i)) return null;
+  return orden(i) > orden(m) ? "importacion" : "matriculacion";
+}
+
+/**
+ * El último mes que tienen LAS DOS fuentes: hasta ahí se puede restar
+ * importación menos matriculación sin inventar stock con un mes que una de
+ * las dos todavía no publicó.
+ */
+export function corteComun(cobertura: Cortes): Corte {
+  const m = cobertura.matriculacion.ultimo;
+  const i = cobertura.importacion.ultimo;
+  if (!m || !i) return m ?? i;
+  return orden(m) <= orden(i) ? m : i;
+}
+
+/**
+ * La aclaración de las pantallas que muestran las dos fuentes, cuando no
+ * van parejas. Antes decía siempre «CADAM ya publicó la importación…»: en
+ * sep-2026 era cierto, pero en oct-2026 la que iba adelante era la
+ * matriculación (septiembre, con la importación en agosto) y el texto
+ * afirmaba lo contrario de lo que pasaba.
+ */
+export function aclaracionCortes(cobertura: Cortes): string | undefined {
+  const m = cobertura.matriculacion.ultimo;
+  const i = cobertura.importacion.ultimo;
+  const adelante = fuenteAdelantada(cobertura);
+  if (!m || !i || !adelante) return undefined;
+  const conAnio = m.anio !== i.anio;
+  const mes = (c: { anio: number; mes: number }) => `${mesCorto(c.mes)}${conAnio ? ` ${c.anio}` : ""}`;
+  const [lider, atras] = adelante === "importacion" ? [i, m] : [m, i];
+  const varios = orden(lider) - orden(atras) > 1;
+  const meses = varios
+    ? `${mes({ anio: atras.mes === 12 ? atras.anio + 1 : atras.anio, mes: (atras.mes % 12) + 1 })}–${mes(lider)}`
+    : mes(lider);
+  const [ya, falta] = adelante === "importacion"
+    ? ["la importación", "la matriculación"]
+    : ["la matriculación", "la importación"];
+  return `Matriculaciones hasta ${mes(m)} · importaciones hasta ${mes(i)}: CADAM ya publicó ${ya} de ${meses}, ${falta} de ${varios ? "esos meses" : "ese mes"} todavía no.`;
+}
+
 /** 'Ene–Jun 2026' | 'Mayo 2026' */
 export function etiquetaPeriodo(anio: number, desde: number, hasta: number): string {
   if (desde === hasta) {
@@ -90,8 +139,12 @@ export function filtroDesdeUrl(
   // Solo se limita al mes de cierre cuando se mira el anio del ultimo
   // informe; los anios anteriores estan completos.
   const topeMes = ultimo && anio === ultimo.anio ? ultimo.mes : 12;
-  const desde = Math.min(Math.max(num(sp.desde) ?? 1, 1), 12);
-  const hasta = Math.min(Math.max(num(sp.hasta) ?? topeMes, desde), 12);
+  // El tope vale tambien para un `desde`/`hasta` que viene en la URL: al
+  // cambiar de fuente el filtro viaja con el enlace, y un «hasta=9» elegido
+  // mirando matriculaciones llegaba a importaciones (que terminan en agosto)
+  // y el rotulo decia «Ene–Sep» sobre ocho meses de datos.
+  const desde = Math.min(Math.max(num(sp.desde) ?? 1, 1), topeMes);
+  const hasta = Math.min(Math.max(num(sp.hasta) ?? topeMes, desde), topeMes);
   return {
     anio,
     mesDesde: desde,

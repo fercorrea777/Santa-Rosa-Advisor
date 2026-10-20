@@ -18,7 +18,7 @@ import { formatUnidades, hoyEnAsuncion } from "@/lib/format";
 import { getPresupuesto } from "@/lib/cadam/config";
 import { getBatalla } from "@/lib/informes/batalla";
 import { getAcciones, nombreMes } from "@/lib/informes/acciones";
-import { mesCorto, etiquetaCorte } from "@/lib/periodo";
+import { mesCorto, etiquetaCorte, etiquetaCortes } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -110,12 +110,11 @@ export default async function EstadoDatosPage() {
   const fuentes: Fuente[] = [
     {
       nombre: "CADAM / DNRA",
+      // Hasta dónde llega CADA fuente: cuál va adelante cambia de un mes a
+      // otro, y mostrar solo la matriculación escondía un atraso de la
+      // importación (oct-2026: matriculación a septiembre, importación a agosto).
       detalle: cobertura.snapshot
-        ? `Datos hasta ${etiquetaCorte(cobertura.snapshot)} · matriculaciones hasta ${
-            cobertura.matriculacion.ultimo
-              ? `${cobertura.matriculacion.ultimo.anio}-${String(cobertura.matriculacion.ultimo.mes).padStart(2, "0")}`
-              : "—"
-          }`
+        ? `${etiquetaCortes(cobertura).replace(/^./, (c) => c.toUpperCase())}`
         : "Sin cargas registradas",
       cadencia: "Mensual",
       actualizado: cobertura.fechaIngesta ? new Date(cobertura.fechaIngesta) : null,
