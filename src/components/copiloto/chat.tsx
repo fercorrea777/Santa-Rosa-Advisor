@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Globito, type EstadoGlobito, type MiradaGlobito } from "@/components/ui/globito";
 import { IconCopiloto } from "@/components/icons";
 import { useCampoConFoco } from "@/lib/foco-campo";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /** Variantes del estado vacío: el padre escalona y cada bloque sube. */
 const ENTRADA = {
@@ -29,6 +30,7 @@ interface Turno {
  * consulta la base y devuelve la respuesta final.
  */
 export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
+  const { t, tr } = useI18n();
   const [turnos, setTurnos] = React.useState<Turno[]>([]);
   const [texto, setTexto] = React.useState("");
   const [cargando, setCargando] = React.useState(false);
@@ -55,12 +57,12 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
         // Solo role y content: `fuentes` es nuestro, el modelo no lo pidió y
         // mandárselo de vuelta sería ensuciarle el historial.
         body: JSON.stringify({
-          mensajes: nuevos.map((t) => ({ role: t.role, content: t.content })),
+          mensajes: nuevos.map((turno) => ({ role: turno.role, content: turno.content })),
         }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? `Error ${res.status}`);
+        setError(data.error ?? t("Error {status}", { status: res.status }));
         // La pregunta queda en el historial para poder reintentar.
         return;
       }
@@ -73,10 +75,10 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
         },
       ]);
       if (data.truncada) {
-        setError("La respuesta se cortó por longitud. Pedí el detalle en partes.");
+        setError(t("La respuesta se cortó por longitud. Pedí el detalle en partes."));
       }
     } catch {
-      setError("No se pudo contactar al servidor. ¿Sigue corriendo la app?");
+      setError(t("No se pudo contactar al servidor. ¿Sigue corriendo la app?"));
     } finally {
       setCargando(false);
     }
@@ -104,12 +106,13 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
       >
         <motion.div variants={ENTRADA} className="flex flex-col items-center gap-2 text-center">
           <Globito estado={estadoGlobito} mirada={miradaGlobito} tamano={88} className="mb-2" />
-          <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-balance">
-            ¿En qué te ayudo <span className="text-primary">hoy</span>?
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-balance">
+            {tr("¿En qué te ayudo <hoy>hoy</hoy>?", undefined, {
+              hoy: (h) => <span className="text-primary">{h}</span>,
+            })}
           </h2>
           <p className="max-w-md text-sm text-muted-foreground text-pretty">
-            Preguntá sobre el mercado — marcas, modelos, segmentos, tecnologías,
-            evolución. Respondo con los datos cargados y cito las cifras.
+            {t("Preguntá sobre el mercado — marcas, modelos, segmentos, tecnologías, evolución. Respondo con los datos cargados y cito las cifras.")}
           </p>
         </motion.div>
 
@@ -151,8 +154,8 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex-1 overflow-y-auto rounded-2xl border bg-card p-4">
         <div className="flex flex-col gap-4">
-          {turnos.map((t, i) => (
-            <Mensaje key={i} turno={t} />
+          {turnos.map((turno, i) => (
+            <Mensaje key={i} turno={turno} />
           ))}
           <AnimatePresence>
             {cargando && (
@@ -176,7 +179,7 @@ export function ChatCopiloto({ sugerencias }: { sugerencias: string[] }) {
                   <span className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.1s]" />
                   <span className="size-1.5 animate-bounce rounded-full bg-current" />
                 </span>
-                Consultando
+                {t("Consultando")}
               </motion.div>
             )}
           </AnimatePresence>
@@ -215,6 +218,7 @@ function InputBar({
   cargando: boolean;
   hero?: boolean;
 }) {
+  const { t } = useI18n();
   const enviable = !cargando && texto.trim().length > 0;
   const entradaRef = React.useRef<HTMLInputElement>(null);
 
@@ -238,12 +242,12 @@ function InputBar({
           <input
             ref={entradaRef}
             name="pregunta"
-            aria-label="Pregunta para el Copiloto"
+            aria-label={t("Pregunta para el Copiloto")}
             autoComplete="off"
             enterKeyHint="send"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            placeholder="Preguntá al copiloto…"
+            placeholder={t("Preguntá al copiloto…")}
             disabled={cargando}
             // pointer-coarse:text-base — Safari iOS hace zoom al enfocar un
             // campo de menos de 16px y deja la página ampliada. Este input no
@@ -253,10 +257,10 @@ function InputBar({
           />
           <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center justify-between">
             <span className="text-[11px] text-muted-foreground">
-              Enter para enviar
+              {t("Enter para enviar")}
             </span>
             <Button type="submit" size="sm" disabled={!enviable} className="pointer-events-auto">
-              Enviar
+              {t("Enviar")}
             </Button>
           </div>
         </div>
@@ -271,25 +275,26 @@ function InputBar({
     >
       <input
         name="pregunta"
-        aria-label="Pregunta para el Copiloto"
+        aria-label={t("Pregunta para el Copiloto")}
         autoComplete="off"
         enterKeyHint="send"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
-        placeholder="Ej.: ¿cómo viene GREAT WALL en SUV contra GEELY?"
+        placeholder={t("Ej.: ¿cómo viene GREAT WALL en SUV contra GEELY?")}
         disabled={cargando}
         // El h-10 (utilities) le gana al height de .input-base (components),
         // incluida su regla táctil: hay que repetir el mínimo acá.
         className="input-base h-10 flex-1 pointer-coarse:h-11"
       />
       <Button type="submit" size="lg" disabled={!enviable}>
-        Enviar
+        {t("Enviar")}
       </Button>
     </form>
   );
 }
 
 function Mensaje({ turno }: { turno: Turno }) {
+  const { t } = useI18n();
   const esUsuario = turno.role === "user";
   return (
     // Cada turno entra desde abajo al montarse: los que ya están no se
@@ -302,7 +307,7 @@ function Mensaje({ turno }: { turno: Turno }) {
     >
       {esUsuario ? (
         <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
-          Vos
+          {t("Vos")}
         </div>
       ) : (
         <Globito tamano={28} flotar={false} seguirPuntero={false} className="mt-0.5 shrink-0" />
@@ -329,18 +334,19 @@ function Mensaje({ turno }: { turno: Turno }) {
  * invisible desde afuera.
  */
 function Fuentes({ fuentes }: { fuentes?: string[] }) {
+  const { t } = useI18n();
   if (!fuentes) return null;
   if (!fuentes.length) {
     return (
       <p className="mt-2 border-t border-border/50 pt-2 text-[11px] text-muted-foreground">
-        Sin fuentes consultadas — esta respuesta no salió de los datos.
+        {t("Sin fuentes consultadas — esta respuesta no salió de los datos.")}
       </p>
     );
   }
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-border/50 pt-2">
       <span className="text-[11px] font-medium text-muted-foreground">
-        Fuentes:
+        {t("Fuentes:")}
       </span>
       {fuentes.map((f) => (
         <span

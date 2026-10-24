@@ -13,13 +13,14 @@ import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 import { getCobertura, getRankingModelos } from "@/lib/cadam/mercado";
 import { getVentasPropias } from "@/lib/informes/propios";
 import {
-  getAcciones, getMesesAcciones, nombreMes, resumirAcciones,
+  getAcciones, getMesesAcciones, resumirAcciones,
 } from "@/lib/informes/acciones";
 import {
   claveCars, claveFamilia, cruzarFamilia, nombreDeClave, type UnidadesModelo,
 } from "@/lib/informes/acciones-cruce";
-import { formatFechaHora, formatPct, formatUnidades, nombreDeMarca } from "@/lib/format";
-import { etiquetaPeriodo, type SearchParams } from "@/lib/periodo";
+import { nombreDeMarca } from "@/lib/format";
+import { type SearchParams } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,13 @@ export default async function AccionesComercialesPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt } = await getI18n();
+  const { formatFechaHora, formatPct, formatUnidades, etiquetaPeriodo } = fmt;
+  // «2026-09» → «Septiembre 2026» | «September 2026» (acciones.ts:nombreMes es solo castellano).
+  const nombreMes = (mes: string) => {
+    const [a, m] = mes.split("-").map(Number);
+    return m >= 1 && m <= 12 ? etiquetaPeriodo(a, m, m) : mes;
+  };
   const meses = getMesesAcciones();
   const acciones = getAcciones(txt(sp.mes));
 
@@ -73,7 +81,7 @@ export default async function AccionesComercialesPage({
   const marcaSel = vistaPedida && marcas.includes(vistaPedida) ? vistaPedida : vistaPedida === TODAS.toUpperCase() ? null : marcas[0];
   const vistas = [
     ...marcas.map((m) => ({ valor: m, label: nombreDeMarca(m) })),
-    { valor: TODAS, label: "Todas", pista: "Las diez hojas de la planilla, una abajo de la otra." },
+    { valor: TODAS, label: t("Todas"), pista: t("Las diez hojas de la planilla, una abajo de la otra.") },
   ];
   const hojasVista = marcaSel ? acciones.hojas.filter((h) => h.marca === marcaSel) : acciones.hojas;
   // Los números de arriba son los de la pestaña, no los de toda la planilla.
@@ -114,8 +122,8 @@ export default async function AccionesComercialesPage({
   }
 
   const etiquetas = {
-    matriculaciones: fMat ? etiquetaPeriodo(anioAcc, 1, fMat.mesHasta).replace(`${anioAcc}`, "").trim() : "sin dato",
-    importaciones: fImp ? etiquetaPeriodo(anioAcc, 1, fImp.mesHasta).replace(`${anioAcc}`, "").trim() : "sin dato",
+    matriculaciones: fMat ? etiquetaPeriodo(anioAcc, 1, fMat.mesHasta).replace(`${anioAcc}`, "").trim() : t("sin dato"),
+    importaciones: fImp ? etiquetaPeriodo(anioAcc, 1, fImp.mesHasta).replace(`${anioAcc}`, "").trim() : t("sin dato"),
     facturadas: hastaCars ? etiquetaPeriodo(anioAcc, 1, hastaCars).replace(`${anioAcc}`, "").trim() : null,
   };
 
@@ -168,9 +176,9 @@ export default async function AccionesComercialesPage({
   return (
     <Pagina>
       <PageHeader
-        titulo="Acciones comerciales"
-        descripcion={`${acciones.titulo} · descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión, con lo que cada familia importó, matriculó y facturó en ${anioAcc}.`}
-        fuente={`Fuente: «${acciones.archivo}» de Fernando, modificado ${formatFechaHora(acciones.modificado)} · cargado ${formatFechaHora(acciones.cargado_en)}.`}
+        titulo={t("Acciones comerciales")}
+        descripcion={t("{titulo} · descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión, con lo que cada familia importó, matriculó y facturó en {anio}.", { titulo: acciones.titulo, anio: anioAcc })}
+        fuente={t("Fuente: «{archivo}» de Fernando, modificado {modificado} · cargado {cargado}.", { archivo: acciones.archivo, modificado: formatFechaHora(acciones.modificado), cargado: formatFechaHora(acciones.cargado_en) })}
       />
 
       {/* La misma barra de filtros que el resto del tablero (Croman,
@@ -180,9 +188,9 @@ export default async function AccionesComercialesPage({
         sinPeriodo
         opciones={[
           ...(meses.length > 1
-            ? [{ param: "mes", label: "Mes", valores: meses.map((m) => ({ valor: m, label: nombreMes(m) })) }]
+            ? [{ param: "mes", label: t("Mes"), valores: meses.map((m) => ({ valor: m, label: nombreMes(m) })) }]
             : []),
-          { param: "segmento", label: "Segmento", valores: segmentos },
+          { param: "segmento", label: t("Segmento"), valores: segmentos },
         ]}
       />
 
@@ -190,56 +198,55 @@ export default async function AccionesComercialesPage({
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <KpiCard
-          label="Versiones"
+          label={t("Versiones")}
           value={formatUnidades(resumen.versiones)}
-          periodo={marcaSel ? `${nombreDeMarca(marcaSel)} · ${titulo}` : `${resumen.marcas} marcas · ${titulo}`}
+          periodo={marcaSel ? `${nombreDeMarca(marcaSel)} · ${titulo}` : t("{n} marcas · {titulo}", { n: resumen.marcas, titulo })}
         />
         <KpiCard
-          label="Con descuento"
+          label={t("Con descuento")}
           value={formatUnidades(resumen.conDescuento)}
-          periodo={resumen.descuentoMedio !== null ? `${formatPct(resumen.descuentoMedio)} del PVP, ponderado por stock` : "versiones"}
+          periodo={resumen.descuentoMedio !== null ? t("{pct} del PVP, ponderado por stock", { pct: formatPct(resumen.descuentoMedio) }) : t("versiones")}
           tono="tinta"
-          tooltip="Versiones con descuento máximo mayor a cero. El porcentaje es descuento sobre PVP, ponderado por el stock de cada versión."
+          tooltip={t("Versiones con descuento máximo mayor a cero. El porcentaje es descuento sobre PVP, ponderado por el stock de cada versión.")}
         />
-        <KpiCard label="Con bono al vendedor" value={formatUnidades(resumen.conBono)} periodo="versiones" />
-        <KpiCard label="Stock" value={formatUnidades(resumen.stock)} periodo="unidades, según la planilla" tono="azul" />
-        <KpiCard label="En viaje" value={formatUnidades(resumen.enViaje)} periodo="unidades en camino" tono="verde" />
+        <KpiCard label={t("Con bono al vendedor")} value={formatUnidades(resumen.conBono)} periodo={t("versiones")} />
+        <KpiCard label={t("Stock")} value={formatUnidades(resumen.stock)} periodo={t("unidades, según la planilla")} tono="azul" />
+        <KpiCard label={t("En viaje")} value={formatUnidades(resumen.enViaje)} periodo={t("unidades en camino")} tono="verde" />
         <KpiCard
-          label="Descuento comprometido"
+          label={t("Descuento comprometido")}
           // En millones cuando pasa el millón y la moneda al pie: «US$
           // 1.287.938» no entraba en la tarjeta y se partía en dos renglones.
           // La cifra exacta va en el tooltip.
           value={
             resumen.descuentoComprometido >= 1_000_000
-              ? `${(resumen.descuentoComprometido / 1_000_000).toLocaleString("es-PY", { maximumFractionDigits: 2 })} M`
+              ? `${new Intl.NumberFormat(fmt.locale, { maximumFractionDigits: 2 }).format(resumen.descuentoComprometido / 1_000_000)} M`
               : formatUnidades(Math.round(resumen.descuentoComprometido))
           }
-          periodo="US$ · stock × descuento máximo"
+          periodo={t("US$ · stock × descuento máximo")}
           tono="ambar"
-          tooltip={`US$ ${formatUnidades(Math.round(resumen.descuentoComprometido))}: lo que costaría vender todo el stock de hoy al precio con descuento máximo. Es una cota, no un pronóstico: no todas las unidades salen con el descuento entero.`}
+          tooltip={t("US$ {monto}: lo que costaría vender todo el stock de hoy al precio con descuento máximo. Es una cota, no un pronóstico: no todas las unidades salen con el descuento entero.", { monto: formatUnidades(Math.round(resumen.descuentoComprometido)) })}
         />
       </div>
 
       <NotaDato>
-        <strong>La planilla manda.</strong> Precios, descuentos, márgenes y notas
-        se muestran tal cual los cargó Fernando en el Excel; acá no se recalcula
-        nada. Lo que agrega el tablero son las tres columnas de la derecha, en la
-        fila de cada familia: cuánto matriculó ({etiquetas.matriculaciones}) e
-        importó ({etiquetas.importaciones}) ese modelo según CADAM
-        {etiquetas.facturadas ? `, y cuánto facturamos nosotros según Cars (${etiquetas.facturadas})` : ""}.
-        El cruce es por <strong>familia</strong> (X50, TANK 300, L200), porque las
-        tres fuentes escriben la versión distinto; cuando una fuente no tiene la
-        familia con ese nombre exacto se usa la más parecida y se marca con «≈».
-        {errorCars && (
-          <> Cars no respondió ahora ({errorCars}): la facturación propia no se muestra.</>
+        {tr(
+          "<b>La planilla manda.</b> Precios, descuentos, márgenes y notas se muestran tal cual los cargó Fernando en el Excel; acá no se recalcula nada. Lo que agrega el tablero son las tres columnas de la derecha, en la fila de cada familia: cuánto matriculó ({mat}) e importó ({imp}) ese modelo según CADAM{cars}. El cruce es por <b>familia</b> (X50, TANK 300, L200), porque las tres fuentes escriben la versión distinto; cuando una fuente no tiene la familia con ese nombre exacto se usa la más parecida y se marca con «≈».",
+          {
+            mat: etiquetas.matriculaciones,
+            imp: etiquetas.importaciones,
+            cars: etiquetas.facturadas ? t(", y cuánto facturamos nosotros según Cars ({periodo})", { periodo: etiquetas.facturadas }) : "",
+          }
         )}
-        {!esAdmin && <> Costo y márgenes se muestran solo con rol admin.</>}
+        {errorCars && (
+          <> {t("Cars no respondió ahora ({error}): la facturación propia no se muestra.", { error: errorCars })}</>
+        )}
+        {!esAdmin && <> {t("Costo y márgenes se muestran solo con rol admin.")}</>}
       </NotaDato>
 
       {hojas.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Ninguna versión coincide con ese filtro.
+            {t("Ninguna versión coincide con ese filtro.")}
           </CardContent>
         </Card>
       )}
@@ -264,16 +271,16 @@ export default async function AccionesComercialesPage({
                     <Marca marca={h.marca} tamano="md" claseNombre="font-semibold" />
                   </CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    {h.versiones.length} {h.versiones.length === 1 ? "versión" : "versiones"} ·{" "}
-                    {conDcto} con descuento
-                    {h.totales.stock > 0 && <> · stock {formatUnidades(h.totales.stock)}</>}
-                    {h.totales.enViaje > 0 && <> · {formatUnidades(h.totales.enViaje)} en viaje</>}
+                    {h.versiones.length === 1 ? t("1 versión") : t("{n} versiones", { n: h.versiones.length })} ·{" "}
+                    {t("{n} con descuento", { n: conDcto })}
+                    {h.totales.stock > 0 && <> · {t("stock {n}", { n: formatUnidades(h.totales.stock) })}</>}
+                    {h.totales.enViaje > 0 && <> · {t("{n} en viaje", { n: formatUnidades(h.totales.enViaje) })}</>}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <Link href="/gama-propia" className={ENLACE_CHICO}>Gama propia</Link>
+                  <Link href="/gama-propia" className={ENLACE_CHICO}>{t("Gama propia")}</Link>
                   <Link href={`/portafolio?marca=${encodeURIComponent(h.marca)}`} className={ENLACE_CHICO}>
-                    Portafolio
+                    {t("Portafolio")}
                   </Link>
                 </div>
               </CardHeader>
@@ -281,7 +288,7 @@ export default async function AccionesComercialesPage({
                 <TablaAcciones familias={h.familias} etiquetas={etiquetas} esAdmin={esAdmin} totales={h.totales} />
                 {h.notas.length > 0 && (
                   <div className="mt-4 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide">Notas de la hoja</p>
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide">{t("Notas de la hoja")}</p>
                     <ul className="flex flex-col gap-0.5">
                       {h.notas.map((n, i) => (
                         <li key={i} className="whitespace-pre-wrap">{n}</li>
@@ -304,25 +311,28 @@ const ENLACE_CHICO = cn(
   FOCO
 );
 
-function SinPlanilla() {
+async function SinPlanilla() {
+  const { t, tr } = await getI18n();
   return (
     <Pagina>
       <PageHeader
-        titulo="Acciones comerciales"
-        descripcion="La planilla mensual de Fernando: descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión."
+        titulo={t("Acciones comerciales")}
+        descripcion={t("La planilla mensual de Fernando: descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión.")}
       />
       <Card>
         <CardHeader>
-          <CardTitle>Todavía no se cargó ninguna planilla</CardTitle>
+          <CardTitle>{t("Todavía no se cargó ninguna planilla")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
           <p>
-            Hermes la carga solo cuando aparece o cambia el archivo{" "}
-            <code className="rounded bg-muted px-1 py-0.5">ACCIONES COMERCIALES &lt;MES&gt;.xlsx</code>{" "}
-            en <code className="rounded bg-muted px-1 py-0.5">~/Escritorio/DASHBOARD FERNANDO/</code> de
-            la notebook (cron «Advisor · Acciones comerciales», cada 4 horas). Para
-            forzarla ahora:
+            {tr(
+              "Hermes la carga solo cuando aparece o cambia el archivo <code>{archivo}</code> en <code>{carpeta}</code> de la notebook (cron «Advisor · Acciones comerciales», cada 4 horas). Para forzarla ahora:",
+              // i18n-ignore (nombre de archivo y carpeta reales: datos, no texto de pantalla)
+              { archivo: "ACCIONES COMERCIALES <MES>.xlsx", carpeta: "~/Escritorio/DASHBOARD FERNANDO/" },
+              { code: (h) => <code className="rounded bg-muted px-1 py-0.5">{h}</code> }
+            )}
           </p>
+          {/* i18n-ignore: comando de consola, no es texto de pantalla */}
           <div className="rounded-md bg-muted/50 p-2 font-mono text-xs">~/.hermes/scripts/advisor-acciones.sh --force</div>
         </CardContent>
       </Card>

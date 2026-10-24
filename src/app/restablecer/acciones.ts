@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { NOMBRE_COOKIE } from "@/lib/auth/sesion";
 import { ipDe } from "@/lib/auth/freno";
 import { olvidarVigencia } from "@/lib/auth/vigencia";
+import { getI18n } from "@/lib/i18n/servidor";
 import {
   problemaConLaClave, registrarEvento, restablecerConToken, usuarioDeRecuperacion,
 } from "@/lib/auth/usuarios";
@@ -25,29 +26,31 @@ export async function restablecerClave(
   _prev: EstadoRestablecer | null,
   form: FormData
 ): Promise<EstadoRestablecer> {
+  const { t } = await getI18n();
   const token = String(form.get("token") ?? "");
   const nueva = String(form.get("nueva") ?? "");
   const repetida = String(form.get("repetida") ?? "");
   const ip = ipDe(await headers());
 
-  if (nueva !== repetida) return { error: "Las dos claves no coinciden." };
+  if (nueva !== repetida) return { error: t("Las dos claves no coinciden.") };
 
   // Se busca al dueño ANTES de consumir el token, para validar la clave
   // contra su correo; si el token ya no vale, se dice y no se gasta nada.
   const persona = await usuarioDeRecuperacion(token);
   if (!persona) {
     return {
-      error:
+      error: t(
         "Este enlace ya no sirve: venció, ya se usó o no es válido. " +
-        "Pedí uno nuevo desde «Olvidé mi clave».",
+        "Pedí uno nuevo desde «Olvidé mi clave»."
+      ),
     };
   }
-  const problema = problemaConLaClave(nueva, persona.usuario);
+  const problema = problemaConLaClave(nueva, persona.usuario, t);
   if (problema) return { error: problema };
 
   const listo = await restablecerConToken(token, nueva);
   if (!listo) {
-    return { error: "Este enlace ya no sirve. Pedí uno nuevo desde «Olvidé mi clave»." };
+    return { error: t("Este enlace ya no sirve. Pedí uno nuevo desde «Olvidé mi clave».") };
   }
   olvidarVigencia(listo.id);
   void registrarEvento("clave_restablecida", { correo: listo.usuario, usuarioId: listo.id, ip });

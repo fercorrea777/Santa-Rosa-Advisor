@@ -72,7 +72,7 @@ export interface PartedeMarca {
 export const REPARTO_POR_MARCA: Record<string, PartedeMarca[]> = {
   CHEVROLET: [
     { grupo: "GARDEN", parte: 0.4 },
-    { grupo: "DE LA SOBERA", parte: 0.35 },
+    { grupo: "DE LA SOBERA", parte: 0.35 }, // i18n-ignore (nombre de grupo: dato de la lista de Fernando)
     { grupo: GRUPO_RESTO, parte: 0.25 },
   ],
 };

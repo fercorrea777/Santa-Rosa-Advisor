@@ -57,14 +57,29 @@ export const TOOLTIP_BASE = {
   borderColor: "var(--border)",
   borderWidth: 1,
   padding: [8, 12] as [number, number],
-  textStyle: { color: "var(--popover-foreground)", fontSize: 12 },
+  textStyle: {
+    color: "var(--popover-foreground)",
+    fontSize: 12,
+    fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+  },
   extraCssText:
     "border-radius:10px;box-shadow:0 8px 24px -12px oklch(0.2 0.05 260 / 35%);",
 };
 
-/** Los números de ejes van en la mono del sistema (tabular, como las cifras
- *  de las tarjetas) — la sans propor­cional hace bailar los ticks. */
-export const FUENTE_MONO_EJES = "var(--font-geist-mono), monospace";
+/**
+ * Las fuentes de los gráficos, con sus NOMBRES REALES (los que declara next/font
+ * en layout.tsx), no `var(--font-geist-*)`: el texto de ECharts se dibuja en un
+ * canvas, y un canvas IGNORA una fuente escrita con var() y dibuja con la
+ * `sans-serif` del sistema (hasta 2026-10 todos los ejes salían así, sin que
+ * nadie lo notara). El tooltip es HTML y sí entiende la variable.
+ * Si se cambia la familia en layout.tsx, hay que cambiarla acá también.
+ */
+export const FUENTE_SANS_GRAFICOS = '"Inter", "Inter Fallback", system-ui, sans-serif';
+
+/** Los números de ejes y las etiquetas de valor van en la mono del sistema
+ *  (tabular, como las cifras de las tarjetas) — la sans proporcional hace bailar
+ *  los ticks. */
+export const FUENTE_MONO_EJES = '"JetBrains Mono", "JetBrains Mono Fallback", monospace';
 
 /**
  * ETIQUETAS DE VALOR SOBRE LA MARCA.

@@ -7,7 +7,8 @@ import {
 } from "@/components/ui/table";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { cn } from "@/lib/utils";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
+import { N_ } from "@/lib/i18n/traducir";
 import { claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha } from "@/lib/cadam/bandas";
 import type { Fuente } from "@/lib/cadam/mercado";
 
@@ -37,8 +38,6 @@ export interface FilaPortafolio {
   banda: string;
 }
 
-const usd = (n: number | null) => (n === null ? "—" : formatUnidades(Math.round(n)));
-
 /**
  * La gama de una marca en una tabla: cada modelo con su clase, cuánto
  * vende, cuánto entró al país y a qué precio de lista. Tocar una fila abre
@@ -46,8 +45,8 @@ const usd = (n: number | null) => (n === null ? "—" : formatUnidades(Math.roun
  * misma de Rankings y Gama propia.
  */
 const ROTULO: Record<Fuente, { columna: string; nota: string }> = {
-  matriculacion: { columna: "Matric.", nota: "chapas puestas" },
-  importacion: { columna: "Import.", nota: "entraron al país" },
+  matriculacion: { columna: N_("Matric."), nota: N_("chapas puestas") },
+  importacion: { columna: N_("Import."), nota: N_("entraron al país") },
 };
 
 export function TablaPortafolio({
@@ -70,6 +69,9 @@ export function TablaPortafolio({
   /** Ventana de la columna secundaria, que puede diferir de la principal. */
   periodoSec: string;
 }) {
+  const { t, fmt } = useI18n();
+  const { formatPct, formatUnidades } = fmt;
+  const usd = (n: number | null) => (n === null ? "—" : formatUnidades(Math.round(n)));
   const [abierto, setAbierto] = React.useState<DetalleModelo | null>(null);
   const [orden, setOrden] = React.useState<{ campo: keyof FilaPortafolio; asc: boolean }>({
     campo: "unidades", asc: false,
@@ -85,7 +87,8 @@ export function TablaPortafolio({
   const ordenadas = React.useMemo(() => {
     const dir = orden.asc ? 1 : -1;
     const val = (f: FilaPortafolio) => {
-      const v = f[orden.campo];
+      // La clase se ordena por el nombre que se lee (en inglés no coincide con el castellano).
+      const v = orden.campo === "clase" ? t(f.clase) : f[orden.campo];
       return v === null || v === undefined ? (orden.asc ? Infinity : -Infinity) : v;
     };
     return [...filas].sort((a, b) => {
@@ -95,8 +98,10 @@ export function TablaPortafolio({
       }
       return (Number(va) - Number(vb)) * dir;
     });
-  }, [filas, orden]);
+  }, [filas, orden, t]);
 
+  const rotuloPrin = ROTULO[principal];
+  const rotuloSec = secundaria ? ROTULO[secundaria] : null;
   const ordenarPor = (campo: keyof FilaPortafolio) =>
     setOrden((o) => ({ campo, asc: o.campo === campo ? !o.asc : campo === "modelo" || campo === "clase" }));
   const cab = (campo: keyof FilaPortafolio, texto: string, nota?: string, className?: string) => (
@@ -108,16 +113,16 @@ export function TablaPortafolio({
       <Table>
         <TableHeader>
           <TableRow>
-            {cab("modelo", "Modelo")}
-            {cab("clase", "Clase", "contra quién compite")}
-            <TableHead>Tecnología</TableHead>
-            {cab("unidades", ROTULO[principal].columna, `${ROTULO[principal].nota} · ${periodo}`, "text-right")}
-            {cab("participacion", "Peso", "su parte dentro de la marca", "text-right")}
-            {cab("variacion", "Var.", "contra el año pasado", "text-right")}
-            {secundaria && cab("otras", ROTULO[secundaria].columna, `${ROTULO[secundaria].nota} · ${periodoSec}`, "text-right")}
-            {cab("precioDesde", "Desde US$", "lista, versión más barata", "text-right")}
-            {cab("precioHasta", "Hasta US$", "la más cara del modelo", "text-right")}
-            <TableHead className="text-right" nota="con precio / según DNRA">Versiones</TableHead>
+            {cab("modelo", t("Modelo"))}
+            {cab("clase", t("Clase"), t("contra quién compite"))}
+            <TableHead>{t("Tecnología")}</TableHead>
+            {cab("unidades", t(rotuloPrin.columna), `${t(rotuloPrin.nota)} · ${periodo}`, "text-right")}
+            {cab("participacion", t("Peso"), t("su parte dentro de la marca"), "text-right")}
+            {cab("variacion", t("Var."), t("contra el año pasado"), "text-right")}
+            {rotuloSec && cab("otras", t(rotuloSec.columna), `${t(rotuloSec.nota)} · ${periodoSec}`, "text-right")}
+            {cab("precioDesde", t("Desde US$"), t("lista, versión más barata"), "text-right")}
+            {cab("precioHasta", t("Hasta US$"), t("la más cara del modelo"), "text-right")}
+            <TableHead className="text-right" nota={t("con precio / según DNRA")}>{t("Versiones")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -128,13 +133,13 @@ export function TablaPortafolio({
                 key={f.modelo}
                 onClick={conFicha ? () => abrir(f) : undefined}
                 className={cn(conFicha && "cursor-pointer")}
-                title={conFicha ? "Ver contra quién compite" : undefined}
+                title={conFicha ? t("Ver contra quién compite") : undefined}
               >
                 <TableCell className="font-medium">{f.modelo}</TableCell>
                 <TableCell className="text-muted-foreground">
-                  {f.clase}
+                  {t(f.clase)}
                   {f.claseInferida && (
-                    <span title="Clase inferida por precio o segmento, no del catálogo" className="ml-1 opacity-60">~</span>
+                    <span title={t("Clase inferida por precio o segmento, no del catálogo")} className="ml-1 opacity-60">~</span>
                   )}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{f.tecnologia ?? "—"}</TableCell>
@@ -146,7 +151,7 @@ export function TablaPortafolio({
                     f.variacion !== null && (f.variacion > 0 ? "text-emerald-700 dark:text-emerald-400" : f.variacion < 0 ? "text-rose-700 dark:text-rose-400" : "")
                   )}
                 >
-                  {f.variacion === null ? "Nuevo" : formatPct(f.variacion, { signed: true })}
+                  {f.variacion === null ? t("Nuevo") : formatPct(f.variacion, { signed: true })}
                 </TableCell>
                 {secundaria && (
                   <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -157,7 +162,7 @@ export function TablaPortafolio({
                   {f.precioDeFamilia && (
                     <span
                       className="mr-0.5 text-muted-foreground"
-                      title="Precio de referencia de la familia: esta variante no tiene precio propio en las listas"
+                      title={t("Precio de referencia de la familia: esta variante no tiene precio propio en las listas")}
                     >
                       ≈
                     </span>
@@ -181,9 +186,7 @@ export function TablaPortafolio({
         </TableBody>
       </Table>
       <p className="text-xs text-muted-foreground">
-        {filas.length} modelos. Tocá una fila para ver contra quién compite ese modelo y a qué precio.
-        «~» junto a la clase: inferida por precio o segmento, no del catálogo. «≈» junto al precio: es
-        el «desde» de la familia, porque esa variante no tiene precio propio en las listas.
+        {t("{n} modelos. Tocá una fila para ver contra quién compite ese modelo y a qué precio. «~» junto a la clase: inferida por precio o segmento, no del catálogo. «≈» junto al precio: es el «desde» de la familia, porque esa variante no tiene precio propio en las listas.", { n: filas.length })}
       </p>
       <DetalleModeloDialog detalle={abierto} periodo={periodo} onClose={() => setAbierto(null)} />
     </div>

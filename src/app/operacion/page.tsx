@@ -26,7 +26,6 @@ import {
   getEstadoSyncPropio, getStockPropio, getVentasAsesor, getVentasPropias,
   hayDatosPropios,
 } from "@/lib/informes/propios";
-import { formatDecimal, formatFechaHora, formatPct, formatUnidades } from "@/lib/format";
 import {
   calcularCobertura, estadosDesconocidos, RITMO_MINIMO as RITMO_MINIMO_VERSION,
 } from "@/lib/informes/cobertura";
@@ -36,7 +35,8 @@ import {
   getActualizacionDemandaBitrix, getDemandaBitrix, type DemandaBitrix,
 } from "@/lib/informes/demanda-bitrix";
 import { tokens as tokensNombre } from "@/lib/informes/segmento-version";
-import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams } from "@/lib/periodo";
+import { filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
 import { cn } from "@/lib/utils";
 
 /**
@@ -53,24 +53,29 @@ import { cn } from "@/lib/utils";
  *  las 12 la semana que viene. */
 const RITMO_MINIMO = 3;
 
+// i18n-ignore (valor centinela que viaja como clave y se compara; se traduce al mostrarlo, con t("Sin sucursal"))
+const SIN_SUCURSAL = "Sin sucursal";
+
 export default async function OperacionPage({
   searchParams,
 }: {
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt, idioma } = await getI18n();
+  const { formatDecimal, formatFechaHora, formatPct, formatUnidades, etiquetaPeriodo, mesCorto } = fmt;
   const cobertura = getCobertura();
 
   if (!(await hayDatosPropios())) {
     return (
       <Pagina>
         <PageHeader
-          titulo="Nuestra operación"
-          descripcion="Facturación y stock propios, del API de Cars."
+          titulo={t("Nuestra operación")}
+          descripcion={t("Facturación y stock propios, del API de Cars.")}
         />
         <EmptyState
-          title="Todavía no llegaron los datos de Cars"
-          description="Los empuja Hermes cada 4 horas desde la máquina donde el API responde. Si pasaron varias horas y sigue vacío, revisá el trabajo advisor-datos-propios en Hermes."
+          title={t("Todavía no llegaron los datos de Cars")}
+          description={t("Los empuja Hermes cada 4 horas desde la máquina donde el API responde. Si pasaron varias horas y sigue vacío, revisá el trabajo advisor-datos-propios en Hermes.")}
         />
       </Pagina>
     );
@@ -564,10 +569,10 @@ export default async function OperacionPage({
     const porPrecio = suma(/precio|competencia/i);
     const abiertos = r.abiertos + r.negAbiertos;
     // `corto` es lo que entra en la celda; `texto`, el porqué (tooltip).
-    if (porStock > 0 && libres === 0) return { corto: "Pedir", texto: "Se perdió por falta de stock y hoy no hay libres.", tono: "pedir" };
-    if (porStock > 0) return { corto: `${porStock} sin stock`, texto: `Se perdió ${porStock} ${porStock === 1 ? "vez" : "veces"} por falta de stock; hoy hay ${libres} libres.`, tono: "ok" };
-    if (abiertos >= 5 && libres >= 5) return { corto: "Empujar", texto: "Hay demanda abierta y stock libre para entregar.", tono: "empujar" };
-    if (porPrecio >= 3) return { corto: "Revisar precio", texto: "Se pierde por precio o por la competencia.", tono: "precio" };
+    if (porStock > 0 && libres === 0) return { corto: t("Pedir"), texto: t("Se perdió por falta de stock y hoy no hay libres."), tono: "pedir" };
+    if (porStock > 0) return { corto: t("{n} sin stock", { n: porStock }), texto: porStock === 1 ? t("Se perdió {n} vez por falta de stock; hoy hay {libres} libres.", { n: porStock, libres }) : t("Se perdió {n} veces por falta de stock; hoy hay {libres} libres.", { n: porStock, libres }), tono: "ok" };
+    if (abiertos >= 5 && libres >= 5) return { corto: t("Empujar"), texto: t("Hay demanda abierta y stock libre para entregar."), tono: "empujar" };
+    if (porPrecio >= 3) return { corto: t("Revisar precio"), texto: t("Se pierde por precio o por la competencia."), tono: "precio" };
     return null;
   };
   const filasDemandaModelo = [...demandaPorModelo.values()]
@@ -590,7 +595,7 @@ export default async function OperacionPage({
   // --- sucursales: quién factura dónde --------------------------------------
   const porSucursal = new Map<string, { unidades: number; asesores: Map<string, number> }>();
   for (const a of asesoresPeriodo) {
-    const s = a.sucursal || "Sin sucursal";
+    const s = a.sucursal || SIN_SUCURSAL;
     const x = porSucursal.get(s) ?? { unidades: 0, asesores: new Map<string, number>() };
     x.unidades += a.unidades;
     x.asesores.set(a.asesor, (x.asesores.get(a.asesor) ?? 0) + a.unidades);
@@ -602,7 +607,7 @@ export default async function OperacionPage({
       return { sucursal, unidades: x.unidades, asesores: x.asesores.size, top };
     })
     .sort((a, b) => b.unidades - a.unidades);
-  const haySucursal = sucursales.some((s) => s.sucursal !== "Sin sucursal");
+  const haySucursal = sucursales.some((s) => s.sucursal !== SIN_SUCURSAL);
   // Las MARCAS que factura cada asesor, de la que más vende a la que menos.
   // Va en el ranking en lugar de la sucursal: la sucursal la carga Cars y a
   // veces está mal (06/09/2026); la marca sale de la factura y no falla.
@@ -684,10 +689,10 @@ export default async function OperacionPage({
   // dashboard me parece muy desordenado"). Cada pestaña contesta una
   // pregunta; los filtros de arriba valen para las cuatro.
   const VISTAS = [
-    { valor: "resumen", label: "Resumen", pista: "Cómo venimos: facturado, mercado, stock y plan, marca por marca." },
-    { valor: "stock", label: "Stock y pedido", pista: "Qué pedir, qué empujar con promoción y todo el stock por modelo." },
-    { valor: "demanda", label: "Demanda", pista: "Los leads de Bitrix: cuánta demanda entró, cuánta se perdió y por qué." },
-    { valor: "equipo", label: "Equipo", pista: "Quién vende y desde qué local." },
+    { valor: "resumen", label: t("Resumen"), pista: t("Cómo venimos: facturado, mercado, stock y plan, marca por marca.") },
+    { valor: "stock", label: t("Stock y pedido"), pista: t("Qué pedir, qué empujar con promoción y todo el stock por modelo.") },
+    { valor: "demanda", label: t("Demanda"), pista: t("Los leads de Bitrix: cuánta demanda entró, cuánta se perdió y por qué.") },
+    { valor: "equipo", label: t("Equipo"), pista: t("Quién vende y desde qué local.") },
   ];
   const vistaPedida = Array.isArray(sp.vista) ? sp.vista[0] : sp.vista;
   const vista = VISTAS.some((v) => v.valor === vistaPedida) ? (vistaPedida as string) : "resumen";
@@ -697,16 +702,16 @@ export default async function OperacionPage({
   return (
     <Pagina>
       <PageHeader
-        titulo="Nuestra operación"
-        descripcion={`Facturación, stock, demanda y equipo de venta · ${periodo}.`}
-        fuente={`Cars${sync ? ` (sinc. ${formatFechaHora(sync.actualizado_en)})` : ""}${hayLeads || hayDemanda ? " · Bitrix" : ""}${hayPauta ? " · Meta" : ""} · CADAM${cadamRecorta ? ` hasta ${hastaCadam}` : ""}`}
+        titulo={t("Nuestra operación")}
+        descripcion={t("Facturación, stock, demanda y equipo de venta · {periodo}.", { periodo })}
+        fuente={`Cars${sync ? ` ${t("(sinc. {fecha})", { fecha: formatFechaHora(sync.actualizado_en) })}` : ""}${hayLeads || hayDemanda ? " · Bitrix" : ""}${hayPauta ? " · Meta" : ""} · CADAM${cadamRecorta ? ` ${t("hasta {mes}", { mes: hastaCadam })}` : ""}`}
       />
 
       <FiltroPeriodo
         anios={aniosFiltro}
         mesMaximoPorAnio={mesMax}
         opciones={[
-          { param: "marca", label: "Marca", valores: [...propias].sort() },
+          { param: "marca", label: t("Marca"), valores: [...propias].sort() },
         ]}
       />
 
@@ -720,51 +725,51 @@ export default async function OperacionPage({
         <>
           <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2", hayPresupuesto || hayMetas ? "xl:grid-cols-5" : "xl:grid-cols-4")}>
             <KpiCard
-              label="Facturado"
+              label={t("Facturado")}
               value={formatUnidades(totalFacturas)}
               valorAnimado={totalFacturas}
               formato="unidades"
               periodo={periodo}
               variacion={crecFacturas}
-              tooltip={`Vehículos facturados en Cars. Contra ${formatUnidades(totalFacturasAnterior)} en el mismo período de ${f.anio - 1}.`}
+              tooltip={t("Vehículos facturados en Cars. Contra {n} en el mismo período de {anio}.", { n: formatUnidades(totalFacturasAnterior), anio: f.anio - 1 })}
               tono="tinta"
             />
             <KpiCard
-              label="Matriculado (CADAM)"
+              label={t("Matriculado (CADAM)")}
               value={cadamDisponible ? formatUnidades(totalMatric) : "—"}
               valorAnimado={totalMatric}
               formato="unidades"
-              periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
+              periodo={cadamDisponible ? periodoCadam : t("Sin datos de CADAM")}
               tooltip={
                 cadamRecorta
-                  ? `Marcas propias registradas por la DNRA hasta ${hastaCadam}, el último mes que CADAM publicó. Es otro evento, no el mismo dato.`
-                  : "Marcas propias registradas por la DNRA en el mismo período. Es otro evento, no el mismo dato."
+                  ? t("Marcas propias registradas por la DNRA hasta {mes}, el último mes que CADAM publicó. Es otro evento, no el mismo dato.", { mes: hastaCadam })
+                  : t("Marcas propias registradas por la DNRA en el mismo período. Es otro evento, no el mismo dato.")
               }
               tono="azul"
             />
             <KpiCard
-              label="Participación de mercado"
+              label={t("Participación de mercado")}
               value={mercado ? formatPct(totalMatric / mercado) : "—"}
               valorAnimado={mercado ? totalMatric / mercado : 0}
               formato="porcentaje"
-              periodo={cadamDisponible ? periodoCadam : "Sin datos de CADAM"}
-              tooltip={`${formatUnidades(totalMatric)} de ${formatUnidades(mercado)} matriculaciones del país. Se mide con CADAM, no con nuestras facturas: el denominador es el mercado.`}
+              periodo={cadamDisponible ? periodoCadam : t("Sin datos de CADAM")}
+              tooltip={t("{a} de {b} matriculaciones del país. Se mide con CADAM, no con nuestras facturas: el denominador es el mercado.", { a: formatUnidades(totalMatric), b: formatUnidades(mercado) })}
               chipIcono="market-share"
               chipTono="violet"
             />
             <KpiCard
-              label="Unidades en stock"
+              label={t("Unidades en stock")}
               value={formatUnidades(totalStock)}
               valorAnimado={totalStock}
               formato="unidades"
-              periodo="Hoy"
-              tooltip={`${formatUnidades(totalReservadas)} reservadas. Incluye lo que está en viaje: el detalle está en la pestaña Stock y pedido.`}
+              periodo={t("Hoy")}
+              tooltip={t("{n} reservadas. Incluye lo que está en viaje: el detalle está en la pestaña Stock y pedido.", { n: formatUnidades(totalReservadas) })}
               chipIcono="segmentos"
               chipTono="amber"
             />
             {(hayPresupuesto || hayMetas) && (
               <KpiCard
-                label={hayPresupuesto ? `Presupuesto ${f.anio}` : "Meta del período"}
+                label={hayPresupuesto ? t("Presupuesto {anio}", { anio: f.anio }) : t("Meta del período")}
                 value={
                   hayPresupuesto && hechoTotal !== null
                     ? formatPct(hechoTotal)
@@ -782,13 +787,13 @@ export default async function OperacionPage({
                 formato="porcentaje"
                 periodo={
                   hayPresupuesto
-                    ? `hecho · ${formatUnidades(facturadoYtdTotal)} de ${formatUnidades(presupuestoTotal)}`
-                    : `${formatUnidades(totalFacturas)} de ${formatUnidades(metaTotal)} · ${periodo}`
+                    ? t("hecho · {a} de {b}", { a: formatUnidades(facturadoYtdTotal), b: formatUnidades(presupuestoTotal) })
+                    : t("{a} de {b} · {periodo}", { a: formatUnidades(totalFacturas), b: formatUnidades(metaTotal), periodo })
                 }
                 tooltip={
                   hayPresupuesto
-                    ? `Qué parte del presupuesto original del año (${formatUnidades(presupuestoTotal)} u., solo las marcas que lo tienen) ya se facturó, hasta ${proyectar ? mesCorto(mesCerrado) : "diciembre"}. El plan vigente (${presupuesto.version}) suma ${formatUnidades(planTotalAnio)} u.`
-                    : "Vehículos facturados contra la meta cargada en Configuración para estos meses."
+                    ? t("Qué parte del presupuesto original del año ({total} u., solo las marcas que lo tienen) ya se facturó, hasta {mes}. El plan vigente ({version}) suma {plan} u.", { total: formatUnidades(presupuestoTotal), mes: proyectar ? mesCorto(mesCerrado) : fmt.mesesLargos[11], version: presupuesto.version, plan: formatUnidades(planTotalAnio) })
+                    : t("Vehículos facturados contra la meta cargada en Configuración para estos meses.")
                 }
                 chipIcono="evolucion"
                 chipTono="mint"
@@ -797,31 +802,20 @@ export default async function OperacionPage({
           </div>
 
           <NotaDato>
-            <strong>Facturar no es matricular.</strong> Cars cuenta cada vehículo
-            (VIN) en el mes de su primera factura; CADAM, cuándo la DNRA lo
-            registró — y el comprador matricula después, o nunca si es flota o
-            si registra en otra plaza. Por eso las dos cifras no coinciden y{" "}
-            <strong>ninguna de las dos está mal</strong>: miden momentos
-            distintos del mismo auto.
+            {tr("<b>Facturar no es matricular.</b> Cars cuenta cada vehículo (VIN) en el mes de su primera factura; CADAM, cuándo la DNRA lo registró — y el comprador matricula después, o nunca si es flota o si registra en otra plaza. Por eso las dos cifras no coinciden y <b>ninguna de las dos está mal</b>: miden momentos distintos del mismo auto.")}
             {crecFacturasCadam !== null && crecMatric !== null && (
               <>
-                {" "}{cadamRecorta ? `Hasta ${hastaCadam}, donde cierra CADAM,` : "En este período"}{" "}
-                nuestra facturación creció{" "}
-                <strong>{formatPct(crecFacturasCadam, { signed: true })}</strong> y las
-                matriculaciones de nuestras marcas en CADAM —una fuente que no es
-                nuestra—{" "}
-                <strong>{formatPct(crecMatric, { signed: true })}</strong>.{" "}
+                {" "}{cadamRecorta
+                  ? tr("Hasta {mes}, donde cierra CADAM, nuestra facturación creció <b>{a}</b> y las matriculaciones de nuestras marcas en CADAM —una fuente que no es nuestra— <b>{b}</b>.", { mes: hastaCadam, a: formatPct(crecFacturasCadam, { signed: true }), b: formatPct(crecMatric, { signed: true }) })
+                  : tr("En este período nuestra facturación creció <b>{a}</b> y las matriculaciones de nuestras marcas en CADAM —una fuente que no es nuestra— <b>{b}</b>.", { a: formatPct(crecFacturasCadam, { signed: true }), b: formatPct(crecMatric, { signed: true }) })}{" "}
                 {/* No afirmar que "coinciden" cuando no coinciden: la
                     matriculación va atrás de la factura, así que cuanto más
                     cerca del último mes cerrado, más se abre la brecha. */}
                 {Math.abs(crecFacturasCadam - crecMatric) <= 0.2 ? (
-                  <>Dos caminos separados, la misma historia.</>
+                  <>{t("Dos caminos separados, la misma historia.")}</>
                 ) : (
                   <>
-                    La diferencia es esperable: la matriculación va atrás de la
-                    factura, así que cuanto más cerca esté el período del último
-                    mes cerrado, más se abre la brecha. Achicá el rango de meses
-                    para compararlos con la cola ya registrada.
+                    {t("La diferencia es esperable: la matriculación va atrás de la factura, así que cuanto más cerca esté el período del último mes cerrado, más se abre la brecha. Achicá el rango de meses para compararlos con la cola ya registrada.")}
                   </>
                 )}
               </>
@@ -831,9 +825,9 @@ export default async function OperacionPage({
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Facturación mensual</CardTitle>
+                <CardTitle>{t("Facturación mensual")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Vehículos facturados por mes; el año anterior, punteado.
+                  {t("Vehículos facturados por mes; el año anterior, punteado.")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -841,7 +835,7 @@ export default async function OperacionPage({
                   <SerieAniosChart series={serie} />
                 ) : (
                   <p className="py-16 text-center text-sm text-muted-foreground">
-                    Sin facturación cargada para estos años.
+                    {t("Sin facturación cargada para estos años.")}
                   </p>
                 )}
               </CardContent>
@@ -849,10 +843,9 @@ export default async function OperacionPage({
 
             <Card>
               <CardHeader>
-                <CardTitle>Stock por estado — hoy</CardTitle>
+                <CardTitle>{t("Stock por estado — hoy")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  «En viaje» y «sin despachar» no se entregan mañana: por eso no
-                  se colapsa en un solo número.
+                  {t("«En viaje» y «sin despachar» no se entregan mañana: por eso no se colapsa en un solo número.")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -866,20 +859,17 @@ export default async function OperacionPage({
             </Card>
           </div>
 
-          <Seccion titulo="Marca por marca" id="marcas">
+          <Seccion titulo={t("Marca por marca")} id="marcas">
             <Card>
               <CardHeader>
-                <CardTitle>Mercado y stock — {periodo}</CardTitle>
+                <CardTitle>{t("Mercado y stock — {periodo}", { periodo })}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Lo que vendimos, lo que la marca patentó en todo el país y cuánto
-                  dura el stock al ritmo de hoy.
+                  {t("Lo que vendimos, lo que la marca patentó en todo el país y cuánto dura el stock al ritmo de hoy.")}
                   {hayPauta && (
                     <>
-                      {" "}Pauta de Meta del período: US$ {formatUnidades(Math.round(pautaTotal))}
-                      {pautaSinMarca > 0
-                        ? ` (US$ ${formatUnidades(Math.round(pautaSinMarca))} en cuentas de usados o de varias marcas, que no se reparten)`
-                        : ""}
-                      .
+                      {" "}{pautaSinMarca > 0
+                        ? t("Pauta de Meta del período: US$ {total} (US$ {resto} en cuentas de usados o de varias marcas, que no se reparten).", { total: formatUnidades(Math.round(pautaTotal)), resto: formatUnidades(Math.round(pautaSinMarca)) })
+                        : t("Pauta de Meta del período: US$ {total}.", { total: formatUnidades(Math.round(pautaTotal)) })}
                     </>
                   )}
                 </p>
@@ -888,15 +878,15 @@ export default async function OperacionPage({
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Marca</TableHead>
-                      <TableHead className="text-right" nota="vehículos, en Cars">Facturado</TableHead>
-                      <TableHead className="text-right" nota={`chapas en todo el país · su share${cadamRecorta ? ` · hasta ${hastaCadam}` : ""}`}>
-                        Matriculado
+                      <TableHead>{t("Marca")}</TableHead>
+                      <TableHead className="text-right" nota={t("vehículos, en Cars")}>{t("Facturado")}</TableHead>
+                      <TableHead className="text-right" nota={`${t("chapas en todo el país · su share")}${cadamRecorta ? ` · ${t("hasta {mes}", { mes: hastaCadam })}` : ""}`}>
+                        {t("Matriculado")}
                       </TableHead>
-                      <TableHead className="text-right" nota="hoy · con seña">Stock</TableHead>
-                      <TableHead className="text-right" nota="al ritmo del período">Meses de stock</TableHead>
+                      <TableHead className="text-right" nota={t("hoy · con seña")}>{t("Stock")}</TableHead>
+                      <TableHead className="text-right" nota={t("al ritmo del período")}>{t("Meses de stock")}</TableHead>
                       {hayPauta && (
-                        <TableHead className="text-right" nota="gasto en Meta · por vehículo">Pauta</TableHead>
+                        <TableHead className="text-right" nota={t("gasto en Meta · por vehículo")}>{t("Pauta")}</TableHead>
                       )}
                     </TableRow>
                   </TableHeader>
@@ -910,7 +900,7 @@ export default async function OperacionPage({
                           </span>
                           {r.esGrupo && (
                             <span className="block text-[11px] font-normal text-muted-foreground">
-                              meta conjunta: así la presupuesta Finanzas
+                              {t("meta conjunta: así la presupuesta Finanzas")}
                             </span>
                           )}
                         </TableCell>
@@ -921,7 +911,7 @@ export default async function OperacionPage({
                           {r.matriculado ? formatUnidades(r.matriculado) : "—"}
                           {r.matriculado > 0 && (
                             <span className="block text-[11px] leading-tight text-muted-foreground">
-                              {formatPct(r.share)} del mercado
+                              {t("{pct} del mercado", { pct: formatPct(r.share) })}
                             </span>
                           )}
                         </TableCell>
@@ -929,7 +919,7 @@ export default async function OperacionPage({
                           {r.stock ? formatUnidades(r.stock) : "—"}
                           {r.reservadas > 0 && (
                             <span className="block text-[11px] leading-tight text-muted-foreground">
-                              {formatUnidades(r.reservadas)} con seña
+                              {t("{n} con seña", { n: formatUnidades(r.reservadas) })}
                             </span>
                           )}
                         </TableCell>
@@ -940,7 +930,7 @@ export default async function OperacionPage({
                           )}
                           title={
                             r.mesesStock === null
-                              ? `Menos de ${RITMO_MINIMO} facturas por mes: el cociente no informa nada.`
+                              ? t("Menos de {n} facturas por mes: el cociente no informa nada.", { n: RITMO_MINIMO })
                               : undefined
                           }
                         >
@@ -951,7 +941,7 @@ export default async function OperacionPage({
                             {r.pauta ? `US$ ${formatUnidades(Math.round(r.pauta))}` : "—"}
                             {r.pauta > 0 && r.facturado > 0 && (
                               <span className="block text-[11px] leading-tight text-muted-foreground">
-                                US$ {formatUnidades(Math.round(r.pauta / r.facturado))} por vehículo
+                                {t("US$ {n} por vehículo", { n: formatUnidades(Math.round(r.pauta / r.facturado)) })}
                               </span>
                             )}
                           </TableCell>
@@ -960,8 +950,10 @@ export default async function OperacionPage({
                     ))}
                     {resumenAjenas.marcas > 0 && (
                       <TableRow className="text-muted-foreground">
-                        <TableCell className="italic" title="Unidades de canje y usados de marcas que la casa no distribuye, casi siempre una o dos por marca.">
-                          Otras {resumenAjenas.marcas} marcas (canje y usados)
+                        <TableCell className="italic" title={t("Unidades de canje y usados de marcas que la casa no distribuye, casi siempre una o dos por marca.")}>
+                          {idioma === "en" && resumenAjenas.marcas === 1
+                            ? t("Otras {n} marca (canje y usados)", { n: resumenAjenas.marcas })
+                            : t("Otras {n} marcas (canje y usados)", { n: resumenAjenas.marcas })}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {resumenAjenas.facturado ? formatUnidades(resumenAjenas.facturado) : "—"}
@@ -981,37 +973,37 @@ export default async function OperacionPage({
           </Seccion>
 
           {conPlanTabla && (
-            <Seccion titulo="Plan y presupuesto" id="plan">
+            <Seccion titulo={t("Plan y presupuesto")} id="plan">
               <Card>
                 <CardHeader>
-                  <CardTitle>Contra el plan — {periodo}</CardTitle>
+                  <CardTitle>{t("Contra el plan — {periodo}", { periodo })}</CardTitle>
                   <p className="text-xs text-muted-foreground">
                     {hayPresupuesto
-                      ? `Plan de Finanzas (${presupuesto.version}, archivo del ${presupuesto.modificado.slice(0, 10)}). Hasta ${realHastaMes ? mesCorto(realHastaMes) : "—"} el plan ES el real: el cumplimiento se mide sobre los meses que siguen.`
-                      : "Metas cargadas en Configuración."}
-                    {" "}La proyección suma a lo facturado lo que el año pasado se vendió en los meses que faltan, al ritmo de este año.
+                      ? t("Plan de Finanzas ({version}, archivo del {fecha}). Hasta {mes} el plan ES el real: el cumplimiento se mide sobre los meses que siguen.", { version: presupuesto.version, fecha: presupuesto.modificado.slice(0, 10), mes: realHastaMes ? mesCorto(realHastaMes) : "—" })
+                      : t("Metas cargadas en Configuración.")}
+                    {" "}{t("La proyección suma a lo facturado lo que el año pasado se vendió en los meses que faltan, al ritmo de este año.")}
                   </p>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Marca</TableHead>
-                        <TableHead className="text-right" nota="en el período">Facturado</TableHead>
+                        <TableHead>{t("Marca")}</TableHead>
+                        <TableHead className="text-right" nota={t("en el período")}>{t("Facturado")}</TableHead>
                         {hayMetas && (
                           <>
-                            <TableHead className="text-right" nota="para estos meses">Plan</TableHead>
-                            <TableHead className="text-right" nota="facturado ÷ plan">Cumplimiento</TableHead>
+                            <TableHead className="text-right" nota={t("para estos meses")}>{t("Plan")}</TableHead>
+                            <TableHead className="text-right" nota={t("facturado ÷ plan")}>{t("Cumplimiento")}</TableHead>
                           </>
                         )}
                         {hayPresupuesto && (
                           <>
-                            <TableHead className="text-right" nota="cifra original del año">Presupuesto</TableHead>
-                            <TableHead className="text-right" nota="del presupuesto anual">Hecho</TableHead>
+                            <TableHead className="text-right" nota={t("cifra original del año")}>{t("Presupuesto")}</TableHead>
+                            <TableHead className="text-right" nota={t("del presupuesto anual")}>{t("Hecho")}</TableHead>
                           </>
                         )}
                         {hayMetas && (
-                          <TableHead className="text-right" nota="cierre estimado / plan del año">Proyección</TableHead>
+                          <TableHead className="text-right" nota={t("cierre estimado / plan del año")}>{t("Proyección")}</TableHead>
                         )}
                       </TableRow>
                     </TableHeader>
@@ -1032,7 +1024,7 @@ export default async function OperacionPage({
                               <TableCell className="text-right tabular-nums text-muted-foreground">
                                 {r.meta ? formatUnidades(r.meta) : "—"}
                                 {r.meta && r.abiertos === 0 ? (
-                                  <span className="block text-[11px]">cerrado</span>
+                                  <span className="block text-[11px]">{t("cerrado")}</span>
                                 ) : null}
                               </TableCell>
                               <TableCell
@@ -1043,7 +1035,7 @@ export default async function OperacionPage({
                                 )}
                                 title={
                                   r.meta && r.abiertos === 0
-                                    ? "Todos los meses del filtro ya cerraron en el Excel: ahí el plan es el real."
+                                    ? t("Todos los meses del filtro ya cerraron en el Excel: ahí el plan es el real.")
                                     : undefined
                                 }
                               >
@@ -1081,13 +1073,11 @@ export default async function OperacionPage({
                 <Card>
                   <CardHeader>
                     <CardTitle>
-                      Plan vs. facturado, mes a mes — {f.anio}
+                      {t("Plan vs. facturado, mes a mes — {anio}", { anio: f.anio })}
                       {f.marca ? ` · ${filas[0]?.etiqueta ?? f.marca}` : ""}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Barras: plan vigente ({presupuesto.version}) y facturado en Cars. Los meses
-                      sombreados ya cerraron en el Excel. La línea punteada es el presupuesto anual
-                      dividido doce, solo como referencia.
+                      {t("Barras: plan vigente ({version}) y facturado en Cars. Los meses sombreados ya cerraron en el Excel. La línea punteada es el presupuesto anual dividido doce, solo como referencia.", { version: presupuesto.version })}
                     </p>
                   </CardHeader>
                   <CardContent>
@@ -1099,37 +1089,34 @@ export default async function OperacionPage({
               {canales.length > 0 && (
                 <div id="canales" className="flex scroll-mt-20 flex-col gap-4">
                   <NotaDato>
-                    <strong>CDE y Wholesale tienen objetivo propio en el Excel de Finanzas</strong>{" "}
-                    (la sucursal de Ciudad del Este y las ventas mayoristas). Sus unidades ya
-                    están dentro de las marcas de arriba: es otro corte de lo mismo, no se suma.
-                    El real es el de Finanzas, del mismo Excel, hasta el mes que ellos cerraron:
-                    la sucursal que anota Cars no coincide con esta definición de canal (CDE en
-                    Cars: 79 unidades en {f.anio}; Finanzas: {formatUnidades(canales[0].realYtd)}{" "}
-                    hasta {canales[0].realHastaMes ? mesCorto(canales[0].realHastaMes) : "—"}).
+                    {tr(
+                      "<b>CDE y Wholesale tienen objetivo propio en el Excel de Finanzas</b> (la sucursal de Ciudad del Este y las ventas mayoristas). Sus unidades ya están dentro de las marcas de arriba: es otro corte de lo mismo, no se suma. El real es el de Finanzas, del mismo Excel, hasta el mes que ellos cerraron: la sucursal que anota Cars no coincide con esta definición de canal (CDE en Cars: 79 unidades en {anio}; Finanzas: {real} hasta {mes}).",
+                      { anio: f.anio, real: formatUnidades(canales[0].realYtd), mes: canales[0].realHastaMes ? mesCorto(canales[0].realHastaMes) : "—" }
+                    )}
                   </NotaDato>
                   <Card>
                     <CardHeader>
-                      <CardTitle>Canales que Finanzas presupuesta aparte — {f.anio}</CardTitle>
+                      <CardTitle>{t("Canales que Finanzas presupuesta aparte — {anio}", { anio: f.anio })}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Canal</TableHead>
-                            <TableHead className="text-right" nota="hasta el mes cerrado">Objetivo</TableHead>
-                            <TableHead className="text-right" nota="según Finanzas">Real</TableHead>
-                            <TableHead className="text-right" nota="real ÷ objetivo">Cumplimiento</TableHead>
-                            <TableHead className="text-right" nota="todo el año">Objetivo anual</TableHead>
-                            <TableHead className="text-right" nota="del objetivo anual">Hecho</TableHead>
+                            <TableHead>{t("Canal")}</TableHead>
+                            <TableHead className="text-right" nota={t("hasta el mes cerrado")}>{t("Objetivo")}</TableHead>
+                            <TableHead className="text-right" nota={t("según Finanzas")}>{t("Real")}</TableHead>
+                            <TableHead className="text-right" nota={t("real ÷ objetivo")}>{t("Cumplimiento")}</TableHead>
+                            <TableHead className="text-right" nota={t("todo el año")}>{t("Objetivo anual")}</TableHead>
+                            <TableHead className="text-right" nota={t("del objetivo anual")}>{t("Hecho")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {canales.map((c) => (
                             <TableRow key={c.canal}>
                               <TableCell className="font-medium">
-                                {c.canal === "CDE" ? "CDE (Ciudad del Este)" : "Wholesale (mayoristas)"}
+                                {c.canal === "CDE" ? t("CDE (Ciudad del Este)") : t("Wholesale (mayoristas)")}
                                 <span className="block text-[11px] font-normal text-muted-foreground">
-                                  real hasta {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}
+                                  {t("real hasta {mes}", { mes: c.realHastaMes ? mesCorto(c.realHastaMes) : "—" })}
                                 </span>
                               </TableCell>
                               <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -1162,11 +1149,10 @@ export default async function OperacionPage({
                       <Card key={c.canal}>
                         <CardHeader>
                           <CardTitle>
-                            {c.canal === "CDE" ? "CDE" : "Wholesale"} — objetivo vs. real, mes a mes
+                            {t("{canal} — objetivo vs. real, mes a mes", { canal: c.canal === "CDE" ? "CDE" : "Wholesale" })}
                           </CardTitle>
                           <p className="text-xs text-muted-foreground">
-                            Real de Finanzas hasta {c.realHastaMes ? mesCorto(c.realHastaMes) : "—"}; de ahí en
-                            adelante solo hay objetivo.
+                            {t("Real de Finanzas hasta {mes}; de ahí en adelante solo hay objetivo.", { mes: c.realHastaMes ? mesCorto(c.realHastaMes) : "—" })}
                           </p>
                         </CardHeader>
                         <CardContent>
@@ -1174,8 +1160,8 @@ export default async function OperacionPage({
                             meses={c.meses}
                             referenciaMensual={null}
                             altura={260}
-                            etiquetaPlan="Objetivo"
-                            etiquetaReal="Real (Finanzas)"
+                            etiquetaPlan={t("Objetivo")}
+                            etiquetaReal={t("Real (Finanzas)")}
                           />
                         </CardContent>
                       </Card>
@@ -1187,31 +1173,15 @@ export default async function OperacionPage({
           )}
 
           <NotaDato>
-            <strong>Acá no hay facturación en guaraníes ni dólares, a propósito.</strong>{" "}
-            Cars devuelve importes, pero no cierran: en 2026 hay 2.936 facturas
-            marcadas «DOLARES» con montos de 54 millones a 4,8 billones —o sea
-            guaraníes, con basura adentro— y 54 marcadas «GUARANIES» que arrancan en
-            29.990. Publicar facturación con esa base sería inventar una cifra. Las
-            unidades sí cierran, y son lo que se muestra. El precio de lista de las
-            unidades es harina de otro costal: ese sí está en dólares y es creíble.
+            {tr("<b>Acá no hay facturación en guaraníes ni dólares, a propósito.</b> Cars devuelve importes, pero no cierran: en 2026 hay 2.936 facturas marcadas «DOLARES» con montos de 54 millones a 4,8 billones —o sea guaraníes, con basura adentro— y 54 marcadas «GUARANIES» que arrancan en 29.990. Publicar facturación con esa base sería inventar una cifra. Las unidades sí cierran, y son lo que se muestra. El precio de lista de las unidades es harina de otro costal: ese sí está en dólares y es creíble.")}
             {typeof detalle.facturas_leidas === "number" && (
               <>
-                {" "}Última sincronización: {String(detalle.facturas_leidas)} facturas y{" "}
-                {String(detalle.unidades_leidas ?? "?")} unidades leídas de Cars,
-                agregadas antes de salir de la máquina — el Advisor nunca recibe
-                nombres, correos, teléfonos ni VIN de clientes.
+                {" "}{t("Última sincronización: {facturas} facturas y {unidades} unidades leídas de Cars, agregadas antes de salir de la máquina — el Advisor nunca recibe nombres, correos, teléfonos ni VIN de clientes.", { facturas: String(detalle.facturas_leidas), unidades: String(detalle.unidades_leidas ?? "?") })}
               </>
             )}
             {typeof detalle.vehiculos === "number" && (
               <>
-                {" "}<strong>Una unidad es un vehículo, no una factura:</strong> de
-                esas {String(detalle.facturas_leidas)} facturas,{" "}
-                {String(detalle.vehiculos)} son vehículos distintos (1 VIN = 1
-                unidad, contado en su primera factura;{" "}
-                {String(detalle.facturas_repetidas ?? 0)} facturas repetían un VIN
-                ya contado — seña, saldo o accesorios en documentos aparte). Las{" "}
-                {String(detalle.usados_excluidos ?? 0)} facturas de LOCAL USADOS
-                quedan fuera: son usados de marcas propias, no 0km.
+                {" "}{tr("<b>Una unidad es un vehículo, no una factura:</b> de esas {facturas} facturas, {vehiculos} son vehículos distintos (1 VIN = 1 unidad, contado en su primera factura; {repetidas} facturas repetían un VIN ya contado — seña, saldo o accesorios en documentos aparte). Las {usados} facturas de LOCAL USADOS quedan fuera: son usados de marcas propias, no 0km.", { facturas: String(detalle.facturas_leidas), vehiculos: String(detalle.vehiculos), repetidas: String(detalle.facturas_repetidas ?? 0), usados: String(detalle.usados_excluidos ?? 0) })}
               </>
             )}
           </NotaDato>
@@ -1220,41 +1190,35 @@ export default async function OperacionPage({
 
       {vista === "stock" && (
         <>
-          <Seccion titulo="Pedido de stock" id="pedido">
+          <Seccion titulo={t("Pedido de stock")} id="pedido">
             {/* Qué es cada columna lo dice la columna. Acá queda la letra
                 chica: qué meses entran en el ritmo, qué queda afuera de
                 «libres» y desde qué ritmo el cociente deja de significar algo. */}
             <NotaDato>
-              <strong>El ritmo son los tres últimos meses cerrados ({mesesRitmoTxt})</strong>:
-              el mes en curso no entra porque está a medias. De <strong>libres</strong>{" "}
-              quedan afuera las reservadas, lo que está en viaje y lo que anda en test
-              drive o cortesía. Con menos de {RITMO_MINIMO_VERSION} autos por mes no se
-              calculan los meses de stock: el número no significaría nada.
+              {tr("<b>El ritmo son los tres últimos meses cerrados ({meses})</b>: el mes en curso no entra porque está a medias. De <b>libres</b> quedan afuera las reservadas, lo que está en viaje y lo que anda en test drive o cortesía. Con menos de {n} autos por mes no se calculan los meses de stock: el número no significaría nada.", { meses: mesesRitmoTxt, n: RITMO_MINIMO_VERSION })}
             </NotaDato>
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
               <Card>
                 <CardHeader>
-                  <CardTitle>Qué pedir</CardTitle>
+                  <CardTitle>{t("Qué pedir")}</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Se venden y les queda menos de un mes y medio libre, aun con lo que viene
-                    en viaje. Primero las que más venden.
+                    {t("Se venden y les queda menos de un mes y medio libre, aun con lo que viene en viaje. Primero las que más venden.")}
                   </p>
                 </CardHeader>
                 <CardContent>
                   {pedido.pedir.length === 0 ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
-                      Nada urgente: ninguna versión con ritmo tiene menos de un mes y
-                      medio de stock.
+                      {t("Nada urgente: ninguna versión con ritmo tiene menos de un mes y medio de stock.")}
                     </p>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Versión</TableHead>
-                          <TableHead className="text-right" nota="por mes">Ritmo</TableHead>
-                          <TableHead className="text-right" nota="hoy">Libres</TableHead>
-                          <TableHead className="text-right" nota="sin llegar">En viaje</TableHead>
-                          <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
+                          <TableHead>{t("Versión")}</TableHead>
+                          <TableHead className="text-right" nota={t("por mes")}>{t("Ritmo")}</TableHead>
+                          <TableHead className="text-right" nota={t("hoy")}>{t("Libres")}</TableHead>
+                          <TableHead className="text-right" nota={t("sin llegar")}>{t("En viaje")}</TableHead>
+                          <TableHead className="text-right" nota={t("libres ÷ ritmo")}>{t("Meses")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1285,26 +1249,25 @@ export default async function OperacionPage({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Qué empujar</CardTitle>
+                  <CardTitle>{t("Qué empujar")}</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Más de seis meses de stock, o cinco o más libres que casi no se mueven.
-                    Primero las que más plata tienen parada. Promoción, no pedido.
+                    {t("Más de seis meses de stock, o cinco o más libres que casi no se mueven. Primero las que más plata tienen parada. Promoción, no pedido.")}
                   </p>
                 </CardHeader>
                 <CardContent>
                   {pedido.empujar.length === 0 ? (
                     <p className="py-8 text-center text-sm text-muted-foreground">
-                      Nada parado: ninguna versión pasa los seis meses de stock.
+                      {t("Nada parado: ninguna versión pasa los seis meses de stock.")}
                     </p>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Versión</TableHead>
-                          <TableHead className="text-right" nota="hoy">Libres</TableHead>
-                          <TableHead className="text-right" nota="por mes">Ritmo</TableHead>
-                          <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
-                          <TableHead className="text-right" nota="lista, US$">Precio</TableHead>
+                          <TableHead>{t("Versión")}</TableHead>
+                          <TableHead className="text-right" nota={t("hoy")}>{t("Libres")}</TableHead>
+                          <TableHead className="text-right" nota={t("por mes")}>{t("Ritmo")}</TableHead>
+                          <TableHead className="text-right" nota={t("libres ÷ ritmo")}>{t("Meses")}</TableHead>
+                          <TableHead className="text-right" nota={t("lista, US$")}>{t("Precio")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1320,7 +1283,7 @@ export default async function OperacionPage({
                             <TableCell className="text-right tabular-nums">{formatUnidades(v.libres)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatDecimal(v.ritmo)}</TableCell>
                             <TableCell className="text-right tabular-nums font-semibold text-amber-700 dark:text-amber-400">
-                              {v.meses === null ? "sin ritmo" : formatDecimal(v.meses)}
+                              {v.meses === null ? t("sin ritmo") : formatDecimal(v.meses)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
                               {v.precio_usd ? formatUnidades(v.precio_usd) : "—"}
@@ -1335,21 +1298,20 @@ export default async function OperacionPage({
             </div>
           </Seccion>
 
-          <Seccion titulo="Todo el stock" id="stock">
+          <Seccion titulo={t("Todo el stock")} id="stock">
             {estadosDesconocidos(stockCrudo).length > 0 && (
               <NotaDato>
-                <strong>Estados de Cars que la regla de stock no conoce:{" "}
-                {estadosDesconocidos(stockCrudo).join(", ")}.</strong> Cuentan como
-                en piso hasta que alguien los clasifique en <code>cobertura.ts</code>{" "}
-                (en piso, en viaje o no vendible).
+                {tr(
+                  "<b>Estados de Cars que la regla de stock no conoce: {estados}.</b> Cuentan como en piso hasta que alguien los clasifique en <code>cobertura.ts</code> (en piso, en viaje o no vendible).",
+                  { estados: estadosDesconocidos(stockCrudo).join(", ") }
+                )}
               </NotaDato>
             )}
             <Card>
               <CardHeader>
-                <CardTitle>Stock por modelo — hoy</CardTitle>
+                <CardTitle>{t("Stock por modelo — hoy")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Una fila por modelo, del que más unidades tiene al que menos; la flecha abre
-                  sus versiones, que es donde se decide qué pedir.
+                  {t("Una fila por modelo, del que más unidades tiene al que menos; la flecha abre sus versiones, que es donde se decide qué pedir.")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -1366,56 +1328,46 @@ export default async function OperacionPage({
             <Card>
               <CardContent>
                 <EmptyState
-                  title="Todavía no hay demanda de Bitrix"
-                  description="La empuja Hermes (advisor-demanda-bitrix.py) una vez por semana. Si ya pasaron unos días, revisá ese trabajo."
+                  title={t("Todavía no hay demanda de Bitrix")}
+                  description={t("La empuja Hermes (advisor-demanda-bitrix.py) una vez por semana. Si ya pasaron unos días, revisá ese trabajo.")}
                 />
               </CardContent>
             </Card>
           ) : (
             <>
               <NotaDato>
-                <strong>Esto es demanda registrada en el CRM, no mercado.</strong>{" "}
-                Sale de Bitrix por mes de creación y se resume antes de salir de la
-                máquina donde se lee: ningún dato del cliente llega acá. «Abierto»,
-                «convertido» y «perdido» son la semántica de cada estado de Bitrix; el
-                motivo es el nombre del estado o de la etapa de pérdida. Los
-                descartados (spam, datos falsos, duplicados, incontactables) no cuentan
-                como demanda perdida: nunca fueron un comprador. La marca es la «marca
-                de interés» del lead, salvo que el título o la campaña nombren otra
-                marca de forma explícita («SOUEAST S09» cargado como Jetour); el modelo
-                se acepta solo si es de esa marca en el catálogo de Bitrix. Bitrix
-                reclasifica hacia atrás, así que estas cifras cambian en cada
-                actualización{demandaFecha ? ` (última: ${formatFechaHora(demandaFecha)})` : ""}.
+                {tr(
+                  "<b>Esto es demanda registrada en el CRM, no mercado.</b> Sale de Bitrix por mes de creación y se resume antes de salir de la máquina donde se lee: ningún dato del cliente llega acá. «Abierto», «convertido» y «perdido» son la semántica de cada estado de Bitrix; el motivo es el nombre del estado o de la etapa de pérdida. Los descartados (spam, datos falsos, duplicados, incontactables) no cuentan como demanda perdida: nunca fueron un comprador. La marca es la «marca de interés» del lead, salvo que el título o la campaña nombren otra marca de forma explícita («SOUEAST S09» cargado como Jetour); el modelo se acepta solo si es de esa marca en el catálogo de Bitrix. Bitrix reclasifica hacia atrás, así que estas cifras cambian en cada actualización{ultima}.",
+                  { ultima: demandaFecha ? ` ${t("(última: {fecha})", { fecha: formatFechaHora(demandaFecha) })}` : "" }
+                )}
               </NotaDato>
 
-              <Seccion titulo="Por marca" id="demanda">
+              <Seccion titulo={t("Por marca")} id="demanda">
                 <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Leads y negocios — {periodo}</CardTitle>
+                      <CardTitle>{t("Leads y negocios — {periodo}", { periodo })}</CardTitle>
                       <p className="text-xs text-muted-foreground">
-                        Lo facturado acá es <strong>solo retail</strong>: las{" "}
-                        {formatUnidades(unidadesMayoristas)} unidades mayoristas (flotas y
-                        gerencia) no las trajo ningún lead.
+                        {tr("Lo facturado acá es <b>solo retail</b>: las {n} unidades mayoristas (flotas y gerencia) no las trajo ningún lead.", { n: formatUnidades(unidadesMayoristas) })}
                       </p>
                     </CardHeader>
                     <CardContent>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Marca</TableHead>
-                            <TableHead className="text-right" nota="consultas que entraron">Leads</TableHead>
-                            <TableHead className="text-right" nota="sin cerrar ni perder">Abiertos</TableHead>
-                            <TableHead className="text-right" nota="pasaron a negociación">Convertidos</TableHead>
-                            <TableHead className="text-right" nota="se dieron de baja">Perdidos</TableHead>
-                            <TableHead className="text-right" nota="ya calificados">Negocios</TableHead>
-                            <TableHead className="text-right" nota="sin flotas ni gerencia">Facturado retail</TableHead>
-                            <TableHead className="text-right" nota="si sube, se desaprovecha">Leads por venta</TableHead>
+                            <TableHead>{t("Marca")}</TableHead>
+                            <TableHead className="text-right" nota={t("consultas que entraron")}>{t("Leads")}</TableHead>
+                            <TableHead className="text-right" nota={t("sin cerrar ni perder")}>{t("Abiertos")}</TableHead>
+                            <TableHead className="text-right" nota={t("pasaron a negociación")}>{t("Convertidos")}</TableHead>
+                            <TableHead className="text-right" nota={t("se dieron de baja")}>{t("Perdidos")}</TableHead>
+                            <TableHead className="text-right" nota={t("ya calificados")}>{t("Negocios")}</TableHead>
+                            <TableHead className="text-right" nota={t("sin flotas ni gerencia")}>{t("Facturado retail")}</TableHead>
+                            <TableHead className="text-right" nota={t("si sube, se desaprovecha")}>{t("Leads por venta")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {[...filasDemandaMarca, {
-                            marca: "Total", ...demandaTotal,
+                            marca: t("Total"), ...demandaTotal,
                             facturado: Math.max(0, totalFacturas - unidadesMayoristas),
                             mayorista: unidadesMayoristas,
                           }].map((r, i) => {
@@ -1429,7 +1381,7 @@ export default async function OperacionPage({
                                   {formatUnidades(r.leads)}
                                   {r.descartados > 0 && (
                                     <span className="block text-[11px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
-                                      {formatUnidades(r.descartados)} descartados
+                                      {t("{n} descartados", { n: formatUnidades(r.descartados) })}
                                     </span>
                                   )}
                                 </TableCell>
@@ -1450,7 +1402,7 @@ export default async function OperacionPage({
                                   {r.negocios ? formatUnidades(r.negocios) : "—"}
                                   {r.negocios > 0 && (
                                     <span className="block text-[11px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
-                                      {formatUnidades(r.negGanados)} ganados · {formatUnidades(r.negPerdidos)} perdidos
+                                      {t("{g} ganados · {p} perdidos", { g: formatUnidades(r.negGanados), p: formatUnidades(r.negPerdidos) })}
                                     </span>
                                   )}
                                 </TableCell>
@@ -1468,50 +1420,46 @@ export default async function OperacionPage({
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Por qué se pierde</CardTitle>
+                      <CardTitle>{t("Por qué se pierde")}</CardTitle>
                       <p className="text-xs text-muted-foreground">
-                        Motivo de baja de los leads y negocios perdidos del período, sin los
-                        descartados. Pasá el mouse por «Perdidos» para verlo por marca.
+                        {t("Motivo de baja de los leads y negocios perdidos del período, sin los descartados. Pasá el mouse por «Perdidos» para verlo por marca.")}
                       </p>
                     </CardHeader>
                     <CardContent>
                       {motivosDemanda.length ? (
                         <DistribucionChart datos={motivosDemanda} maximo={7} />
                       ) : (
-                        <p className="py-10 text-center text-sm text-muted-foreground">Sin pérdidas con motivo en el período.</p>
+                        <p className="py-10 text-center text-sm text-muted-foreground">{t("Sin pérdidas con motivo en el período.")}</p>
                       )}
                     </CardContent>
                   </Card>
                 </div>
               </Seccion>
 
-              <Seccion titulo="Por modelo" id="demanda-modelo">
+              <Seccion titulo={t("Por modelo")} id="demanda-modelo">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Demanda que nombra el modelo — {periodo}</CardTitle>
+                    <CardTitle>{t("Demanda que nombra el modelo — {periodo}", { periodo })}</CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Bitrix no tiene campo de modelo en los leads: se lee del título o de la
-                      campaña cuando lo dicen ({formatPct(leadsConModelo / (demandaTotal.leads || 1))} de
-                      los leads) y del producto de los negocios ({formatPct(negociosConModelo / (demandaTotal.negocios || 1))}).
-                      Se cruza con lo facturado retail y con el stock libre de hoy.
+                      {t("Bitrix no tiene campo de modelo en los leads: se lee del título o de la campaña cuando lo dicen ({leads} de los leads) y del producto de los negocios ({negocios}). Se cruza con lo facturado retail y con el stock libre de hoy.", { leads: formatPct(leadsConModelo / (demandaTotal.leads || 1)), negocios: formatPct(negociosConModelo / (demandaTotal.negocios || 1)) })}
                     </p>
                   </CardHeader>
                   <CardContent>
                     {filasDemandaModelo.length === 0 ? (
                       <p className="py-8 text-center text-sm text-muted-foreground">
-                        Ningún lead ni negocio del período nombra el modelo.
+                        {t("Ningún lead ni negocio del período nombra el modelo.")}
                       </p>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Modelo</TableHead>
-                            <TableHead className="text-right" nota="leads y negocios">Demanda</TableHead>
-                            <TableHead className="text-right" nota="sin cerrar ni perder">Abiertos</TableHead>
-                            <TableHead className="text-right" nota="y el motivo principal">Perdidos</TableHead>
-                            <TableHead className="text-right" nota="sin flotas ni gerencia">Facturado retail</TableHead>
-                            <TableHead className="text-right" nota="entregables hoy">Libres hoy</TableHead>
-                            <TableHead nota="la lectura de la fila">Qué hacer</TableHead>
+                            <TableHead>{t("Modelo")}</TableHead>
+                            <TableHead className="text-right" nota={t("leads y negocios")}>{t("Demanda")}</TableHead>
+                            <TableHead className="text-right" nota={t("sin cerrar ni perder")}>{t("Abiertos")}</TableHead>
+                            <TableHead className="text-right" nota={t("y el motivo principal")}>{t("Perdidos")}</TableHead>
+                            <TableHead className="text-right" nota={t("sin flotas ni gerencia")}>{t("Facturado retail")}</TableHead>
+                            <TableHead className="text-right" nota={t("entregables hoy")}>{t("Libres hoy")}</TableHead>
+                            <TableHead nota={t("la lectura de la fila")}>{t("Qué hacer")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1533,7 +1481,7 @@ export default async function OperacionPage({
                                   {formatUnidades(r.leads + r.negocios)}
                                   {r.negocios > 0 && (
                                     <span className="block text-[11px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
-                                      {formatUnidades(r.negocios)} {r.negocios === 1 ? "negocio" : "negocios"}
+                                      {r.negocios === 1 ? t("{n} negocio", { n: formatUnidades(r.negocios) }) : t("{n} negocios", { n: formatUnidades(r.negocios) })}
                                     </span>
                                   )}
                                 </TableCell>
@@ -1579,13 +1527,13 @@ export default async function OperacionPage({
 
       {vista === "equipo" && (
         <>
-          <Seccion titulo="Asesores" id="asesores">
+          <Seccion titulo={t("Asesores")} id="asesores">
             {asesoresPeriodo.length === 0 ? (
               <Card>
                 <CardContent>
                   <EmptyState
-                    title="Todavía no hay ranking de asesores"
-                    description="Hace falta que Hermes corra el push de Cars para que este período tenga datos. Si ya pasaron unas horas, revisá el trabajo advisor-datos-propios."
+                    title={t("Todavía no hay ranking de asesores")}
+                    description={t("Hace falta que Hermes corra el push de Cars para que este período tenga datos. Si ya pasaron unas horas, revisá el trabajo advisor-datos-propios.")}
                   />
                 </CardContent>
               </Card>
@@ -1593,11 +1541,11 @@ export default async function OperacionPage({
               <>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Ranking retail — {periodo}</CardTitle>
+                    <CardTitle>{t("Ranking retail — {periodo}", { periodo })}</CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Los {Math.min(15, rankingAsesores.length)} de {rankingAsesores.length}{" "}
-                      asesores retail con más vehículos facturados
-                      {f.marca ? ` de ${f.marca}` : ""}. Flotas y gerencia van aparte.
+                      {f.marca
+                        ? t("Los {n} de {total} asesores retail con más vehículos facturados de {marca}. Flotas y gerencia van aparte.", { n: Math.min(15, rankingAsesores.length), total: rankingAsesores.length, marca: f.marca })
+                        : t("Los {n} de {total} asesores retail con más vehículos facturados. Flotas y gerencia van aparte.", { n: Math.min(15, rankingAsesores.length), total: rankingAsesores.length })}
                     </p>
                   </CardHeader>
                   <CardContent>
@@ -1605,15 +1553,15 @@ export default async function OperacionPage({
                       <TableHeader>
                         <TableRow>
                           <TableHead>#</TableHead>
-                          <TableHead>Asesor</TableHead>
-                          <TableHead nota="de la que más vende a la que menos">Marcas</TableHead>
-                          <TableHead className="text-right" nota="facturados en el período">Vehículos</TableHead>
-                          <TableHead className="text-right" nota="de todo lo retail">% del total</TableHead>
+                          <TableHead>{t("Asesor")}</TableHead>
+                          <TableHead nota={t("de la que más vende a la que menos")}>{t("Marcas")}</TableHead>
+                          <TableHead className="text-right" nota={t("facturados en el período")}>{t("Vehículos")}</TableHead>
+                          <TableHead className="text-right" nota={t("de todo lo retail")}>{t("% del total")}</TableHead>
                           {hayLeads && (
                             <>
-                              <TableHead className="text-right" nota="los que Bitrix le asignó">Leads</TableHead>
-                              <TableHead className="text-right" nota="nadie los tocó">Sin contactar</TableHead>
-                              <TableHead className="text-right" nota="de sus leads, cuántos cerraron">Lead → venta</TableHead>
+                              <TableHead className="text-right" nota={t("los que Bitrix le asignó")}>{t("Leads")}</TableHead>
+                              <TableHead className="text-right" nota={t("nadie los tocó")}>{t("Sin contactar")}</TableHead>
+                              <TableHead className="text-right" nota={t("de sus leads, cuántos cerraron")}>{t("Lead → venta")}</TableHead>
                             </>
                           )}
                         </TableRow>
@@ -1624,7 +1572,7 @@ export default async function OperacionPage({
                             <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
                             <TableCell
                               className={cn("font-medium", noEsPersona(a.asesor) && "italic text-muted-foreground")}
-                              title={noEsPersona(a.asesor) ? "No es una persona: bucket interno de Cars." : undefined}
+                              title={noEsPersona(a.asesor) ? t("No es una persona: bucket interno de Cars.") : undefined}
                             >
                               {a.asesor}
                             </TableCell>
@@ -1632,7 +1580,7 @@ export default async function OperacionPage({
                               className="text-xs text-muted-foreground"
                               title={
                                 marcasDe(a.asesor).length > 1
-                                  ? `Factura ${marcasDe(a.asesor).length} marcas, de la que más vende a la que menos.`
+                                  ? t("Factura {n} marcas, de la que más vende a la que menos.", { n: marcasDe(a.asesor).length })
                                   : undefined
                               }
                             >
@@ -1664,7 +1612,7 @@ export default async function OperacionPage({
                                     className="text-right tabular-nums"
                                     title={
                                       l && l.leads && (l.leads < 20 || a.unidades > l.leads)
-                                        ? "Bitrix le asigna pocos leads a este asesor (los recibe quien califica): la conversión no se puede calcular con sentido."
+                                        ? t("Bitrix le asigna pocos leads a este asesor (los recibe quien califica): la conversión no se puede calcular con sentido.")
                                         : undefined
                                     }
                                   >
@@ -1683,18 +1631,18 @@ export default async function OperacionPage({
                 <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle>El mejor de cada marca — {periodo}</CardTitle>
+                      <CardTitle>{t("El mejor de cada marca — {periodo}", { periodo })}</CardTitle>
                       <p className="text-xs text-muted-foreground">
-                        Quién vendió más de cada marca, y entre cuántos asesores se reparte.
+                        {t("Quién vendió más de cada marca, y entre cuántos asesores se reparte.")}
                       </p>
                     </CardHeader>
                     <CardContent>
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Marca</TableHead>
-                            <TableHead nota="el que más vendió de esa marca">Asesor</TableHead>
-                            <TableHead className="text-right" nota="de esa marca">Vehículos</TableHead>
+                            <TableHead>{t("Marca")}</TableHead>
+                            <TableHead nota={t("el que más vendió de esa marca")}>{t("Asesor")}</TableHead>
+                            <TableHead className="text-right" nota={t("de esa marca")}>{t("Vehículos")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1703,17 +1651,17 @@ export default async function OperacionPage({
                               <TableCell className="font-medium"><Marca marca={m.marca} /></TableCell>
                               <TableCell
                                 className={cn(noEsPersona(m.mejorNombre) && "italic text-muted-foreground")}
-                                title={noEsPersona(m.mejorNombre) ? "No es una persona: bucket interno de Cars." : undefined}
+                                title={noEsPersona(m.mejorNombre) ? t("No es una persona: bucket interno de Cars.") : undefined}
                               >
                                 {m.mejorNombre}
                                 <span className="block text-[11px] leading-tight text-muted-foreground">
-                                  de {m.asesoresDistintos} {m.asesoresDistintos === 1 ? "asesor" : "asesores"} que la venden
+                                  {m.asesoresDistintos === 1 ? t("de {n} asesor que la venden", { n: m.asesoresDistintos }) : t("de {n} asesores que la venden", { n: m.asesoresDistintos })}
                                 </span>
                               </TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {formatUnidades(m.mejorUnidades)}
                                 <span className="block text-[11px] leading-tight text-muted-foreground">
-                                  de {formatUnidades(m.totalMarca)}
+                                  {t("de {n}", { n: formatUnidades(m.totalMarca) })}
                                 </span>
                               </TableCell>
                             </TableRow>
@@ -1726,19 +1674,18 @@ export default async function OperacionPage({
                   {mayoristasPeriodo.length > 0 && (
                     <Card>
                       <CardHeader>
-                        <CardTitle>Ventas mayoristas — {periodo}</CardTitle>
+                        <CardTitle>{t("Ventas mayoristas — {periodo}", { periodo })}</CardTitle>
                         <p className="text-xs text-muted-foreground">
-                          Flotas y ventas de gerencia: otro negocio, fuera del ranking. La lista
-                          de quiénes son mayoristas la mantiene Sistemas.
+                          {t("Flotas y ventas de gerencia: otro negocio, fuera del ranking. La lista de quiénes son mayoristas la mantiene Sistemas.")}
                         </p>
                       </CardHeader>
                       <CardContent>
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Vendedor mayorista</TableHead>
-                              <TableHead className="text-right" nota="flotas y gerencia">Vehículos</TableHead>
-                              <TableHead className="text-right" nota="de todo lo facturado">% del total</TableHead>
+                              <TableHead>{t("Vendedor mayorista")}</TableHead>
+                              <TableHead className="text-right" nota={t("flotas y gerencia")}>{t("Vehículos")}</TableHead>
+                              <TableHead className="text-right" nota={t("de todo lo facturado")}>{t("% del total")}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1760,57 +1707,49 @@ export default async function OperacionPage({
               </>
             )}
             <NotaDato>
-              <strong>Esto es desempeño individual, no un dato de mercado.</strong>{" "}
-              Sale de <code>Vendedor</code> en las facturas de Cars, ya sumado por
-              vendedor antes de salir de la máquina — nunca viaja factura por
-              factura. Una unidad es un vehículo (un VIN), contado en su primera
-              factura. De los {formatUnidades(totalFacturas)} vehículos del período:{" "}
-              <strong>{formatUnidades(unidadesConAsesor)} retail</strong> (el ranking),{" "}
-              <strong>{formatUnidades(unidadesMayoristas)} mayoristas</strong>
-              {totalFacturas - unidadesConAsesor - unidadesMayoristas > 0
-                ? ` y ${formatUnidades(totalFacturas - unidadesConAsesor - unidadesMayoristas)} sin vendedor cargado en Cars`
-                : ""}
-              . Si algún nombre en cursiva no es una persona (una razón social,
-              por ejemplo), Cars lo cargó en el mismo campo que a un asesor.
+              {tr(
+                "<b>Esto es desempeño individual, no un dato de mercado.</b> Sale de <code>Vendedor</code> en las facturas de Cars, ya sumado por vendedor antes de salir de la máquina — nunca viaja factura por factura. Una unidad es un vehículo (un VIN), contado en su primera factura. De los {total} vehículos del período: <b>{retail} retail</b> (el ranking), <b>{mayoristas} mayoristas</b>{sinVendedor}. Si algún nombre en cursiva no es una persona (una razón social, por ejemplo), Cars lo cargó en el mismo campo que a un asesor.",
+                {
+                  total: formatUnidades(totalFacturas),
+                  retail: formatUnidades(unidadesConAsesor),
+                  mayoristas: formatUnidades(unidadesMayoristas),
+                  sinVendedor: totalFacturas - unidadesConAsesor - unidadesMayoristas > 0
+                    ? ` ${t("y {n} sin vendedor cargado en Cars", { n: formatUnidades(totalFacturas - unidadesConAsesor - unidadesMayoristas) })}`
+                    : "",
+                }
+              )}
               {hayLeads && (
                 <>
-                  {" "}<strong>Sobre los leads:</strong> son los de Bitrix, por
-                  responsable y mes. El CRM le asigna la mayoría a quienes califican
-                  (el equipo que llama primero), no a quien cierra, así que muchos
-                  vendedores aparecen con pocos leads o ninguno. «Lead → venta» solo
-                  se calcula cuando el asesor tiene al menos 20 leads asignados y no
-                  vende más de lo que le asignan; si no, sería un porcentaje sin
-                  sentido, y se muestra «—».
+                  {" "}{tr("<b>Sobre los leads:</b> son los de Bitrix, por responsable y mes. El CRM le asigna la mayoría a quienes califican (el equipo que llama primero), no a quien cierra, así que muchos vendedores aparecen con pocos leads o ninguno. «Lead → venta» solo se calcula cuando el asesor tiene al menos 20 leads asignados y no vende más de lo que le asignan; si no, sería un porcentaje sin sentido, y se muestra «—».")}
                 </>
               )}
             </NotaDato>
           </Seccion>
 
           {haySucursal && (
-            <Seccion titulo="Sucursales" id="sucursales">
+            <Seccion titulo={t("Sucursales")} id="sucursales">
               <Card>
                 <CardHeader>
-                  <CardTitle>Ventas por sucursal — {periodo}</CardTitle>
+                  <CardTitle>{t("Ventas por sucursal — {periodo}", { periodo })}</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Vehículos facturados desde cada local (la sucursal que Cars registra en la
-                    factura) y quién más vendió ahí.
+                    {t("Vehículos facturados desde cada local (la sucursal que Cars registra en la factura) y quién más vendió ahí.")}
                   </p>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Sucursal</TableHead>
-                        <TableHead className="text-right" nota="facturados desde ese local">Vehículos</TableHead>
-                        <TableHead className="text-right" nota="de todo lo facturado">% del total</TableHead>
-                        <TableHead className="text-right" nota="facturaron algo ahí">Asesores</TableHead>
-                        <TableHead nota="el que más vendió en el local">Mejor asesor</TableHead>
+                        <TableHead>{t("Sucursal")}</TableHead>
+                        <TableHead className="text-right" nota={t("facturados desde ese local")}>{t("Vehículos")}</TableHead>
+                        <TableHead className="text-right" nota={t("de todo lo facturado")}>{t("% del total")}</TableHead>
+                        <TableHead className="text-right" nota={t("facturaron algo ahí")}>{t("Asesores")}</TableHead>
+                        <TableHead nota={t("el que más vendió en el local")}>{t("Mejor asesor")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {sucursales.map((s) => (
                         <TableRow key={s.sucursal}>
-                          <TableCell className="font-medium">{s.sucursal}</TableCell>
+                          <TableCell className="font-medium">{s.sucursal === SIN_SUCURSAL ? t("Sin sucursal") : s.sucursal}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatUnidades(s.unidades)}</TableCell>
                           <TableCell className="text-right tabular-nums text-muted-foreground">
                             {formatPct(s.unidades / (unidadesConAsesor || 1))}

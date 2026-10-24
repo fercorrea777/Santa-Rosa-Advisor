@@ -26,16 +26,37 @@
  * (aparece en CADAM) se agrega acá, no se adivina en producción.
  */
 
+// Ruta relativa y no "@/", como bandas.ts: este módulo se prueba con node suelto.
+import { N_ } from "../i18n/traducir";
+
 export type Clase = string;
 
-/** Orden de exhibición: por segmento y de chico a grande. */
+/**
+ * Orden de exhibición: por segmento y de chico a grande.
+ *
+ * Los nombres de las clases son CLAVES (las reglas de abajo, la URL, los
+ * filtros) y también lo que lee la persona. Se marcan acá con N_() para que
+ * el traductor las conozca, y se traducen donde se MUESTRAN, con `t(clase)`:
+ * en castellano se ven igual que siempre y en inglés con su nombre.
+ */
 export const CLASES_ORDEN: Clase[] = [
-  "SUV chico", "SUV compacto", "SUV mediano", "SUV grande", "SUV premium", "Monovolumen",
-  "Pick-up compacta", "Pick-up mediana", "Pick-up grande",
-  "Auto chico", "Auto mediano", "Auto premium",
-  "Camión liviano", "Camión mediano", "Camión pesado",
-  "Furgón chico", "Furgón grande", "Minibús", "Ómnibus",
+  N_("SUV chico"), N_("SUV compacto"), N_("SUV mediano"), N_("SUV grande"), N_("SUV premium"), N_("Monovolumen"),
+  N_("Pick-up compacta"), N_("Pick-up mediana"), N_("Pick-up grande"),
+  N_("Auto chico"), N_("Auto mediano"), N_("Auto premium"),
+  N_("Camión liviano"), N_("Camión mediano"), N_("Camión pesado"),
+  N_("Furgón chico"), N_("Furgón grande"), N_("Minibús"), N_("Ómnibus"),
 ];
+
+/**
+ * Cuando un modelo no está en la tabla y tampoco tiene precio con el cual
+ * inferir su clase, la "clase" que queda es el segmento pelado de CADAM (ver
+ * `claseDe`). Se muestra con `t(clase)` como las otras: en castellano tal cual
+ * llega de la base («Automovil», sin tilde, como siempre) y en inglés con su
+ * nombre. «SUV» no hace falta: se escribe igual en los dos idiomas.
+ */
+export const SEGMENTOS_DE_CADAM_COMO_CLASE = [
+  N_("Automovil"), N_("Camion"), N_("Furgon"), N_("Pick Up"), N_("Minibus"), N_("Omnibus"), N_("Sin clasificar"),
+] as const;
 
 /** Segmento (nombre de CADAM) al que pertenece cada clase, para agrupar. */
 export const SEGMENTO_DE_CLASE: Record<Clase, string> = {
@@ -52,6 +73,7 @@ type Regla = { marca?: RegExp; nombre: RegExp; clase: Clase; segmento?: RegExp }
 const PREMIUM = /^(BMW|MERCEDES BENZ|MERCEDES|AUDI|VOLVO|LEXUS|LAND ROVER|PORSCHE|MINI|MASERATI|JAGUAR|ALFA ROMEO|CADILLAC|LINCOLN|INFINITI|GENESIS|TESLA)$/;
 const SUV = /^SUV$/i;
 
+// i18n-ignore-start (las clases de la tabla son CLAVES; se traducen al mostrarlas con t(clase), ver CLASES_ORDEN)
 /**
  * Reglas, en orden: gana la primera que coincide. El nombre ya viene
  * normalizado (mayúsculas, sin guiones en los códigos, sin NEW/NUEVO/ALL
@@ -167,6 +189,7 @@ const REGLAS: Regla[] = [
   { nombre: /./, segmento: /^Minibus$/i, clase: "Minibús" },
   { nombre: /./, segmento: /^Omnibus$/i, clase: "Ómnibus" },
 ];
+// i18n-ignore-end
 
 const PREFIJOS = /^(ALL NEW|NEW GRAND|NEW|NUEVO|NUEVA|NOVA|NOVO|THE NEW|BRAND NEW|HAVAL) /;
 
@@ -197,6 +220,7 @@ export interface ClaseAsignada {
   origen: OrigenClase;
 }
 
+// i18n-ignore-start (claves de clase: se traducen al mostrarlas con t(clase), ver CLASES_ORDEN)
 /** Sin tabla y con precio: la clase se infiere. Se dice en pantalla. */
 function inferirPorPrecio(segmento: string, precio: number): Clase | null {
   const s = segmento.toUpperCase();
@@ -209,6 +233,7 @@ function inferirPorPrecio(segmento: string, precio: number): Clase | null {
   if (s === "OMNIBUS") return "Ómnibus";
   return null;
 }
+// i18n-ignore-end
 
 export function claseDe(m: {
   marca: string;

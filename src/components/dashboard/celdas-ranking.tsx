@@ -1,18 +1,23 @@
 import { cn } from "@/lib/utils";
-import { formatPct } from "@/lib/format";
+import type { I18n } from "@/lib/i18n/crear";
 
 /**
  * Las celdas que repiten todos los rankings: la variación contra el año
  * pasado, el cambio de puesto y la parte/puesto en el mercado entero. Viven acá
  * (y no dentro de TablaRanking) para que la tabla de grupos y la de marcas
  * digan lo mismo del mismo modo.
+ *
+ * Se usan desde un componente de cliente (TablaRanking) y desde uno de servidor
+ * (TablaGrupos): por eso no leen el idioma por su cuenta (ni useI18n ni
+ * getI18n) y lo reciben por `i18n`.
  */
 
-export function Variacion({ v, entrante }: { v: number | null; entrante: boolean }) {
+export function Variacion({ v, entrante, i18n }: { v: number | null; entrante: boolean; i18n: I18n }) {
+  const { t, fmt } = i18n;
   if (v === null) {
     return (
       <span className="text-muted-foreground">
-        {entrante ? "Nuevo" : "—"}
+        {entrante ? t("Nuevo") : "—"}
       </span>
     );
   }
@@ -26,14 +31,15 @@ export function Variacion({ v, entrante }: { v: number | null; entrante: boolean
       )}
     >
       <span aria-hidden="true">{up ? "▲" : down ? "▼" : "–"}</span>
-      {formatPct(v, { signed: true })}
+      {fmt.formatPct(v, { signed: true })}
     </span>
   );
 }
 
 export function CambioPosicion({
-  cambio, anterior,
-}: { cambio: number | null; anterior: number | null }) {
+  cambio, anterior, i18n,
+}: { cambio: number | null; anterior: number | null; i18n: I18n }) {
+  const { t } = i18n;
   if (cambio === null || anterior === null) {
     return <span className="text-muted-foreground">—</span>;
   }
@@ -47,7 +53,7 @@ export function CambioPosicion({
         "inline-flex items-center gap-0.5",
         sube ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"
       )}
-      title={`Posición anterior: ${anterior}`}
+      title={t("Posición anterior: {n}", { n: anterior })}
     >
       <span aria-hidden="true">{sube ? "▲" : "▼"}</span>
       {Math.abs(cambio)}
@@ -64,16 +70,17 @@ export function CambioPosicion({
  * del ranking por grupo con su variación en puntos debajo.
  */
 export function ParteYPuesto({
-  parte, puesto,
-}: { parte: number | null | undefined; puesto: number | null | undefined }) {
+  parte, puesto, i18n,
+}: { parte: number | null | undefined; puesto: number | null | undefined; i18n: I18n }) {
+  const { t, fmt } = i18n;
   return (
     <>
-      <span className="block">{parte == null ? "—" : formatPct(parte)}</span>
+      <span className="block">{parte == null ? "—" : fmt.formatPct(parte)}</span>
       <span className="block text-[11px] text-muted-foreground">
         {puesto ? (
           <>
             <span aria-hidden="true">#{puesto}</span>
-            <span className="sr-only">puesto {puesto}</span>
+            <span className="sr-only">{t("puesto {n}", { n: puesto })}</span>
           </>
         ) : (
           "—"

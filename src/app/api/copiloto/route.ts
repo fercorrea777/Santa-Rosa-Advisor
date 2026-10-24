@@ -16,6 +16,8 @@ import {
   modeloCopiloto, responderConGemma, type HerramientaLocal,
 } from "@/lib/copiloto/ollama";
 import { buscar, leerPagina } from "@/lib/copiloto/web";
+import { getI18n } from "@/lib/i18n/servidor";
+import type { T } from "@/lib/i18n/traducir";
 
 /**
  * Copiloto de inteligencia comercial.
@@ -76,11 +78,15 @@ const MAX_CHARS_TOTAL = 26_000;
 
 /** Anota que fuente se uso, para poder mostrarselo al que pregunta. Un
  *  gerente que ve "salio del benchmark del 03/08" confia distinto que uno
- *  que lee un parrafo sin procedencia. */
+ *  que lee un parrafo sin procedencia. La fuente se anota YA TRADUCIDA al
+ *  idioma de quien pregunta (`anotar(t("…"))`): es lo que ve en pantalla. */
 type Anotar = (fuente: string) => void;
 // El tope de iteraciones del bucle de herramientas vive ahora en
 // src/lib/copiloto/ollama.ts, junto al bucle que lo usa.
 
+// i18n-ignore-start (todo hasta el final de las herramientas es texto PARA EL MODELO: descripciones,
+// parámetros y resultados JSON de las herramientas. Se queda en castellano. Lo único que ve la persona de
+// esta zona son las fuentes de `anotar(t("…"))`, que sí van traducidas)
 const PROHIBIDAS =
   /\b(insert|update|delete|drop|alter|create|replace|attach|detach|pragma|vacuum|reindex|begin|commit|rollback)\b/i;
 
@@ -108,7 +114,7 @@ function ejecutarSql(consulta: string): string {
   }
 }
 
-const tConsultarBase = (anotar: Anotar): HerramientaLocal => ({
+const tConsultarBase = (anotar: Anotar, t: T): HerramientaLocal => ({
   nombre: "consultar_base",
   descripcion:
     "Ejecuta una consulta SQL de SOLO LECTURA (SELECT) sobre la base de " +
@@ -130,7 +136,7 @@ const tConsultarBase = (anotar: Anotar): HerramientaLocal => ({
     additionalProperties: false,
   },
   ejecutar: (input) => {
-    anotar("CADAM / DNRA — matriculación e importación");
+    anotar(t("CADAM / DNRA — matriculación e importación"));
     return ejecutarSql((input as { sql: string }).sql);
   },
 });
@@ -146,7 +152,7 @@ async function leerInformes(input: { semana?: string }): Promise<string> {
   }
 }
 
-const tLeerInformeCompetencia = (anotar: Anotar): HerramientaLocal => ({
+const tLeerInformeCompetencia = (anotar: Anotar, t: T): HerramientaLocal => ({
   nombre: "leer_informe_competencia",
   descripcion:
     "Lee los informes semanales de competencia/mercado ya generados " +
@@ -164,7 +170,7 @@ const tLeerInformeCompetencia = (anotar: Anotar): HerramientaLocal => ({
     additionalProperties: false,
   },
   ejecutar: (input) => {
-    anotar("Informes semanales de competencia");
+    anotar(t("Informes semanales de competencia"));
     return leerInformes(input as { semana?: string });
   },
 });
@@ -187,7 +193,8 @@ const tLeerInformeCompetencia = (anotar: Anotar): HerramientaLocal => ({
  */
 async function leerConocimiento(
   input: { clave?: string; claves?: string[] },
-  anotar: Anotar
+  anotar: Anotar,
+  t: T
 ): Promise<string> {
   const pedidas = [
     ...(input.clave ? [input.clave] : []),
@@ -243,7 +250,11 @@ async function leerConocimiento(
           : undefined,
       });
       const fecha = doc.fechado_en ? String(doc.fechado_en).slice(0, 10) : null;
-      anotar(`Hermes · ${doc.titulo}${fecha ? ` (dato del ${fecha})` : ""}`);
+      anotar(
+        fecha
+          ? t("Hermes · {titulo} (dato del {fecha})", { titulo: doc.titulo, fecha })
+          : t("Hermes · {titulo}", { titulo: doc.titulo })
+      );
     }
 
     return JSON.stringify({
@@ -263,7 +274,7 @@ async function leerConocimiento(
   }
 }
 
-const tLeerConocimientoCompetencia = (anotar: Anotar): HerramientaLocal => ({
+const tLeerConocimientoCompetencia = (anotar: Anotar, t: T): HerramientaLocal => ({
   nombre: "leer_conocimiento_competencia",
   descripcion:
     "Abre los documentos de competencia que mantiene Hermes (agente propio) " +
@@ -293,7 +304,7 @@ const tLeerConocimientoCompetencia = (anotar: Anotar): HerramientaLocal => ({
     additionalProperties: false,
   },
   ejecutar: (input) =>
-    leerConocimiento(input as { clave?: string; claves?: string[] }, anotar),
+    leerConocimiento(input as { clave?: string; claves?: string[] }, anotar, t),
 });
 
 /**
@@ -362,7 +373,7 @@ async function leerOperacionPropia(input: { que?: string; anio?: number }): Prom
   }
 }
 
-const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
+const tLeerOperacion = (anotar: Anotar, t: T): HerramientaLocal => ({
   nombre: "leer_operacion_propia",
   descripcion:
     "Datos de la operación de Santa Rosa y del tablero comercial, no de " +
@@ -399,16 +410,16 @@ const tLeerOperacion = (anotar: Anotar): HerramientaLocal => ({
   ejecutar: (input) => {
     const que = (input as { que?: string }).que ?? "todo";
     anotar(
-      que === "demanda" ? "Bitrix — leads y negocios"
-        : que === "pauta" ? "Meta — pauta por marca · Cars"
-        : que === "rivales" ? "CADAM · Cars · Datacar — rivales por clase"
-        : "Cars (DMS propio) — facturación y stock"
+      que === "demanda" ? t("Bitrix — leads y negocios")
+        : que === "pauta" ? t("Meta — pauta por marca · Cars")
+        : que === "rivales" ? t("CADAM · Cars · Datacar — rivales por clase")
+        : t("Cars (DMS propio) — facturación y stock")
     );
     return leerOperacionPropia(input as { que?: string; anio?: number });
   },
 });
 
-const tBuscarEnInternet = (anotar: Anotar): HerramientaLocal => ({
+const tBuscarEnInternet = (anotar: Anotar, t: T): HerramientaLocal => ({
   nombre: "buscar_en_internet",
   descripcion:
     "Busca en internet (DuckDuckGo). SOLO para lo que no está en las fuentes " +
@@ -428,7 +439,7 @@ const tBuscarEnInternet = (anotar: Anotar): HerramientaLocal => ({
     const consulta = String((input as { consulta?: unknown }).consulta ?? "");
     try {
       const resultados = await buscar(consulta);
-      anotar("Internet (búsqueda en DuckDuckGo)");
+      anotar(t("Internet (búsqueda en DuckDuckGo)"));
       return JSON.stringify({
         consulta,
         resultados,
@@ -473,7 +484,7 @@ const tLeerPagina = (anotar: Anotar): HerramientaLocal => ({
  * fuentes no se mezcle entre pedidos concurrentes. Con consts de modulo, dos
  * gerentes preguntando a la vez se veian las fuentes del otro.
  */
-function crearHerramientas(): {
+function crearHerramientas(t: T): {
   herramientas: HerramientaLocal[];
   fuentes: string[];
 } {
@@ -483,16 +494,18 @@ function crearHerramientas(): {
   };
   return {
     herramientas: [
-      tConsultarBase(anotar),
-      tLeerInformeCompetencia(anotar),
-      tLeerConocimientoCompetencia(anotar),
-      tLeerOperacion(anotar),
-      tBuscarEnInternet(anotar),
+      tConsultarBase(anotar, t),
+      tLeerInformeCompetencia(anotar, t),
+      tLeerConocimientoCompetencia(anotar, t),
+      tLeerOperacion(anotar, t),
+      tBuscarEnInternet(anotar, t),
       tLeerPagina(anotar),
     ],
     fuentes,
   };
 }
+
+// i18n-ignore-end
 
 interface TurnoCliente {
   role: "user" | "assistant";
@@ -500,25 +513,31 @@ interface TurnoCliente {
 }
 
 export async function POST(request: Request) {
+  // El idioma de quien pregunta (cookie advisor_idioma): lo que se le muestra a la
+  // persona (errores, fuentes, el cierre del modelo) sale en su idioma. El prompt y
+  // las herramientas siguen en castellano, que es lo que entiende el modelo.
+  const i18n = await getI18n();
+  const { t } = i18n;
   let turnos: TurnoCliente[];
   try {
     const body = await request.json();
     turnos = (body?.mensajes ?? []) as TurnoCliente[];
+    // i18n-ignore (se atrapa en el catch de abajo: la persona ve el mensaje traducido de ahí)
     if (!Array.isArray(turnos) || !turnos.length) throw new Error("vacío");
     if (
       !turnos.every(
-        (t) =>
-          (t.role === "user" || t.role === "assistant") &&
-          typeof t.content === "string" &&
-          t.content.length > 0 &&
-          t.content.length < 8000
+        (turno) =>
+          (turno.role === "user" || turno.role === "assistant") &&
+          typeof turno.content === "string" &&
+          turno.content.length > 0 &&
+          turno.content.length < 8000
       )
     ) {
       throw new Error("formato");
     }
   } catch {
     return NextResponse.json(
-      { error: "Cuerpo inválido: se espera { mensajes: [{role, content}] }." },
+      { error: t("Cuerpo inválido: se espera { mensajes: [{role, content}] }.") },
       { status: 400 }
     );
   }
@@ -536,15 +555,17 @@ export async function POST(request: Request) {
       console.error("Copiloto: no se pudo leer el índice de Hermes:", e);
     }
 
-    const { herramientas, fuentes } = crearHerramientas();
+    const { herramientas, fuentes } = crearHerramientas(t);
     const r = await responderConGemma({
       // `conWeb: true` desde el 15/09/2026: buscar_en_internet y leer_pagina
       // son herramientas locales (no las de Anthropic), asi que el prompt
       // puede prometerlas. Siguen sin existir code_execution ni web_search
       // de Anthropic.
-      system: armarSystemPrompt({ conWeb: true, conocimiento }),
+      // Con el tablero en ingles, el prompt termina con la orden de contestar en ingles.
+      system: armarSystemPrompt({ conWeb: true, conocimiento, i18n }),
       turnos: turnos.slice(-MAX_TURNOS),
       herramientas,
+      t,
     });
     return NextResponse.json({
       respuesta: r.respuesta,
@@ -558,7 +579,7 @@ export async function POST(request: Request) {
   } catch (e) {
     console.error("POST /api/copiloto:", e);
     return NextResponse.json(
-      { error: `El copiloto falló: ${(e as Error).message}` },
+      { error: t("El copiloto falló: {mensaje}", { mensaje: (e as Error).message }) },
       { status: 500 }
     );
   }

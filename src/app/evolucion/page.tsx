@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/table";
 import { getCobertura, getSerieMensual, type Fuente } from "@/lib/cadam/mercado";
 import { serieAAnios, promedioMensual, proyeccionCierre } from "@/lib/serie";
-import { formatPct, formatUnidades } from "@/lib/format";
-import { mesCorto, type SearchParams, etiquetaCortes, aclaracionCortes } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
+import { N_ } from "@/lib/i18n/traducir";
+import { type SearchParams } from "@/lib/periodo";
 
 export default async function EvolucionPage({
   searchParams,
@@ -18,6 +19,8 @@ export default async function EvolucionPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt } = await getI18n();
+  const { formatPct, formatUnidades, mesCorto, etiquetaCortes, aclaracionCortes } = fmt;
   const cobertura = getCobertura();
 
   // Tres vistas (Croman, 15/09/2026: "el mismo selector en Evolución
@@ -48,10 +51,10 @@ export default async function EvolucionPage({
   const mesDesde = nMes(sp.desde, 1);
   const mesHasta = Math.max(mesDesde, nMes(sp.hasta, 12));
   const anioCompleto = mesDesde === 1 && mesHasta === 12;
-  const nombre: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
-  const etiquetaFuente = vista === "ambas" ? "matriculaciones e importaciones" : nombre[fuente];
+  const nombre: Record<Fuente, string> = { matriculacion: N_("matriculaciones"), importacion: N_("importaciones") };
+  const etiquetaFuente = vista === "ambas" ? t("matriculaciones e importaciones") : t(nombre[fuente]);
   const etiquetaRango = anioCompleto
-    ? "año completo"
+    ? t("año completo")
     : `${mesCorto(mesDesde)}–${mesCorto(mesHasta)}`;
 
   // Se recorta despues de armar las 12 posiciones: asi los meses fuera
@@ -72,7 +75,7 @@ export default async function EvolucionPage({
       ? porFuente.flatMap((pf) =>
           pf.series.map((s) => ({
             ...s,
-            anio: `${s.anio} ${pf.fuente === "importacion" ? "imp." : "mat."}`,
+            anio: `${s.anio} ${pf.fuente === "importacion" ? t("imp.") : t("mat.")}`,
             punteada: pf.fuente === "importacion",
           }))
         )
@@ -81,9 +84,9 @@ export default async function EvolucionPage({
   return (
     <Pagina>
       <PageHeader
-        titulo="Evolución mensual"
-        descripcion={`${etiquetaFuente[0].toUpperCase()}${etiquetaFuente.slice(1)} mes a mes entre años · ${etiquetaRango}. Acumulado, promedio, máximo, mínimo y proyección de cierre.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Evolución mensual")}
+        descripcion={t("{fuente} mes a mes entre años · {rango}. Acumulado, promedio, máximo, mínimo y proyección de cierre.", { fuente: `${etiquetaFuente[0].toUpperCase()}${etiquetaFuente.slice(1)}`, rango: etiquetaRango })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       <div
@@ -105,25 +108,22 @@ export default async function EvolucionPage({
         <CardHeader>
           <CardTitle>
             {vista === "ambas"
-              ? "Matriculaciones e importaciones por mes"
-              : fuente === "matriculacion" ? "Matriculaciones por mes" : "Importaciones por mes"}
+              ? t("Matriculaciones e importaciones por mes")
+              : fuente === "matriculacion" ? t("Matriculaciones por mes") : t("Importaciones por mes")}
             {!anioCompleto && ` — ${etiquetaRango}`}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Una línea por año, mes contra mes: sirve para ver la estacionalidad
-            del mercado y comparar el mismo mes entre años, no para leer el
-            total.
-            {vista === "ambas" ? " Matriculación en línea llena, importación punteada; el hueco entre las dos del mismo año es stock que entró y todavía no sacó chapa." : ""}
+            {t("Una línea por año, mes contra mes: sirve para ver la estacionalidad del mercado y comparar el mismo mes entre años, no para leer el total.")}
+            {vista === "ambas" ? ` ${t("Matriculación en línea llena, importación punteada; el hueco entre las dos del mismo año es stock que entró y todavía no sacó chapa.")}` : ""}
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <SerieAniosChart series={seriesGrafico} altura={340} />
           <NotaDato>
-            Un mes sin información queda como <strong>hueco</strong> en la línea, no
-            como cero: la línea no se une por encima del vacío.
+            {tr("Un mes sin información queda como <b>hueco</b> en la línea, no como cero: la línea no se une por encima del vacío.")}
             {fuentes.map((x) =>
               cobertura.mesesFaltantes[x].length > 0 ? (
-                <span key={x}> Faltante detectado en {nombre[x]}: {cobertura.mesesFaltantes[x].join(", ")}.</span>
+                <span key={x}> {t("Faltante detectado en {fuente}: {meses}.", { fuente: t(nombre[x]), meses: cobertura.mesesFaltantes[x].join(", ") })}</span>
               ) : null
             )}
           </NotaDato>
@@ -134,12 +134,12 @@ export default async function EvolucionPage({
       <Card key={x}>
         <CardHeader>
           <CardTitle>
-            Indicadores por año — {nombre[x]}, {etiquetaRango}
+            {t("Indicadores por año — {fuente}, {rango}", { fuente: t(nombre[x]), rango: etiquetaRango })}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             {anioCompleto
-              ? "Acumulado y promedios sobre los 12 meses de cada año."
-              : `Acumulado, promedio, máximo y mínimo calculados solo sobre ${etiquetaRango} de cada año, para que la comparación sea equivalente.`}
+              ? t("Acumulado y promedios sobre los 12 meses de cada año.")
+              : t("Acumulado, promedio, máximo y mínimo calculados solo sobre {rango} de cada año, para que la comparación sea equivalente.", { rango: etiquetaRango })}
           </p>
         </CardHeader>
         <CardContent>
@@ -186,15 +186,15 @@ export default async function EvolucionPage({
                         </span>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                        <span>{f.con.length} meses con dato</span>
+                        <span>{f.con.length === 1 ? t("1 mes con dato") : t("{n} meses con dato", { n: f.con.length })}</span>
                         <span>
-                          prom. {f.prom === null ? "—" : formatUnidades(Math.round(f.prom))}
+                          {t("prom. {n}", { n: f.prom === null ? "—" : formatUnidades(Math.round(f.prom)) })}
                         </span>
                         {f.varYtd !== null && (
                           <span className={f.varYtd >= 0
                             ? "text-emerald-700 dark:text-emerald-400"
                             : "text-rose-700 dark:text-rose-400"}>
-                            {formatPct(f.varYtd, { signed: true })} vs. año previo
+                            {t("{pct} vs. año previo", { pct: formatPct(f.varYtd, { signed: true }) })}
                           </span>
                         )}
                       </div>
@@ -202,14 +202,14 @@ export default async function EvolucionPage({
                         {f.con.length > 0 && (
                           <>
                             <span>
-                              máx. {formatUnidades(Math.max(...f.con))} ({mesCorto(f.maxIdx + 1)})
+                              {t("máx. {n} ({mes})", { n: formatUnidades(Math.max(...f.con)), mes: mesCorto(f.maxIdx + 1) })}
                             </span>
                             <span>
-                              mín. {formatUnidades(Math.min(...f.con))} ({mesCorto(f.minIdx + 1)})
+                              {t("mín. {n} ({mes})", { n: formatUnidades(Math.min(...f.con)), mes: mesCorto(f.minIdx + 1) })}
                             </span>
                           </>
                         )}
-                        {f.proy && <span>proy. cierre {formatUnidades(f.proy.proyectado)}</span>}
+                        {f.proy && <span>{t("proy. cierre {n}", { n: formatUnidades(f.proy.proyectado) })}</span>}
                       </div>
                     </div>
                   ))}
@@ -218,14 +218,14 @@ export default async function EvolucionPage({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Año</TableHead>
-                        <TableHead className="text-right" nota="meses del año ya cargados">Meses con dato</TableHead>
-                        <TableHead className="text-right" nota="todo lo del año, sumado">Acumulado</TableHead>
-                        <TableHead className="text-right" nota="acumulado ÷ meses con dato">Promedio mensual</TableHead>
-                        <TableHead className="text-right" nota="el mejor mes del año">Máximo</TableHead>
-                        <TableHead className="text-right" nota="el peor mes del año">Mínimo</TableHead>
-                        <TableHead className="text-right" nota="contra los mismos meses del año previo">Var. vs año previo</TableHead>
-                        <TableHead className="text-right" nota="cómo cerraría el año a este ritmo">Proyección cierre</TableHead>
+                        <TableHead>{t("Año")}</TableHead>
+                        <TableHead className="text-right" nota={t("meses del año ya cargados")}>{t("Meses con dato")}</TableHead>
+                        <TableHead className="text-right" nota={t("todo lo del año, sumado")}>{t("Acumulado")}</TableHead>
+                        <TableHead className="text-right" nota={t("acumulado ÷ meses con dato")}>{t("Promedio mensual")}</TableHead>
+                        <TableHead className="text-right" nota={t("el mejor mes del año")}>{t("Máximo")}</TableHead>
+                        <TableHead className="text-right" nota={t("el peor mes del año")}>{t("Mínimo")}</TableHead>
+                        <TableHead className="text-right" nota={t("contra los mismos meses del año previo")}>{t("Var. vs año previo")}</TableHead>
+                        <TableHead className="text-right" nota={t("cómo cerraría el año a este ritmo")}>{t("Proyección cierre")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -279,18 +279,12 @@ export default async function EvolucionPage({
           })()}
           <div className="mt-3 flex flex-col gap-2">
             <NotaDato>
-              <strong>Var. vs año previo</strong> compara solo los meses presentes en
-              ambos años. Un año parcial contra uno completo daría una caída falsa.
+              {tr("<b>Var. vs año previo</b> compara solo los meses presentes en ambos años. Un año parcial contra uno completo daría una caída falsa.")}
             </NotaDato>
             <NotaDato>
-              La <strong>proyección de cierre</strong> es deliberadamente simple
-              (acumulado + promedio de los meses con dato × meses restantes) y{" "}
-              <strong>no modela estacionalidad</strong>. El mercado paraguayo la
-              tiene y es fuerte: mayo 2026 cerró en 8.219 matriculaciones y junio en
-              3.812. No usarla para comprometer objetivos.
+              {tr("La <b>proyección de cierre</b> es deliberadamente simple (acumulado + promedio de los meses con dato × meses restantes) y <b>no modela estacionalidad</b>. El mercado paraguayo la tiene y es fuerte: mayo 2026 cerró en 8.219 matriculaciones y junio en 3.812. No usarla para comprometer objetivos.")}
               {!anioCompleto && (
-                <> Con un rango de meses aplicado no se muestra: proyectar el
-                cierre del año a partir de un recorte no significa nada.</>
+                <> {t("Con un rango de meses aplicado no se muestra: proyectar el cierre del año a partir de un recorte no significa nada.")}</>
               )}
             </NotaDato>
           </div>

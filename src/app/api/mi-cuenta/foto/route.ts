@@ -5,6 +5,8 @@ import { borrarFoto, getFoto, getVersionFoto, guardarFoto } from "@/lib/auth/usu
 import { olvidarPerfil, urlDeFoto } from "@/lib/auth/perfil";
 import { anotarFallo, bloqueadoPor } from "@/lib/auth/freno";
 import { MAX_BYTES_FOTO, TIPO_FOTO, validarFoto } from "@/lib/foto-perfil";
+import { getI18n } from "@/lib/i18n/servidor";
+import type { T } from "@/lib/i18n/traducir";
 
 /**
  * La foto de perfil de quien está mirando.
@@ -20,6 +22,9 @@ import { MAX_BYTES_FOTO, TIPO_FOTO, validarFoto } from "@/lib/foto-perfil";
  *
  * Quien entró con la clave general (emergencia) no es una cuenta y no tiene
  * foto: 403.
+ *
+ * Los `error` que devuelve son los que la interfaz le muestra a la persona, así
+ * que salen en el idioma de su cookie (`getI18n`).
  */
 
 const sinCache = { "Cache-Control": "no-store" };
@@ -32,15 +37,15 @@ type SesionDeUsuario = Extract<Sesion, { tipo: "usuario" }>;
 
 /** La sesión de una persona con cuenta, o la respuesta de error lista para
  *  devolver (quien llama distingue con `instanceof Response`). */
-async function sesionDeUsuario(): Promise<SesionDeUsuario | Response> {
+async function sesionDeUsuario(t: T): Promise<SesionDeUsuario | Response> {
   const clave = process.env.ADVISOR_CLAVE;
-  if (!clave) return json({ error: "El tablero no tiene sesiones." }, 403);
+  if (!clave) return json({ error: t("El tablero no tiene sesiones.") }, 403);
   const sesion = leerSesion((await cookies()).get(NOMBRE_COOKIE)?.value, clave);
-  if (!sesion) return json({ error: "Sesión requerida." }, 401);
+  if (!sesion) return json({ error: t("Sesión requerida.") }, 401);
   if (sesion.tipo !== "usuario") {
-    return json({ error: "El acceso de emergencia no tiene foto de perfil." }, 403);
+    return json({ error: t("El acceso de emergencia no tiene foto de perfil.") }, 403);
   }
-  if ((await vigenciaDe(sesion)) === "cortada") return json({ error: "Sesión requerida." }, 401);
+  if ((await vigenciaDe(sesion)) === "cortada") return json({ error: t("Sesión requerida.") }, 401);
   return sesion;
 }
 
@@ -92,7 +97,8 @@ async function leerCuerpo(request: Request, max: number): Promise<Uint8Array | n
 const FRENO_SUBIDAS = { max: 20, esperaMs: 10 * 60_000, ventanaMs: 10 * 60_000 };
 
 export async function GET(request: Request) {
-  const sesion = await sesionDeUsuario();
+  const { t } = await getI18n();
+  const sesion = await sesionDeUsuario(t);
   if (sesion instanceof Response) return sesion;
 
   // La URL que arma el menú lleva `?v=<versión>`: con esa versión la imagen no
@@ -128,23 +134,24 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!esDelMismoOrigen(request)) return json({ error: "Origen no permitido." }, 403);
-  const sesion = await sesionDeUsuario();
+  const { t } = await getI18n();
+  if (!esDelMismoOrigen(request)) return json({ error: t("Origen no permitido.") }, 403);
+  const sesion = await sesionDeUsuario(t);
   if (sesion instanceof Response) return sesion;
 
   const clave = `foto:${sesion.id}`;
   const espera = bloqueadoPor(clave);
   if (espera) {
-    return json({ error: `Demasiados cambios de foto. Probá de nuevo en ${Math.ceil(espera / 60)} minutos.` }, 429);
+    return json({ error: t("Demasiados cambios de foto. Probá de nuevo en {minutos} minutos.", { minutos: Math.ceil(espera / 60) }) }, 429);
   }
   anotarFallo(clave, FRENO_SUBIDAS);
 
   const tipo = (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-  if (tipo !== TIPO_FOTO) return json({ error: "La foto tiene que ser un JPEG." }, 415);
+  if (tipo !== TIPO_FOTO) return json({ error: t("La foto tiene que ser un JPEG.") }, 415);
 
   const cuerpo = await leerCuerpo(request, MAX_BYTES_FOTO);
-  if (!cuerpo) return json({ error: "La imagen es demasiado pesada." }, 413);
-  const veredicto = validarFoto(cuerpo);
+  if (!cuerpo) return json({ error: t("La imagen es demasiado pesada.") }, 413);
+  const veredicto = validarFoto(cuerpo, t);
   if (!veredicto.ok) return json({ error: veredicto.motivo }, 422);
 
   const version = await guardarFoto(sesion.id, TIPO_FOTO, Buffer.from(cuerpo));
@@ -153,8 +160,9 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!esDelMismoOrigen(request)) return json({ error: "Origen no permitido." }, 403);
-  const sesion = await sesionDeUsuario();
+  const { t } = await getI18n();
+  if (!esDelMismoOrigen(request)) return json({ error: t("Origen no permitido.") }, 403);
+  const sesion = await sesionDeUsuario(t);
   if (sesion instanceof Response) return sesion;
   await borrarFoto(sesion.id);
   olvidarPerfil(sesion.id);

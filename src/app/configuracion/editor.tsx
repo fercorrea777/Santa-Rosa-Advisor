@@ -4,6 +4,7 @@ import * as React from "react";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/cliente";
 import { guardarConfiguracion, type EstadoGuardado } from "./acciones";
 
 /**
@@ -28,6 +29,7 @@ export function EditorConfiguracion({
   };
   competidores: string[];
 }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoGuardado | null, FormData>(
     guardarConfiguracion,
     null
@@ -37,43 +39,40 @@ export function EditorConfiguracion({
     <Card>
       <form action={enviar} className="contents">
         <CardHeader>
-          <CardTitle className="text-base">Metas {anio} y competidores clave</CardTitle>
+          <CardTitle className="text-base">{t("Metas {anio} y competidores clave", { anio })}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Contra las metas se compara el share real en el Centro de
-            Inteligencia; los competidores son la watchlist que resaltan los
-            rankings. Dejá vacío lo que todavía no esté definido: la app
-            muestra «sin definir», nunca un cero inventado.
+            {t("Contra las metas se compara el share real en el Centro de Inteligencia; los competidores son la watchlist que resaltan los rankings. Dejá vacío lo que todavía no esté definido: la app muestra «sin definir», nunca un cero inventado.")}
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <div className="grid gap-3 sm:grid-cols-3">
             <CampoMeta
               name="participacion"
-              label="Participación de mercado"
+              label={t("Participación de mercado")}
               sufijo="%"
-              placeholder="ej. 8,5"
+              placeholder={t("ej. 8,5")}
               defaultValue={metas.participacion_mercado_2026_pct}
             />
             <CampoMeta
               name="ranking"
-              label="Ranking objetivo"
-              nota="posición del grupo"
+              label={t("Ranking objetivo")}
+              nota={t("posición del grupo")}
               sufijo="#"
-              placeholder="ej. 3"
+              placeholder={t("ej. 3")}
               defaultValue={metas.ranking_objetivo_2026}
             />
             <CampoMeta
               name="unidades"
-              label="Unidades objetivo"
-              nota="por mes, todo el grupo"
+              label={t("Unidades objetivo")}
+              nota={t("por mes, todo el grupo")}
               sufijo="u."
-              placeholder="ej. 400"
+              placeholder={t("ej. 400")}
               defaultValue={metas.unidades_objetivo_mensual}
             />
           </div>
           <label className="flex flex-col gap-1.5">
             <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Competidores clave
+              {t("Competidores clave")}
             </span>
             <textarea
               name="competidores"
@@ -84,7 +83,7 @@ export function EditorConfiguracion({
               className="input-base campo-crece h-auto w-full max-w-md resize-y px-3 py-2 font-mono text-sm leading-relaxed"
             />
             <span className="text-[11px] text-muted-foreground">
-              Un nombre por línea (o separados por coma), tal como los escribe CADAM.
+              {t("Un nombre por línea (o separados por coma), tal como los escribe CADAM.")}
             </span>
           </label>
           <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
@@ -101,7 +100,7 @@ export function EditorConfiguracion({
               </p>
             )}
             <Button type="submit" disabled={pendiente}>
-              {pendiente ? "Guardando…" : "Guardar metas y competidores"}
+              {pendiente ? t("Guardando…") : t("Guardar metas y competidores")}
             </Button>
           </div>
         </CardContent>

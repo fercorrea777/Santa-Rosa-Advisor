@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,24 +11,25 @@ import { vigenciaDe } from "@/lib/auth/vigencia";
 import { perfilDe } from "@/lib/auth/perfil";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 import { COOKIE_MENU, MENU_PLEGADO } from "@/lib/menu";
+import { getI18n, getMensajesCliente } from "@/lib/i18n/servidor";
+import { ProveedorI18n } from "@/lib/i18n/cliente";
 
 // Historia: Nunito Sans -> Inter (2026-07-23, "mejorar las fuentes") ->
-// Archivo (2026-08-27, "que sea mas moderno").
+// Archivo (2026-08-27, "que sea mas moderno") -> Inter (2026-10-24, Croman:
+// "mejorar la fuente, usar la familia de Inter").
 //
-// El criterio de la iteracion anterior se mantiene y es correcto: la doble
-// distancia de PRODUCT.md (notebook a 1 m + proyector a 5 m) exige x-height
-// alta y terminaciones rectas, que es lo que Nunito no daba a cuerpo chico.
+// El criterio se mantiene: la doble distancia de PRODUCT.md (notebook a 1 m +
+// proyector a 5 m) exige x-height alta y terminaciones rectas.
 //
-// Archivo cumple lo mismo — grotesca americana de x-height alta y remates
-// rectos, dibujada para rendir igual en titular y en cuerpo de tabla — pero
-// tiene caracter propio. Inter es funcionalmente impecable y visualmente
-// anonima: es la sans por defecto de casi toda interfaz generada, y en un
-// tablero que se proyecta en una reunion eso se nota. Archivo conserva la
-// precision y agrega presencia.
-const sans = Archivo({
+// Inter es la variable completa (todos los pesos) con el eje de tamano optico
+// (`opsz`, 14-32): el navegador lo aplica solo (`font-optical-sizing: auto`), asi
+// el cuerpo de tabla usa el corte de texto (aberturas amplias, espaciado
+// holgado) y los titulos y las cifras grandes el corte "Display" (trazo fino,
+// espaciado cerrado), sin cargar una segunda familia.
+const sans = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  axes: ["opsz"],
   display: "swap",
 });
 
@@ -43,29 +44,35 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  // Dominio canónico de la app. Con esto Next resuelve las URL absolutas
-  // (Open Graph, canonical) contra advisor.santarosa.lat, así el enlace
-  // muestra una vista previa correcta al compartirlo (WhatsApp, etc.).
-  // El .vercel.app sigue funcionando como alias del mismo deploy.
-  metadataBase: new URL("https://advisor.santarosa.lat"),
-  title: {
-    default: "Mercado Automotor PY | Santa Rosa Comercial Advisor",
-    template: "%s · Mercado Automotor PY",
-  },
-  description:
-    "Inteligencia comercial del mercado automotor paraguayo — matriculaciones e importaciones (CADAM).",
-  applicationName: "Mercado Automotor PY",
-  openGraph: {
-    type: "website",
-    siteName: "Mercado Automotor PY",
-    title: "Mercado Automotor PY | Santa Rosa Comercial Advisor",
-    description:
-      "Matriculaciones e importaciones del mercado automotor paraguayo (CADAM), con rankings, market share y evolución.",
-    url: "/",
-    locale: "es_PY",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t, idioma } = await getI18n();
+  const titulo = t("Mercado Automotor PY | Santa Rosa Comercial Advisor");
+  return {
+    // Dominio canónico de la app. Con esto Next resuelve las URL absolutas
+    // (Open Graph, canonical) contra advisor.santarosa.lat, así el enlace
+    // muestra una vista previa correcta al compartirlo (WhatsApp, etc.).
+    // El .vercel.app sigue funcionando como alias del mismo deploy.
+    metadataBase: new URL("https://advisor.santarosa.lat"),
+    title: {
+      default: titulo,
+      template: t("%s · Mercado Automotor PY"),
+    },
+    description: t(
+      "Inteligencia comercial del mercado automotor paraguayo — matriculaciones e importaciones (CADAM)."
+    ),
+    applicationName: t("Mercado Automotor PY"),
+    openGraph: {
+      type: "website",
+      siteName: t("Mercado Automotor PY"),
+      title: titulo,
+      description: t(
+        "Matriculaciones e importaciones del mercado automotor paraguayo (CADAM), con rankings, market share y evolución."
+      ),
+      url: "/",
+      locale: idioma === "en" ? "en_US" : "es_PY",
+    },
+  };
+}
 
 // `color-scheme` YA está declarado en globals.css (`:root`/`.dark`, es lo
 // que en verdad tiñe scrollbars y controles nativos); este <meta> es la
@@ -116,10 +123,14 @@ export default async function RootLayout({
   // `?embed=1` (el iframe de presentacion.santarosa.lat): el layout no ve la
   // query, así que la puerta la deja en una cabecera. Ver src/proxy.ts.
   const embebidoPorUrl = (await headers()).get("x-advisor-embed") === "1";
+  // El idioma sale de la cookie `advisor_idioma` (castellano si no hay). Los
+  // componentes de cliente reciben, en inglés, solo las frases que usan.
+  const { idioma } = await getI18n();
+  const mensajes = await getMensajesCliente(idioma);
 
   return (
     <html
-      lang="es"
+      lang={idioma}
       data-scroll-behavior="smooth"
       className={`${sans.variable} ${mono.variable} h-full antialiased`}
       suppressHydrationWarning
@@ -128,6 +139,7 @@ export default async function RootLayout({
         {/* defaultTheme="light" sin enableSystem: el claro es el tema
             principal del producto — abre en blanco para todos, y el oscuro
             queda como elección explícita del toggle. */}
+        <ProveedorI18n idioma={idioma} mensajes={mensajes}>
         <ThemeProvider attribute="class" defaultTheme="light">
           <TooltipProvider>
             <ProveedorMovimiento>
@@ -146,6 +158,7 @@ export default async function RootLayout({
             </ProveedorMovimiento>
           </TooltipProvider>
         </ThemeProvider>
+        </ProveedorI18n>
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useFiltroUrl } from "@/lib/filtro-url";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,15 +40,16 @@ export function SelectorFuente({
    *  no pueda hacerlo es un dato, y decirlo evita buscarlo en otro lado. */
   deshabilitadas?: Partial<Record<FuenteVista, string>>;
 }) {
+  const { t } = useI18n();
   const { leer, setParams, pendiente } = useFiltroUrl();
   const vista = (leer("fuente") ?? fuente) as FuenteVista;
   const opciones: FuenteVista[] = conAmbas
     ? ["ambas", "matriculacion", "importacion"]
     : ["matriculacion", "importacion"];
   const rotulo: Record<FuenteVista, string> = {
-    matriculacion: "Matriculaciones",
-    importacion: "Importaciones",
-    ambas: "Ambas",
+    matriculacion: t("Matriculaciones"),
+    importacion: t("Importaciones"),
+    ambas: t("Ambas"),
   };
 
   const set = (v: string) => {
@@ -62,11 +64,11 @@ export function SelectorFuente({
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        Analizar
+        {t("Analizar")}
       </span>
       <div
         role="group"
-        aria-label="Analizar"
+        aria-label={t("Analizar")}
         aria-busy={pendiente}
         className={cn(
           "flex gap-1 rounded-md border bg-card p-1 transition-opacity",

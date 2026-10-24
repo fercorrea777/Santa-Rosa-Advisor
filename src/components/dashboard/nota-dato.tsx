@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /**
  * Aviso honesto sobre una limitación del dato. Se usa siempre que una vista
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
  * algo cortado.
  */
 export function NotaDato({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const id = React.useId();
   const texto = React.useRef<HTMLSpanElement>(null);
   const [abierta, setAbierta] = React.useState(false);
@@ -57,7 +59,7 @@ export function NotaDato({ children }: { children: React.ReactNode }) {
           onClick={() => setAbierta((a) => !a)}
           className="shrink-0 self-end whitespace-nowrap rounded font-medium text-foreground/80 underline decoration-dotted underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
         >
-          {abierta ? "Mostrar menos" : "Leer todo"}
+          {abierta ? t("Mostrar menos") : t("Leer todo")}
         </button>
       )}
     </div>

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
+import { N_ } from "@/lib/i18n/traducir";
 import type { PuntoRentabilidad } from "@/lib/informes/rentabilidad";
 import { cn } from "@/lib/utils";
 
@@ -15,17 +16,17 @@ const ORDEN_COLOR = ["JETOUR", "GREAT WALL", "SOUEAST", "RENAULT", "JAC", "MITSU
 type Nivel = "version" | "modelo";
 
 const EJES: { valor: EjeX; label: string; nombre: string }[] = [
-  { valor: "ticket", label: "Facturación", nombre: "Ticket promedio (US$)" },
-  { valor: "margen", label: "Margen", nombre: "Margen promedio por unidad (US$)" },
-  { valor: "margenPct", label: "Margen %", nombre: "Margen promedio (% del precio sin IVA)" },
+  { valor: "ticket", label: N_("Facturación"), nombre: N_("Ticket promedio (US$)") },
+  { valor: "margen", label: N_("Margen"), nombre: N_("Margen promedio por unidad (US$)") },
+  { valor: "margenPct", label: N_("Margen %"), nombre: N_("Margen promedio (% del precio sin IVA)") },
 ];
 
 /** Los nombres de cada cuadrante, según qué mide el eje X. Arriba = vende
  *  más que el promedio; derecha = deja más que el promedio. */
 const CUADRANTES: Record<EjeX, [string, string, string, string]> = {
-  ticket: ["Vende, ticket bajo", "Vende, ticket alto", "Ticket bajo, vende poco", "Ticket alto, vende poco"],
-  margen: ["Vende, deja poco", "Vende y deja", "Ni vende ni deja", "Deja, vende poco"],
-  margenPct: ["Vende, deja poco", "Vende y deja", "Ni vende ni deja", "Deja, vende poco"],
+  ticket: [N_("Vende, ticket bajo"), N_("Vende, ticket alto"), N_("Ticket bajo, vende poco"), N_("Ticket alto, vende poco")],
+  margen: [N_("Vende, deja poco"), N_("Vende y deja"), N_("Ni vende ni deja"), N_("Deja, vende poco")],
+  margenPct: [N_("Vende, deja poco"), N_("Vende y deja"), N_("Ni vende ni deja"), N_("Deja, vende poco")],
 };
 
 /**
@@ -56,20 +57,22 @@ export function BurbujasRentabilidadChart({
   altura?: number;
 }) {
   const theme = useChartTheme();
+  const { t, fmt } = useI18n();
+  const { formatPct, formatUnidades } = fmt;
   const [ejeX, setEjeX] = useState<EjeX>("ticket");
   const [nivel, setNivel] = useState<Nivel>("version");
   const puntos = nivel === "version" ? versiones : modelos;
 
   const controles = (
     <div className="flex flex-wrap items-end gap-x-6 gap-y-2 pb-3">
-      <Grupo label="Eje X">
+      <Grupo label={t("Eje X")}>
         {EJES.map((e) => (
-          <Boton key={e.valor} activo={ejeX === e.valor} onClick={() => setEjeX(e.valor)}>{e.label}</Boton>
+          <Boton key={e.valor} activo={ejeX === e.valor} onClick={() => setEjeX(e.valor)}>{t(e.label)}</Boton>
         ))}
       </Grupo>
-      <Grupo label="Burbujas">
-        <Boton activo={nivel === "version"} onClick={() => setNivel("version")}>Versiones</Boton>
-        <Boton activo={nivel === "modelo"} onClick={() => setNivel("modelo")}>Modelos</Boton>
+      <Grupo label={t("Burbujas")}>
+        <Boton activo={nivel === "version"} onClick={() => setNivel("version")}>{t("Versiones")}</Boton>
+        <Boton activo={nivel === "modelo"} onClick={() => setNivel("modelo")}>{t("Modelos")}</Boton>
       </Grupo>
     </div>
   );
@@ -79,7 +82,7 @@ export function BurbujasRentabilidadChart({
       <>
         {controles}
         <p className="py-16 text-center text-sm text-muted-foreground">
-          Ninguna versión con venta y precio en el filtro.
+          {t("Ninguna versión con venta y precio en el filtro.")}
         </p>
       </>
     );
@@ -110,7 +113,7 @@ export function BurbujasRentabilidadChart({
   const presentes = new Set(conX.map((p) => p.marca));
   const conColor = ORDEN_COLOR.filter((m) => presentes.has(m));
   const otras = [...presentes].filter((m) => !ORDEN_COLOR.includes(m)).sort();
-  const nombreOtras = otras.length ? `Otras (${otras.join(", ")})` : null;
+  const nombreOtras = otras.length ? t("Otras ({marcas})", { marcas: otras.join(", ") }) : null;
   const serieDe = (marca: string) => (conColor.includes(marca) ? marca : (nombreOtras as string));
   const colorDe = (serie: string) => {
     const i = ORDEN_COLOR.indexOf(serie);
@@ -161,7 +164,8 @@ export function BurbujasRentabilidadChart({
   }));
 
   const xMin = Math.min(0, ...conX.map((p) => xDe(p) as number));
-  const [q1, q2, q3, q4] = CUADRANTES[ejeX];
+  const nombreEje = EJES.find((e) => e.valor === ejeX)?.nombre ?? "";
+  const [q1, q2, q3, q4] = CUADRANTES[ejeX].map((q) => t(q));
   const etiquetaLinea = {
     show: true,
     position: "end" as const,
@@ -182,10 +186,10 @@ export function BurbujasRentabilidadChart({
       symbol: "none" as const,
       lineStyle: { color: theme.axis, type: "solid" as const, width: 1, opacity: 0.7 },
       data: [
-        { xAxis: xMedio, label: { ...etiquetaLinea, formatter: `prom. ${fmtX(xMedio)}` } },
+        { xAxis: xMedio, label: { ...etiquetaLinea, formatter: t("prom. {v}", { v: fmtX(xMedio) }) } },
         // Adentro del área: al final de la línea, contra el borde derecho,
         // la etiqueta quedaba cortada.
-        { yAxis: yMedio, label: { ...etiquetaLinea, position: "insideEndTop" as const, formatter: `prom. ${formatUnidades(Math.round(yMedio))} u.` } },
+        { yAxis: yMedio, label: { ...etiquetaLinea, position: "insideEndTop" as const, formatter: t("prom. {n} u.", { n: formatUnidades(Math.round(yMedio)) }) } },
         ...(xMin < 0
           ? [{ xAxis: 0, lineStyle: { type: "dashed" as const, opacity: 0.5 }, label: { ...etiquetaLinea, formatter: "0" } }]
           : []),
@@ -222,16 +226,16 @@ export function BurbujasRentabilidadChart({
         return (
           `<b>${d.marca}</b> · ${d.nombre}` +
           (d.aproximado && d.detalle ? `<br/><span style="opacity:.7">Cars: ${d.detalle}</span>` : d.detalle ? `<br/><span style="opacity:.7">${d.detalle}</span>` : "") +
-          `<br/><b>${formatUnidades(d.unidades)} u.</b> facturadas` +
-          `<br/>Ticket US$ ${formatUnidades(Math.round(d.ticket))} · margen US$ ${formatUnidades(Math.round(d.margenUnidad))}` +
+          `<br/>${t("<b>{n} u.</b> facturadas", { n: formatUnidades(d.unidades) })}` +
+          `<br/>${t("Ticket US$ {ticket} · margen US$ {margen}", { ticket: formatUnidades(Math.round(d.ticket)), margen: formatUnidades(Math.round(d.margenUnidad)) })}` +
           (d.margenPct !== null ? ` (${formatPct(d.margenPct)})` : "") +
-          `<br/>Facturación US$ ${formatUnidades(Math.round(d.facturacion))} · margen total US$ ${formatUnidades(Math.round(d.margenTotal))}`
+          `<br/>${t("Facturación US$ {facturacion} · margen total US$ {margen}", { facturacion: formatUnidades(Math.round(d.facturacion)), margen: formatUnidades(Math.round(d.margenTotal)) })}`
         );
       },
     },
     xAxis: {
       type: "value" as const,
-      name: EJES.find((e) => e.valor === ejeX)?.nombre,
+      name: t(nombreEje),
       nameLocation: "middle" as const,
       nameGap: 30,
       nameTextStyle: { color: theme.text, fontSize: 11 },
@@ -243,7 +247,7 @@ export function BurbujasRentabilidadChart({
     },
     yAxis: {
       type: "value" as const,
-      name: "Unidades facturadas",
+      name: t("Unidades facturadas"),
       nameTextStyle: { color: theme.text, fontSize: 11, align: "left" as const },
       min: 0,
       axisLabel: { color: theme.text, fontSize: 11, fontFamily: FUENTE_MONO_EJES, formatter: (v: number) => formatUnidades(v) },
@@ -259,9 +263,11 @@ export function BurbujasRentabilidadChart({
       {controles}
       <EchartsAuto option={option} notMerge style={{ height: altura, width: "100%" }} />
       <p className="pt-2 text-[11px] text-muted-foreground">
-        Tamaño de la burbuja = facturación de esa {nivel === "version" ? "versión" : "familia"} (unidades × ticket).
-        Las líneas cortan en el promedio de lo filtrado: el eje X ponderado por unidades, el eje Y por burbuja.
-        {nombreOtras && <> Las marcas con menos venta van juntas en «Otras».</>}
+        {nivel === "version"
+          ? t("Tamaño de la burbuja = facturación de esa versión (unidades × ticket).")
+          : t("Tamaño de la burbuja = facturación de esa familia (unidades × ticket).")}{" "}
+        {t("Las líneas cortan en el promedio de lo filtrado: el eje X ponderado por unidades, el eje Y por burbuja.")}
+        {nombreOtras && <> {t("Las marcas con menos venta van juntas en «Otras».")}</>}
       </p>
     </>
   );

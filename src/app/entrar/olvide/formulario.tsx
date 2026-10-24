@@ -7,6 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { MarcoAcceso } from "@/components/acceso/marco-acceso";
 import { IconCorreo } from "@/components/icons";
 import { cn, sincronizarAriaInvalid } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/cliente";
 import { campo, patronCorreo, useGestoGlobito } from "../formulario";
 import { pedirRecuperacion, type EstadoOlvide } from "./acciones";
 
@@ -29,6 +30,7 @@ export function FormularioOlvide({ dominio }: { dominio: string }) {
 }
 
 function Olvide({ dominio, otraVez }: { dominio: string; otraVez: () => void }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoOlvide | null, FormData>(
     pedirRecuperacion,
     null
@@ -40,16 +42,16 @@ function Olvide({ dominio, otraVez }: { dominio: string; otraVez: () => void }) 
     <MarcoAcceso
       estado={enviado ? "feliz" : gesto.estado}
       mirada={enviado ? null : gesto.mirada}
-      titulo={enviado ? "Revisá tu correo" : "Olvidé mi clave"}
+      titulo={enviado ? t("Revisá tu correo") : t("Olvidé mi clave")}
       subtitulo={
         enviado
           ? undefined
-          : "Escribí tu correo de la empresa y te mandamos un enlace para poner una clave nueva."
+          : t("Escribí tu correo de la empresa y te mandamos un enlace para poner una clave nueva.")
       }
       pie={
         <p className="text-center text-xs">
           <Link href="/entrar" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
-            Volver a entrar
+            {t("Volver a entrar")}
           </Link>
         </p>
       }
@@ -64,20 +66,20 @@ function Olvide({ dominio, otraVez }: { dominio: string; otraVez: () => void }) 
             href="/entrar"
             className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full rounded-xl text-[0.95rem]")}
           >
-            Volver a entrar
+            {t("Volver a entrar")}
           </Link>
           <button
             type="button"
             onClick={otraVez}
             className="self-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
-            ¿Te equivocaste de correo? Probá con otro
+            {t("¿Te equivocaste de correo? Probá con otro")}
           </button>
         </div>
       ) : (
         <form action={enviar} className="flex flex-col gap-4" {...gesto.alForm}>
           <label data-campo="correo" className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Correo</span>
+            <span className="text-sm font-medium">{t("Correo")}</span>
             <input
               name="correo"
               type="email"
@@ -89,18 +91,18 @@ function Olvide({ dominio, otraVez }: { dominio: string; otraVez: () => void }) 
               required
               autoFocus
               pattern={patronCorreo(dominio)}
-              title={`Tiene que ser un correo @${dominio}`}
+              title={t("Tiene que ser un correo @{dominio}", { dominio })}
               onBlur={sincronizarAriaInvalid}
               onInput={(e) => {
                 sincronizarAriaInvalid(e);
                 gesto.alEscribirCorreo(e.currentTarget.value.length);
               }}
               className={campo}
-              placeholder={`nombre@${dominio}`}
+              placeholder={t("nombre@{dominio}", { dominio })}
             />
           </label>
           <Button type="submit" disabled={pendiente} className="mt-1 h-11 w-full rounded-xl text-[0.95rem]">
-            {pendiente ? "Enviando…" : "Enviarme el enlace"}
+            {pendiente ? t("Enviando…") : t("Enviarme el enlace")}
           </Button>
           {estado?.error && (
             <p role="alert" className="text-center text-sm text-destructive">

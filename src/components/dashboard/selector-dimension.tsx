@@ -1,6 +1,7 @@
 "use client";
 
 import { useFiltroUrl } from "@/lib/filtro-url";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cn } from "@/lib/utils";
 
 /** Selector de la dimension de analisis, escrito en la URL. La fuente
@@ -13,6 +14,7 @@ export function SelectorDimension({
   dimensiones: { valor: string; label: string }[];
   dimensionActual: string;
 }) {
+  const { t } = useI18n();
   const { leer, setParams: set, pendiente } = useFiltroUrl();
   const dimVista = leer("dim") ?? dimensionActual;
 
@@ -27,7 +29,7 @@ export function SelectorDimension({
           className="absolute inset-x-0 top-0 h-0.5 animate-pulse rounded-t-lg bg-primary"
         />
       )}
-      <Grupo label="Analizar por">
+      <Grupo label={t("Analizar por")}>
         {dimensiones.map((d) => (
           <Boton
             key={d.valor}

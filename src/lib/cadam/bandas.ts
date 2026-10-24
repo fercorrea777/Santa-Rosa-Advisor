@@ -4,6 +4,8 @@ import type { FilaRanking } from "./mercado";
 import { tokens } from "../informes/segmento-version";
 import { claseDe, ordenClase, type Clase, type OrigenClase } from "./clases";
 import { transmisionDe } from "../informes/transmision";
+import type { Formatos } from "../i18n/formatos";
+import type { T } from "../i18n/traducir";
 
 /**
  * Mapa del mercado por CLASE × BANDA DE PRECIO: cuánto vende el mercado en
@@ -47,6 +49,7 @@ export interface Banda {
   etiqueta: string;
 }
 
+// i18n-ignore-start (la `etiqueta` en castellano es para las salidas de máquina —tablero.ts, el Copiloto—; la pantalla usa etiquetaBandaI18n; "sin precio" es la clave de la banda)
 export const BANDAS: Banda[] = [
   { clave: "b1", desde: 0, hasta: 15_000, etiqueta: "Menos de 15.000" },
   { clave: "b2", desde: 15_000, hasta: 21_000, etiqueta: "15.000 a 21.000" },
@@ -55,15 +58,29 @@ export const BANDAS: Banda[] = [
   { clave: "b5", desde: 40_000, hasta: Infinity, etiqueta: "40.000 o más" },
 ];
 export const SIN_PRECIO = "sin precio";
+// i18n-ignore-end
 
 export function bandaDe(precio: number | null): string {
   if (precio === null || !(precio > 0)) return SIN_PRECIO;
   return BANDAS.find((b) => precio >= b.desde && precio < b.hasta)?.clave ?? SIN_PRECIO;
 }
 
-/** "b3" -> "21.000 a 28.000"; la clave de sin precio vuelve tal cual. */
+/** "b3" -> "21.000 a 28.000"; la clave de sin precio vuelve tal cual.
+ *  Siempre en castellano: es para las salidas de máquina (tablero.ts, el
+ *  Copiloto). Lo que se dibuja en pantalla usa etiquetaBandaI18n. */
 export function etiquetaBanda(clave: string): string {
   return BANDAS.find((b) => b.clave === clave)?.etiqueta ?? clave;
+}
+
+/** La misma etiqueta en el idioma de la pantalla: "21.000 a 28.000" |
+ *  "21,000 to 28,000". Los números salen de la banda y del formato del
+ *  idioma, no de un texto escrito a mano con el punto de miles de acá. */
+export function etiquetaBandaI18n(clave: string, t: T, fmt: Formatos): string {
+  const b = BANDAS.find((x) => x.clave === clave);
+  if (!b) return clave === SIN_PRECIO ? t("sin precio") : clave;
+  if (b.desde === 0) return t("Menos de {hasta}", { hasta: fmt.formatUnidades(b.hasta) });
+  if (b.hasta === Infinity) return t("{desde} o más", { desde: fmt.formatUnidades(b.desde) });
+  return t("{desde} a {hasta}", { desde: fmt.formatUnidades(b.desde), hasta: fmt.formatUnidades(b.hasta) });
 }
 
 export interface PrecioCandidato {

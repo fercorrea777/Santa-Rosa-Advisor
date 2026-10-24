@@ -1,8 +1,12 @@
+/* i18n-ignore-file — capa de datos: consultas SQL y claves de la base; no tiene frases de pantalla.
+   El rótulo que sí se lee (RESTO_NEV) va con N_() y se traduce donde se dibuja; las claves «Combustión / Híbridos /
+   Eléctricos» de getMixNevPorAnio son las de GRUPO_TECNOLOGIA (mercado.ts) y la pantalla las traduce al mostrarlas. */
 import { getDb } from "./db";
 import {
   armarRanking, totalUnidades, variacion,
   type FilaDimension, type FilaRanking, type Filtro, type PuntoMensual, type RangoMeses,
 } from "./mercado";
+import { N_ } from "../i18n/traducir";
 
 /**
  * Tecnología del lado de IMPORTACIÓN.
@@ -28,7 +32,7 @@ import {
 const VISTA = "v_importacion_nev";
 
 /** Rótulo del resto: lo que no está en el archivo NEV. */
-export const RESTO_NEV = "ICE+MHEV (por diferencia)";
+export const RESTO_NEV = N_("ICE+MHEV (por diferencia)");
 
 export interface CoberturaNev {
   anios: number[];

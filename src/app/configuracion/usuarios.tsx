@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
 import { cn, sincronizarAriaInvalid } from "@/lib/utils";
-import { formatFecha, formatFechaHora } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
+import { N_ } from "@/lib/i18n/traducir";
+import type { I18n } from "@/lib/i18n/crear";
 import { patronCorreo } from "@/app/entrar/formulario";
 import {
   accionBorrarUsuario, accionCambiarActivo, accionCambiarCorreo, accionCambiarRol,
@@ -43,16 +45,15 @@ export function PanelUsuarios({
   hayCorreo: boolean;
   auditoria: EventoAuditoria[];
 }) {
+  const i18n = useI18n();
+  const { t, tr, fmt } = i18n;
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Usuarios</CardTitle>
+          <CardTitle className="text-base">{t("Usuarios")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Cada persona entra con su correo @{dominio} y su clave. Los{" "}
-            <strong>lectores</strong> ven el tablero; los{" "}
-            <strong>administradores</strong> además entran acá, editan metas,
-            manejan usuarios y ven costos y márgenes en Acciones comerciales.
+            {tr("Cada persona entra con su correo @{dominio} y su clave. Los <b>lectores</b> ven el tablero; los <b>administradores</b> además entran acá, editan metas, manejan usuarios y ven costos y márgenes en Acciones comerciales.", { dominio })}
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -64,31 +65,21 @@ export function PanelUsuarios({
             <>
               {!hayCorreo && (
                 <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                  El servidor no tiene SMTP configurado (SMTP_HOST, SMTP_USER,
-                  SMTP_PASS): las invitaciones y los enlaces de clave se muestran
-                  acá en vez de mandarse por correo, y «Olvidé mi clave» no
-                  funciona hasta configurarlo.
+                  {t("El servidor no tiene SMTP configurado (SMTP_HOST, SMTP_USER, SMTP_PASS): las invitaciones y los enlaces de clave se muestran acá en vez de mandarse por correo, y «Olvidé mi clave» no funciona hasta configurarlo.")}
                 </p>
               )}
               <FormularioAlta dominio={dominio} hayCorreo={hayCorreo} />
               <div className="flex flex-col gap-2">
                 {usuarios.length === 0 ? (
                   <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
-                    Todavía no hay usuarios. Mientras no haya ninguno, se entra
-                    con la clave general del equipo.
+                    {t("Todavía no hay usuarios. Mientras no haya ninguno, se entra con la clave general del equipo.")}
                   </p>
                 ) : (
                   usuarios.map((u) => <FilaUsuario key={u.id} usuario={u} dominio={dominio} hayCorreo={hayCorreo} />)
                 )}
               </div>
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                La <strong>clave general</strong> (<code>ADVISOR_CLAVE</code>) es la
-                llave de emergencia: sirve si la base no responde o si se borra al
-                último admin. No está en la pantalla de entrada; se usa desde{" "}
-                <code>/entrar?modo=emergencia</code>, abre una sesión de un día y
-                queda registrada. Cambiarla en Coolify cierra <em>todas</em> las
-                sesiones abiertas. Dar de baja a alguien, cambiarle la clave o el
-                rol le cierra la sesión en menos de un minuto.
+                {tr("La <b>clave general</b> (<code>ADVISOR_CLAVE</code>) es la llave de emergencia: sirve si la base no responde o si se borra al último admin. No está en la pantalla de entrada; se usa desde <code>/entrar?modo=emergencia</code>, abre una sesión de un día y queda registrada. Cambiarla en Coolify cierra <i>todas</i> las sesiones abiertas. Dar de baja a alguien, cambiarle la clave o el rol le cierra la sesión en menos de un minuto.")}
               </p>
             </>
           )}
@@ -97,25 +88,24 @@ export function PanelUsuarios({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Registro de accesos</CardTitle>
+          <CardTitle className="text-base">{t("Registro de accesos")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Quién entró, quién falló y qué tocó cada administrador. Los últimos{" "}
-            {auditoria.length} movimientos.
+            {t("Quién entró, quién falló y qué tocó cada administrador. Los últimos {n} movimientos.", { n: auditoria.length })}
           </p>
         </CardHeader>
         <CardContent>
           {auditoria.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Todavía no hay movimientos registrados.</p>
+            <p className="text-xs text-muted-foreground">{t("Todavía no hay movimientos registrados.")}</p>
           ) : (
             <ul className="flex flex-col divide-y text-xs">
               {auditoria.map((e) => (
                 <li key={e.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1.5">
-                  <span className="w-[8.5rem] shrink-0 tabular-nums text-muted-foreground">{formatFechaHora(e.momento)}</span>
+                  <span className="w-[8.5rem] shrink-0 tabular-nums text-muted-foreground">{fmt.formatFechaHora(e.momento)}</span>
                   <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide", TONO[e.evento] ?? "bg-muted text-muted-foreground")}>
-                    {ROTULO[e.evento] ?? e.evento}
+                    {rotuloDe(e.evento, i18n)}
                   </span>
                   <span className="font-medium">{e.correo ?? "—"}</span>
-                  {e.detalle && <span className="text-muted-foreground">{e.detalle}</span>}
+                  {e.detalle && <span className="text-muted-foreground">{detalleDeAuditoria(e.detalle, i18n)}</span>}
                   {e.ip && <span className="ml-auto text-[11px] text-muted-foreground">{e.ip}</span>}
                 </li>
               ))}
@@ -127,14 +117,24 @@ export function PanelUsuarios({
   );
 }
 
+// N_: cada rótulo se traduce donde se muestra (rotuloDe → t(ROTULO[…])).
 const ROTULO: Record<string, string> = {
-  login_ok: "entró", login_fallo: "falló", login_bloqueado: "bloqueado", login_emergencia: "clave general",
-  recuperacion_pedida: "pidió enlace", recuperacion_enviada: "enlace enviado", recuperacion_fallo_envio: "correo falló",
-  clave_restablecida: "clave nueva", clave_cambiada: "cambió su clave",
-  usuario_creado: "alta", invitacion_enviada: "invitación", reset_por_admin: "reset por admin", enlace_reset_enviado: "enlace de reset",
-  rol_cambiado: "rol", usuario_baja: "baja", usuario_alta: "reactivado", usuario_borrado: "borrado", correo_cambiado: "correo",
-  sesion_cortada: "sesión cortada",
+  login_ok: N_("entró"), login_fallo: N_("falló"), login_bloqueado: N_("bloqueado"), login_emergencia: N_("clave general"),
+  recuperacion_pedida: N_("pidió enlace"), recuperacion_enviada: N_("enlace enviado"), recuperacion_fallo_envio: N_("correo falló"),
+  clave_restablecida: N_("clave nueva"), clave_cambiada: N_("cambió su clave"),
+  usuario_creado: "alta", invitacion_enviada: N_("invitación"), reset_por_admin: N_("reset por admin"), enlace_reset_enviado: N_("enlace de reset"),
+  rol_cambiado: N_("rol"), usuario_baja: "baja", usuario_alta: N_("reactivado"), usuario_borrado: N_("borrado"), correo_cambiado: N_("correo"),
+  sesion_cortada: N_("sesión cortada"),
 };
+// «alta» y «baja» (de un usuario) valen «high» y «low» en otras pantallas, y el catálogo traduce por el texto en
+// castellano (una sola frase, una sola traducción): su inglés va aparte y no pasa por t().
+const ROTULO_EN_PROPIO: Record<string, string> = { usuario_creado: "created", usuario_baja: "deactivated" };
+
+function rotuloDe(evento: string, i18n: I18n): string {
+  if (i18n.idioma === "en" && ROTULO_EN_PROPIO[evento]) return ROTULO_EN_PROPIO[evento];
+  const rotulo = ROTULO[evento] ?? evento;
+  return i18n.t(rotulo);
+}
 const TONO: Record<string, string> = {
   login_ok: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-400",
   login_fallo: "bg-amber-500/12 text-amber-700 dark:text-amber-400",
@@ -144,6 +144,42 @@ const TONO: Record<string, string> = {
   usuario_borrado: "bg-rose-500/12 text-rose-700 dark:text-rose-400",
   usuario_baja: "bg-rose-500/12 text-rose-700 dark:text-rose-400",
 };
+
+/**
+ * El `detalle` de cada renglón del registro lo escribe el servidor al anotar el evento, SIEMPRE en castellano:
+ * es un dato de la base, y lo que se guardó ayer no cambia de idioma. En castellano se muestra tal cual. Con la
+ * pantalla en inglés se reconocen los detalles que escribe nuestro propio código (entrar/acciones.ts,
+ * entrar/olvide/acciones.ts y acciones-usuarios.ts) y se dicen en inglés; cualquier otro (el mensaje de un error
+ * de correo, una nota escrita a mano) queda como está.
+ */
+function detalleDeAuditoria(detalle: string, i18n: I18n): string {
+  if (i18n.idioma === "es") return detalle;
+  const { t } = i18n;
+  // Quién lo hizo: un correo, o la clave general (que se dice en el idioma de la pantalla).
+  const quien = (x: string) => (x === "clave general" ? t("clave general") : x);
+  const rol = (x: string) => (x === "admin" ? t("admin") : t("lector"));
+  let m = /^por IP, (\d+)s$/.exec(detalle);
+  if (m) return t("por IP, {s}s", { s: m[1] });
+  m = /^por cuenta, (\d+)s$/.exec(detalle);
+  if (m) return t("por cuenta, {s}s", { s: m[1] });
+  if (detalle === "clave general") return t("clave general");
+  if (detalle === "frenado por casilla") return t("frenado por casilla");
+  m = /^sin SMTP, enlace mostrado a (.+)$/.exec(detalle);
+  if (m) return t("sin SMTP, enlace mostrado a {quien}", { quien: quien(m[1]) });
+  m = /^(admin|lector), por (.+), con invitación por correo$/.exec(detalle);
+  if (m) return t("{rol}, por {quien}, con invitación por correo", { rol: rol(m[1]), quien: quien(m[2]) });
+  m = /^(admin|lector), por (.+), con clave inicial$/.exec(detalle);
+  if (m) return t("{rol}, por {quien}, con clave inicial", { rol: rol(m[1]), quien: quien(m[2]) });
+  m = /^clave puesta a mano por (.+)$/.exec(detalle);
+  if (m) return t("clave puesta a mano por {quien}", { quien: quien(m[1]) });
+  m = /^antes (\S+), por (.+)$/.exec(detalle);
+  if (m) return t("antes {correo}, por {quien}", { correo: m[1], quien: quien(m[2]) });
+  m = /^(admin|lector) → (admin|lector), por (.+)$/.exec(detalle);
+  if (m) return t("{antes} → {despues}, por {quien}", { antes: rol(m[1]), despues: rol(m[2]), quien: quien(m[3]) });
+  m = /^por (.+)$/.exec(detalle);
+  if (m) return t("por {quien}", { quien: quien(m[1]) });
+  return detalle;
+}
 
 function Aviso({ estado }: { estado: EstadoUsuarios | null }) {
   if (!estado?.error && !estado?.ok) return null;
@@ -163,6 +199,7 @@ function Aviso({ estado }: { estado: EstadoUsuarios | null }) {
 }
 
 function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: boolean }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoUsuarios | null, FormData>(
     accionCrearUsuario,
     null
@@ -181,10 +218,10 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
       action={enviar}
       className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3"
     >
-      <p className="text-xs font-medium">Crear usuario</p>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <p className="text-xs font-medium">{t("Crear usuario")}</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Correo (para entrar)</span>
+          <span className="text-[11px] text-muted-foreground">{t("Correo (para entrar)")}</span>
           <input
             name="usuario"
             type="email"
@@ -193,15 +230,15 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
             autoCorrect="off"
             spellCheck={false}
             pattern={patronCorreo(dominio)}
-            title={`Tiene que ser un correo @${dominio}`}
+            title={t("Tiene que ser un correo @{dominio}", { dominio })}
             onBlur={sincronizarAriaInvalid}
             onInput={sincronizarAriaInvalid}
-            placeholder={`nombre@${dominio}`}
+            placeholder={t("nombre@{dominio}", { dominio })}
             className="input-base h-9"
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Nombre y apellido</span>
+          <span className="text-[11px] text-muted-foreground">{t("Nombre y apellido")}</span>
           <input
             name="nombre"
             required
@@ -213,32 +250,32 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Rol</span>
+          <span className="text-[11px] text-muted-foreground">{t("Rol")}</span>
           <select name="rol" defaultValue="lector" className="input-base h-9">
-            <option value="lector">Lector — ve el tablero</option>
-            <option value="admin">Administrador — además configura</option>
+            <option value="lector">{t("Lector — ve el tablero")}</option>
+            <option value="admin">{t("Administrador — además configura")}</option>
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Cómo recibe la clave</span>
+          <span className="text-[11px] text-muted-foreground">{t("Cómo recibe la clave")}</span>
           <select
             value={conClave ? "clave" : "correo"}
             onChange={(e) => setConClave(e.target.value === "clave")}
             className="input-base h-9"
           >
-            <option value="correo">Le llega un enlace por correo y elige la suya</option>
-            <option value="clave">Le pongo una clave inicial a mano</option>
+            <option value="correo">{t("Le llega un enlace por correo y elige la suya")}</option>
+            <option value="clave">{t("Le pongo una clave inicial a mano")}</option>
           </select>
         </label>
         {conClave && (
           <label className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-[11px] text-muted-foreground">Clave inicial</span>
+            <span className="text-[11px] text-muted-foreground">{t("Clave inicial")}</span>
             <CampoClave
               name="clave"
               required
               minLength={10}
               autoComplete="new-password"
-              placeholder="mínimo 10 caracteres"
+              placeholder={t("mínimo 10 caracteres")}
               onBlur={sincronizarAriaInvalid}
               onInput={sincronizarAriaInvalid}
               // Arranca VISIBLE: quien la crea la tiene que poder leer para
@@ -253,11 +290,11 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] text-muted-foreground">
           {conClave
-            ? "La clave no se guarda en claro: se guarda su hash y no se puede volver a ver."
-            : "El enlace vale 3 días y se usa una sola vez; nadie más que esa persona conoce su clave."}
+            ? t("La clave no se guarda en claro: se guarda su hash y no se puede volver a ver.")
+            : t("El enlace vale 3 días y se usa una sola vez; nadie más que esa persona conoce su clave.")}
         </span>
         <Button type="submit" size="sm" disabled={pendiente}>
-          {pendiente ? "Creando…" : conClave ? "Crear" : "Crear e invitar"}
+          {pendiente ? t("Creando…") : conClave ? t("Crear") : t("Crear e invitar")}
         </Button>
       </div>
       <Aviso estado={estado} />
@@ -266,6 +303,7 @@ function FormularioAlta({ dominio, hayCorreo }: { dominio: string; hayCorreo: bo
 }
 
 function FilaUsuario({ usuario, dominio, hayCorreo }: { usuario: Usuario; dominio: string; hayCorreo: boolean }) {
+  const { t, fmt } = useI18n();
   const [abierto, setAbierto] = React.useState(false);
 
   return (
@@ -281,22 +319,22 @@ function FilaUsuario({ usuario, dominio, hayCorreo }: { usuario: Usuario; domini
               : "bg-muted text-muted-foreground"
           )}
         >
-          {usuario.rol === "admin" ? "Admin" : "Lector"}
+          {usuario.rol === "admin" ? t("Admin") : t("Lector")}
         </span>
         {!usuario.activo && (
           <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-rose-700 dark:text-rose-400">
-            De baja
+            {t("De baja")}
           </span>
         )}
         {usuario.debe_cambiar && usuario.activo && (
           <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-            {usuario.ultimo_acceso ? "clave puesta por un admin" : "todavía no eligió su clave"}
+            {usuario.ultimo_acceso ? t("clave puesta por un admin") : t("todavía no eligió su clave")}
           </span>
         )}
         <span className="ml-auto text-[11px] text-muted-foreground">
           {usuario.ultimo_acceso
-            ? `entró ${formatFecha(usuario.ultimo_acceso)}`
-            : "nunca entró"}
+            ? t("entró {fecha}", { fecha: fmt.formatFecha(usuario.ultimo_acceso) })
+            : t("nunca entró")}
         </span>
         <Button
           type="button"
@@ -304,7 +342,7 @@ function FilaUsuario({ usuario, dominio, hayCorreo }: { usuario: Usuario; domini
           variant="ghost"
           onClick={() => setAbierto((v) => !v)}
         >
-          {abierto ? "Cerrar" : "Administrar"}
+          {abierto ? t("Cerrar") : t("Administrar")}
         </Button>
       </div>
 
@@ -325,6 +363,7 @@ function FilaUsuario({ usuario, dominio, hayCorreo }: { usuario: Usuario; domini
 }
 
 function EnviarEnlace({ usuario, hayCorreo }: { usuario: Usuario; hayCorreo: boolean }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoUsuarios | null, FormData>(
     accionEnviarEnlace,
     null
@@ -335,11 +374,11 @@ function EnviarEnlace({ usuario, hayCorreo }: { usuario: Usuario; hayCorreo: boo
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[11px] text-muted-foreground">
           {hayCorreo
-            ? "Le manda un enlace para que ponga una clave nueva; vos no la ves."
-            : "Genera un enlace para que ponga una clave nueva (sin SMTP se muestra acá)."}
+            ? t("Le manda un enlace para que ponga una clave nueva; vos no la ves.")
+            : t("Genera un enlace para que ponga una clave nueva (sin SMTP se muestra acá).")}
         </span>
         <Button type="submit" size="sm" disabled={pendiente || !usuario.activo}>
-          {pendiente ? "Enviando…" : usuario.ultimo_acceso ? "Enviar enlace para restablecer" : "Reenviar invitación"}
+          {pendiente ? t("Enviando…") : usuario.ultimo_acceso ? t("Enviar enlace para restablecer") : t("Reenviar invitación")}
         </Button>
       </div>
       <Aviso estado={estado} />
@@ -348,6 +387,7 @@ function EnviarEnlace({ usuario, hayCorreo }: { usuario: Usuario; hayCorreo: boo
 }
 
 function ResetearClave({ usuario }: { usuario: Usuario }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoUsuarios | null, FormData>(
     accionResetearClave,
     null
@@ -357,13 +397,13 @@ function ResetearClave({ usuario }: { usuario: Usuario }) {
       <input type="hidden" name="id" value={usuario.id} />
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">O ponerle una clave a mano</span>
+          <span className="text-[11px] text-muted-foreground">{t("O ponerle una clave a mano")}</span>
           <CampoClave
             name="clave"
             required
             minLength={10}
             autoComplete="new-password"
-            placeholder="mínimo 10 caracteres"
+            placeholder={t("mínimo 10 caracteres")}
             onBlur={sincronizarAriaInvalid}
             onInput={sincronizarAriaInvalid}
             // Misma razón que en el alta: el admin se la tiene que dictar.
@@ -372,7 +412,7 @@ function ResetearClave({ usuario }: { usuario: Usuario }) {
           />
         </label>
         <Button type="submit" size="sm" variant="outline" disabled={pendiente}>
-          {pendiente ? "Cambiando…" : "Resetear clave"}
+          {pendiente ? t("Cambiando…") : t("Resetear clave")}
         </Button>
       </div>
       <Aviso estado={estado} />
@@ -381,6 +421,7 @@ function ResetearClave({ usuario }: { usuario: Usuario }) {
 }
 
 function CambiarCorreo({ usuario, dominio }: { usuario: Usuario; dominio: string }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoUsuarios | null, FormData>(
     accionCambiarCorreo,
     null
@@ -390,7 +431,7 @@ function CambiarCorreo({ usuario, dominio }: { usuario: Usuario; dominio: string
       <input type="hidden" name="id" value={usuario.id} />
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-1 flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Correo</span>
+          <span className="text-[11px] text-muted-foreground">{t("Correo")}</span>
           <input
             name="correo"
             type="email"
@@ -400,15 +441,15 @@ function CambiarCorreo({ usuario, dominio }: { usuario: Usuario; dominio: string
             autoCorrect="off"
             spellCheck={false}
             pattern={patronCorreo(dominio)}
-            title={`Tiene que ser un correo @${dominio}`}
+            title={t("Tiene que ser un correo @{dominio}", { dominio })}
             onBlur={sincronizarAriaInvalid}
             onInput={sincronizarAriaInvalid}
-            placeholder={`nombre@${dominio}`}
+            placeholder={t("nombre@{dominio}", { dominio })}
             className="input-base h-9"
           />
         </label>
         <Button type="submit" size="sm" variant="outline" disabled={pendiente}>
-          {pendiente ? "Guardando…" : "Cambiar correo"}
+          {pendiente ? t("Guardando…") : t("Cambiar correo")}
         </Button>
       </div>
       <Aviso estado={estado} />
@@ -417,6 +458,7 @@ function CambiarCorreo({ usuario, dominio }: { usuario: Usuario; dominio: string
 }
 
 function CambiarRol({ usuario }: { usuario: Usuario }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoUsuarios | null, FormData>(
     accionCambiarRol,
     null
@@ -427,7 +469,7 @@ function CambiarRol({ usuario }: { usuario: Usuario }) {
       <input type="hidden" name="id" value={usuario.id} />
       <input type="hidden" name="rol" value={nuevo} />
       <Button type="submit" size="sm" variant="outline" disabled={pendiente}>
-        {nuevo === "admin" ? "Hacer administrador" : "Bajar a lector"}
+        {nuevo === "admin" ? t("Hacer administrador") : t("Bajar a lector")}
       </Button>
       <Aviso estado={estado} />
     </form>
@@ -435,6 +477,7 @@ function CambiarRol({ usuario }: { usuario: Usuario }) {
 }
 
 function CambiarActivo({ usuario }: { usuario: Usuario }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoUsuarios | null, FormData>(
     accionCambiarActivo,
     null
@@ -444,7 +487,7 @@ function CambiarActivo({ usuario }: { usuario: Usuario }) {
       <input type="hidden" name="id" value={usuario.id} />
       <input type="hidden" name="activo" value={usuario.activo ? "false" : "true"} />
       <Button type="submit" size="sm" variant="outline" disabled={pendiente}>
-        {usuario.activo ? "Dar de baja" : "Reactivar"}
+        {usuario.activo ? t("Dar de baja") : t("Reactivar")}
       </Button>
       <Aviso estado={estado} />
     </form>
@@ -452,6 +495,7 @@ function CambiarActivo({ usuario }: { usuario: Usuario }) {
 }
 
 function Borrar({ usuario }: { usuario: Usuario }) {
+  const { t, tr } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoUsuarios | null, FormData>(
     accionBorrarUsuario,
     null
@@ -480,21 +524,24 @@ function Borrar({ usuario }: { usuario: Usuario }) {
             "border-rose-500/40 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
           )}
         >
-          Borrar
+          {t("Borrar")}
         </AlertDialog.Trigger>
         <AlertDialog.Portal>
           <AlertDialog.Backdrop className="fixed inset-0 z-50 bg-black/50" />
           <AlertDialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(26rem,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-xl">
             <AlertDialog.Title className="text-base font-semibold">
-              Borrar usuario
+              {t("Borrar usuario")}
             </AlertDialog.Title>
             <AlertDialog.Description className="mt-1.5 text-sm text-muted-foreground">
-              ¿Borrar a <strong className="text-foreground">{usuario.usuario}</strong>?
-              No se puede deshacer.
+              {tr(
+                "¿Borrar a <b>{correo}</b>? No se puede deshacer.",
+                { correo: usuario.usuario },
+                { b: (h) => <strong className="text-foreground">{h}</strong> }
+              )}
             </AlertDialog.Description>
             <div className="mt-4 flex justify-end gap-2">
               <AlertDialog.Close className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
-                Cancelar
+                {t("Cancelar")}
               </AlertDialog.Close>
               <button
                 type="submit"
@@ -506,7 +553,7 @@ function Borrar({ usuario }: { usuario: Usuario }) {
                   "bg-rose-600 text-white hover:bg-rose-600/90 disabled:opacity-50"
                 )}
               >
-                {pendiente ? "Borrando…" : "Sí, borrar"}
+                {pendiente ? t("Borrando…") : t("Sí, borrar")}
               </button>
             </div>
           </AlertDialog.Popup>

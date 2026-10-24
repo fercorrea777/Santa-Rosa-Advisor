@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ICONOS } from "@/components/layout/iconos-nav";
 import { IconChevron } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /** El cian de la marca como relleno de estado: marca la pantalla en la que
  *  estás. Es el acento del sistema (DESIGN.md: «el acento marca estado y
@@ -63,6 +64,7 @@ export function SidebarNav({
   /** Solo íconos, con el rótulo en un tooltip. */
   colapsado?: boolean;
 }) {
+  const { t } = useI18n();
   const grupos = navPara(esAdmin);
   const pathname = usePathname();
   const [cerrados, setCerrados] = React.useState<Set<string>>(new Set());
@@ -79,12 +81,12 @@ export function SidebarNav({
   if (colapsado) {
     return (
       <LayoutGroup id={`${idGrupo}-mini`}>
-        <nav aria-label="Pantallas" className="flex flex-col gap-2 px-2">
+        <nav aria-label={t("Pantallas")} className="flex flex-col gap-2 px-2">
           {grupos.map((grupo) => (
             <div
               key={grupo.titulo}
               role="group"
-              aria-label={grupo.titulo}
+              aria-label={t(grupo.titulo)}
               className="flex flex-col items-center gap-1 border-t border-white/10 pt-2 first:border-t-0 first:pt-0"
             >
               {grupo.items.map((item) => (
@@ -104,7 +106,7 @@ export function SidebarNav({
 
   return (
     <LayoutGroup id={idGrupo}>
-      <nav aria-label="Pantallas" className="flex flex-col gap-2 px-2">
+      <nav aria-label={t("Pantallas")} className="flex flex-col gap-2 px-2">
         {grupos.map((grupo) => {
           const abierto = !cerrados.has(grupo.titulo);
           return (
@@ -118,7 +120,7 @@ export function SidebarNav({
                 className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] outline-none transition-colors hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-[var(--barra-foreground)]/50 pointer-coarse:min-h-9"
                 style={{ color: "var(--barra-muted)" }}
               >
-                {grupo.titulo}
+                {t(grupo.titulo)}
                 <IconChevron
                   size={13}
                   className={cn(
@@ -171,13 +173,14 @@ function ItemExpandido({
   activo: boolean;
   onNavigate?: () => void;
 }) {
+  const { t } = useI18n();
   const Icono = ICONOS[item.icono];
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
       aria-current={activo ? "page" : undefined}
-      title={item.pista ? `${item.label} — ${item.pista}` : item.label}
+      title={item.pista ? `${t(item.label)} — ${t(item.pista)}` : t(item.label)}
       style={activo ? undefined : { color: "var(--barra-muted)" }}
       className={cn(
         // apple-design §1: feedback de press instantáneo (active:scale a
@@ -207,14 +210,14 @@ function ItemExpandido({
         >
           <Icono size={16} />
         </span>
-        <span className="truncate">{item.label}</span>
+        <span className="truncate">{t(item.label)}</span>
       </span>
       {!item.implementado && (
         <Badge
           variant="outline"
           className="relative ml-2 shrink-0 border-white/25 text-[10px] font-normal text-white/70"
         >
-          pronto
+          {t("pronto")}
         </Badge>
       )}
     </Link>
@@ -230,6 +233,7 @@ function ItemPlegado({
   activo: boolean;
   onNavigate?: () => void;
 }) {
+  const { t } = useI18n();
   const Icono = ICONOS[item.icono];
   return (
     <Tooltip>
@@ -239,7 +243,7 @@ function ItemPlegado({
             href={item.href}
             onClick={onNavigate}
             aria-current={activo ? "page" : undefined}
-            aria-label={item.implementado ? item.label : `${item.label} (pronto)`}
+            aria-label={item.implementado ? t(item.label) : t("{label} (pronto)", { label: t(item.label) })}
             style={activo ? undefined : { color: "var(--barra-muted)" }}
             className={cn(
               "relative grid size-10 place-items-center rounded-xl outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-[var(--barra-foreground)]/50 active:scale-[0.96] active:duration-75",
@@ -275,10 +279,10 @@ function ItemPlegado({
       <TooltipContent side="right" sideOffset={10} className="max-w-64 items-start">
         <span className="flex flex-col gap-0.5">
           <strong className="font-semibold">
-            {item.label}
-            {!item.implementado && <span className="font-normal opacity-70"> · pronto</span>}
+            {t(item.label)}
+            {!item.implementado && <span className="font-normal opacity-70"> · {t("pronto")}</span>}
           </strong>
-          {item.pista && <span className="opacity-75">{item.pista}</span>}
+          {item.pista && <span className="opacity-75">{t(item.pista)}</span>}
         </span>
       </TooltipContent>
     </Tooltip>

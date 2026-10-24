@@ -7,7 +7,7 @@ import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import {
   claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha,
 } from "@/lib/cadam/bandas";
-import { decimal, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 
 export interface Burbuja {
   marca: string;
@@ -60,12 +60,14 @@ export function BurbujasMarcaChart({
 }) {
   const TECHO_VARIACION = techo;
   const theme = useChartTheme();
+  const { t, fmt } = useI18n();
+  const { decimal, formatUnidades } = fmt;
   const [abierto, setAbierto] = useState<DetalleModelo | null>(null);
 
   if (!datos.length) {
     return (
       <p className="py-16 text-center text-sm text-muted-foreground">
-        Ningún modelo alcanza la base mínima para comparar con el año anterior.
+        {t("Ningún modelo alcanza la base mínima para comparar con el año anterior.")}
       </p>
     );
   }
@@ -150,11 +152,11 @@ export function BurbujasMarcaChart({
         data: { marca: string; anterior: number; real: number; recortada: boolean };
       }) =>
         `<b>${p.data.marca}</b> · ${p.name}<br/>` +
-        `${formatUnidades(p.value[2])} u. ` +
-        `<span style="opacity:.7">(antes ${formatUnidades(p.data.anterior)})</span><br/>` +
-        `<b>${p.data.real >= 0 ? "+" : ""}${decimal(p.data.real, 1)}%</b> vs. año anterior` +
+        `${t("{n} u.", { n: formatUnidades(p.value[2]) })} ` +
+        `<span style="opacity:.7">${t("(antes {n})", { n: formatUnidades(p.data.anterior) })}</span><br/>` +
+        `<b>${p.data.real >= 0 ? "+" : ""}${decimal(p.data.real, 1)}%</b> ${t("vs. año anterior")}` +
         (p.data.recortada
-          ? `<br/><span style="font-size:11px;opacity:.75">Se sale del eje: dibujada en el tope de +${TECHO_VARIACION}%</span>`
+          ? `<br/><span style="font-size:11px;opacity:.75">${t("Se sale del eje: dibujada en el tope de +{techo}%", { techo: TECHO_VARIACION })}</span>`
           : ""),
     },
     xAxis: {
@@ -179,7 +181,7 @@ export function BurbujasMarcaChart({
     },
     yAxis: {
       type: "value" as const,
-      name: "% vs. año anterior",
+      name: t("% vs. año anterior"),
       nameTextStyle: { color: theme.text, fontSize: 11, align: "left" as const },
       max: TECHO_VARIACION,
       axisLabel: {

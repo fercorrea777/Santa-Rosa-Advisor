@@ -1,149 +1,31 @@
 /**
- * Zona horaria de TODO lo que muestre fecha u hora: Paraguay, UTC−3 FIJO.
+ * Formatos de cifras y fechas EN CASTELLANO (es-PY).
  *
- * Por qué un desplazamiento fijo y no `timeZone: "America/Asuncion"`: el
- * contenedor de producción corre en UTC (TZ vacío), y el Node de adentro
- * trae una tabla de zonas horarias vieja que para Asunción en septiembre
- * todavía aplica UTC−4 —el horario de invierno que Paraguay abolió en
- * octubre de 2024 (UTC−3 todo el año)—. Con el nombre IANA, la sincronización
- * de las 14:25 salía como "13:25": una hora mal, pero al revés que antes
- * (con la zona del servidor salía "17:25"). El offset fijo no depende de qué
- * tabla tenga el runtime. Si Paraguay volviera a cambiar la hora, se cambia
- * este número y nada más.
- */
-export const DESPLAZAMIENTO_PY_MIN = -3 * 60;
-
-function aFecha(v: string | number | Date | null | undefined): Date | null {
-  if (v === null || v === undefined || v === "") return null;
-  const d = v instanceof Date ? v : new Date(v);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-/** El mismo instante corrido al huso paraguayo, para formatearlo "en UTC". */
-function enParaguay(d: Date): Date {
-  return new Date(d.getTime() + DESPLAZAMIENTO_PY_MIN * 60_000);
-}
-
-/** "04/09/2026 12:42", en hora de Paraguay. "—" si no hay fecha. */
-export function formatFechaHora(v: string | number | Date | null | undefined): string {
-  const d = aFecha(v);
-  if (!d) return "—";
-  return new Intl.DateTimeFormat("es-PY", {
-    timeZone: "UTC",
-    day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  })
-    .format(enParaguay(d))
-    .replace(", ", " ");
-}
-
-/** "04/09/2026", en hora de Paraguay. "—" si no hay fecha. */
-export function formatFecha(v: string | number | Date | null | undefined): string {
-  const d = aFecha(v);
-  if (!d) return "—";
-  return new Intl.DateTimeFormat("es-PY", {
-    timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric",
-  }).format(enParaguay(d));
-}
-
-/** "2026-09-04": la fecha de HOY en Paraguay, para cálculos y claves.
- *  `toISOString().slice(0, 10)` daba la de UTC, que de 21:00 a 24:00 es la
- *  de mañana. Como el instante ya viene corrido, el ISO en UTC es la fecha
- *  local. */
-export function hoyEnAsuncion(ahora: Date = new Date()): string {
-  return enParaguay(ahora).toISOString().slice(0, 10);
-}
-
-export function formatUnidades(n: number): string {
-  return new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);
-}
-
-/**
- * Un decimal con coma, como se lee en Paraguay: 12,1 y no 12.1.
+ * Esto es solo la versión en castellano, para código que escribe texto fijo en
+ * castellano (logs, mensajes a máquinas, scripts). TODO lo que se le muestra a
+ * una persona usa el formato de SU idioma, y ese sale de `fmt`:
  *
- * Las unidades ya salen con punto de miles (`formatUnidades`: 42.328); un
- * porcentaje con punto decimal al lado ("+49.8%") se lee como cuarenta y nueve
- * mil ochocientos. Todo lo que muestre un decimal pasa por acá.
+ *   servidor:  `const { fmt } = await getI18n();`        (@/lib/i18n/servidor)
+ *   cliente:   `const { fmt } = useI18n();`              (@/lib/i18n/cliente)
  *
- * Un redondeo que cae en cero no lleva signo: `(-0.04).toFixed(1)` da "-0.0",
- * y una variación de "-0,0%" parece un dato en rojo que no es.
+ * Los nombres son los mismos que acá (`fmt.formatUnidades`, `fmt.formatPct`…),
+ * así que alcanza con destructurarlos de `fmt` en lugar de importarlos de este
+ * archivo. Un `formatUnidades` importado de acá en una pantalla muestra `42.328`
+ * también a quien eligió inglés, y en inglés eso se lee como 42,328. La
+ * implementación, y el porqué de cada formato, está en @/lib/i18n/formatos.
  */
-export function decimal(n: number, d = 1): string {
-  const t = n.toFixed(d).replace(".", ",");
-  return /^-0(,0+)?$/.test(t) ? t.slice(1) : t;
-}
+import { I18N_ES } from "./i18n/crear";
 
-export function formatPct(v: number | null, opts?: { signed?: boolean }): string {
-  if (v === null || !Number.isFinite(v)) return "—";
-  const pct = v * 100;
-  const sign = opts?.signed && pct > 0 ? "+" : "";
-  return `${sign}${decimal(pct, 1)}%`;
-}
+export { DESPLAZAMIENTO_PY_MIN, hoyEnAsuncion, nombreDeMarca } from "./i18n/formatos";
 
-export function formatPuntosPct(v: number): string {
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${decimal(v * 100, 1)} pp`;
-}
+const ES = I18N_ES.fmt;
 
-/** Cuántos meses de stock, ritmo, razones: un decimal con coma, "—" si no hay. */
-export function formatDecimal(n: number | null | undefined, d = 1): string {
-  return n === null || n === undefined || !Number.isFinite(n) ? "—" : decimal(n, d);
-}
-
-/**
- * CADAM manda los segmentos sin tilde (CAMION, FURGON, OMNIBUS) y así quedan
- * como clave en la base y en la URL. Esto es solo para MOSTRARLOS: nunca se
- * usa como valor de un filtro.
- */
-const SEGMENTO_CON_TILDE: Record<string, string> = {
-  automovil: "Automóvil",
-  camion: "Camión",
-  furgon: "Furgón",
-  minibus: "Minibús",
-  omnibus: "Ómnibus",
-};
-
-export function nombreDeSegmento(segmento: string): string {
-  return SEGMENTO_CON_TILDE[segmento.trim().toLowerCase()] ?? segmento;
-}
-
-/** Siglas que se escriben en mayúsculas aunque el resto del nombre no. */
-const SIGLAS_MARCA = new Set([
-  "JAC", "JMEV", "GWM", "BYD", "MG", "BMW", "KGM", "DFSK", "GAC", "KIA",
-  "JMC", "BAIC", "FAW", "SAIC", "RAM", "AION",
-]);
-
-/**
- * "GREAT WALL" → "Great Wall", "JAC" → "JAC". CADAM y el resto del tablero
- * escriben las marcas en mayúsculas, que en una tabla está bien; en un
- * rótulo corto que se repite en fila (pestañas) grita. Solo para mostrar:
- * los filtros y las claves siguen con el nombre tal cual.
- */
-export function nombreDeMarca(marca: string): string {
-  if (marca === "LYNK&CO") return "Lynk&Co";
-  return marca
-    .split(/\s+/)
-    .map((p) => (SIGLAS_MARCA.has(p) || p.length <= 2 ? p : p[0] + p.slice(1).toLowerCase()))
-    .join(" ");
-}
-
-/**
- * Un grupo de marcas (el importador que las representa) como se lee: CADAM lo
- * escribe en mayúsculas en EMPRESA (GARDEN, TAPE RUVICHA, DE LA SOBERA). OTROS
- * es el cajón de los importadores chicos. Lo que ya viene con minúsculas (la
- * etiqueta de «sin representante») se deja como está.
- */
-export function nombreDeGrupo(grupo: string): string {
-  if (grupo === "OTROS") return "Otros importadores";
-  if (grupo !== grupo.toUpperCase()) return grupo;
-  const chicas = new Set(["DE", "DEL", "LA", "LOS", "Y"]);
-  return grupo
-    .split(/\s+/)
-    .map((p, i) =>
-      chicas.has(p)
-        // «De la Sobera»: la partícula va en minúscula salvo al empezar.
-        ? i > 0 ? p.toLowerCase() : p[0] + p.slice(1).toLowerCase()
-        : nombreDeMarca(p)
-    )
-    .join(" ");
-}
+export const formatFechaHora = ES.formatFechaHora;
+export const formatFecha = ES.formatFecha;
+export const formatUnidades = ES.formatUnidades;
+export const decimal = ES.decimal;
+export const formatPct = ES.formatPct;
+export const formatPuntosPct = ES.formatPuntosPct;
+export const formatDecimal = ES.formatDecimal;
+export const nombreDeSegmento = ES.nombreDeSegmento;
+export const nombreDeGrupo = ES.nombreDeGrupo;

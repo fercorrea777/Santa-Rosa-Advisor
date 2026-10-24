@@ -1,5 +1,6 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { getPool } from "@/lib/informes/db";
+import type { T } from "@/lib/i18n/traducir";
 
 /**
  * Usuarios del tablero, con clave propia por persona.
@@ -105,38 +106,42 @@ export const LARGO_MINIMO_CLAVE = 10;
 
 /** Las que aparecen en cualquier lista de claves filtradas y las que alguien
  *  de la casa elegiría "por ahora". */
+// i18n-ignore-start (claves a rechazar, no texto de pantalla: tienen que quedar tal cual)
 const CLAVES_OBVIAS = new Set([
   "1234567890", "0123456789", "qwertyuiop", "password12", "password123",
   "contraseña1", "contrasena1", "santarosa1", "santarosa12", "santarosa123",
   "santarosa2026", "santarosa2025", "advisor2026", "renault123", "jetour1234",
 ]);
+// i18n-ignore-end
 
 /**
  * @param correo si se pasa, la clave no puede contener la parte local del
  *  correo ("fernando.correa" en fernando.correa@…): es lo primero que prueba
  *  quien conoce el usuario.
+ * @param t el traductor del pedido: el motivo vuelve a la pantalla en el idioma
+ *  de quien lo está viendo.
  */
-export function problemaConLaClave(clave: string, correo?: string): string | null {
+export function problemaConLaClave(clave: string, correo: string | undefined, t: T): string | null {
   if (clave.length < LARGO_MINIMO_CLAVE) {
-    return `La clave necesita al menos ${LARGO_MINIMO_CLAVE} caracteres.`;
+    return t("La clave necesita al menos {n} caracteres.", { n: LARGO_MINIMO_CLAVE });
   }
-  if (clave.length > 200) return "La clave no puede pasar los 200 caracteres.";
+  if (clave.length > 200) return t("La clave no puede pasar los 200 caracteres.");
   if (/^\s|\s$/.test(clave)) {
     // Un espacio al principio o al final casi siempre es un pegado
     // accidental, y despues nadie entiende por que "la clave correcta" falla.
-    return "La clave no puede empezar ni terminar con espacios.";
+    return t("La clave no puede empezar ni terminar con espacios.");
   }
   const baja = clave.toLowerCase();
   if (CLAVES_OBVIAS.has(baja) || /^(.)\1+$/.test(baja)) {
-    return "Esa clave es demasiado fácil de adivinar. Elegí otra.";
+    return t("Esa clave es demasiado fácil de adivinar. Elegí otra.");
   }
   if (baja.includes("santarosa") || baja.includes("santa rosa")) {
-    return "La clave no puede contener el nombre de la empresa.";
+    return t("La clave no puede contener el nombre de la empresa.");
   }
   if (correo) {
     const local = correo.split("@")[0]?.toLowerCase();
     if (local && local.length >= 4 && baja.includes(local)) {
-      return "La clave no puede contener tu usuario de correo.";
+      return t("La clave no puede contener tu usuario de correo.");
     }
   }
   return null;
@@ -150,19 +155,19 @@ export function normalizarUsuario(v: string): string {
 
 /** Correo válido y del dominio de la empresa. Se es estricto a propósito:
  *  el correo es también adonde llega el enlace para restablecer la clave. */
-export function problemaConElUsuario(usuario: string): string | null {
-  if (!usuario) return "Falta el correo.";
-  if (usuario.length > 120) return "El correo no puede pasar los 120 caracteres.";
+export function problemaConElUsuario(usuario: string, t: T): string | null {
+  if (!usuario) return t("Falta el correo.");
+  if (usuario.length > 120) return t("El correo no puede pasar los 120 caracteres.");
   const partes = usuario.split("@");
   if (partes.length !== 2 || !partes[0] || !partes[1]) {
-    return `El usuario tiene que ser un correo de la empresa (nombre@${DOMINIO_CORREO}).`;
+    return t("El usuario tiene que ser un correo de la empresa (nombre@{dominio}).", { dominio: DOMINIO_CORREO });
   }
   const [local, dominio] = partes;
   if (!/^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?$/.test(local) || local.includes("..")) {
-    return "El correo tiene caracteres que no van (solo letras, números, punto, guion y guion bajo).";
+    return t("El correo tiene caracteres que no van (solo letras, números, punto, guion y guion bajo).");
   }
   if (dominio !== DOMINIO_CORREO) {
-    return `Solo pueden entrar correos @${DOMINIO_CORREO}.`;
+    return t("Solo pueden entrar correos @{dominio}.", { dominio: DOMINIO_CORREO });
   }
   return null;
 }
@@ -226,6 +231,7 @@ export async function crearTablaUsuarios(): Promise<void> {
   // tabla aparte y no como columna de `usuarios` para que el login y la
   // vigencia, que leen esa tabla en cada entrada, no arrastren bytes que no
   // usan; y `on delete cascade` la borra sola junto con la cuenta.
+  // i18n-ignore (SQL)
   await pool.query(`
     create table if not exists usuario_fotos (
       usuario_id     bigint primary key references usuarios(id) on delete cascade,
@@ -340,6 +346,7 @@ export async function getVersionFoto(id: number): Promise<string | null> {
 export async function getFoto(id: number): Promise<FotoPerfil | null> {
   await asegurarTabla();
   const { rows } = await getPool().query<FotoPerfil>(
+    // i18n-ignore (SQL)
     `select tipo, datos,
             (extract(epoch from actualizado_en) * 1000)::bigint::text as version
      from usuario_fotos where usuario_id = $1`,
@@ -352,6 +359,7 @@ export async function getFoto(id: number): Promise<FotoPerfil | null> {
 export async function guardarFoto(id: number, tipo: string, datos: Buffer): Promise<string> {
   await asegurarTabla();
   const { rows } = await getPool().query<{ version: string }>(
+    // i18n-ignore (SQL)
     `insert into usuario_fotos (usuario_id, tipo, datos)
      values ($1, $2, $3)
      on conflict (usuario_id) do update

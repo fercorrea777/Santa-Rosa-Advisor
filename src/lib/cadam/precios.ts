@@ -1,3 +1,4 @@
+/* i18n-ignore-file — acceso a datos (SQL y cruces de nombres): ningún texto de pantalla. */
 import { getDb } from "@/lib/cadam/db";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { acotarAFuente, type Filtro, type Fuente } from "@/lib/cadam/mercado";

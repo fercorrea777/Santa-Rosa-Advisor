@@ -1,3 +1,4 @@
+/* i18n-ignore-file — resúmenes en forma de DATOS para el Copiloto y el Centro de Inteligencia: las `nota` son parte de lo que lee el MODELO (resultado de una herramienta; él responde en el idioma elegido), no texto de pantalla, y "sin precio" es una clave que compara inteligencia-propia.ts. */
 import { getRankingModelos, type Filtro } from "@/lib/cadam/mercado";
 import { getAsesoresMayoristasSet, getPresupuesto } from "@/lib/cadam/config";
 import {

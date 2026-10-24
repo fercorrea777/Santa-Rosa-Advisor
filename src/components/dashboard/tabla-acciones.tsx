@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/tooltip";
 import { IconChevron } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
+import type { Formatos } from "@/lib/i18n/formatos";
 import type { AccionVersion } from "@/lib/informes/acciones";
 import { nombreDeClave, type CruceFamilia } from "@/lib/informes/acciones-cruce";
 
@@ -52,12 +53,18 @@ const derecha = (desdeElBorde: number): React.CSSProperties => ({
 });
 const FOCO = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1";
 
-const usd = (n: number | null | undefined) =>
-  n === null || n === undefined ? "—" : formatUnidades(Math.round(n));
-const num = (n: number | null | undefined, decimales = 0) =>
-  n === null || n === undefined
-    ? ""
-    : new Intl.NumberFormat("es-PY", { maximumFractionDigits: decimales }).format(n);
+/** Las dos cifras de la tabla, en el idioma de la pantalla: `usd` (entero, «—»
+ *  si no hay) y `num` (hasta `decimales`, vacío si no hay). */
+function formatosDeTabla(fmt: Formatos) {
+  return {
+    usd: (n: number | null | undefined) =>
+      n === null || n === undefined ? "—" : fmt.formatUnidades(Math.round(n)),
+    num: (n: number | null | undefined, decimales = 0) =>
+      n === null || n === undefined
+        ? ""
+        : new Intl.NumberFormat(fmt.locale, { maximumFractionDigits: decimales }).format(n),
+  };
+}
 
 function tiene(versiones: AccionVersion[], campo: keyof AccionVersion): boolean {
   return versiones.some((v) => v[campo] !== null && v[campo] !== undefined && v[campo] !== "");
@@ -90,6 +97,9 @@ export function TablaAcciones({
   esAdmin: boolean;
   totales: { stock: number; enViaje: number; comprometido: number };
 }) {
+  const { t, fmt } = useI18n();
+  const { formatPct, formatUnidades } = fmt;
+  const { usd, num } = formatosDeTabla(fmt);
   const [abiertas, setAbiertas] = React.useState<Set<string>>(new Set());
   const alternar = (k: string) =>
     setAbiertas((prev) => {
@@ -132,18 +142,18 @@ export function TablaAcciones({
     <Table className="sin-cebra text-[13px]">
       <TableHeader>
         <TableRow>
-          <TableHead className={cn(PEGADA, "min-w-[12rem]")}>Versión</TableHead>
-          {conAvg && <TableHead className="text-right" nota="promedio">Vtas./mes</TableHead>}
-          <TableHead className="text-right" nota="+ en viaje">Stock</TableHead>
-          <TableHead className="text-right" nota="lista, US$">PVP</TableHead>
-          <TableHead className="text-right" nota="y cuánto">Con dcto.</TableHead>
-          {esAdmin && <TableHead className="text-right" nota="c/ dcto. máx.">Margen</TableHead>}
-          {conBono && <TableHead className="text-right" nota="vendedor">Bono</TableHead>}
-          {conSenia && <TableHead className="text-right" nota="US$">Seña</TableHead>}
-          <TableHead className={cn(PEGADA_DER, "border-l text-right")} style={derecha(posMat)} nota={etiquetas.matriculaciones}>Matric.</TableHead>
-          <TableHead className={cn(PEGADA_DER, "text-right")} style={derecha(posImp)} nota={etiquetas.importaciones}>Import.</TableHead>
+          <TableHead className={cn(PEGADA, "min-w-[12rem]")}>{t("Versión")}</TableHead>
+          {conAvg && <TableHead className="text-right" nota={t("promedio")}>{t("Vtas./mes")}</TableHead>}
+          <TableHead className="text-right" nota={t("+ en viaje")}>{t("Stock")}</TableHead>
+          <TableHead className="text-right" nota={t("lista, US$")}>{t("PVP")}</TableHead>
+          <TableHead className="text-right" nota={t("y cuánto")}>{t("Con dcto.")}</TableHead>
+          {esAdmin && <TableHead className="text-right" nota={t("c/ dcto. máx.")}>{t("Margen")}</TableHead>}
+          {conBono && <TableHead className="text-right" nota={t("vendedor")}>{t("Bono")}</TableHead>}
+          {conSenia && <TableHead className="text-right" nota="US$">{t("Seña")}</TableHead>}
+          <TableHead className={cn(PEGADA_DER, "border-l text-right")} style={derecha(posMat)} nota={etiquetas.matriculaciones}>{t("Matric.")}</TableHead>
+          <TableHead className={cn(PEGADA_DER, "text-right")} style={derecha(posImp)} nota={etiquetas.importaciones}>{t("Import.")}</TableHead>
           {conCars && (
-            <TableHead className={cn(PEGADA_DER, "text-right")} style={derecha(0)} nota={etiquetas.facturadas ?? undefined}>Fact.</TableHead>
+            <TableHead className={cn(PEGADA_DER, "text-right")} style={derecha(0)} nota={etiquetas.facturadas ?? undefined}>{t("Fact.")}</TableHead>
           )}
         </TableRow>
       </TableHeader>
@@ -163,7 +173,7 @@ export function TablaAcciones({
                     </Badge>
                   ))}
                   <span className="text-[11px] text-muted-foreground">
-                    {f.versiones.length} {f.versiones.length === 1 ? "versión" : "versiones"}
+                    {f.versiones.length === 1 ? t("1 versión") : t("{n} versiones", { n: f.versiones.length })}
                   </span>
                 </div>
               </TableCell>
@@ -193,7 +203,7 @@ export function TablaAcciones({
                         type="button"
                         onClick={() => alternar(k)}
                         aria-expanded={abierta}
-                        aria-label={abierta ? `Cerrar el detalle de ${v.version}` : `Ver el detalle de ${v.version}`}
+                        aria-label={abierta ? t("Cerrar el detalle de {version}", { version: v.version }) : t("Ver el detalle de {version}", { version: v.version })}
                         className={cn(
                           "-ml-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground",
                           FOCO
@@ -207,7 +217,7 @@ export function TablaAcciones({
                       <span className="whitespace-nowrap">{v.version}</span>
                     </div>
                     {v.pvp_texto && (
-                      <div className="pl-6 text-xs text-muted-foreground">PVP: {v.pvp_texto}</div>
+                      <div className="pl-6 text-xs text-muted-foreground">{t("PVP: {texto}", { texto: v.pvp_texto })}</div>
                     )}
                     {conObs && v.observaciones && (
                       <div
@@ -224,7 +234,7 @@ export function TablaAcciones({
                   <TableCell className="text-right tabular-nums">
                     {num(v.stock)}
                     {(v.en_viaje ?? 0) > 0 && (
-                      <span className="block text-[11px] leading-tight text-muted-foreground">+{num(v.en_viaje)} en viaje</span>
+                      <span className="block text-[11px] leading-tight text-muted-foreground">{t("+{n} en viaje", { n: num(v.en_viaje) })}</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{usd(v.pvp)}</TableCell>
@@ -237,7 +247,7 @@ export function TablaAcciones({
                         </span>
                       </>
                     ) : v.pvp !== null ? (
-                      <span className="text-muted-foreground">sin dcto.</span>
+                      <span className="text-muted-foreground">{t("sin dcto.")}</span>
                     ) : (
                       ""
                     )}
@@ -273,35 +283,35 @@ export function TablaAcciones({
               filas.push(
                 <FilaDetalle key={`${k}-detalle`} abierta={abierta} onAbrir={() => abrir(k)} colSpan={columnas}>
                       <dl className="sticky left-9 grid w-fit max-w-[calc(100vw-22rem)] grid-cols-2 gap-x-6 gap-y-1.5 text-xs sm:grid-cols-3 lg:grid-cols-4">
-                        <Dato rotulo="PVP s/IVA" valor={usd(v.pvp_sin_iva)} />
-                        <Dato rotulo="Con dcto. s/IVA" valor={usd(v.precio_descuento_sin_iva)} />
-                        {esAdmin && <Dato rotulo="Costo SR" valor={usd(v.costo)} />}
+                        <Dato rotulo={t("PVP s/IVA")} valor={usd(v.pvp_sin_iva)} />
+                        <Dato rotulo={t("Con dcto. s/IVA")} valor={usd(v.precio_descuento_sin_iva)} />
+                        {esAdmin && <Dato rotulo={t("Costo SR")} valor={usd(v.costo)} />}
                         {esAdmin && (
                           <Dato
-                            rotulo="Margen sin descuento"
+                            rotulo={t("Margen sin descuento")}
                             valor={`${usd(v.margen)}${v.margen_pct !== null ? ` · ${formatPct(v.margen_pct)}` : ""}`}
                           />
                         )}
-                        {esAdmin && conNeto && <Dato rotulo="Margen neto" valor={usd(v.margen_neto)} />}
+                        {esAdmin && conNeto && <Dato rotulo={t("Margen neto")} valor={usd(v.margen_neto)} />}
                         {esAdmin && conNeto && <Dato rotulo="VME" valor={usd(v.vme)} />}
                         {conMaxComision && (
-                          <Dato rotulo="Precio máx. sin afectar comisión" valor={usd(v.precio_max_comision)} />
+                          <Dato rotulo={t("Precio máx. sin afectar comisión")} valor={usd(v.precio_max_comision)} />
                         )}
-                        {conSoporte && <Dato rotulo="Soporte FOB" valor={usd(v.soporte_fob)} />}
-                        {conSoporte && <Dato rotulo="Soporte por venta" valor={usd(v.soporte_venta)} />}
-                        {conSoporte && <Dato rotulo="Total soporte" valor={usd(v.soporte_total)} />}
+                        {conSoporte && <Dato rotulo={t("Soporte FOB")} valor={usd(v.soporte_fob)} />}
+                        {conSoporte && <Dato rotulo={t("Soporte por venta")} valor={usd(v.soporte_venta)} />}
+                        {conSoporte && <Dato rotulo={t("Total soporte")} valor={usd(v.soporte_total)} />}
                         {esAdmin && conSoporte && (
                           <Dato
-                            rotulo="Margen con soporte"
+                            rotulo={t("Margen con soporte")}
                             valor={`${usd(v.margen_soporte)}${v.margen_soporte_pct !== null ? ` · ${formatPct(v.margen_soporte_pct)}` : ""}`}
                           />
                         )}
-                        {conNipon && <Dato rotulo="Venta wholesale Nipon" valor={num(v.wholesale_nipon) || "—"} />}
-                        {conNipon && <Dato rotulo="Stock final SR" valor={num(v.stock_final) || "—"} />}
-                        {v.segmento && <Dato rotulo="Segmento" valor={v.segmento} />}
+                        {conNipon && <Dato rotulo={t("Venta wholesale Nipon")} valor={num(v.wholesale_nipon) || "—"} />}
+                        {conNipon && <Dato rotulo={t("Stock final SR")} valor={num(v.stock_final) || "—"} />}
+                        {v.segmento && <Dato rotulo={t("Segmento")} valor={v.segmento} />}
                         {v.observaciones && (
                           <div className="col-span-full flex max-w-[70ch] flex-col">
-                            <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">Mecánica</dt>
+                            <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("Mecánica")}</dt>
                             <dd className="whitespace-pre-wrap leading-snug">{v.observaciones}</dd>
                           </div>
                         )}
@@ -314,22 +324,20 @@ export function TablaAcciones({
         })}
         <TableRow className="group/fila bg-muted/40 font-semibold hover:bg-muted/40">
           <TableCell className={cn(PEGADA, FONDO_FAMILIA, "py-2 text-xs uppercase tracking-wide")}>
-            Total marca
+            {t("Total marca")}
           </TableCell>
           <TableCell colSpan={columnas - 1} className="py-2">
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs">
-              <span>Stock {formatUnidades(totales.stock)}</span>
-              {totales.enViaje > 0 && <span>En viaje {formatUnidades(totales.enViaje)}</span>}
+              <span>{t("Stock {n}", { n: formatUnidades(totales.stock) })}</span>
+              {totales.enViaje > 0 && <span>{t("En viaje {n}", { n: formatUnidades(totales.enViaje) })}</span>}
               <Tooltip>
                 <TooltipTrigger
                   render={<button type="button" className={cn("cursor-help rounded underline decoration-dotted underline-offset-2", FOCO)} />}
                 >
-                  Descuento comprometido US$&nbsp;{formatUnidades(Math.round(totales.comprometido))}
+                  {t("Descuento comprometido {monto}", { monto: `US$\u00a0${formatUnidades(Math.round(totales.comprometido))}` })}
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
-                  Stock × descuento máximo de cada versión: lo que costaría vender
-                  todo el stock de hoy al precio con descuento. Es una cota, no
-                  un pronóstico.
+                  {t("Stock × descuento máximo de cada versión: lo que costaría vender todo el stock de hoy al precio con descuento. Es una cota, no un pronóstico.")}
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -391,13 +399,15 @@ function FilaDetalle({
 }
 
 function Margen({ valor, pct }: { valor: number | null; pct: number | null }) {
+  const { fmt } = useI18n();
+  const { usd } = formatosDeTabla(fmt);
   if (valor === null) return null;
   const negativo = valor < 0;
   return (
     <span className={cn(negativo && "font-semibold text-rose-700 dark:text-rose-400")}>
       {usd(valor)}
       {pct !== null && (
-        <span className="block text-[11px] leading-tight text-muted-foreground">{formatPct(pct)}</span>
+        <span className="block text-[11px] leading-tight text-muted-foreground">{fmt.formatPct(pct)}</span>
       )}
     </span>
   );
@@ -416,17 +426,21 @@ function Dato({ rotulo, valor }: { rotulo: string; valor: string }) {
  *  esa fuente no tiene la familia con ese nombre exacto; el tooltip (que
  *  también se abre con teclado) dice qué se sumó. */
 function Cruce({ c }: { c: CruceFamilia | null }) {
+  const { t, fmt } = useI18n();
   if (!c) return <span className="text-muted-foreground">—</span>;
   const etiqueta = c.aproximado
-    ? `Esa fuente no tiene la familia con este nombre exacto; se muestra «${c.aproximado.split(" + ").map(nombreDeClave).join(" + ")}»: ${c.modelos.join(", ")}.`
-    : `Suma de: ${c.modelos.join(", ")}.`;
+    ? t("Esa fuente no tiene la familia con este nombre exacto; se muestra «{familia}»: {modelos}.", {
+        familia: c.aproximado.split(" + ").map(nombreDeClave).join(" + "),
+        modelos: c.modelos.join(", "),
+      })
+    : t("Suma de: {modelos}.", { modelos: c.modelos.join(", ") });
   return (
     <Tooltip>
       <TooltipTrigger
         render={<button type="button" className={cn("cursor-help rounded tabular-nums text-xs font-semibold", FOCO)} />}
       >
-        {formatUnidades(c.unidades)}
-        {c.aproximado && <span className="ml-0.5 font-normal text-muted-foreground" aria-label="aproximado">≈</span>}
+        {fmt.formatUnidades(c.unidades)}
+        {c.aproximado && <span className="ml-0.5 font-normal text-muted-foreground" aria-label={t("aproximado")}>≈</span>}
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">{etiqueta}</TooltipContent>
     </Tooltip>

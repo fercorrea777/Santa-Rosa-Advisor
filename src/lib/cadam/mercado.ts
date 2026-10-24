@@ -1,7 +1,10 @@
+/* i18n-ignore-file — capa de datos: consultas SQL y claves de la base (marca, segmento, tecnología…); no tiene frases de pantalla.
+   Los pocos rótulos que sí se leen (GRUPO_TECNOLOGIA, SIN_REPRESENTANTE) van con N_() y se traducen donde se dibujan. */
 import { getDb } from "./db";
 import { getMarcasPropiasSet } from "./config";
 import { GRUPO_PROPIO, repartirUnidades } from "./grupos";
 import { normalizarTecnologias } from "../informes/segmento-version";
+import { N_ } from "../i18n/traducir";
 
 /**
  * Consultas sobre las tablas row-level de CADAM (v_matriculacion,
@@ -47,12 +50,12 @@ export type Tecnologia = (typeof TECNOLOGIAS)[number];
 
 /** Agrupacion OPCIONAL, solo para mostrar. Nunca reemplaza al detalle. */
 export const GRUPO_TECNOLOGIA: Record<string, string> = {
-  ICE: "Combustión",
-  MHEV: "Híbridos",
-  HEV: "Híbridos",
-  PHEV: "Híbridos",
-  REEV: "Eléctricos",
-  EV: "Eléctricos",
+  ICE: N_("Combustión"),
+  MHEV: N_("Híbridos"),
+  HEV: N_("Híbridos"),
+  PHEV: N_("Híbridos"),
+  REEV: N_("Eléctricos"),
+  EV: N_("Eléctricos"),
 };
 
 export const SEGMENTO_SIN_CLASIFICAR = "Sin clasificar";
@@ -177,7 +180,7 @@ export function getMarcasDeImportador(empresa: string, anio: number): string[] {
 }
 
 /** Etiqueta para las importaciones de marcas que nadie matriculó todavía. */
-export const SIN_REPRESENTANTE = "Sin representante conocido";
+export const SIN_REPRESENTANTE = N_("Sin representante conocido");
 
 /** Construye el WHERE de un filtro. Devuelve el fragmento y los binds. */
 function where(fuente: Fuente, f: Filtro, alias = "") {

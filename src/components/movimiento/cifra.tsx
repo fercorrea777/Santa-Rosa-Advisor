@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { DURACION, gsap, menosMovimiento } from "@/lib/movimiento";
+import { useI18n } from "@/lib/i18n/cliente";
+import type { Idioma } from "@/lib/i18n/idioma";
 
 /**
  * Una cifra que cuenta hasta su valor.
@@ -39,6 +41,9 @@ export function Cifra({
   className?: string;
 }) {
   const ref = React.useRef<HTMLElement>(null);
+  // El texto llega formateado en el idioma de la pantalla: «42.328» en castellano
+  // y «42,328» en inglés se descomponen con reglas distintas.
+  const { idioma } = useI18n();
   /** Último número que quedó escrito, para que el conteo siguiente arranque
    *  de ahí. null = lo que hay en pantalla no es un número. */
   const anterior = React.useRef<number | null>(null);
@@ -46,7 +51,7 @@ export function Cifra({
   React.useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const partes = descomponer(texto);
+    const partes = descomponer(texto, idioma);
     if (!partes || menosMovimiento()) {
       anterior.current = partes?.numero ?? null;
       return;
@@ -86,7 +91,7 @@ export function Cifra({
       tween.kill();
       el.textContent = texto;
     };
-  }, [texto]);
+  }, [texto, idioma]);
 
   // createElement y no <Etiqueta>: con la etiqueta como unión ("p" |
   // "span") JSX no acepta un ref de HTMLElement genérico.
@@ -114,7 +119,7 @@ const PATRON = /^([+\-−]?\s?)(\d[\d.,]*)(\s?(?:%|pp|u\.?)?)$/;
  * no, el último punto es decimal salvo que TODOS los grupos que siguen a un
  * punto tengan tres dígitos, que es la firma de los miles.
  */
-export function descomponer(texto: string): Partes | null {
+export function descomponer(texto: string, idioma: Idioma = "es"): Partes | null {
   const m = PATRON.exec(texto.trim());
   if (!m) return null;
   const [, prefijo, cuerpo, sufijo] = m;
@@ -125,7 +130,17 @@ export function descomponer(texto: string): Partes | null {
   let entero = cuerpo;
   let fraccion = "";
 
-  if (cuerpo.includes(",")) {
+  if (idioma === "en") {
+    // en-US: la coma SIEMPRE es de miles y el punto SIEMPRE es el decimal. No hay ambigüedad
+    // que resolver («42,328» son 42328 unidades; «12.1» es un decimal).
+    miles = cuerpo.includes(",") ? "," : "";
+    if (cuerpo.includes(".")) {
+      decimal = ".";
+      const i = cuerpo.lastIndexOf(".");
+      entero = cuerpo.slice(0, i);
+      fraccion = cuerpo.slice(i + 1);
+    }
+  } else if (cuerpo.includes(",")) {
     decimal = ",";
     miles = cuerpo.includes(".") ? "." : "";
     [entero, fraccion] = cuerpo.split(",");

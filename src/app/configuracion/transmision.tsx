@@ -3,7 +3,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import { formatUnidades } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/servidor";
 import { getVentasPropias } from "@/lib/informes/propios";
 import { FAMILIAS, MARCAS_ELECTRICAS, transmisionDe } from "@/lib/informes/transmision";
 
@@ -16,6 +16,8 @@ import { FAMILIAS, MARCAS_ELECTRICAS, transmisionDe } from "@/lib/informes/trans
  * en Cars o agregando la familia acá.
  */
 export async function CatalogoTransmision({ anio }: { anio: number }) {
+  const { t, tr, fmt } = await getI18n();
+  const { formatUnidades } = fmt;
   const propias = getMarcasPropiasSet();
   const filas = Object.entries(FAMILIAS)
     .map(([clave, transmision]) => {
@@ -51,14 +53,13 @@ export async function CatalogoTransmision({ anio }: { anio: number }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Transmisión por familia (para revisar)</CardTitle>
+        <CardTitle className="text-base">{t("Transmisión por familia (para revisar)")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Las fichas comparan mecánico con mecánico y automático con automático. Cars no
-          trae la caja como dato: se lee del nombre de la versión (MT, AT, CVT, DCT…) y, cuando
-          el nombre no lo dice, de esta lista. Si algo está mal, se corrige en{" "}
-          <code className="rounded bg-muted px-1 py-0.5">src/lib/informes/transmision.ts</code>.
-          Las marcas solo eléctricas ({[...MARCAS_ELECTRICAS].filter((m) => propias.has(m)).join(", ") || "—"}
-          ) cuentan como automáticas enteras.
+          {tr(
+            "Las fichas comparan mecánico con mecánico y automático con automático. Cars no trae la caja como dato: se lee del nombre de la versión (MT, AT, CVT, DCT…) y, cuando el nombre no lo dice, de esta lista. Si algo está mal, se corrige en <code>src/lib/informes/transmision.ts</code>. Las marcas solo eléctricas ({marcas}) cuentan como automáticas enteras.",
+            { marcas: [...MARCAS_ELECTRICAS].filter((m) => propias.has(m)).join(", ") || "—" },
+            { code: (h) => <code className="rounded bg-muted px-1 py-0.5">{h}</code> }
+          )}
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -70,7 +71,7 @@ export async function CatalogoTransmision({ anio }: { anio: number }) {
                 <span className="ml-1.5 text-xs text-muted-foreground">{f.marca}</span>
               </span>
               <span className={f.transmision === "AT" ? "text-xs font-medium" : "text-xs font-medium text-amber-700 dark:text-amber-400"}>
-                {f.transmision === "AT" ? "automático" : "mecánico"}
+                {f.transmision === "AT" ? t("automático") : t("mecánico")}
               </span>
             </div>
           ))}
@@ -78,24 +79,24 @@ export async function CatalogoTransmision({ anio }: { anio: number }) {
 
         <div>
           <h4 className="text-sm font-semibold">
-            Versiones vendidas en {anio} que siguen sin caja conocida
+            {t("Versiones vendidas en {anio} que siguen sin caja conocida", { anio })}
             {totalAnio > 0 && (
               <span className="ml-1 font-normal text-muted-foreground">
-                ({formatUnidades(unidadesSinCaja)} de {formatUnidades(totalAnio)} unidades)
+                {t("({a} de {b} unidades)", { a: formatUnidades(unidadesSinCaja), b: formatUnidades(totalAnio) })}
               </span>
             )}
           </h4>
           {errorCars ? (
-            <p className="mt-1 text-xs text-muted-foreground">Cars no respondió: {errorCars}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("Cars no respondió: {error}", { error: errorCars })}</p>
           ) : sinCaja.length === 0 ? (
-            <p className="mt-1 text-xs text-muted-foreground">Ninguna: todas las versiones tienen caja conocida.</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("Ninguna: todas las versiones tienen caja conocida.")}</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Marca</TableHead>
-                  <TableHead nota="el nombre no dice la caja">Versión (como la escribe Cars)</TableHead>
-                  <TableHead className="text-right" nota="facturadas sin caja conocida">Unidades {anio}</TableHead>
+                  <TableHead>{t("Marca")}</TableHead>
+                  <TableHead nota={t("el nombre no dice la caja")}>{t("Versión (como la escribe Cars)")}</TableHead>
+                  <TableHead className="text-right" nota={t("facturadas sin caja conocida")}>{t("Unidades {anio}", { anio })}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -110,9 +111,7 @@ export async function CatalogoTransmision({ anio }: { anio: number }) {
             </Table>
           )}
           <p className="mt-2 text-[11px] text-muted-foreground">
-            Estas tienen las dos cajas según la versión (Poer diesel, JAC T8) o son chasis: el
-            nombre no lo dice y no se adivina. Se resuelven nombrando la versión con la caja en
-            Cars («… AT», «… MT») o agregando la familia arriba si toda la familia viene igual.
+            {t("Estas tienen las dos cajas según la versión (Poer diesel, JAC T8) o son chasis: el nombre no lo dice y no se adivina. Se resuelven nombrando la versión con la caja en Cars («… AT», «… MT») o agregando la familia arriba si toda la familia viene igual.")}
           </p>
         </div>
       </CardContent>

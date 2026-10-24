@@ -9,6 +9,7 @@ import { MarcoAcceso } from "@/components/acceso/marco-acceso";
 import type { EstadoGlobito, MiradaGlobito } from "@/components/ui/globito";
 import { useCampoConFoco } from "@/lib/foco-campo";
 import { sincronizarAriaInvalid } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/cliente";
 import { entrar, type EstadoLogin } from "./acciones";
 
 /**
@@ -41,6 +42,7 @@ export function FormularioLogin({
   /** Mensaje de contexto (clave restablecida, sesión cortada…). */
   aviso?: string;
 }) {
+  const { t, tr } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoLogin | null, FormData>(
     entrar,
     null
@@ -51,17 +53,17 @@ export function FormularioLogin({
     <MarcoAcceso
       estado={gesto.estado}
       mirada={gesto.mirada}
-      titulo={emergencia ? "Acceso de emergencia" : "Entrá a tu tablero"}
+      titulo={emergencia ? t("Acceso de emergencia") : t("Entrá a tu tablero")}
       subtitulo={
         emergencia
-          ? "Con la clave general del equipo. Abre una sesión de administrador por 24 horas y queda registrado."
-          : `Con tu correo @${dominio} y tu clave.`
+          ? t("Con la clave general del equipo. Abre una sesión de administrador por 24 horas y queda registrado.")
+          : t("Con tu correo @{dominio} y tu clave.", { dominio })
       }
       pie={
         emergencia ? (
           <p className="text-center text-xs">
             <Link href="/entrar" className="text-muted-foreground underline underline-offset-2 hover:text-foreground">
-              Volver a entrar con mi correo
+              {t("Volver a entrar con mi correo")}
             </Link>
           </p>
         ) : (
@@ -70,12 +72,10 @@ export function FormularioLogin({
               href="/entrar/olvide"
               className="text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
-              Olvidé mi clave
+              {t("Olvidé mi clave")}
             </Link>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Solo entran correos @{dominio}. ¿No tenés cuenta? Pedísela a Croman.
-              <br />
-              El tablero incluye precios y stock propios: no compartas tu clave.
+              {tr("Solo entran correos @{dominio}. ¿No tenés cuenta? Pedísela a Croman.<br/>El tablero incluye precios y stock propios: no compartas tu clave.", { dominio })}
             </p>
           </div>
         )
@@ -96,13 +96,12 @@ export function FormularioLogin({
           <>
             <input type="hidden" name="modo" value="emergencia" />
             <p className="rounded-xl border border-amber-600/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-900 dark:text-amber-100">
-              Esta entrada no es de una persona: queda como administrador por un día y
-              deja constancia en la auditoría.
+              {t("Esta entrada no es de una persona: queda como administrador por un día y deja constancia en la auditoría.")}
             </p>
           </>
         ) : (
           <label data-campo="correo" className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Correo</span>
+            <span className="text-sm font-medium">{t("Correo")}</span>
             <input
               name="usuario"
               type="email"
@@ -117,19 +116,19 @@ export function FormularioLogin({
               // vuelve desde el estado para no obligar a tipearlo otra vez.
               defaultValue={estado?.usuario}
               pattern={patronCorreo(dominio)}
-              title={`Tiene que ser un correo @${dominio}`}
+              title={t("Tiene que ser un correo @{dominio}", { dominio })}
               onBlur={sincronizarAriaInvalid}
               onInput={(e) => {
                 sincronizarAriaInvalid(e);
                 gesto.alEscribirCorreo(e.currentTarget.value.length);
               }}
               className={campo}
-              placeholder={`nombre@${dominio}`}
+              placeholder={t("nombre@{dominio}", { dominio })}
             />
           </label>
         )}
         <label data-campo="clave" className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">{emergencia ? "Clave general" : "Clave"}</span>
+          <span className="text-sm font-medium">{emergencia ? t("Clave general") : t("Clave")}</span>
           <CampoClave
             name="clave"
             autoComplete="current-password"
@@ -144,7 +143,7 @@ export function FormularioLogin({
         </label>
 
         <Button type="submit" disabled={pendiente} className="mt-1 h-11 w-full rounded-xl text-[0.95rem]">
-          {pendiente ? "Entrando…" : "Entrar"}
+          {pendiente ? t("Entrando…") : t("Entrar")}
         </Button>
 
         {estado?.error && (

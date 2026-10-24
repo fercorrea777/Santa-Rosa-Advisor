@@ -10,7 +10,7 @@ import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { cn } from "@/lib/utils";
 import { CambioPosicion, Variacion, ParteYPuesto } from "@/components/dashboard/celdas-ranking";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 import {
   claveModelo, detalleDeFicha, type DetalleModelo, type ModeloFicha,
 } from "@/lib/cadam/bandas";
@@ -32,13 +32,13 @@ const TOPES = [5, 10, 20, 50, 0] as const;
  */
 export function TablaRanking({
   filas,
-  columnaClave = "Marca",
+  columnaClave: columnaClaveProp,
   mostrarModelo = false,
   mostrarSegmento = false,
   nombreArchivo = "ranking",
   notaVariacion,
   filtrarPor,
-  etiquetaModelo = "Modelo",
+  etiquetaModelo: etiquetaModeloProp,
   fichas,
   periodo = "",
   fuente = "matriculacion",
@@ -63,6 +63,14 @@ export function TablaRanking({
   filtrarPor?: { marca?: string; detalle?: string };
   etiquetaModelo?: string;
 }) {
+  const i18n = useI18n();
+  const { t, fmt } = i18n;
+  const { formatPct, formatUnidades, nombreDeSegmento } = fmt;
+  // Los rótulos por defecto se traducen acá; los que pasa la página ya vienen traducidos.
+  const columnaClave = columnaClaveProp ?? t("Marca");
+  const etiquetaModelo = etiquetaModeloProp ?? t("Modelo");
+  /** El castellano muestra el segmento tal como llega de CADAM (Automovil, Camion…), como siempre; el inglés lo traduce. */
+  const segmentoVisible = (s: string | undefined) => (s && fmt.idioma === "en" ? nombreDeSegmento(s) : s);
   const [orden, setOrden] = React.useState<{ campo: Campo; asc: boolean }>({
     campo: "posicion", asc: true,
   });
@@ -112,12 +120,12 @@ export function TablaRanking({
   }, [filas, busqueda, orden, tope]);
 
   const exportar = () => {
-    const cab = ["Posicion", "Marca"];
-    if (mostrarModelo) cab.push("Modelo");
-    if (mostrarSegmento) cab.push("Segmento");
-    cab.push("Unidades", conMercado ? "Participacion en el filtro %" : "Participacion %");
-    if (conMercado) cab.push("Participacion mercado %", "Posicion mercado");
-    cab.push("Variacion %", "Unidades periodo anterior", "Posicion anterior", "Cambio posicion", "Marca propia");
+    const cab = [t("Posicion"), t("Marca")];
+    if (mostrarModelo) cab.push(t("Modelo"));
+    if (mostrarSegmento) cab.push(t("Segmento"));
+    cab.push(t("Unidades"), conMercado ? t("Participacion en el filtro %") : t("Participacion %"));
+    if (conMercado) cab.push(t("Participacion mercado %"), t("Posicion mercado"));
+    cab.push(t("Variacion %"), t("Unidades periodo anterior"), t("Posicion anterior"), t("Cambio posicion"), t("Marca propia"));
     const filasCsv = filtradas.map((f) => {
       const c: (string | number)[] = [f.posicion, f.marca];
       if (mostrarModelo) c.push(f.modelo ?? "");
@@ -134,7 +142,7 @@ export function TablaRanking({
         f.unidadesAnterior,
         f.posicionAnterior ?? "",
         f.cambioPosicion ?? "",
-        f.esPropia ? "si" : "no",
+        f.esPropia ? t("si") : t("no"),
       );
       return c;
     });
@@ -186,7 +194,7 @@ export function TablaRanking({
   if (!filas.length) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        No hay datos para este filtro.
+        {t("No hay datos para este filtro.")}
       </p>
     );
   }
@@ -197,24 +205,24 @@ export function TablaRanking({
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar marca o modelo…"
+          placeholder={t("Buscar marca o modelo…")}
           className="input-base w-56"
         />
         <div className="flex items-center gap-1">
-          {TOPES.map((t) => (
+          {TOPES.map((n) => (
             <button
-              key={t}
+              key={n}
               type="button"
-              onClick={() => setTope(t)}
+              onClick={() => setTope(n)}
               className={cn(
                 // pointer-coarse: mínimo táctil. Van pegados (gap-1), así que
                 // crecen de verdad en vez de expandir área invisible: dos hit
                 // areas superpuestas en un grupo se pifian entre sí.
                 "h-8 rounded-md px-2.5 text-xs font-medium pointer-coarse:h-11",
-                tope === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                tope === n ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
-              {t === 0 ? "Todos" : `Top ${t}`}
+              {n === 0 ? t("Todos") : `Top ${n}`}
             </button>
           ))}
         </div>
@@ -223,7 +231,7 @@ export function TablaRanking({
           onClick={exportar}
           className="ml-auto inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium pointer-coarse:h-11 hover:bg-muted"
         >
-          Exportar CSV
+          {t("Exportar CSV")}
         </button>
       </div>
 
@@ -261,10 +269,10 @@ export function TablaRanking({
                     onToggle={alternarFiltro}
                   />
                 </span>
-                {f.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propia</Badge>}
+                {f.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">{t("propia")}</Badge>}
               </span>
               <span className="shrink-0 text-xs">
-                <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} />
+                <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} i18n={i18n} />
               </span>
             </div>
             {(mostrarModelo || mostrarSegmento) && (
@@ -278,12 +286,12 @@ export function TablaRanking({
                   />
                 )}
                 {mostrarModelo && mostrarSegmento && " · "}
-                {mostrarSegmento && f.segmento}
+                {mostrarSegmento && segmentoVisible(f.segmento)}
               </div>
             )}
             {conMercado && (
               <p className="pl-6 text-xs text-muted-foreground">
-                En el mercado: <span className="font-medium text-foreground">{f.posicionMercado ? `#${f.posicionMercado}` : "—"}</span>
+                {t("En el mercado:")} <span className="font-medium text-foreground">{f.posicionMercado ? `#${f.posicionMercado}` : "—"}</span>
                 {" · "}
                 <span className="tabular-nums">{f.participacionMercado == null ? "—" : formatPct(f.participacionMercado)}</span>
               </p>
@@ -295,10 +303,10 @@ export function TablaRanking({
                 {formatUnidades(f.unidades)}
               </span>
               <span className="flex items-center gap-3 text-xs">
-                <span className="tabular-nums text-muted-foreground" title={conMercado ? "Participación dentro del filtro" : undefined}>
-                  {formatPct(f.participacion)}{conMercado ? " del filtro" : ""}
+                <span className="tabular-nums text-muted-foreground" title={conMercado ? t("Participación dentro del filtro") : undefined}>
+                  {conMercado ? t("{pct} del filtro", { pct: formatPct(f.participacion) }) : formatPct(f.participacion)}
                 </span>
-                <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0} />
+                <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0} i18n={i18n} />
               </span>
             </div>
           </div>
@@ -313,15 +321,15 @@ export function TablaRanking({
         <Table>
           <TableHeader>
             <TableRow>
-              {th("posicion", "#", false, conMercado ? "en el filtro" : undefined, true)}
+              {th("posicion", "#", false, conMercado ? t("en el filtro") : undefined, true)}
               {th("marca", columnaClave)}
               {mostrarModelo && th("modelo", etiquetaModelo)}
-              {mostrarSegmento && th("segmento", "Segmento")}
-              {th("unidades", "Unidades", true, "las del período", conMercado)}
-              {conMercado && th("participacionMercado", "Mercado", true, "parte y puesto, sin filtros", true)}
-              {th("participacion", conMercado ? "Filtro" : "Part.", true, conMercado ? "su parte de lo filtrado" : "su parte del mercado", conMercado)}
-              {th("variacion", "Var.", true, "contra el año pasado", conMercado)}
-              {th("cambioPosicion", "Pos.", true, "puestos que subió o bajó", conMercado)}
+              {mostrarSegmento && th("segmento", t("Segmento"))}
+              {th("unidades", t("Unidades"), true, t("las del período"), conMercado)}
+              {conMercado && th("participacionMercado", t("Mercado"), true, t("parte y puesto, sin filtros"), true)}
+              {th("participacion", conMercado ? t("Filtro") : t("Part."), true, conMercado ? t("su parte de lo filtrado") : t("su parte del mercado"), conMercado)}
+              {th("variacion", t("Var."), true, t("contra el año pasado"), conMercado)}
+              {th("cambioPosicion", t("Pos."), true, t("puestos que subió o bajó"), conMercado)}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -335,7 +343,7 @@ export function TablaRanking({
                   ficha && "cursor-pointer"
                 )}
                 onClick={ficha ? () => abrirFicha(f) : undefined}
-                title={ficha ? `Ver contra quién compite ${f.modelo}` : undefined}
+                title={ficha ? t("Ver contra quién compite {modelo}", { modelo: f.modelo ?? "" }) : undefined}
               >
                 <TableCell className="tabular-nums text-muted-foreground">{f.posicion}</TableCell>
                 <TableCell className="font-medium">
@@ -347,7 +355,7 @@ export function TablaRanking({
                       activo={filtrarPor?.marca ? filtroDe(filtrarPor.marca) === f.marca : false}
                       onToggle={alternarFiltro}
                     />
-                    {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
+                    {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">{t("propia")}</Badge>}
                   </span>
                 </TableCell>
                 {mostrarModelo && (
@@ -363,22 +371,22 @@ export function TablaRanking({
                   </TableCell>
                 )}
                 {mostrarSegmento && (
-                  <TableCell className="text-muted-foreground">{f.segmento}</TableCell>
+                  <TableCell className="text-muted-foreground">{segmentoVisible(f.segmento)}</TableCell>
                 )}
                 <TableCell className="text-right tabular-nums">{formatUnidades(f.unidades)}</TableCell>
                 {conMercado && (
                   <TableCell className="text-right tabular-nums">
-                    <ParteYPuesto parte={f.participacionMercado} puesto={f.posicionMercado} />
+                    <ParteYPuesto parte={f.participacionMercado} puesto={f.posicionMercado} i18n={i18n} />
                   </TableCell>
                 )}
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatPct(f.participacion)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0} />
+                  <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0} i18n={i18n} />
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} />
+                  <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} i18n={i18n} />
                 </TableCell>
               </TableRow>
               );
@@ -388,12 +396,12 @@ export function TablaRanking({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Mostrando {filtradas.length} de {filas.length}.
+        {t("Mostrando {n} de {total}.", { n: filtradas.length, total: filas.length })}
         {conMercado
-          ? " «Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Filtro», sobre lo que queda con el filtro."
+          ? ` ${t("«Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Filtro», sobre lo que queda con el filtro.")}`
           : ""}
         {notaVariacion ? ` ${notaVariacion}` : ""}
-        {fichas ? " Tocá una fila para ver contra quién compite ese modelo." : ""}
+        {fichas ? ` ${t("Tocá una fila para ver contra quién compite ese modelo.")}` : ""}
       </p>
 
       <DetalleModeloDialog
@@ -416,13 +424,14 @@ function Filtrable({
   activo: boolean;
   onToggle: (param: string, valor: string) => void;
 }) {
+  const { t } = useI18n();
   if (!param) return <>{valor}</>;
   return (
     <button
       type="button"
       onClick={() => onToggle(param, valor)}
       aria-pressed={activo}
-      title={activo ? "Quitar filtro" : `Filtrar por ${valor}`}
+      title={activo ? t("Quitar filtro") : t("Filtrar por {valor}", { valor })}
       className={cn(
         "rounded px-1 -mx-1 text-left underline-offset-4 hover:underline",
         activo && "bg-primary/15 font-medium text-foreground underline"

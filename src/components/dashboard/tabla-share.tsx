@@ -7,7 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { LogoMarca } from "@/components/dashboard/logo-marca";
 import { cn } from "@/lib/utils";
-import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 import type { FilaDimension } from "@/lib/cadam/mercado";
 
 export interface FilaShare extends FilaDimension {
@@ -35,6 +35,8 @@ export function TablaShare({
   anioAnterior: number;
   nombreArchivo?: string;
 }) {
+  const { t, tr, fmt } = useI18n();
+  const { formatPct, formatPuntosPct, formatUnidades } = fmt;
   const [soloDivergentes, setSoloDivergentes] = React.useState(false);
 
   const divergente = (f: FilaShare) =>
@@ -46,8 +48,8 @@ export function TablaShare({
   const nDiv = filas.filter(divergente).length;
 
   const exportar = () => {
-    const cab = [etiqueta, "Unidades", `Unidades ${anioAnterior}`, "Var %",
-      "Participacion %", `Participacion ${anioAnterior} %`, "Delta pp"];
+    const cab = [etiqueta, t("Unidades"), t("Unidades {anio}", { anio: anioAnterior }), t("Var %"),
+      t("Participacion %"), t("Participacion {anio} %", { anio: anioAnterior }), t("Delta pp")];
     const cuerpo = visibles.map((f) => [
       f.valor, f.unidades, f.unidadesAnterior,
       f.variacion === null ? "" : (f.variacion * 100).toFixed(2),
@@ -68,7 +70,7 @@ export function TablaShare({
 
   if (!filas.length) {
     return <p className="py-8 text-center text-sm text-muted-foreground">
-      No hay datos para este filtro.
+      {t("No hay datos para este filtro.")}
     </p>;
   }
 
@@ -83,8 +85,7 @@ export function TablaShare({
               checked={soloDivergentes}
               onChange={(e) => setSoloDivergentes(e.target.checked)}
             />
-            Ver solo los {nDiv} casos donde unidades y participación van en
-            sentido contrario
+            {t("Ver solo los {n} casos donde unidades y participación van en sentido contrario", { n: nDiv })}
           </label>
         )}
         <button
@@ -92,7 +93,7 @@ export function TablaShare({
           onClick={exportar}
           className="ml-auto inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium hover:bg-muted"
         >
-          Exportar CSV
+          {t("Exportar CSV")}
         </button>
       </div>
 
@@ -119,13 +120,13 @@ export function TablaShare({
                   <span
                     className="shrink-0 text-amber-700 dark:text-amber-400"
                     role="img"
-                    aria-label="Unidades y participación van en sentido contrario"
+                    aria-label={t("Unidades y participación van en sentido contrario")}
                   >
                     ⚠
                   </span>
                 )}
                 <span className="min-w-0 truncate font-medium">{f.valor}</span>
-                {f.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propia</Badge>}
+                {f.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">{t("propia")}</Badge>}
               </div>
               <div className="flex items-baseline justify-between pl-6">
                 <span className="font-mono text-lg font-semibold tabular-nums">
@@ -135,8 +136,9 @@ export function TablaShare({
               </div>
               <div className="flex items-center justify-between pl-6 text-xs">
                 <span className="text-muted-foreground">
-                  Participación {formatPct(f.participacion)}
-                  {partAnterior !== null && ` (antes ${formatPct(partAnterior)})`}
+                  {partAnterior !== null
+                    ? t("Participación {pct} (antes {antes})", { pct: formatPct(f.participacion), antes: formatPct(partAnterior) })
+                    : t("Participación {pct}", { pct: formatPct(f.participacion) })}
                 </span>
                 <Signo
                   v={f.deltaParticipacion}
@@ -155,11 +157,11 @@ export function TablaShare({
             <TableRow>
               <TableHead className="w-10">#</TableHead>
               <TableHead>{etiqueta}</TableHead>
-              <TableHead className="text-right" nota="las del período">Unidades</TableHead>
-              <TableHead className="text-right" nota="contra el año pasado">Var. unidades</TableHead>
-              <TableHead className="text-right" nota="su parte del mercado">Participación</TableHead>
-              <TableHead className="text-right" nota="la parte del año pasado">Part. {anioAnterior}</TableHead>
-              <TableHead className="text-right" nota="puntos que ganó o perdió">Δ participación</TableHead>
+              <TableHead className="text-right" nota={t("las del período")}>{t("Unidades")}</TableHead>
+              <TableHead className="text-right" nota={t("contra el año pasado")}>{t("Var. unidades")}</TableHead>
+              <TableHead className="text-right" nota={t("su parte del mercado")}>{t("Participación")}</TableHead>
+              <TableHead className="text-right" nota={t("la parte del año pasado")}>{t("Part. {anio}", { anio: anioAnterior })}</TableHead>
+              <TableHead className="text-right" nota={t("puntos que ganó o perdió")}>{t("Δ participación")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -183,14 +185,14 @@ export function TablaShare({
                         <span
                           className="shrink-0 text-amber-700 dark:text-amber-400"
                           role="img"
-                          aria-label="Unidades y participación van en sentido contrario"
+                          aria-label={t("Unidades y participación van en sentido contrario")}
                         >
                           ⚠
                         </span>
                       )}
                       {logos && <LogoMarca marca={f.valor} />}
                       {f.valor}
-                      {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
+                      {f.esPropia && <Badge className="h-5 px-1.5 text-[10px]">{t("propia")}</Badge>}
                     </span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
@@ -220,9 +222,11 @@ export function TablaShare({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Las filas con <span className="text-amber-700 dark:text-amber-400">⚠</span>{" "}
-        crecen en unidades pero pierden participación (o al revés): el mercado
-        se movió más rápido que ellas.
+        {tr(
+          "Las filas con <w>⚠</w> crecen en unidades pero pierden participación (o al revés): el mercado se movió más rápido que ellas.",
+          undefined,
+          { w: (h) => <span className="text-amber-700 dark:text-amber-400">{h}</span> }
+        )}
       </p>
     </div>
   );

@@ -4,7 +4,9 @@ import * as React from "react";
 import Image from "next/image";
 import { Globito, type EstadoGlobito, type MiradaGlobito } from "@/components/ui/globito";
 import { PanelIlustrado } from "@/components/acceso/panel-ilustrado";
+import { SelectorIdioma } from "@/components/layout/selector-idioma";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /**
  * El marco de todas las pantallas de acceso (entrar, olvidé mi clave, poner
@@ -20,6 +22,10 @@ import { ThemeToggle } from "@/components/theme-toggle";
  * El lado derecho sigue el tema (claro u oscuro, con su botón); el panel de la
  * izquierda es siempre el navy de la marca. En el celular el panel no entra: se
  * ve solo el formulario, con el logo arriba.
+ *
+ * Arriba a la derecha, junto al botón del tema, va el selector de idioma «ES | EN»:
+ * se tiene que poder elegir ANTES de entrar, y por eso vive en el marco que
+ * comparten las tres pantallas de acceso (el menú de la app no se dibuja acá).
  *
  * `estado` y `mirada` son del globito: el formulario que vive adentro le dice
  * qué está pasando (qué campo tiene foco, si se está enviando, si falló).
@@ -40,6 +46,7 @@ export function MarcoAcceso({
   /** Debajo del formulario: enlaces y avisos chicos. */
   pie?: React.ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className="min-h-dvh bg-background p-3 sm:p-4 lg:p-5">
       <div className="mx-auto grid min-h-[calc(100dvh-1.5rem)] max-w-[1240px] overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-[var(--card-shadow)] sm:min-h-[calc(100dvh-2rem)] lg:min-h-[calc(100dvh-2.5rem)] lg:grid-cols-[1.02fr_1fr]">
@@ -56,7 +63,10 @@ export function MarcoAcceso({
               height={32}
               className="h-4 w-auto dark:brightness-0 dark:invert lg:invisible"
             />
-            <ThemeToggle />
+            <div className="flex items-center gap-1.5">
+              <SelectorIdioma sobre="claro" />
+              <ThemeToggle />
+            </div>
           </div>
 
           <div className="mx-auto my-auto flex w-full max-w-sm flex-col py-8">
@@ -64,7 +74,7 @@ export function MarcoAcceso({
               <Globito estado={estado} mirada={mirada} tamano={108} />
             </div>
 
-            <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-balance">
+            <h1 className="text-[1.75rem] font-bold leading-tight tracking-tight text-balance">
               {titulo}
             </h1>
             {subtitulo && (
@@ -78,7 +88,7 @@ export function MarcoAcceso({
           </div>
 
           <p className="text-center text-[11px] text-muted-foreground">
-            Santa Rosa Paraguay S.A. · Inteligencia Comercial
+            {t("Santa Rosa Paraguay S.A. · Inteligencia Comercial")}
           </p>
         </main>
       </div>

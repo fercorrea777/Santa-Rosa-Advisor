@@ -6,7 +6,7 @@ import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { DetalleModeloDialog } from "@/components/dashboard/detalle-modelo";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
 import { detalleDeFicha, type DetalleModelo, type ModeloFicha } from "@/lib/cadam/bandas";
-import { formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 import {
   ORDEN_TECNOLOGIA, SIN_CLASIFICAR, SIN_DATO_TECNOLOGIA,
 } from "@/lib/informes/segmento-version";
@@ -94,10 +94,13 @@ export function BurbujasPrecioChart({
    *  precio. Sin esto el gráfico anda igual, sin clic. */
   fichas?: ModeloFicha[];
   periodo?: string;
-  /** Cómo se llama la columna en los chips: "Segmento" o "Clase". */
-  etiquetaColumna?: string;
+  /** Cómo se llama la columna en los chips: "Segmento" o "Clase". Es una
+   *  clave, no un texto: acá se elige la frase (y su traducción). */
+  etiquetaColumna?: "Segmento" | "Clase";
 }) {
   const theme = useChartTheme();
+  const { t, fmt } = useI18n();
+  const { formatUnidades } = fmt;
   const { leer: leerParam, setParams, pendiente } = useFiltroUrl();
   const [abierto, setAbierto] = React.useState<{
     detalle: DetalleModelo;
@@ -159,7 +162,7 @@ export function BurbujasPrecioChart({
   if (!datos.length) {
     return (
       <p className="py-16 text-center text-sm text-muted-foreground">
-        Ningún modelo propio con ventas tiene precio en la lista cargada.
+        {t("Ningún modelo propio con ventas tiene precio en la lista cargada.")}
       </p>
     );
   }
@@ -175,7 +178,7 @@ export function BurbujasPrecioChart({
       aria-busy={pendiente}
       className={cn("flex flex-col gap-2 transition-opacity", pendiente && "opacity-70")}
     >
-      <FilaChips label="Marcas en este gráfico">
+      <FilaChips label={t("Marcas en este gráfico")}>
         {marcasTodas.map((m) => (
           <Chip
             key={m}
@@ -188,38 +191,38 @@ export function BurbujasPrecioChart({
         ))}
       </FilaChips>
       {porSegmento && (
-        <FilaChips label={`${etiquetaColumna}s en este gráfico`}>
+        <FilaChips label={etiquetaColumna === "Clase" ? t("Clases en este gráfico") : t("Segmentos en este gráfico")}>
           {segmentosTodos.map((s) => (
             <Chip
               key={s}
               puesto={segmentosSel.includes(s)}
               onClick={() => alternar(PARAM_SEGMENTOS, segmentosSel, segmentosTodos, s)}
             >
-              {s}
+              {t(s)}
             </Chip>
           ))}
         </FilaChips>
       )}
       {hayMovilidad && (
-        <FilaChips label="Movilidad en este gráfico">
-          {movilidadesTodas.map((t) => (
+        <FilaChips label={t("Movilidad en este gráfico")}>
+          {movilidadesTodas.map((mov) => (
             <Chip
-              key={t}
-              puesto={movSel.includes(t)}
-              onClick={() => alternar(PARAM_MOVILIDAD, movSel, movilidadesTodas, t)}
+              key={mov}
+              puesto={movSel.includes(mov)}
+              onClick={() => alternar(PARAM_MOVILIDAD, movSel, movilidadesTodas, mov)}
             >
-              {t}
+              {mov === SIN_DATO_TECNOLOGIA ? t("Sin dato") : mov}
             </Chip>
           ))}
         </FilaChips>
       )}
       <p className="text-xs text-muted-foreground">
-        {visibles.length} {porSegmento ? "versiones" : "modelos"} ·{" "}
-        {formatUnidades(visibles.reduce((s, d) => s + d.unidades, 0))} u. facturadas en el
-        período{marcasTodas.length > theme.series.length
-          ? ` · en gris, las marcas fuera de las ${theme.series.length} de mayor volumen`
+        {porSegmento ? t("{n} versiones", { n: visibles.length }) : t("{n} modelos", { n: visibles.length })} ·{" "}
+        {t("{n} u. facturadas en el período", { n: formatUnidades(visibles.reduce((s, d) => s + d.unidades, 0)) })}
+        {marcasTodas.length > theme.series.length
+          ? ` · ${t("en gris, las marcas fuera de las {n} de mayor volumen", { n: theme.series.length })}`
           : ""}
-        {fichas ? " · tocá una burbuja para ver contra quién compite" : ""}
+        {fichas ? ` · ${t("tocá una burbuja para ver contra quién compite")}` : ""}
       </p>
     </div>
   );
@@ -229,8 +232,9 @@ export function BurbujasPrecioChart({
       <div className="flex flex-col gap-3">
         {chips}
         <p className="py-16 text-center text-sm text-muted-foreground">
-          Ninguna versión cumple las dos selecciones a la vez. Prendé otra marca u
-          otra {etiquetaColumna.toLowerCase()}.
+          {etiquetaColumna === "Clase"
+            ? t("Ninguna versión cumple las dos selecciones a la vez. Prendé otra marca u otra clase.")
+            : t("Ninguna versión cumple las dos selecciones a la vez. Prendé otra marca u otra segmento.")}
         </p>
       </div>
     );
@@ -365,17 +369,17 @@ export function BurbujasPrecioChart({
         };
       }) => {
         const contexto = [
-          p.data.segmento,
+          p.data.segmento ? t(p.data.segmento) : p.data.segmento,
           p.data.tecnologia && p.data.tecnologia !== SIN_DATO_TECNOLOGIA ? p.data.tecnologia : null,
-          p.data.familia && p.data.familia !== p.name ? `familia ${p.data.familia}` : null,
+          p.data.familia && p.data.familia !== p.name ? t("familia {familia}", { familia: p.data.familia }) : null,
         ]
           .filter(Boolean)
           .join(" · ");
         return (
           `<b>${p.data.marca}</b> · ${p.name}<br/>` +
           (contexto ? `${contexto}<br/>` : "") +
-          `${p.data.moneda} ${p.value[1].toLocaleString("es-PY")}<br/>` +
-          `${formatUnidades(p.value[2])} u. en el período`
+          `${p.data.moneda} ${formatUnidades(p.value[1])}<br/>` +
+          t("{n} u. en el período", { n: formatUnidades(p.value[2]) })
         );
       },
     },
@@ -392,7 +396,7 @@ export function BurbujasPrecioChart({
         // de dato del eje X — la columna dice su volumen sin ir al tooltip.
         formatter: (v: number) => {
           const s = segmentoEn(v);
-          return s ? `{seg|${s}}\n{u|${formatUnidades(volSegVis.get(s) ?? 0)} u.}` : "";
+          return s ? `{seg|${t(s)}}\n{u|${t("{n} u.", { n: formatUnidades(volSegVis.get(s) ?? 0) })}}` : "";
         },
         rich: {
           seg: { color: theme.primary, fontSize: 11, fontWeight: "bold" as const, lineHeight: 16 },
@@ -410,7 +414,7 @@ export function BurbujasPrecioChart({
       // Sin esto, sobre 70k de rango ECharts elegía ticks cada 20k: tres
       // líneas para leer precios que se deciden de a 5k.
       splitNumber: 7,
-      name: `Precio de lista (${visibles[0].moneda})`,
+      name: t("Precio de lista ({moneda})", { moneda: visibles[0].moneda }),
       nameTextStyle: { color: theme.text, fontSize: 11, align: "left" as const },
       axisLabel: {
         color: theme.text,
@@ -438,7 +442,7 @@ export function BurbujasPrecioChart({
           label: {
             show: true,
             position: "insideEndTop" as const,
-            formatter: `Ponderado ${fmtK(Math.round(ponderado))}`,
+            formatter: t("Ponderado {n}", { n: fmtK(Math.round(ponderado)) }),
             color: theme.text,
             fontSize: 10,
           },

@@ -4,8 +4,10 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 import { DURACION, gsap, menosMovimiento, SUAVE } from "@/lib/movimiento"
+import { useI18n } from "@/lib/i18n/cliente"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const { t } = useI18n()
   const caja = React.useRef<HTMLDivElement>(null)
   const [seDesplaza, setSeDesplaza] = React.useState(false)
 
@@ -33,7 +35,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
       data-slot="table-container"
       className="tabla-scroll relative w-full overflow-x-auto focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       {...(seDesplaza
-        ? { tabIndex: 0, role: "region", "aria-label": "Tabla: se desplaza hacia los costados" }
+        ? { tabIndex: 0, role: "region", "aria-label": t("Tabla: se desplaza hacia los costados") }
         : {})}
     >
       {/* Fundido en el borde derecho mientras haya más columnas para ver

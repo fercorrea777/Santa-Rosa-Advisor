@@ -1,3 +1,4 @@
+import type { I18n } from "@/lib/i18n/crear";
 import {
   acotarAFuente, getBrecha, getCobertura, getKpi, getPorDimension, getRankingMarcas,
   getRankingModelos, TECNOLOGIAS, type Filtro,
@@ -7,8 +8,6 @@ import {
   getSerieHistorica, getTrayectorias, proyectarCierre,
 } from "./historico";
 import { getMarcasPropiasSet, getParametros } from "./config";
-import { etiquetaPeriodo as rotuloPeriodo, MESES_LARGOS, mesCorto } from "@/lib/periodo";
-import { decimal } from "@/lib/format";
 
 /**
  * Centro de Inteligencia Comercial (spec sec. 19).
@@ -20,6 +19,11 @@ import { decimal } from "@/lib/format";
  * categoricas cuando los datos no alcanzan. Cada regla declara su umbral
  * minimo de base (`MIN_BASE`) y se calla si no lo alcanza, en vez de
  * reportar un "+800%" que sale de 1 a 9 unidades.
+ *
+ * IDIOMA. Este modulo ESCRIBE las frases de la lectura (titulos, motivos,
+ * evidencia): por eso recibe el `i18n` del pedido y arma cada frase entera con
+ * `t()`, con las cifras ya formateadas por `fmt`. No lee el idioma por su
+ * cuenta: en el servidor no hay un idioma global.
  */
 
 /** Debajo de esto una variacion porcentual no significa nada. */
@@ -53,12 +57,36 @@ export interface Informe {
   advertencias: string[];
 }
 
-const pct = (v: number | null) =>
-  v === null ? "—" : `${v > 0 ? "+" : ""}${decimal(v * 100, 1)}%`;
-const pp = (v: number) => `${v > 0 ? "+" : ""}${decimal(v * 100, 1)} pp`;
-const u = (n: number) => new Intl.NumberFormat("es-PY").format(n);
+export function generarInforme(f: Filtro, etiquetaPeriodo: string, i18n: I18n): Informe {
+  const { t, fmt } = i18n;
+  const {
+    decimal, formatUnidades: u, formatPuntosPct: pp, mesCorto, mesesLargos,
+    etiquetaPeriodo: rotuloPeriodo, nombreDeSegmento,
+  } = fmt;
+  const pct = (v: number | null) =>
+    v === null ? "—" : `${v > 0 ? "+" : ""}${decimal(v * 100, 1)}%`;
+  // El segmento se muestra como lo escribe CADAM («Automovil», sin tilde): asi
+  // lo dice el castellano desde siempre y no cambia. En ingles va por su nombre.
+  const seg = (valor: string) => (i18n.idioma === "en" ? nombreDeSegmento(valor) : valor);
+  // «antes → ahora» de una fila (marca, modelo, tecnologia): la misma frase en todas.
+  const deA = (nombre: string, antes: number, ahora: number, variacion: number | null) =>
+    t("{nombre}: {antes} → {ahora} u. ({variacion})", {
+      nombre, antes: u(antes), ahora: u(ahora), variacion: pct(variacion),
+    });
+  // El cambio de puesto de una marca, para colgarlo de su evidencia.
+  // «posiciónes» (con tilde) es como lo escribe el castellano de siempre y se conserva.
+  const cambioDePuesto = (cambio: number, antes: number | null, ahora: number) => {
+    const vars = { n: Math.abs(cambio), antes: String(antes), ahora };
+    if (cambio > 0) {
+      return Math.abs(cambio) === 1
+        ? t("sube {n} posición ({antes} → {ahora})", vars)
+        : t("sube {n} posiciónes ({antes} → {ahora})", vars);
+    }
+    return Math.abs(cambio) === 1
+      ? t("baja {n} posición ({antes} → {ahora})", vars)
+      : t("baja {n} posiciónes ({antes} → {ahora})", vars);
+  };
 
-export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   const cobertura = getCobertura();
   const items: Item[] = [];
   const advertencias: string[] = [];
@@ -70,9 +98,12 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   const hayBase = cobertura.matriculacion.anios.includes(anioPrevio);
   if (!hayBase) {
     advertencias.push(
-      `No hay datos de ${anioPrevio} cargados, así que no se puede comparar ` +
-      `contra el año anterior. Los hallazgos que dependen de esa comparación ` +
-      `no se generan.`
+      t(
+        "No hay datos de {anio} cargados, así que no se puede comparar " +
+        "contra el año anterior. Los hallazgos que dependen de esa comparación " +
+        "no se generan.",
+        { anio: anioPrevio }
+      )
     );
   }
 
@@ -100,45 +131,71 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   // ---------------------------------------------------------- resumen
   const resumen: string[] = [];
   resumen.push(
-    `En ${etiquetaPeriodo} se matricularon ${u(kpiMat.valor)} unidades` +
-    (kpiMat.variacion !== null
-      ? `, ${kpiMat.variacion >= 0 ? "un alza" : "una baja"} de ${pct(kpiMat.variacion)} ` +
-        `frente a las ${u(kpiMat.baseValor)} del mismo período de ${anioPrevio}.`
-      : `. No hay período anterior cargado para comparar.`)
+    kpiMat.variacion === null
+      ? t("En {periodo} se matricularon {n} unidades. No hay período anterior cargado para comparar.", {
+          periodo: etiquetaPeriodo, n: u(kpiMat.valor),
+        })
+      : kpiMat.variacion >= 0
+        ? t("En {periodo} se matricularon {n} unidades, un alza de {variacion} frente a las {base} del mismo período de {anio}.", {
+            periodo: etiquetaPeriodo, n: u(kpiMat.valor), variacion: pct(kpiMat.variacion),
+            base: u(kpiMat.baseValor), anio: anioPrevio,
+          })
+        : t("En {periodo} se matricularon {n} unidades, una baja de {variacion} frente a las {base} del mismo período de {anio}.", {
+            periodo: etiquetaPeriodo, n: u(kpiMat.valor), variacion: pct(kpiMat.variacion),
+            base: u(kpiMat.baseValor), anio: anioPrevio,
+          })
   );
   if (kpiImp.sinDatos) {
     resumen.push(
-      `CADAM todavía no publicó la importación de ${etiquetaPeriodo}: no hay cifra de ` +
-      `importaciones ni diferencia contra matriculación para este período.`
+      t(
+        "CADAM todavía no publicó la importación de {periodo}: no hay cifra de " +
+        "importaciones ni diferencia contra matriculación para este período.",
+        { periodo: etiquetaPeriodo }
+      )
     );
   } else {
     const impAtrasada = hastaImp < f.mesHasta;
     const mesesImpFaltan = hastaImp + 1 === f.mesHasta
       ? mesCorto(f.mesHasta)
       : `${mesCorto(hastaImp + 1)}–${mesCorto(f.mesHasta)}`;
-    resumen.push(
-      `Las importaciones sumaron ${u(kpiImp.valor)} unidades` +
-      (impAtrasada ? ` hasta ${mesCorto(hastaImp)}` : "") +
-      (kpiImp.variacion !== null ? ` (${pct(kpiImp.variacion)})` : "") +
-      (impAtrasada ? `, porque CADAM todavía no publicó la importación de ${mesesImpFaltan}` : "") +
-      `. La diferencia contra matriculación es de ${u(Math.abs(kpiImpComun.valor - kpiMatComun.valor))} ` +
-      `unidades a favor de ${kpiImpComun.valor > kpiMatComun.valor ? "la importación" : "la matriculación"}` +
-      (comunRecorta ? ` en ${rotuloComun}, el tramo que tienen las dos fuentes` : "") +
-      `, una señal orientativa y no una medida de stock.`
-    );
+    // Dos oraciones, cada una entera: la primera cuenta cuanto sumaron las
+    // importaciones (y si falta un mes de CADAM), la segunda la diferencia.
+    const sumaron = {
+      n: u(kpiImp.valor), hasta: mesCorto(hastaImp),
+      variacion: pct(kpiImp.variacion), faltan: mesesImpFaltan,
+    };
+    const sumaronImp = impAtrasada
+      ? kpiImp.variacion !== null
+        ? t("Las importaciones sumaron {n} unidades hasta {hasta} ({variacion}), porque CADAM todavía no publicó la importación de {faltan}.", sumaron)
+        : t("Las importaciones sumaron {n} unidades hasta {hasta}, porque CADAM todavía no publicó la importación de {faltan}.", sumaron)
+      : kpiImp.variacion !== null
+        ? t("Las importaciones sumaron {n} unidades ({variacion}).", sumaron)
+        : t("Las importaciones sumaron {n} unidades.", sumaron);
+    const diferencia = {
+      n: u(Math.abs(kpiImpComun.valor - kpiMatComun.valor)),
+      lado: kpiImpComun.valor > kpiMatComun.valor ? t("la importación") : t("la matriculación"),
+      tramo: rotuloComun,
+    };
+    const diferenciaImp = comunRecorta
+      ? t("La diferencia contra matriculación es de {n} unidades a favor de {lado} en {tramo}, el tramo que tienen las dos fuentes, una señal orientativa y no una medida de stock.", diferencia)
+      : t("La diferencia contra matriculación es de {n} unidades a favor de {lado}, una señal orientativa y no una medida de stock.", diferencia);
+    resumen.push(`${sumaronImp} ${diferenciaImp}`);
   }
   if (marcas.length) {
     resumen.push(
-      `Lidera ${marcas[0].marca} con ${u(marcas[0].unidades)} unidades ` +
-      `(${decimal(marcas[0].participacion * 100, 1)}% del mercado).`
+      t("Lidera {marca} con {n} unidades ({pct}% del mercado).", {
+        marca: marcas[0].marca, n: u(marcas[0].unidades),
+        pct: decimal(marcas[0].participacion * 100, 1),
+      })
     );
   }
   const propiasU = marcas.filter((m) => propias.has(m.marca))
     .reduce((s, m) => s + m.unidades, 0);
   const totalU = marcas.reduce((s, m) => s + m.unidades, 0) || 1;
   resumen.push(
-    `Las marcas propias suman ${u(propiasU)} unidades, ` +
-    `${decimal((propiasU / totalU) * 100, 1)}% del mercado.`
+    t("Las marcas propias suman {n} unidades, {pct}% del mercado.", {
+      n: u(propiasU), pct: decimal((propiasU / totalU) * 100, 1),
+    })
   );
 
   // -------------------------------------------------------- hallazgos
@@ -153,10 +210,14 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     const top = crecen.slice(0, 3);
     items.push({
       tipo: "hallazgo",
-      titulo: `${top[0].marca} lidera el crecimiento en unidades`,
-      motivo: "Es quien más volumen agregó al mercado en el período; marca la dirección de la demanda.",
+      titulo: t("{marca} lidera el crecimiento en unidades", { marca: top[0].marca }),
+      motivo: t("Es quien más volumen agregó al mercado en el período; marca la dirección de la demanda."),
       evidencia: top.map((m) =>
-        `${m.marca}: ${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)}, ${m.unidades - m.unidadesAnterior > 0 ? "+" : ""}${u(m.unidades - m.unidadesAnterior)} u.)`
+        t("{marca}: {antes} → {ahora} u. ({variacion}, {delta} u.)", {
+          marca: m.marca, antes: u(m.unidadesAnterior), ahora: u(m.unidades),
+          variacion: pct(m.variacion),
+          delta: `${m.unidades - m.unidadesAnterior > 0 ? "+" : ""}${u(m.unidades - m.unidadesAnterior)}`,
+        })
       ).join(" · "),
       prioridad: "media",
       periodo: etiquetaPeriodo,
@@ -166,10 +227,10 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     const top = caen.slice(0, 3);
     items.push({
       tipo: "hallazgo",
-      titulo: `${top[0].marca} lidera la caída en unidades`,
-      motivo: "Pérdida de volumen sostenida sobre una base relevante.",
+      titulo: t("{marca} lidera la caída en unidades", { marca: top[0].marca }),
+      motivo: t("Pérdida de volumen sostenida sobre una base relevante."),
       evidencia: top.map((m) =>
-        `${m.marca}: ${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)})`
+        deA(m.marca, m.unidadesAnterior, m.unidades, m.variacion)
       ).join(" · "),
       prioridad: "media",
       periodo: etiquetaPeriodo,
@@ -182,10 +243,10 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   if (modCrecen.length) {
     items.push({
       tipo: "hallazgo",
-      titulo: `Modelos que más crecieron`,
-      motivo: "El movimiento a nivel modelo anticipa el de la marca.",
+      titulo: t("Modelos que más crecieron"),
+      motivo: t("El movimiento a nivel modelo anticipa el de la marca."),
       evidencia: modCrecen.slice(0, 5).map((m) =>
-        `${m.marca} ${m.modelo}: ${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)})`
+        deA(`${m.marca} ${m.modelo}`, m.unidadesAnterior, m.unidades, m.variacion)
       ).join(" · "),
       prioridad: "media",
       periodo: etiquetaPeriodo,
@@ -199,11 +260,13 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   if (nuevos.length && hayBase) {
     items.push({
       tipo: "hallazgo",
-      titulo: `${nuevos.length} modelos nuevos con volumen relevante`,
-      motivo: "No tenían matriculaciones en el período anterior: son lanzamientos o ingresos al mercado.",
-      evidencia: nuevos.slice(0, 6).map((m) => `${m.marca} ${m.modelo} (${u(m.unidades)} u.)`).join(" · "),
+      titulo: t("{n} modelos nuevos con volumen relevante", { n: nuevos.length }),
+      motivo: t("No tenían matriculaciones en el período anterior: son lanzamientos o ingresos al mercado."),
+      evidencia: nuevos.slice(0, 6).map((m) =>
+        t("{marca} {modelo} ({n} u.)", { marca: m.marca, modelo: m.modelo ?? "", n: u(m.unidades) })
+      ).join(" · "),
       prioridad: "media",
-      impacto: `${u(nuevos.reduce((s, m) => s + m.unidades, 0))} unidades en total`,
+      impacto: t("{n} unidades en total", { n: u(nuevos.reduce((s, m) => s + m.unidades, 0)) }),
       periodo: etiquetaPeriodo,
     });
   }
@@ -215,30 +278,34 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     const sube = s.deltaParticipacion > 0;
     items.push({
       tipo: "hallazgo",
-      titulo: `El segmento ${s.valor} ${sube ? "gana" : "pierde"} peso en el mercado`,
+      titulo: sube
+        ? t("El segmento {segmento} gana peso en el mercado", { segmento: seg(s.valor) })
+        : t("El segmento {segmento} pierde peso en el mercado", { segmento: seg(s.valor) }),
       motivo: sube
-        ? "Está creciendo más rápido que el mercado: se lleva participación de los demás."
-        : "Crece menos que el mercado (o cae): otros segmentos le sacan participación.",
-      evidencia: `${u(s.unidadesAnterior)} → ${u(s.unidades)} u. (${pct(s.variacion)}), ` +
-                 `participación ${pp(s.deltaParticipacion)} hasta ${decimal(s.participacion * 100, 1)}%`,
+        ? t("Está creciendo más rápido que el mercado: se lleva participación de los demás.")
+        : t("Crece menos que el mercado (o cae): otros segmentos le sacan participación."),
+      evidencia: t("{antes} → {ahora} u. ({variacion}), participación {delta} hasta {pct}%", {
+        antes: u(s.unidadesAnterior), ahora: u(s.unidades), variacion: pct(s.variacion),
+        delta: pp(s.deltaParticipacion), pct: decimal(s.participacion * 100, 1),
+      }),
       prioridad: Math.abs(s.deltaParticipacion * 100) >= 3 ? "alta" : "media",
       periodo: etiquetaPeriodo,
     });
   }
 
   // Tecnologias con mayor adopcion.
-  const tecOrden = new Map(TECNOLOGIAS.map((t, i) => [t as string, i]));
+  const tecOrden = new Map(TECNOLOGIAS.map((tec, i) => [tec as string, i]));
   const tecCrecen = tecnologias
-    .filter((t) => t.variacion !== null && t.valor !== "ICE" && t.unidades >= 50)
+    .filter((tec) => tec.variacion !== null && tec.valor !== "ICE" && tec.unidades >= 50)
     .sort((a, b) => (b.variacion ?? 0) - (a.variacion ?? 0));
   if (tecCrecen.length) {
     items.push({
       tipo: "hallazgo",
-      titulo: `${tecCrecen[0].valor} es la tecnología de mayor crecimiento`,
-      motivo: "La adopción de tecnologías alternativas marca hacia dónde va el mix de producto.",
+      titulo: t("{tecnologia} es la tecnología de mayor crecimiento", { tecnologia: tecCrecen[0].valor }),
+      motivo: t("La adopción de tecnologías alternativas marca hacia dónde va el mix de producto."),
       evidencia: tecCrecen.slice(0, 4)
         .sort((a, b) => (tecOrden.get(a.valor) ?? 9) - (tecOrden.get(b.valor) ?? 9))
-        .map((t) => `${t.valor}: ${u(t.unidadesAnterior)} → ${u(t.unidades)} u. (${pct(t.variacion)})`)
+        .map((tec) => deA(tec.valor, tec.unidadesAnterior, tec.unidades, tec.variacion))
         .join(" · "),
       prioridad: "alta",
       periodo: etiquetaPeriodo,
@@ -259,19 +326,23 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     if (!esNuestra && !esCompetidor && Math.abs(m.variacion) < 1) continue;
     yaAlertadas.add(m.marca);
     const sube = m.variacion > 0;
+    const marcaConEtiqueta = esNuestra
+      ? t("{marca} (marca propia)", { marca: m.marca })
+      : esCompetidor ? t("{marca} (competidor clave)", { marca: m.marca }) : m.marca;
     items.push({
       tipo: "alerta",
-      titulo: `${sube ? "Crecimiento abrupto" : "Caída abrupta"} de ${m.marca}` +
-              (esNuestra ? " (marca propia)" : esCompetidor ? " (competidor clave)" : ""),
+      titulo: sube
+        ? t("Crecimiento abrupto de {marca}", { marca: marcaConEtiqueta })
+        : t("Caída abrupta de {marca}", { marca: marcaConEtiqueta }),
       motivo: sube
-        ? "Un salto de esta magnitud cambia el equilibrio competitivo del período."
-        : "Una caída de esta magnitud sobre una base relevante requiere explicación.",
-      evidencia: `${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)}), ` +
-                 `participación ${decimal(m.participacion * 100, 1)}%` +
+        ? t("Un salto de esta magnitud cambia el equilibrio competitivo del período.")
+        : t("Una caída de esta magnitud sobre una base relevante requiere explicación."),
+      evidencia: t("{antes} → {ahora} u. ({variacion}), participación {pct}%", {
+                    antes: u(m.unidadesAnterior), ahora: u(m.unidades), variacion: pct(m.variacion),
+                    pct: decimal(m.participacion * 100, 1),
+                  }) +
                  (m.cambioPosicion
-                   ? `, ${m.cambioPosicion > 0 ? "sube" : "baja"} ${Math.abs(m.cambioPosicion)} ` +
-                     `posición${Math.abs(m.cambioPosicion) === 1 ? "" : "es"} ` +
-                     `(${m.posicionAnterior} → ${m.posicion})`
+                   ? `, ${cambioDePuesto(m.cambioPosicion, m.posicionAnterior, m.posicion)}`
                    : ""),
       prioridad: esNuestra || esCompetidor ? "alta" : "media",
       periodo: etiquetaPeriodo,
@@ -287,11 +358,13 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     const sube = m.cambioPosicion > 0;
     items.push({
       tipo: "alerta",
-      titulo: `${m.marca} ${sube ? "sube" : "baja"} ${Math.abs(m.cambioPosicion)} posiciones ` +
-              `sin un cambio abrupto de volumen`,
-      motivo: "Se movió en el ranking por lo que hicieron las demás, no por su propio volumen.",
-      evidencia: `Posición ${m.posicionAnterior} → ${m.posicion} · ` +
-                 `${u(m.unidades)} u. (${pct(m.variacion)})`,
+      titulo: sube
+        ? t("{marca} sube {n} posiciones sin un cambio abrupto de volumen", { marca: m.marca, n: Math.abs(m.cambioPosicion) })
+        : t("{marca} baja {n} posiciones sin un cambio abrupto de volumen", { marca: m.marca, n: Math.abs(m.cambioPosicion) }),
+      motivo: t("Se movió en el ranking por lo que hicieron las demás, no por su propio volumen."),
+      evidencia: t("Posición {antes} → {ahora} · {n} u. ({variacion})", {
+        antes: String(m.posicionAnterior), ahora: m.posicion, n: u(m.unidades), variacion: pct(m.variacion),
+      }),
       prioridad: propias.has(m.marca) || competidores.has(m.marca) ? "alta" : "baja",
       periodo: etiquetaPeriodo,
     });
@@ -304,16 +377,19 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   if (totImp && totMat) {
     const rel = totMat / totImp;
     if (rel < 0.9 || rel > 1.1) {
+      const brechaVars = { imp: u(totImp), mat: u(totMat), rel: decimal(rel, 2), tramo: rotuloComun };
       items.push({
         tipo: "alerta",
         titulo: rel < 0.9
-          ? "Se está importando bastante más de lo que se patenta"
-          : "Se está patentando bastante más de lo que se importa",
-        motivo: "Una brecha sostenida sugiere un cambio de ritmo entre el ingreso de unidades y su venta. " +
-                "Es orientativo: no equivale a stock real.",
-        evidencia: `Importación ${u(totImp)} u. vs matriculación ${u(totMat)} u. ` +
-                   `Relación matric./import. ${decimal(rel, 2)}` +
-                   (comunRecorta ? ` · ${rotuloComun}, el tramo que tienen las dos fuentes` : ""),
+          ? t("Se está importando bastante más de lo que se patenta")
+          : t("Se está patentando bastante más de lo que se importa"),
+        motivo: t(
+          "Una brecha sostenida sugiere un cambio de ritmo entre el ingreso de unidades y su venta. " +
+          "Es orientativo: no equivale a stock real."
+        ),
+        evidencia: comunRecorta
+          ? t("Importación {imp} u. vs matriculación {mat} u. Relación matric./import. {rel} · {tramo}, el tramo que tienen las dos fuentes", brechaVars)
+          : t("Importación {imp} u. vs matriculación {mat} u. Relación matric./import. {rel}", brechaVars),
         prioridad: "media",
         periodo: etiquetaPeriodo,
       });
@@ -324,9 +400,11 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   if (cobertura.mesesFaltantes.matriculacion.length) {
     items.push({
       tipo: "alerta",
-      titulo: "Faltan meses en la serie de matriculación",
-      motivo: "Un hueco en el histórico distorsiona promedios, tendencias y proyecciones.",
-      evidencia: `Meses sin datos en el origen: ${cobertura.mesesFaltantes.matriculacion.join(", ")}`,
+      titulo: t("Faltan meses en la serie de matriculación"),
+      motivo: t("Un hueco en el histórico distorsiona promedios, tendencias y proyecciones."),
+      evidencia: t("Meses sin datos en el origen: {meses}", {
+        meses: cobertura.mesesFaltantes.matriculacion.join(", "),
+      }),
       prioridad: "media",
       periodo: etiquetaPeriodo,
     });
@@ -334,10 +412,11 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   if (cobertura.primerAnioConSegmento !== null && f.anio < cobertura.primerAnioConSegmento) {
     items.push({
       tipo: "alerta",
-      titulo: `Sin clasificación de segmento en ${f.anio}`,
-      motivo: "CADAM no publica el segmento antes de " + cobertura.primerAnioConSegmento +
-              ": el análisis por segmento de este año no es posible.",
-      evidencia: `El segmento aparece recién desde ${cobertura.primerAnioConSegmento}.`,
+      titulo: t("Sin clasificación de segmento en {anio}", { anio: f.anio }),
+      motivo: t("CADAM no publica el segmento antes de {anio}: el análisis por segmento de este año no es posible.", {
+        anio: cobertura.primerAnioConSegmento,
+      }),
+      evidencia: t("El segmento aparece recién desde {anio}.", { anio: cobertura.primerAnioConSegmento }),
       prioridad: "baja",
       periodo: etiquetaPeriodo,
     });
@@ -354,34 +433,40 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     if (share < 0.05 && creciendo) {
       items.push({
         tipo: "oportunidad",
-        titulo: `Baja participación propia en ${s.valor}, que además está creciendo`,
-        motivo: "Segmento en expansión donde las marcas propias casi no están presentes.",
-        evidencia: `Segmento ${u(s.unidades)} u. (${pct(s.variacion)}); marcas propias ` +
-                   `${u(propiasSeg)} u. = ${decimal(share * 100, 1)}% del segmento`,
+        titulo: t("Baja participación propia en {segmento}, que además está creciendo", { segmento: seg(s.valor) }),
+        motivo: t("Segmento en expansión donde las marcas propias casi no están presentes."),
+        evidencia: t("Segmento {n} u. ({variacion}); marcas propias {propias} u. = {pct}% del segmento", {
+          n: u(s.unidades), variacion: pct(s.variacion), propias: u(propiasSeg),
+          pct: decimal(share * 100, 1),
+        }),
         prioridad: "alta",
-        impacto: `Cada punto de participación en este segmento son ~${u(Math.round(s.unidades / 100))} unidades`,
+        impacto: t("Cada punto de participación en este segmento son ~{n} unidades", {
+          n: u(Math.round(s.unidades / 100)),
+        }),
         periodo: etiquetaPeriodo,
       });
     }
   }
 
-  for (const t of tecnologias) {
-    if (t.valor === "ICE" || t.variacion === null || t.unidades < 50) continue;
-    if (t.variacion < 0.5) continue;
-    const marcasTec = getRankingMarcas("matriculacion", { ...f, tecnologia: t.valor });
+  for (const tec of tecnologias) {
+    if (tec.valor === "ICE" || tec.variacion === null || tec.unidades < 50) continue;
+    if (tec.variacion < 0.5) continue;
+    const marcasTec = getRankingMarcas("matriculacion", { ...f, tecnologia: tec.valor });
     const propiasTec = marcasTec.filter((m) => propias.has(m.marca))
       .reduce((acc, m) => acc + m.unidades, 0);
-    const share = t.unidades ? propiasTec / t.unidades : 0;
+    const share = tec.unidades ? propiasTec / tec.unidades : 0;
     items.push({
       tipo: share < 0.1 ? "oportunidad" : "hallazgo",
       titulo: share < 0.1
-        ? `${t.valor} crece fuerte y las marcas propias casi no participan`
-        : `Posición fuerte en ${t.valor}, una tecnología en expansión`,
+        ? t("{tecnologia} crece fuerte y las marcas propias casi no participan", { tecnologia: tec.valor })
+        : t("Posición fuerte en {tecnologia}, una tecnología en expansión", { tecnologia: tec.valor }),
       motivo: share < 0.1
-        ? "Tecnología emergente donde todavía hay espacio para entrar."
-        : "Las marcas propias están sobre-representadas en una tecnología que crece.",
-      evidencia: `${t.valor}: ${u(t.unidadesAnterior)} → ${u(t.unidades)} u. (${pct(t.variacion)}); ` +
-                 `marcas propias ${u(propiasTec)} u. = ${decimal(share * 100, 1)}%`,
+        ? t("Tecnología emergente donde todavía hay espacio para entrar.")
+        : t("Las marcas propias están sobre-representadas en una tecnología que crece."),
+      evidencia: t("{tecnologia}: {antes} → {ahora} u. ({variacion}); marcas propias {propias} u. = {pct}%", {
+        tecnologia: tec.valor, antes: u(tec.unidadesAnterior), ahora: u(tec.unidades),
+        variacion: pct(tec.variacion), propias: u(propiasTec), pct: decimal(share * 100, 1),
+      }),
       prioridad: "alta",
       periodo: etiquetaPeriodo,
     });
@@ -393,10 +478,12 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     if (m.variacion !== null && m.variacion > 0 && m.cambioPosicion !== null && m.cambioPosicion < 0) {
       items.push({
         tipo: "riesgo",
-        titulo: `${m.marca} crece en unidades pero pierde posiciones`,
-        motivo: "El mercado crece más rápido que la marca: se avanza en volumen y se retrocede en relevancia.",
-        evidencia: `${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)}) ` +
-                   `pero cae de la posición ${m.posicionAnterior} a la ${m.posicion}`,
+        titulo: t("{marca} crece en unidades pero pierde posiciones", { marca: m.marca }),
+        motivo: t("El mercado crece más rápido que la marca: se avanza en volumen y se retrocede en relevancia."),
+        evidencia: t("{antes} → {ahora} u. ({variacion}) pero cae de la posición {posAntes} a la {posAhora}", {
+          antes: u(m.unidadesAnterior), ahora: u(m.unidades), variacion: pct(m.variacion),
+          posAntes: String(m.posicionAnterior), posAhora: m.posicion,
+        }),
         prioridad: "alta",
         periodo: etiquetaPeriodo,
       });
@@ -404,9 +491,11 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     if (m.variacion !== null && m.variacion < -0.15) {
       items.push({
         tipo: "riesgo",
-        titulo: `Caída sostenida de ${m.marca} (marca propia)`,
-        motivo: "Pérdida de volumen sobre una base relevante en una marca del portafolio.",
-        evidencia: `${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)})`,
+        titulo: t("Caída sostenida de {marca} (marca propia)", { marca: m.marca }),
+        motivo: t("Pérdida de volumen sobre una base relevante en una marca del portafolio."),
+        evidencia: t("{antes} → {ahora} u. ({variacion})", {
+          antes: u(m.unidadesAnterior), ahora: u(m.unidades), variacion: pct(m.variacion),
+        }),
         prioridad: "alta",
         periodo: etiquetaPeriodo,
       });
@@ -423,10 +512,11 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     if (conc > 0.6) {
       items.push({
         tipo: "riesgo",
-        titulo: `${marca} depende de un solo modelo`,
-        motivo: "Una caída de ese modelo arrastra a toda la marca; poco margen para compensar.",
-        evidencia: `${lider.modelo} concentra ${u(lider.unidades)} de ${u(totalMarca)} u. ` +
-                   `= ${decimal(conc * 100, 0)}% de la marca`,
+        titulo: t("{marca} depende de un solo modelo", { marca }),
+        motivo: t("Una caída de ese modelo arrastra a toda la marca; poco margen para compensar."),
+        evidencia: t("{modelo} concentra {n} de {total} u. = {pct}% de la marca", {
+          modelo: lider.modelo ?? "", n: u(lider.unidades), total: u(totalMarca), pct: decimal(conc * 100, 0),
+        }),
         prioridad: conc > 0.75 ? "alta" : "media",
         periodo: etiquetaPeriodo,
       });
@@ -439,10 +529,12 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     if (m.variacion === null || m.variacion < 1) continue;
     items.push({
       tipo: "riesgo",
-      titulo: `${m.marca} (competidor clave) más que duplicó su volumen`,
-      motivo: "Un competidor directo acelerando a este ritmo redistribuye participación del resto.",
-      evidencia: `${u(m.unidadesAnterior)} → ${u(m.unidades)} u. (${pct(m.variacion)}), ` +
-                 `ahora ${decimal(m.participacion * 100, 1)}% del mercado`,
+      titulo: t("{marca} (competidor clave) más que duplicó su volumen", { marca: m.marca }),
+      motivo: t("Un competidor directo acelerando a este ritmo redistribuye participación del resto."),
+      evidencia: t("{antes} → {ahora} u. ({variacion}), ahora {pct}% del mercado", {
+        antes: u(m.unidadesAnterior), ahora: u(m.unidades), variacion: pct(m.variacion),
+        pct: decimal(m.participacion * 100, 1),
+      }),
       prioridad: "alta",
       periodo: etiquetaPeriodo,
     });
@@ -456,34 +548,49 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   // cayo lo esperable para un junio".
   const serie = getSerieHistorica("matriculacion");
   const est = calcularEstacionalidad(serie);
-  const mesNombre = (m: number) => MESES_LARGOS[m - 1] ?? String(m);
+  const mesNombre = (m: number) => mesesLargos[m - 1] ?? String(m);
 
   if (est) {
     items.push({
       tipo: "historico",
-      titulo: `El mercado tiene estacionalidad real: ${mesNombre(est.mesMasFuerte)} fuerte, ${mesNombre(est.mesMasDebil)} débil`,
-      motivo: "Comparar un mes contra el anterior sin descontar este patrón lleva a conclusiones falsas.",
-      evidencia: `Índice de ${mesNombre(est.mesMasFuerte)}: ${decimal(est.indice[est.mesMasFuerte - 1], 2)} ` +
-                 `(${decimal((est.indice[est.mesMasFuerte - 1] - 1) * 100, 0)}% sobre un mes promedio); ` +
-                 `${mesNombre(est.mesMasDebil)}: ${decimal(est.indice[est.mesMasDebil - 1], 2)}. ` +
-                 `Calculado sobre ${est.aniosUsados.length} años completos (${est.aniosUsados.join(", ")}).`,
+      titulo: t("El mercado tiene estacionalidad real: {fuerte} fuerte, {debil} débil", {
+        fuerte: mesNombre(est.mesMasFuerte), debil: mesNombre(est.mesMasDebil),
+      }),
+      motivo: t("Comparar un mes contra el anterior sin descontar este patrón lleva a conclusiones falsas."),
+      evidencia: t(
+        "Índice de {fuerte}: {indiceFuerte} ({sobre}% sobre un mes promedio); " +
+        "{debil}: {indiceDebil}. " +
+        "Calculado sobre {n} años completos ({anios}).",
+        {
+          fuerte: mesNombre(est.mesMasFuerte),
+          indiceFuerte: decimal(est.indice[est.mesMasFuerte - 1], 2),
+          sobre: decimal((est.indice[est.mesMasFuerte - 1] - 1) * 100, 0),
+          debil: mesNombre(est.mesMasDebil),
+          indiceDebil: decimal(est.indice[est.mesMasDebil - 1], 2),
+          n: est.aniosUsados.length,
+          anios: est.aniosUsados.join(", "),
+        }
+      ),
       prioridad: "media",
       periodo: `${est.aniosUsados[0]}–${est.aniosUsados[est.aniosUsados.length - 1]}`,
     });
 
     const tend = calcularTendencia(serie, est);
     if (tend && tend.pendienteMensual !== null && Math.abs(tend.rachaMeses) >= 3) {
+      const pendiente = `${tend.pendienteMensual > 0 ? "+" : ""}${u(Math.round(tend.pendienteMensual))}`;
       items.push({
         tipo: "historico",
-        titulo: `El mercado acumula ${Math.abs(tend.rachaMeses)} meses ` +
-                `${tend.rachaMeses > 0 ? "subiendo" : "bajando"} (sin contar la estacionalidad)`,
-        motivo: "Racha medida sobre la serie desestacionalizada: es dirección real, no el calendario.",
-        evidencia: `Pendiente de los últimos 12 meses: ${tend.pendienteMensual > 0 ? "+" : ""}` +
-                   `${u(Math.round(tend.pendienteMensual))} unidades/mes` +
-                   (tend.aceleracion !== null
-                     ? `; últimos 3 meses vs los 3 previos: ${pct(tend.aceleracion)}` : ""),
+        titulo: tend.rachaMeses > 0
+          ? t("El mercado acumula {n} meses subiendo (sin contar la estacionalidad)", { n: Math.abs(tend.rachaMeses) })
+          : t("El mercado acumula {n} meses bajando (sin contar la estacionalidad)", { n: Math.abs(tend.rachaMeses) }),
+        motivo: t("Racha medida sobre la serie desestacionalizada: es dirección real, no el calendario."),
+        evidencia: tend.aceleracion !== null
+          ? t("Pendiente de los últimos 12 meses: {pendiente} unidades/mes; últimos 3 meses vs los 3 previos: {aceleracion}", {
+              pendiente, aceleracion: pct(tend.aceleracion),
+            })
+          : t("Pendiente de los últimos 12 meses: {pendiente} unidades/mes", { pendiente }),
         prioridad: "media",
-        periodo: "últimos 12 meses",
+        periodo: t("últimos 12 meses"),
       });
     }
 
@@ -491,10 +598,12 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     for (const a of anomalias) {
       items.push({
         tipo: "historico",
-        titulo: `${mesNombre(a.mes)} ${a.anio} fue atípico incluso para un ${mesNombre(a.mes)}`,
-        motivo: "Se desvía de lo esperable ya descontada la estacionalidad: hubo algo más que el calendario.",
-        evidencia: `${u(a.unidades)} unidades contra ~${u(a.esperado)} esperables ` +
-                   `(${a.sigmas > 0 ? "+" : ""}${decimal(a.sigmas, 1)}σ)`,
+        titulo: t("{mes} {anio} fue atípico incluso para un {mes}", { mes: mesNombre(a.mes), anio: a.anio }),
+        motivo: t("Se desvía de lo esperable ya descontada la estacionalidad: hubo algo más que el calendario."),
+        evidencia: t("{n} unidades contra ~{esperado} esperables ({sigmas}σ)", {
+          n: u(a.unidades), esperado: u(a.esperado),
+          sigmas: `${a.sigmas > 0 ? "+" : ""}${decimal(a.sigmas, 1)}`,
+        }),
         prioridad: Math.abs(a.sigmas) >= 3 ? "alta" : "media",
         periodo: `${mesNombre(a.mes)} ${a.anio}`,
       });
@@ -504,13 +613,16 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
     if (proy && proy.usaEstacionalidad) {
       items.push({
         tipo: "historico",
-        titulo: `Proyección de cierre ${f.anio}: ~${u(proy.cierreProyectado)} matriculaciones`,
-        motivo: "A diferencia de la proyección simple, esta aplica el patrón estacional a los meses que faltan.",
-        evidencia: `Acumulado real ${u(proy.acumuladoReal)} u. en ${12 - proy.mesesFaltantes} meses; ` +
-                   `los ${proy.mesesFaltantes} restantes se estiman con el índice estacional de cada mes.` +
-                   (proy.confiable ? "" : " Base estacional corta: tomar con cautela."),
+        titulo: t("Proyección de cierre {anio}: ~{n} matriculaciones", { anio: f.anio, n: u(proy.cierreProyectado) }),
+        motivo: t("A diferencia de la proyección simple, esta aplica el patrón estacional a los meses que faltan."),
+        evidencia: t(
+          "Acumulado real {acumulado} u. en {meses} meses; " +
+          "los {faltan} restantes se estiman con el índice estacional de cada mes.",
+          { acumulado: u(proy.acumuladoReal), meses: 12 - proy.mesesFaltantes, faltan: proy.mesesFaltantes }
+        ) +
+                   (proy.confiable ? "" : ` ${t("Base estacional corta: tomar con cautela.")}`),
         prioridad: "media",
-        impacto: proy.confiable ? undefined : "Proyección orientativa",
+        impacto: proy.confiable ? undefined : t("Proyección orientativa"),
         periodo: String(f.anio),
       });
     }
@@ -520,21 +632,23 @@ export function generarInforme(f: Filtro, etiquetaPeriodo: string): Informe {
   // independiente del corte de anio calendario.
   const tray = getTrayectorias("matriculacion", "marca", 200);
   const acelerando = tray
-    .filter((t) => t.variacion !== null && t.variacion > 0.3 &&
-                   (propias.has(t.valor) || competidores.has(t.valor)))
+    .filter((tra) => tra.variacion !== null && tra.variacion > 0.3 &&
+                   (propias.has(tra.valor) || competidores.has(tra.valor)))
     .sort((a, b) => (b.variacion ?? 0) - (a.variacion ?? 0))
     .slice(0, 4);
   if (acelerando.length) {
     items.push({
       tipo: "historico",
-      titulo: "Marcas del radar con trayectoria ascendente sostenida (12m vs 12m)",
-      motivo: "La ventana móvil de 12 meses no depende de dónde caiga el corte del año: es tendencia de fondo.",
-      evidencia: acelerando.map((t) =>
-        `${t.valor}${propias.has(t.valor) ? " (propia)" : ""}: ` +
-        `${u(t.unidades12Previos)} → ${u(t.unidadesUlt12)} u. (${pct(t.variacion)})`
+      titulo: t("Marcas del radar con trayectoria ascendente sostenida (12m vs 12m)"),
+      motivo: t("La ventana móvil de 12 meses no depende de dónde caiga el corte del año: es tendencia de fondo."),
+      evidencia: acelerando.map((tra) =>
+        deA(
+          propias.has(tra.valor) ? t("{marca} (propia)", { marca: tra.valor }) : tra.valor,
+          tra.unidades12Previos, tra.unidadesUlt12, tra.variacion
+        )
       ).join(" · "),
       prioridad: "media",
-      periodo: "últimos 24 meses",
+      periodo: t("últimos 24 meses"),
     });
   }
 

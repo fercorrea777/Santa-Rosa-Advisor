@@ -28,13 +28,20 @@ import {
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { getOpcionesFiltro } from "@/lib/cadam/mercado";
 import { serieAAnios } from "@/lib/serie";
-import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
-import {
-  etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCorte, etiquetaCortes } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
+import { N_ } from "@/lib/i18n/traducir";
+import type { I18n } from "@/lib/i18n/crear";
+import { filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 import { cn } from "@/lib/utils";
 
 /** Las tecnologías que el archivo NEV de importación distingue. */
 const TECNOLOGIAS_NEV = ["HEV", "PHEV", "EV"];
+
+/** Los combustibles que manda CADAM (en mayúsculas y sin tilde). Son datos: el valor crudo sigue siendo la clave y el
+ *  castellano los muestra tal cual; el inglés los traduce al mostrarlos (combustibleVisible). */
+const COMBUSTIBLES: readonly string[] = [
+  N_("NAFTA"), N_("GASOIL"), N_("DIESEL"), N_("FLEX"), N_("HIBRIDO"), N_("ELECTRICO"), N_("BIODIESEL"), N_("NO DEFINIDO"),
+];
 
 export default async function CombustiblesPage({
   searchParams,
@@ -42,6 +49,12 @@ export default async function CombustiblesPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const i18n = await getI18n();
+  const { t, tr, fmt } = i18n;
+  const { formatPct, formatPuntosPct, formatUnidades, etiquetaPeriodo, mesCorto, etiquetaCorte, etiquetaCortes } = fmt;
+  /** Lo que se LEE de un combustible y de la tecnología «por diferencia»: el valor crudo sigue siendo la clave. */
+  const combustibleVisible = (c: string) => (COMBUSTIBLES.includes(c) ? t(c) : c);
+  const tecnologiaVisible = (v: string) => (v === RESTO_NEV ? t(RESTO_NEV) : v);
   const cobertura = getCobertura();
   // Dos fuentes (pedido de Fernando, 15/09/2026: "que se pueda ver
   // importaciones también"). Matriculación trae la tecnología de cada
@@ -49,7 +62,7 @@ export default async function CombustiblesPage({
   // y el informe estadístico (combustible). Ver lib/cadam/nev.ts.
   const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
   const esImportacion = fuente === "importacion";
-  const etiquetaFuente = esImportacion ? "importaciones" : "matriculaciones";
+  const etiquetaFuente = esImportacion ? t("importaciones") : t("matriculaciones");
   const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
   const propias = getMarcasPropiasSet();
@@ -65,7 +78,7 @@ export default async function CombustiblesPage({
     : getPorDimension("matriculacion", "tecnologia", f);
   // Orden fijo de la app (ICE -> MHEV -> ... -> EV); el resto por
   // diferencia, al final.
-  const orden = new Map(TECNOLOGIAS.map((t, i) => [t as string, i]));
+  const orden = new Map(TECNOLOGIAS.map((tec, i) => [tec as string, i]));
   tecnologias.sort((a, b) => (orden.get(a.valor) ?? 99) - (orden.get(b.valor) ?? 99));
 
   // Una tecnología se puede abrir (evolución, marcas, modelos) si la fuente
@@ -74,17 +87,17 @@ export default async function CombustiblesPage({
   const abrible = (tec: string) => !esImportacion || TECNOLOGIAS_NEV.includes(tec);
 
   const propiasPorTec = new Map<string, number | null>();
-  for (const t of tecnologias) {
-    if (!abrible(t.valor)) {
-      propiasPorTec.set(t.valor, null);
+  for (const tec of tecnologias) {
+    if (!abrible(tec.valor)) {
+      propiasPorTec.set(tec.valor, null);
       continue;
     }
     const marcas = esImportacion
-      ? getRankingMarcasNev({ ...fNev, tecnologia: t.valor, marca: undefined })
-      : getRankingMarcas("matriculacion", { ...f, tecnologia: t.valor, marca: undefined });
+      ? getRankingMarcasNev({ ...fNev, tecnologia: tec.valor, marca: undefined })
+      : getRankingMarcas("matriculacion", { ...f, tecnologia: tec.valor, marca: undefined });
     const u = marcas.filter((m) => propias.has(m.marca)).reduce((a, m) => a + m.unidades, 0);
     const total = marcas.reduce((a, m) => a + m.unidades, 0);
-    propiasPorTec.set(t.valor, total ? u / total : 0);
+    propiasPorTec.set(tec.valor, total ? u / total : 0);
   }
 
   // Serie historica de cada tecnologia: un anio por serie no sirve aca,
@@ -118,9 +131,9 @@ export default async function CombustiblesPage({
 
   // Agrupacion opcional, sin perder el detalle.
   const grupos = new Map<string, number>();
-  for (const t of tecnologias) {
-    const g = t.valor === RESTO_NEV ? "Combustión" : GRUPO_TECNOLOGIA[t.valor] ?? "Otras";
-    grupos.set(g, (grupos.get(g) ?? 0) + t.unidades);
+  for (const tec of tecnologias) {
+    const g = tec.valor === RESTO_NEV ? N_("Combustión") : GRUPO_TECNOLOGIA[tec.valor] ?? "Otras";
+    grupos.set(g, (grupos.get(g) ?? 0) + tec.unidades);
   }
 
   // Mix de tecnología por AÑO (año completo): la electrificación en el
@@ -130,20 +143,20 @@ export default async function CombustiblesPage({
   // prácticamente todo es Combustión; los híbridos/eléctricos emergen
   // después — que es justo la historia que cuenta el gráfico. En
   // importación el archivo NEV arranca en 2024 y Combustión sale por resta.
-  const GRUPOS_ORDEN = ["Combustión", "Híbridos", "Eléctricos"] as const;
+  const GRUPOS_ORDEN = [N_("Combustión"), N_("Híbridos"), N_("Eléctricos")] as const;
   const mixPorAnio = esImportacion
     ? getMixNevPorAnio(aniosSerie)
     : aniosSerie.map((y) => {
         const techs = getPorDimension("matriculacion", "tecnologia", { anio: y, mesDesde: 1, mesHasta: 12 });
         const porGrupo: Record<string, number> = {};
-        for (const t of techs) {
-          const g = GRUPO_TECNOLOGIA[t.valor] ?? "Otras";
-          porGrupo[g] = (porGrupo[g] ?? 0) + t.unidades;
+        for (const tec of techs) {
+          const g = GRUPO_TECNOLOGIA[tec.valor] ?? "Otras";
+          porGrupo[g] = (porGrupo[g] ?? 0) + tec.unidades;
         }
         return porGrupo;
       });
   const capasMix = GRUPOS_ORDEN.map((g) => ({
-    nombre: g,
+    nombre: t(g),
     datos: mixPorAnio.map((m) => m[g] ?? 0),
   }));
 
@@ -188,20 +201,20 @@ export default async function CombustiblesPage({
   // en vez de dejar que parezca que una de las dos tarjetas esta rota.
   const electricoComb = comb.filas.find((c) => c.valor === "ELECTRICO")?.unidades ?? 0;
   const electricoTec = tecnologias
-    .filter((t) => GRUPO_TECNOLOGIA[t.valor] === "Eléctricos")
-    .reduce((s, t) => s + t.unidades, 0);
+    .filter((tec) => GRUPO_TECNOLOGIA[tec.valor] === "Eléctricos")
+    .reduce((s, tec) => s + tec.unidades, 0);
   const enchufablesTec = tecnologias
-    .filter((t) => t.valor === "PHEV")
-    .reduce((s, t) => s + t.unidades, 0);
+    .filter((tec) => tec.valor === "PHEV")
+    .reduce((s, tec) => s + tec.unidades, 0);
 
   const opciones = getOpcionesFiltro();
 
   return (
     <Pagina>
       <PageHeader
-        titulo="Combustibles y tecnologías"
-        descripcion={`Adopción por tecnología de propulsión sobre ${etiquetaFuente} · ${periodo}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Combustibles y tecnologías")}
+        descripcion={t("Adopción por tecnología de propulsión sobre {fuente} · {periodo}.", { fuente: etiquetaFuente, periodo })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       {/* Misma fila pegajosa que Resumen del mercado: el selector de fuente
@@ -217,11 +230,11 @@ export default async function CombustiblesPage({
             anios={anios}
             mesMaximoPorAnio={mesMax}
             opciones={[
-              { param: "marca", label: "Marca", valores: opciones.marcas },
-              { param: "segmento", label: "Segmento", valores: opciones.segmentos },
+              { param: "marca", label: t("Marca"), valores: opciones.marcas },
+              { param: "segmento", label: t("Segmento"), valores: opciones.segmentos },
               {
                 param: "tecnologia",
-                label: "Tecnología",
+                label: t("Tecnología"),
                 valores: esImportacion ? TECNOLOGIAS_NEV : [...TECNOLOGIAS],
               },
             ]}
@@ -230,32 +243,20 @@ export default async function CombustiblesPage({
       </div>
 
       <NotaDato>
-        Cada tecnología se muestra por separado y nunca se mezclan categorías
-        incompatibles: <strong>MHEV no es HEV</strong>,{" "}
-        <strong>PHEV no es HEV</strong> y <strong>REEV no es EV</strong>. La
-        agrupación de abajo es solo una vista opcional; el detalle original no se
-        pierde.
+        {tr("Cada tecnología se muestra por separado y nunca se mezclan categorías incompatibles: <b>MHEV no es HEV</b>, <b>PHEV no es HEV</b> y <b>REEV no es EV</b>. La agrupación de abajo es solo una vista opcional; el detalle original no se pierde.")}
       </NotaDato>
 
       {esImportacion && (
         <NotaDato>
-          <strong>Cómo se arma la importación.</strong> La base de importación de
-          CADAM no dice si el vehículo es híbrido o eléctrico. EV, HEV y PHEV salen
-          del archivo de vehículos de energía nueva (desde 2024), que es un
-          subconjunto de la misma importación; el resto —«{RESTO_NEV}»— es la
-          importación total menos esos tres, y junta combustión con los MHEV, que
-          ese archivo no separa.
+          {tr("<b>Cómo se arma la importación.</b> La base de importación de CADAM no dice si el vehículo es híbrido o eléctrico. EV, HEV y PHEV salen del archivo de vehículos de energía nueva (desde 2024), que es un subconjunto de la misma importación; el resto —«{resto}»— es la importación total menos esos tres, y junta combustión con los MHEV, que ese archivo no separa.", { resto: t(RESTO_NEV) })}
           {fNev.recortado && cobNev.ultimo ? (
             <>
-              {" "}El archivo NEV llega hasta <strong>{mesCorto(cobNev.ultimo.mes)}</strong>,
-              así que las tecnologías se miden en {periodoTec}; el combustible, que
-              sale del informe estadístico, sí llega a {mesCorto(f.mesHasta)}.
+              {" "}{tr("El archivo NEV llega hasta <b>{mes}</b>, así que las tecnologías se miden en {periodo}; el combustible, que sale del informe estadístico, sí llega a {hasta}.", { mes: mesCorto(cobNev.ultimo.mes), periodo: periodoTec, hasta: mesCorto(f.mesHasta) })}
             </>
           ) : null}
           {f.tecnologia && !seleccionada ? (
             <>
-              {" "}La tecnología <strong>{f.tecnologia}</strong> no existe en el archivo
-              NEV: solo se puede abrir HEV, PHEV o EV.
+              {" "}{tr("La tecnología <b>{tec}</b> no existe en el archivo NEV: solo se puede abrir HEV, PHEV o EV.", { tec: f.tecnologia })}
             </>
           ) : null}
         </NotaDato>
@@ -267,20 +268,22 @@ export default async function CombustiblesPage({
           tecnologías. Son ejes distintos: lo que el auto QUEMA vs. su tren
           motriz. Un híbrido nafta es 'HIBRIDO' acá y 'HEV' abajo. */}
       {combDisponible ? (
-        <Seccion titulo="Por combustible">
+        <Seccion titulo={t("Por combustible")}>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Por combustible — {periodo}</CardTitle>
+                <CardTitle>{t("Por combustible — {periodo}", { periodo })}</CardTitle>
                 <p className="text-xs text-muted-foreground">
                   {esImportacion
-                    ? `Lo que el vehículo quema, según el informe estadístico de CADAM${combImp?.informe ? ` (${etiquetaCorte(combImp.informe)})` : ""}.`
-                    : "Lo que el vehículo quema, según el registro de la DNRA."}
+                    ? combImp?.informe
+                      ? t("Lo que el vehículo quema, según el informe estadístico de CADAM ({corte}).", { corte: etiquetaCorte(combImp.informe) })
+                      : t("Lo que el vehículo quema, según el informe estadístico de CADAM.")
+                    : t("Lo que el vehículo quema, según el registro de la DNRA.")}
                 </p>
               </CardHeader>
               <CardContent>
                 <DistribucionChart
-                  datos={comb.filas.map((c) => ({ nombre: c.valor, valor: c.unidades }))}
+                  datos={comb.filas.map((c) => ({ nombre: combustibleVisible(c.valor), valor: c.unidades }))}
                 />
               </CardContent>
             </Card>
@@ -288,27 +291,27 @@ export default async function CombustiblesPage({
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {esImportacion ? `Unidades por combustible — ${periodo}` : `Contra el mismo período de ${f.anio - 1}`}
+                  {esImportacion ? t("Unidades por combustible — {periodo}", { periodo }) : t("Contra el mismo período de {anio}", { anio: f.anio - 1 })}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
                   {esImportacion
-                    ? "El informe estadístico solo trae el año en curso: no hay año anterior contra el que comparar."
+                    ? t("El informe estadístico solo trae el año en curso: no hay año anterior contra el que comparar.")
                     : comb.baseDisponible
-                      ? `Misma ventana de meses en los dos años (${periodo} vs. ${f.anio - 1}), no un año entero contra medio.`
-                      : `${f.anio - 1} no tiene esta ventana cargada: no hay contra qué comparar.`}
+                      ? t("Misma ventana de meses en los dos años ({periodo} vs. {anio}), no un año entero contra medio.", { periodo, anio: f.anio - 1 })
+                      : t("{anio} no tiene esta ventana cargada: no hay contra qué comparar.", { anio: f.anio - 1 })}
                 </p>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Combustible</TableHead>
-                      <TableHead className="text-right" nota={`${esImportacion ? "importadas" : "matriculadas"} en el período`}>Unidades</TableHead>
-                      <TableHead className="text-right" nota="su parte del mercado">Part.</TableHead>
+                      <TableHead>{t("Combustible")}</TableHead>
+                      <TableHead className="text-right" nota={esImportacion ? t("importadas en el período") : t("matriculadas en el período")}>{t("Unidades")}</TableHead>
+                      <TableHead className="text-right" nota={t("su parte del mercado")}>{t("Part.")}</TableHead>
                       {!esImportacion && (
                         <>
-                          <TableHead className="text-right" nota="contra el año pasado">Var.</TableHead>
-                          <TableHead className="text-right" nota="puntos que ganó o perdió">Δ part.</TableHead>
+                          <TableHead className="text-right" nota={t("contra el año pasado")}>{t("Var.")}</TableHead>
+                          <TableHead className="text-right" nota={t("puntos que ganó o perdió")}>{t("Δ part.")}</TableHead>
                         </>
                       )}
                     </TableRow>
@@ -316,7 +319,7 @@ export default async function CombustiblesPage({
                   <TableBody>
                     {comb.filas.map((c) => (
                       <TableRow key={c.valor}>
-                        <TableCell className="font-medium">{c.valor}</TableCell>
+                        <TableCell className="font-medium">{combustibleVisible(c.valor)}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatUnidades(c.unidades)}
                         </TableCell>
@@ -338,7 +341,7 @@ export default async function CombustiblesPage({
                                   porcentaje gigante que en realidad es ∞. */}
                               {c.variacion === null
                                 ? comb.baseDisponible && c.unidadesAnterior === 0
-                                  ? "nuevo"
+                                  ? t("nuevo")
                                   : "—"
                                 : formatPct(c.variacion, { signed: true })}
                             </TableCell>
@@ -368,11 +371,9 @@ export default async function CombustiblesPage({
           {combConMarcas.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Marcas líderes de cada combustible — {periodo}</CardTitle>
+                <CardTitle>{t("Marcas líderes de cada combustible — {periodo}", { periodo })}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Top 5 por combustible; la participación es sobre ese combustible,
-                  no sobre el mercado. Se omiten los que no llegan al 1% del
-                  período (siguen contados arriba).
+                  {t("Top 5 por combustible; la participación es sobre ese combustible, no sobre el mercado. Se omiten los que no llegan al 1% del período (siguen contados arriba).")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -380,9 +381,9 @@ export default async function CombustiblesPage({
                   {combConMarcas.map((c) => (
                     <div key={c.combustible} className="flex flex-col gap-1.5">
                       <div className="flex items-baseline justify-between gap-2 border-b pb-1.5">
-                        <span className="text-sm font-semibold">{c.combustible}</span>
+                        <span className="text-sm font-semibold">{combustibleVisible(c.combustible)}</span>
                         <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {formatUnidades(c.unidades)} u.
+                          {t("{n} u.", { n: formatUnidades(c.unidades) })}
                         </span>
                       </div>
                       {c.marcas.map((m, i) => (
@@ -416,68 +417,47 @@ export default async function CombustiblesPage({
           )}
 
           <NotaDato>
-            <strong>Combustible no es tecnología, y los dos archivos no
-            coinciden.</strong> Arriba se clasifica lo que el vehículo quema
-            (nafta, gasoil, flex, híbrido, eléctrico); abajo, su tren motriz
-            (ICE, MHEV, HEV, PHEV, REEV, EV). Un híbrido nafta cuenta como
-            «HIBRIDO» arriba y como «HEV» abajo: son dos ejes del mismo
-            vehículo, no dos nombres de lo mismo, y no se suman.
+            {tr("<b>Combustible no es tecnología, y los dos archivos no coinciden.</b> Arriba se clasifica lo que el vehículo quema (nafta, gasoil, flex, híbrido, eléctrico); abajo, su tren motriz (ICE, MHEV, HEV, PHEV, REEV, EV). Un híbrido nafta cuenta como «HIBRIDO» arriba y como «HEV» abajo: son dos ejes del mismo vehículo, no dos nombres de lo mismo, y no se suman.")}
             {electricoComb > 0 && electricoTec > 0 && (
               <>
-                {" "}Por eso este período muestra{" "}
-                <strong>{formatUnidades(electricoComb)}</strong> «ELECTRICO» por
-                combustible y sólo{" "}
-                <strong>{formatUnidades(electricoTec)}</strong> entre EV y REEV
-                por tecnología: ninguna de las dos cifras está mal, cuentan cosas
-                distintas. La brecha se explica en buena parte por los{" "}
-                {formatUnidades(enchufablesTec)} PHEV, que enchufan pero también
-                queman combustible. <strong>Sin confirmar con CADAM:</strong> no
-                documentan el criterio, y al cruzar los dos archivos aparecen
-                casos que no cierran (unidades marcadas «ELECTRICO» que del otro
-                lado figuran como ICE). Para contar eléctricos puros, la cifra
-                buena es la de tecnología.
+                {" "}{tr("Por eso este período muestra <b>{comb}</b> «ELECTRICO» por combustible y sólo <b>{tec}</b> entre EV y REEV por tecnología: ninguna de las dos cifras está mal, cuentan cosas distintas. La brecha se explica en buena parte por los {enchufables} PHEV, que enchufan pero también queman combustible. <b>Sin confirmar con CADAM:</b> no documentan el criterio, y al cruzar los dos archivos aparecen casos que no cierran (unidades marcadas «ELECTRICO» que del otro lado figuran como ICE). Para contar eléctricos puros, la cifra buena es la de tecnología.", {
+                  comb: formatUnidades(electricoComb), tec: formatUnidades(electricoTec), enchufables: formatUnidades(enchufablesTec),
+                })}
               </>
             )}
             {esImportacion ? (
               <>
-                {" "}En importación el combustible es un total del informe estadístico:
-                los filtros de marca, segmento y tecnología no lo tocan y no se
-                abre por marca.
+                {" "}{t("En importación el combustible es un total del informe estadístico: los filtros de marca, segmento y tecnología no lo tocan y no se abre por marca.")}
               </>
             ) : f.tecnologia ? (
               <>
-                {" "}El filtro de tecnología <strong>{f.tecnologia}</strong> no se
-                aplica a esta sección: el archivo de combustible no trae columna
-                de tecnología, así que los dos cortes no se pueden cruzar fila a
-                fila.
+                {" "}{tr("El filtro de tecnología <b>{tec}</b> no se aplica a esta sección: el archivo de combustible no trae columna de tecnología, así que los dos cortes no se pueden cruzar fila a fila.", { tec: f.tecnologia })}
               </>
             ) : null}{" "}
-            Cobertura del corte: {cobComb.anios[0]}–{cobComb.anios.at(-1)}.
+            {t("Cobertura del corte: {desde}–{hasta}.", { desde: cobComb.anios[0], hasta: cobComb.anios.at(-1)! })}
           </NotaDato>
         </Seccion>
       ) : (
         <NotaDato>
-          El corte por combustible sólo está cargado para{" "}
           {cobComb.anios.length
-            ? `${cobComb.anios[0]}–${cobComb.anios.at(-1)}`
-            : "ningún año todavía"}
-          , y estás viendo {f.anio}.{" "}
+            ? t("El corte por combustible sólo está cargado para {rango}, y estás viendo {anio}.", { rango: `${cobComb.anios[0]}–${cobComb.anios.at(-1)}`, anio: f.anio })
+            : t("El corte por combustible sólo está cargado para ningún año todavía, y estás viendo {anio}.", { anio: f.anio })}{" "}
           {esImportacion
-            ? "Sale del informe estadístico de CADAM, que solo trae el año en curso."
-            : "Viene en un archivo aparte de CADAM, más corto que la serie principal."}{" "}
-          Lo de abajo —el corte por tecnología— cubre{" "}
-          {esImportacion ? `${aniosSerie[0]}–${aniosSerie.at(-1)}` : "todos los años igual"}.
+            ? t("Sale del informe estadístico de CADAM, que solo trae el año en curso.")
+            : t("Viene en un archivo aparte de CADAM, más corto que la serie principal.")}{" "}
+          {esImportacion
+            ? t("Lo de abajo —el corte por tecnología— cubre {rango}.", { rango: `${aniosSerie[0]}–${aniosSerie.at(-1)}` })
+            : t("Lo de abajo —el corte por tecnología— cubre todos los años igual.")}
         </NotaDato>
       )}
 
-      <Seccion titulo="Por tecnología">
+      <Seccion titulo={t("Por tecnología")}>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Por grupo — {periodoTec}</CardTitle>
+            <CardTitle>{t("Por grupo — {periodo}", { periodo: periodoTec })}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Combustión, híbridos y eléctricos del período, sin perder el
-              detalle de cada tecnología (tabla de abajo).
+              {t("Combustión, híbridos y eléctricos del período, sin perder el detalle de cada tecnología (tabla de abajo).")}
             </p>
           </CardHeader>
           <CardContent>
@@ -487,7 +467,7 @@ export default async function CombustiblesPage({
                 que el orden de insercion ya es Combustion/Hibridos/
                 Electricos, el mismo GRUPOS_ORDEN que usa el apilado. */}
             <DistribucionChart
-              datos={GRUPOS_ORDEN.filter((g) => grupos.has(g)).map((g) => ({ nombre: g, valor: grupos.get(g) ?? 0 }))}
+              datos={GRUPOS_ORDEN.filter((g) => grupos.has(g)).map((g) => ({ nombre: t(g), valor: grupos.get(g) ?? 0 }))}
               paleta
             />
           </CardContent>
@@ -495,11 +475,10 @@ export default async function CombustiblesPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Mix por año — {etiquetaFuente}</CardTitle>
+            <CardTitle>{t("Mix por año — {fuente}", { fuente: etiquetaFuente })}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              La composición de cada año completo: cómo se mueve la
-              electrificación en el tiempo.
-              {esImportacion ? " Desde 2024, que es cuando arranca el archivo NEV." : ""}
+              {t("La composición de cada año completo: cómo se mueve la electrificación en el tiempo.")}
+              {esImportacion ? ` ${t("Desde 2024, que es cuando arranca el archivo NEV.")}` : ""}
             </p>
           </CardHeader>
           <CardContent>
@@ -511,51 +490,49 @@ export default async function CombustiblesPage({
       <Card>
         <CardHeader>
           <CardTitle>
-            Ranking por tecnología — {etiquetaFuente}
+            {t("Ranking por tecnología — {fuente}", { fuente: etiquetaFuente })}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Hacé clic en una tecnología para filtrar toda la página; abajo
-            aparecen su evolución y sus marcas y modelos líderes. Otro clic lo
-            quita.
-            {esImportacion ? ` «${RESTO_NEV}» no se abre: es una resta, no tiene marcas.` : ""}
+            {t("Hacé clic en una tecnología para filtrar toda la página; abajo aparecen su evolución y sus marcas y modelos líderes. Otro clic lo quita.")}
+            {esImportacion ? ` ${t("«{resto}» no se abre: es una resta, no tiene marcas.", { resto: t(RESTO_NEV) })}` : ""}
           </p>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col divide-y sm:hidden">
-            {tecnologias.map((t) => (
+            {tecnologias.map((tec) => (
               <Link
-                key={t.valor}
-                href={abrible(t.valor) ? hrefToggleTec(sp, t.valor) : hrefToggleTec(sp, "")}
+                key={tec.valor}
+                href={abrible(tec.valor) ? hrefToggleTec(sp, tec.valor) : hrefToggleTec(sp, "")}
                 scroll={false}
                 className={cn(
                   "flex flex-col gap-1.5 py-3 transition-colors hover:bg-muted/30",
-                  t.valor === seleccionada && "-mx-3 rounded-md bg-primary/5 px-3"
+                  tec.valor === seleccionada && "-mx-3 rounded-md bg-primary/5 px-3"
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="min-w-0 truncate font-medium">{t.valor}</span>
+                    <span className="min-w-0 truncate font-medium">{tecnologiaVisible(tec.valor)}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      · {grupoDe(t.valor)}
+                      · {grupoDe(tec.valor, t)}
                     </span>
                   </span>
                   <span className="shrink-0 text-xs tabular-nums">
-                    {t.variacion === null ? "—" : formatPct(t.variacion, { signed: true })}
+                    {tec.variacion === null ? "—" : formatPct(tec.variacion, { signed: true })}
                   </span>
                 </div>
                 <div className="flex items-baseline justify-between">
                   <span className="font-mono text-lg font-semibold tabular-nums">
-                    {formatUnidades(t.unidades)}
+                    {formatUnidades(tec.unidades)}
                   </span>
                   <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="tabular-nums">{formatPct(t.participacion)}</span>
+                    <span className="tabular-nums">{formatPct(tec.participacion)}</span>
                     <span className="tabular-nums">
-                      Δ {t.deltaParticipacion === null ? "—" : formatPuntosPct(t.deltaParticipacion)}
+                      Δ {tec.deltaParticipacion === null ? "—" : formatPuntosPct(tec.deltaParticipacion)}
                     </span>
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Marcas propias: {pctPropias(propiasPorTec.get(t.valor))}
+                  {t("Marcas propias: {pct}", { pct: pctPropias(propiasPorTec.get(tec.valor), fmt) })}
                 </div>
               </Link>
             ))}
@@ -564,55 +541,55 @@ export default async function CombustiblesPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tecnología</TableHead>
-                  <TableHead nota="combustión, híbrido o eléctrico">Grupo</TableHead>
-                  <TableHead className="text-right" nota={`${esImportacion ? "importadas" : "matriculadas"} en el período`}>Unidades</TableHead>
-                  <TableHead className="text-right" nota="su parte del mercado">Participación</TableHead>
-                  <TableHead className="text-right" nota="cuánto creció o cayó la tecnología">Var. vs {f.anio - 1}</TableHead>
-                  <TableHead className="text-right" nota="puntos que ganó o perdió">Δ participación</TableHead>
-                  <TableHead className="text-right" nota="cuánto de esa tecnología es nuestro">Marcas propias</TableHead>
+                  <TableHead>{t("Tecnología")}</TableHead>
+                  <TableHead nota={t("combustión, híbrido o eléctrico")}>{t("Grupo")}</TableHead>
+                  <TableHead className="text-right" nota={esImportacion ? t("importadas en el período") : t("matriculadas en el período")}>{t("Unidades")}</TableHead>
+                  <TableHead className="text-right" nota={t("su parte del mercado")}>{t("Participación")}</TableHead>
+                  <TableHead className="text-right" nota={t("cuánto creció o cayó la tecnología")}>{t("Var. vs {anio}", { anio: f.anio - 1 })}</TableHead>
+                  <TableHead className="text-right" nota={t("puntos que ganó o perdió")}>{t("Δ participación")}</TableHead>
+                  <TableHead className="text-right" nota={t("cuánto de esa tecnología es nuestro")}>{t("Marcas propias")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tecnologias.map((t) => (
+                {tecnologias.map((tec) => (
                   <TableRow
-                    key={t.valor}
+                    key={tec.valor}
                     className={cn(
                       "transition-colors hover:bg-muted/30",
-                      t.valor === seleccionada && "bg-primary/5"
+                      tec.valor === seleccionada && "bg-primary/5"
                     )}
                   >
                     <TableCell className="font-medium">
-                      {abrible(t.valor) ? (
+                      {abrible(tec.valor) ? (
                         <Link
-                          href={hrefToggleTec(sp, t.valor)}
+                          href={hrefToggleTec(sp, tec.valor)}
                           scroll={false}
                           className={cn(
                             "underline-offset-4 hover:underline",
-                            t.valor === seleccionada ? "text-primary underline" : "text-foreground"
+                            tec.valor === seleccionada ? "text-primary underline" : "text-foreground"
                           )}
                         >
-                          {t.valor}
+                          {tecnologiaVisible(tec.valor)}
                         </Link>
                       ) : (
-                        <span className="text-muted-foreground">{t.valor}</span>
+                        <span className="text-muted-foreground">{tecnologiaVisible(tec.valor)}</span>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {grupoDe(t.valor)}
+                      {grupoDe(tec.valor, t)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatUnidades(t.unidades)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatUnidades(tec.unidades)}</TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatPct(t.participacion)}
+                      {formatPct(tec.participacion)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {t.variacion === null ? "—" : formatPct(t.variacion, { signed: true })}
+                      {tec.variacion === null ? "—" : formatPct(tec.variacion, { signed: true })}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {t.deltaParticipacion === null ? "—" : formatPuntosPct(t.deltaParticipacion)}
+                      {tec.deltaParticipacion === null ? "—" : formatPuntosPct(tec.deltaParticipacion)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {pctPropias(propiasPorTec.get(t.valor))}
+                      {pctPropias(propiasPorTec.get(tec.valor), fmt)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -627,13 +604,11 @@ export default async function CombustiblesPage({
           <Card>
             <CardHeader>
               <CardTitle>
-                Evolución histórica — {seleccionada} en {etiquetaFuente} (
-                {aniosSerie[0]}–{aniosSerie[aniosSerie.length - 1]})
+                {t("Evolución histórica — {tec} en {fuente} ({desde}–{hasta})", { tec: seleccionada, fuente: etiquetaFuente, desde: aniosSerie[0], hasta: aniosSerie[aniosSerie.length - 1] })}
                 {f.marca ? ` · ${f.marca}` : ""}
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Una línea por año: dice si esa tecnología está creciendo de
-                verdad o si solo creció el mercado entero.
+                {t("Una línea por año: dice si esa tecnología está creciendo de verdad o si solo creció el mercado entero.")}
               </p>
             </CardHeader>
             <CardContent><SerieAniosChart series={serie} altura={320} /></CardContent>
@@ -642,11 +617,9 @@ export default async function CombustiblesPage({
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Marcas líderes en {seleccionada}</CardTitle>
+                <CardTitle>{t("Marcas líderes en {tec}", { tec: seleccionada })}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Quién se está quedando con esa tecnología. Las marcas propias
-                  van resaltadas. Tocá una marca y al lado aparece la composición
-                  de sus modelos; tocala de nuevo y se quita.
+                  {t("Quién se está quedando con esa tecnología. Las marcas propias van resaltadas. Tocá una marca y al lado aparece la composición de sus modelos; tocala de nuevo y se quita.")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -660,12 +633,12 @@ export default async function CombustiblesPage({
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {f.marca ? `Modelos de ${f.marca} en ${seleccionada}` : `Modelos líderes en ${seleccionada}`}
+                  {f.marca ? t("Modelos de {marca} en {tec}", { marca: f.marca, tec: seleccionada }) : t("Modelos líderes en {tec}", { tec: seleccionada })}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
                   {f.marca
-                    ? `La composición de ${f.marca} en esa tecnología: qué modelos, y cuánto pesa cada uno dentro de la marca.`
-                    : "Los modelos concretos que se venden con esa tecnología: es el nivel al que se arma una respuesta de producto."}
+                    ? t("La composición de {marca} en esa tecnología: qué modelos, y cuánto pesa cada uno dentro de la marca.", { marca: f.marca })
+                    : t("Los modelos concretos que se venden con esa tecnología: es el nivel al que se arma una respuesta de producto.")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -678,44 +651,29 @@ export default async function CombustiblesPage({
         </>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Hacé clic en una tecnología de la tabla (o usá el filtro de arriba) para ver su evolución histórica y sus
-          marcas y modelos líderes.
+          {t("Hacé clic en una tecnología de la tabla (o usá el filtro de arriba) para ver su evolución histórica y sus marcas y modelos líderes.")}
         </p>
       )}
 
       <NotaDato>
-        {esImportacion ? (
-          <>
-            Estos cortes salen del archivo de vehículos de energía nueva de
-            CADAM, que cubre EV, HEV y PHEV desde 2024 y es un{" "}
-            <strong>subconjunto</strong> de la importación (no se suma). No
-            distingue MHEV ni REEV, y tampoco trae segmento: por eso las
-            tablas de modelos no lo muestran y con un segmento elegido el
-            resto por diferencia no se calcula.
-          </>
-        ) : (
-          <>
-            Estos cortes salen de la matriculación, que es la única fuente con el
-            detalle de tecnología por unidad. La base de importación no trae esa
-            columna, y el archivo de vehículos de energía nueva es un{" "}
-            <strong>subconjunto</strong> de ella (no se suma) y solo cubre EV/HEV/PHEV
-            desde 2024. Tampoco se puede separar nafta de diésel: ambas van como ICE.
-          </>
-        )}
+        {esImportacion
+          ? tr("Estos cortes salen del archivo de vehículos de energía nueva de CADAM, que cubre EV, HEV y PHEV desde 2024 y es un <b>subconjunto</b> de la importación (no se suma). No distingue MHEV ni REEV, y tampoco trae segmento: por eso las tablas de modelos no lo muestran y con un segmento elegido el resto por diferencia no se calcula.")
+          : tr("Estos cortes salen de la matriculación, que es la única fuente con el detalle de tecnología por unidad. La base de importación no trae esa columna, y el archivo de vehículos de energía nueva es un <b>subconjunto</b> de ella (no se suma) y solo cubre EV/HEV/PHEV desde 2024. Tampoco se puede separar nafta de diésel: ambas van como ICE.")}
       </NotaDato>
       </Seccion>
     </Pagina>
   );
 }
 
-function grupoDe(tecnologia: string): string {
-  if (tecnologia === RESTO_NEV) return "Combustión";
-  return GRUPO_TECNOLOGIA[tecnologia] ?? "—";
+function grupoDe(tecnologia: string, t: I18n["t"]): string {
+  if (tecnologia === RESTO_NEV) return t("Combustión");
+  const grupo = GRUPO_TECNOLOGIA[tecnologia];
+  return grupo ? t(grupo) : "—";
 }
 
 /** null = no se puede saber (el resto por diferencia no tiene marcas). */
-function pctPropias(v: number | null | undefined): string {
-  return v === null || v === undefined ? "—" : formatPct(v);
+function pctPropias(v: number | null | undefined, fmt: I18n["fmt"]): string {
+  return v === null || v === undefined ? "—" : fmt.formatPct(v);
 }
 
 /** URL que activa/desactiva el filtro de tecnología conservando el resto de

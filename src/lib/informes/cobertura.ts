@@ -1,5 +1,6 @@
 import { hoyEnAsuncion } from "@/lib/format";
 import type { StockPropio, VentaPropia } from "@/lib/informes/propios";
+import type { T } from "@/lib/i18n/traducir";
 
 /**
  * Meses de stock por VERSIÓN, y qué hacer con cada una.
@@ -39,6 +40,7 @@ export const LIBRES_MINIMAS_EMPUJAR = 5;
 
 const EN_PISO = new Set(["DESPACHADO", "SIN DESPACHAR", "CONSIGNADO", "DISPONIBLE", "STOCK CDE"]);
 const EN_VIAJE = new Set(["EN VIAJE", "LANZAMIENTO"]);
+// i18n-ignore (estados de Cars: son datos y se comparan tal cual, no texto de pantalla)
 const NO_VENDIBLE = new Set(["TEST DRIVE", "CORTESÍA", "CORTESIA", "NO DISPONIBLE"]);
 
 /** Estados de Cars que la regla no conoce. Cuentan como en piso mientras
@@ -186,13 +188,13 @@ export function calcularCobertura(
   return { versiones, mesesRitmo, pedir, empujar };
 }
 
-/** Etiqueta en palabras para la columna "Qué hacer". */
-export function etiquetaAccion(a: Accion): string {
+/** Etiqueta en palabras para la columna "Qué hacer", en el idioma de `t`. */
+export function etiquetaAccion(a: Accion, t: T): string {
   switch (a) {
-    case "pedir": return "Pedir";
-    case "llega": return "Llega en viaje";
-    case "empujar": return "Empujar (promo)";
-    case "ok": return "Bien";
-    case "sin ritmo": return "Vende poco";
+    case "pedir": return t("Pedir");
+    case "llega": return t("Llega en viaje");
+    case "empujar": return t("Empujar (promo)");
+    case "ok": return t("Bien");
+    case "sin ritmo": return t("Vende poco");
   }
 }

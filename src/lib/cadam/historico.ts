@@ -1,3 +1,4 @@
+/* i18n-ignore-file — capa de datos: consultas SQL y cálculo estadístico; no tiene frases de pantalla. */
 import { getDb } from "./db";
 import type { Fuente } from "./mercado";
 

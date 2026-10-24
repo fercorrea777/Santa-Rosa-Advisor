@@ -1,3 +1,5 @@
+/* i18n-ignore-file — capa de datos de la pantalla Inicio vieja: consultas SQL; ninguna pantalla actual muestra su `mesLabel`
+   (la única cadena de texto del archivo). */
 import { getDb } from "./db";
 import { getMarcasPropiasSet, getParametros } from "./config";
 

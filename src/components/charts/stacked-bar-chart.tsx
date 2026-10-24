@@ -2,7 +2,7 @@
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 
 export interface CapaApilada {
   /** Nombre de la capa (ej. "Combustión", "Híbridos", "Eléctricos"). */
@@ -27,6 +27,8 @@ export function StackedBarChart({
   series: CapaApilada[];
   altura?: number;
 }) {
+  const { t, fmt } = useI18n();
+  const { formatUnidades } = fmt;
   const theme = useChartTheme();
 
   // Total por categoría: se necesita para decidir si un segmento es lo
@@ -45,7 +47,7 @@ export function StackedBarChart({
       trigger: "axis" as const,
       axisPointer: { type: "shadow" as const },
       valueFormatter: (v: number | null) =>
-        v === null || v === undefined ? "—" : `${formatUnidades(v)} u.`,
+        v === null || v === undefined ? "—" : t("{n} u.", { n: formatUnidades(v) }),
     },
     legend: { show: false },
     xAxis: {

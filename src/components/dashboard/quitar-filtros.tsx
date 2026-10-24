@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useFiltroUrl } from "@/lib/filtro-url";
+import { useI18n } from "@/lib/i18n/cliente";
 import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento";
 
 /**
@@ -15,6 +16,7 @@ import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento";
  * sacar para que el usuario sepa que esta por perder antes de tocarlo.
  */
 export function QuitarFiltros({ className }: { className?: string }) {
+  const { t } = useI18n();
   const { puestos, limpiar } = useFiltroUrl();
 
   // `puestos` cuenta los filtros contando el clic que todavía viaja: sin eso,
@@ -35,7 +37,7 @@ export function QuitarFiltros({ className }: { className?: string }) {
           exit={{ opacity: 0, scale: 0.85 }}
           transition={{ duration: DURACION.corta * 0.7, ease: SUAVE_BEZIER }}
           onClick={limpiar}
-          title="Volver a mostrar todos los datos, sin ningún filtro"
+          title={t("Volver a mostrar todos los datos, sin ningún filtro")}
           className={
             "inline-flex h-8 items-center gap-1.5 rounded-md border border-destructive/40 " +
             "bg-destructive/10 px-2.5 text-xs font-medium text-foreground " +
@@ -43,7 +45,7 @@ export function QuitarFiltros({ className }: { className?: string }) {
             (className ?? "")
           }
         >
-          Quitar {n === 1 ? "el filtro" : `los ${n} filtros`}
+          {n === 1 ? t("Quitar el filtro") : t("Quitar los {n} filtros", { n })}
         </motion.button>
       )}
     </AnimatePresence>

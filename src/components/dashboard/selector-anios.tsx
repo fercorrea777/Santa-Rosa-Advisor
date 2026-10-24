@@ -2,7 +2,7 @@
 
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { useFiltroUrl } from "@/lib/filtro-url";
-import { MESES_CORTOS } from "@/lib/periodo";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,6 +23,8 @@ export function SelectorAnios({
   mesDesde: number;
   mesHasta: number;
 }) {
+  const { t, fmt } = useI18n();
+  const { mesesCortos } = fmt;
   const { leer, leerNum, setParams: set, pendiente } = useFiltroUrl();
 
   // Los meses llegan como prop del servidor, así que acá se lee primero lo
@@ -62,7 +64,7 @@ export function SelectorAnios({
           SelectorFuente que va al lado, el mismo de todas las pantallas. */}
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Años a comparar
+          {t("Años a comparar")}
         </span>
         <div className="flex flex-wrap gap-1">
           {aniosDisponibles.map((a) => {
@@ -89,30 +91,30 @@ export function SelectorAnios({
 
       <div className="flex flex-col gap-1">
         <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Meses
+          {t("Meses")}
         </span>
         <div className="flex items-center gap-1">
           <select
             className={selectCls}
             value={desde}
-            aria-label="Mes desde"
+            aria-label={t("Mes desde")}
             onChange={(e) => {
               const d = Number(e.target.value);
               set({ desde: d, hasta: Math.max(d, hasta) });
             }}
           >
-            {MESES_CORTOS.map((m, i) => (
+            {mesesCortos.map((m, i) => (
               <option key={m} value={i + 1}>{m}</option>
             ))}
           </select>
-          <span className="text-xs text-muted-foreground">a</span>
+          <span className="text-xs text-muted-foreground">{t("a")}</span>
           <select
             className={selectCls}
             value={hasta}
-            aria-label="Mes hasta"
+            aria-label={t("Mes hasta")}
             onChange={(e) => set({ hasta: e.target.value })}
           >
-            {MESES_CORTOS.map((m, i) => (
+            {mesesCortos.map((m, i) => (
               <option key={m} value={i + 1} disabled={i + 1 < desde}>{m}</option>
             ))}
           </select>
@@ -122,7 +124,7 @@ export function SelectorAnios({
               onClick={() => set({ desde: null, hasta: null })}
               className="ml-1 text-xs text-muted-foreground underline-offset-2 hover:underline"
             >
-              año completo
+              {t("año completo")}
             </button>
           )}
         </div>

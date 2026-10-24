@@ -1,4 +1,5 @@
 import { URL_FOTO } from "@/lib/foto-perfil";
+import { N_ } from "@/lib/i18n/traducir";
 import { getPerfil } from "./usuarios";
 import type { Sesion } from "./sesion";
 
@@ -17,7 +18,8 @@ import type { Sesion } from "./sesion";
  * tumbar una pantalla.
  */
 
-export const ETIQUETA_ROL = { admin: "Administrador", lector: "Lector" } as const;
+// N_: se traducen donde se muestran (t(perfil.rolEtiqueta)); este objeto vive en un caché que sirve a todos los idiomas.
+export const ETIQUETA_ROL = { admin: N_("Administrador"), lector: N_("Lector") } as const;
 
 export interface PerfilVisible {
   nombre: string;
@@ -49,8 +51,8 @@ export function urlDeFoto(version: string | null | undefined): string | null {
 export async function perfilDe(sesion: Sesion): Promise<PerfilVisible> {
   if (sesion.tipo === "compartida") {
     return {
-      nombre: "Acceso de emergencia",
-      detalle: "Clave general del equipo",
+      nombre: N_("Acceso de emergencia"),
+      detalle: N_("Clave general del equipo"),
       rolEtiqueta: ETIQUETA_ROL.admin,
       fotoUrl: null,
       emergencia: true,
@@ -77,7 +79,7 @@ export async function perfilDe(sesion: Sesion): Promise<PerfilVisible> {
     console.error("perfil: no se pudo consultar la base:", (e as Error).message);
   }
   return {
-    nombre: "Tu cuenta",
+    nombre: N_("Tu cuenta"),
     detalle: "",
     rolEtiqueta: ETIQUETA_ROL[sesion.rol],
     fotoUrl: null,

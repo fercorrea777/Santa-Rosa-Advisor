@@ -9,12 +9,16 @@ import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 import { getPerfil } from "@/lib/auth/usuarios";
 import { ETIQUETA_ROL, urlDeFoto } from "@/lib/auth/perfil";
 import { salir } from "@/app/entrar/acciones";
-import { formatFecha, formatFechaHora } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/servidor";
+import { N_ } from "@/lib/i18n/traducir";
 import { IconSalir } from "@/components/icons";
 import { FormularioMiClave } from "../mi-clave/formulario";
 import { FotoPerfil } from "./foto-perfil";
 
-export const metadata: Metadata = { title: "Mi cuenta" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("Mi cuenta") };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -27,6 +31,8 @@ export const dynamic = "force-dynamic";
  * del menú; esa ruta redirige acá.
  */
 export default async function MiCuentaPage() {
+  const { t, fmt } = await getI18n();
+  const { formatFecha, formatFechaHora } = fmt;
   const clave = process.env.ADVISOR_CLAVE;
   const sesion = clave
     ? leerSesion((await cookies()).get(NOMBRE_COOKIE)?.value, clave)
@@ -45,26 +51,29 @@ export default async function MiCuentaPage() {
   }
   const esCuenta = sesion?.tipo === "usuario";
   const version = process.env.SOURCE_COMMIT?.slice(0, 7);
+  const rol = persona ? (ETIQUETA_ROL[persona.rol] ?? persona.rol) : null;
 
   return (
     <Pagina>
       <PageHeader
-        titulo="Mi cuenta"
+        titulo={t("Mi cuenta")}
         descripcion={
           esCuenta
-            ? "Tu foto, tus datos y tu clave."
-            : "Esta sesión no es una cuenta personal."
+            ? t("Tu foto, tus datos y tu clave.")
+            : t("Esta sesión no es una cuenta personal.")
         }
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
         <Card>
           <CardHeader>
-            <CardTitle>Perfil</CardTitle>
+            <CardTitle>{t("Perfil")}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
             <FotoPerfil
-              nombre={persona?.nombre ?? (sesion ? "Acceso de emergencia" : "Invitado")}
+              // El avatar usa el nombre solo para las iniciales y el color: se le pasa el de origen
+              // (castellano) para que sea el mismo en los dos idiomas y que el del menú.
+              nombre={persona?.nombre ?? (sesion ? N_("Acceso de emergencia") : "Invitado" /* i18n-ignore */)}
               fotoUrl={urlDeFoto(persona?.foto_version)}
               puedeCambiar={esCuenta && !!persona}
             />
@@ -72,30 +81,30 @@ export default async function MiCuentaPage() {
             {persona ? (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-extrabold tracking-tight">{persona.nombre}</h2>
-                  <Badge variant="secondary">{ETIQUETA_ROL[persona.rol] ?? persona.rol}</Badge>
+                  <h2 className="text-xl font-bold tracking-tight">{persona.nombre}</h2>
+                  <Badge variant="secondary">{rol && t(rol)}</Badge>
                 </div>
                 <dl className="grid gap-x-8 gap-y-4 border-t border-border pt-5 text-sm sm:grid-cols-2">
-                  <Dato etiqueta="Correo" valor={persona.usuario} corte />
+                  <Dato etiqueta={t("Correo")} valor={persona.usuario} corte />
                   <Dato
-                    etiqueta="Qué podés hacer"
+                    etiqueta={t("Qué podés hacer")}
                     valor={
                       persona.rol === "admin"
-                        ? "Ver todo y administrar usuarios, metas y marcas."
-                        : "Ver todo menos Configuración y Rentabilidad."
+                        ? t("Ver todo y administrar usuarios, metas y marcas.")
+                        : t("Ver todo menos Configuración y Rentabilidad.")
                     }
                   />
-                  <Dato etiqueta="Último acceso" valor={formatFechaHora(persona.ultimo_acceso)} />
-                  <Dato etiqueta="Cuenta creada" valor={formatFecha(persona.creado_en)} />
+                  <Dato etiqueta={t("Último acceso")} valor={formatFechaHora(persona.ultimo_acceso)} />
+                  <Dato etiqueta={t("Cuenta creada")} valor={formatFecha(persona.creado_en)} />
                 </dl>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 {baseCaida
-                  ? "No se pudieron leer tus datos (la base no responde). Probá de nuevo en un rato."
+                  ? t("No se pudieron leer tus datos (la base no responde). Probá de nuevo en un rato.")
                   : sesion
-                    ? "Entraste con la clave general del equipo (acceso de emergencia). Abre una sesión de administrador por un día y no tiene foto, correo ni clave propia. Para tener lo tuyo, entrá con tu correo."
-                    : "El tablero no tiene claves configuradas: cualquiera con la URL entra, y no hay cuentas que mostrar."}
+                    ? t("Entraste con la clave general del equipo (acceso de emergencia). Abre una sesión de administrador por un día y no tiene foto, correo ni clave propia. Para tener lo tuyo, entrá con tu correo.")
+                    : t("El tablero no tiene claves configuradas: cualquiera con la URL entra, y no hay cuentas que mostrar.")}
               </p>
             )}
           </CardContent>
@@ -113,16 +122,16 @@ export default async function MiCuentaPage() {
           {sesion && (
             <Card>
               <CardHeader>
-                <CardTitle>Sesión</CardTitle>
+                <CardTitle>{t("Sesión")}</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-wrap items-center justify-between gap-3">
                 <p className="max-w-xs text-xs text-muted-foreground">
-                  Cerrala si estás en una computadora que no es tuya o si vas a dejar la reunión.
+                  {t("Cerrala si estás en una computadora que no es tuya o si vas a dejar la reunión.")}
                 </p>
                 <form action={salir}>
                   <Button type="submit" variant="outline">
                     <IconSalir size={15} />
-                    Cerrar sesión
+                    {t("Cerrar sesión")}
                   </Button>
                 </form>
               </CardContent>
@@ -134,7 +143,8 @@ export default async function MiCuentaPage() {
       {/* El commit sirve para saber si un redeploy tomó cuando alguien dice que
           algo «sigue igual». translate="no": es un identificador, no texto. */}
       <p className="text-center font-mono text-[11px] tabular-nums text-muted-foreground" translate="no">
-        Advisor · {version ?? "desarrollo"}
+        {/* i18n-ignore (nombre del producto + versión) */}
+        Advisor · {version ?? t("desarrollo")}
       </p>
     </Pagina>
   );

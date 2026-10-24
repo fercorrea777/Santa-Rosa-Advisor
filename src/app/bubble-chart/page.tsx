@@ -21,10 +21,8 @@ import {
 } from "@/lib/cadam/bandas";
 import { asignarSegmento, SIN_CLASIFICAR, tokens } from "@/lib/informes/segmento-version";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import { formatPct, formatUnidades } from "@/lib/format";
-import { etiquetaPeriodo, filtroDesdeUrl, type SearchParams, etiquetaCortes, aclaracionCortes } from "@/lib/periodo";
-
-const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
+import { getI18n } from "@/lib/i18n/servidor";
+import { filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 /** Unidades mínimas del período anterior para que un modelo entre al
  *  gráfico. Es lo que hace legible el eje, no un capricho: sobre los datos
@@ -52,6 +50,9 @@ export default async function BubbleChartPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const { t, tr, fmt } = await getI18n();
+  const { formatPct, formatUnidades, etiquetaPeriodo, etiquetaCortes, aclaracionCortes } = fmt;
+  const NOMBRE: Record<Fuente, string> = { matriculacion: t("matriculaciones"), importacion: t("importaciones") };
   const sp = await searchParams;
   const cobertura = getCobertura();
   // Tres vistas (Croman, 15/09/2026: "el mismo selector en Bubble chart").
@@ -194,6 +195,21 @@ export default async function BubbleChartPage({
   const conSegmento = asignarSegmento(ordenPrecio, catalogoCadam);
   const sinClasificar = conSegmento.filter((b) => b.segmento === SIN_CLASIFICAR);
   const unidadesSinClasificar = sinClasificar.reduce((s, b) => s + b.unidades, 0);
+  // « — 3 versiones, 12 u.: A X, B Y, C Z y otras», o nada si todo cruzó.
+  const varsSinClasificar = {
+    n: sinClasificar.length,
+    unidades: formatUnidades(unidadesSinClasificar),
+    lista: `${[...sinClasificar]
+      .sort((a, b) => b.unidades - a.unidades)
+      .slice(0, 3)
+      .map((b) => `${b.marca} ${b.version}`)
+      .join(", ")}${sinClasificar.length > 3 ? ` ${t("y otras")}` : ""}`,
+  };
+  const textoSinClasificar = sinClasificar.length === 0
+    ? ""
+    : ` ${sinClasificar.length === 1
+        ? t("— {n} versión, {unidades} u.: {lista}", varsSinClasificar)
+        : t("— {n} versiones, {unidades} u.: {lista}", varsSinClasificar)}`;
 
   // --- fichas de modelo: contra quién compite cada burbuja ------------------
   // El gráfico contesta "quién está dónde"; la ficha contesta la pregunta que
@@ -237,7 +253,7 @@ export default async function BubbleChartPage({
     if (!tf.length) return undefined;
     const hallado = universo
       .filter((m) => m.marca === marca && tokens(m.modelo)[0] === tf[0])
-      .map((m) => ({ m, comunes: new Set(tokens(m.modelo).filter((t) => tf.includes(t))).size }))
+      .map((m) => ({ m, comunes: new Set(tokens(m.modelo).filter((tk) => tf.includes(tk))).size }))
       .sort((a, b) => b.comunes - a.comunes || b.m.unidades - a.m.unidades)[0];
     return hallado ? claveModelo(hallado.m.marca, hallado.m.modelo) : undefined;
   };
@@ -252,6 +268,22 @@ export default async function BubbleChartPage({
   const claseDeBurbuja = (clave: string | undefined, b: { segmento: string }) =>
     (clave ? clasePorClave.get(clave) : undefined) ?? b.segmento;
 
+  /** «El eje corta en +150%: 3 modelos se salen…»: los que se pasan del techo y por qué se ven en el tope. */
+  const notaRecortadas = (b: (typeof bloques)[number]) => {
+    const vars = {
+      techo: TECHO_VARIACION,
+      n: b.recortadas.length,
+      lista: `${[...b.recortadas]
+        .sort((x, y) => y.variacion - x.variacion)
+        .slice(0, 3)
+        .map((d) => `${d.marca} ${d.modelo} ${formatPct(d.variacion, { signed: true })}`)
+        .join(", ")}${b.recortadas.length > 3 ? ` ${t("y otros")}` : ""}`,
+    };
+    return b.recortadas.length === 1
+      ? tr("El eje corta en +{techo}%: <b>{n}</b> modelo se sale y queda dibujado como triángulo en el tope — {lista}. El valor real está en el tooltip de cada uno.", vars)
+      : tr("El eje corta en +{techo}%: <b>{n}</b> modelos se salen y quedan dibujados como triángulo en el tope — {lista}. El valor real está en el tooltip de cada uno.", vars);
+  };
+
   // --- pestañas (30/09/2026) ----------------------------------------------
   // Cuatro secciones y 6.900 px: la batalla del equipo de producto, el
   // crecimiento por modelo, el posicionamiento por versión y su ranking. En
@@ -260,9 +292,9 @@ export default async function BubbleChartPage({
   // se dibuja todo junto, como siempre.
   const embebido = (Array.isArray(sp.embed) ? sp.embed[0] : sp.embed) === "1";
   const PESTANAS = [
-    { valor: "batalla", label: "Batalla por modelo", pista: "Cada modelo nuestro contra sus rivales, como lo arma el equipo de producto." },
-    { valor: "crecimiento", label: "Crecimiento", pista: "Qué modelos crecen y cuáles caen contra el año pasado, y con cuánto volumen." },
-    { valor: "versiones", label: "Por versión", pista: "Precio y volumen versión por versión, y el ranking de competidores." },
+    { valor: "batalla", label: t("Batalla por modelo"), pista: t("Cada modelo nuestro contra sus rivales, como lo arma el equipo de producto.") },
+    { valor: "crecimiento", label: t("Crecimiento"), pista: t("Qué modelos crecen y cuáles caen contra el año pasado, y con cuánto volumen.") },
+    { valor: "versiones", label: t("Por versión"), pista: t("Precio y volumen versión por versión, y el ranking de competidores.") },
   ];
   const pedida = Array.isArray(sp.vista) ? sp.vista[0] : sp.vista;
   const pestana = PESTANAS.some((x) => x.valor === pedida) ? (pedida as string) : "batalla";
@@ -271,9 +303,12 @@ export default async function BubbleChartPage({
   return (
     <Pagina>
       <PageHeader
-        titulo="Bubble chart"
-        descripcion={`Cada burbuja es un modelo, agrupado en la columna de su marca · ${bloques.map((b) => `${NOMBRE[b.fuente]} ${b.periodo}`).join(" · ")} vs. mismo período ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Bubble chart")}
+        descripcion={t("Cada burbuja es un modelo, agrupado en la columna de su marca · {fuentes} vs. mismo período {anio}.", {
+          fuentes: bloques.map((b) => `${NOMBRE[b.fuente]} ${b.periodo}`).join(" · "),
+          anio: f.anio - 1,
+        })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       <div
@@ -287,13 +322,13 @@ export default async function BubbleChartPage({
             anios={anios}
             mesMaximoPorAnio={mesMax}
             opciones={[
-              { param: "marca", label: "Marca", valores: opciones.marcas },
-              { param: "modelo", label: "Modelo", valores: modelosDisponibles },
-              { param: "segmento", label: "Segmento", valores: opciones.segmentos },
+              { param: "marca", label: t("Marca"), valores: opciones.marcas },
+              { param: "modelo", label: t("Modelo"), valores: modelosDisponibles },
+              { param: "segmento", label: t("Segmento"), valores: opciones.segmentos },
               ...(fuentes.includes("matriculacion")
                 ? [{
                     param: "tecnologia",
-                    label: "Tecnología",
+                    label: t("Tecnología"),
                     valores: ["ICE", "MHEV", "HEV", "PHEV", "REEV", "EV"],
                   }]
                 : []),
@@ -305,26 +340,22 @@ export default async function BubbleChartPage({
       {!embebido && <SelectorVista vistas={PESTANAS} porDefecto="batalla" />}
 
       {ver("batalla") && (
-      <Seccion titulo="Batalla por modelo"
-        nota="El cuadro que arma producto: cada modelo contra sus rivales de verdad, por precio y por volumen, con las medidas de cada versión.">
+      <Seccion titulo={t("Batalla por modelo")}
+        nota={t("El cuadro que arma producto: cada modelo contra sus rivales de verdad, por precio y por volumen, con las medidas de cada versión.")}>
         {batalla ? (
           <>
             <NotaDato>
-              El bubble chart del <strong>equipo de producto</strong>, tal cual está en sus
-              planillas ({batalla.archivos?.length ?? 1} archivos, una por marca; cargados el{" "}
-              {batalla.cargado_en.slice(0, 10)}): por cada modelo nuestro, las versiones rivales
-              que ellos eligieron, con precio de lista, medidas y volumen. Cada hoja tiene su
-              propio período, que se muestra arriba del gráfico: no todas están al mismo mes.
-              Nada se cruza con CADAM ni con Datacar acá: se dibuja lo que dice el Excel, y
-              cuando el Excel cambia, se vuelve a cargar solo.
+              {tr("El bubble chart del <b>equipo de producto</b>, tal cual está en sus planillas ({n} archivos, una por marca; cargados el {fecha}): por cada modelo nuestro, las versiones rivales que ellos eligieron, con precio de lista, medidas y volumen. Cada hoja tiene su propio período, que se muestra arriba del gráfico: no todas están al mismo mes. Nada se cruza con CADAM ni con Datacar acá: se dibuja lo que dice el Excel, y cuando el Excel cambia, se vuelve a cargar solo.", {
+                n: batalla.archivos?.length ?? 1,
+                fecha: batalla.cargado_en.slice(0, 10),
+              })}
             </NotaDato>
             <BatallaModeloChart modelos={batalla.modelos} propias={[...propiasSet]} />
           </>
         ) : (
           <Card>
             <CardContent className="py-8 text-sm text-muted-foreground">
-              Todavía no se cargó la planilla de producto (JETOUR_PY_BBCH_*.xlsx). La carga
-              Hermes desde la carpeta del tablero con <code>advisor-batalla.sh</code>.
+              {tr("Todavía no se cargó la planilla de producto (JETOUR_PY_BBCH_*.xlsx). La carga Hermes desde la carpeta del tablero con <code>advisor-batalla.sh</code>.")}
             </CardContent>
           </Card>
         )}
@@ -334,54 +365,39 @@ export default async function BubbleChartPage({
       {ver("crecimiento") && (
       <>
       <NotaDato>
-        El eje vertical es la <strong>variación %</strong>, no el precio: la base
-        de CADAM trae unidades, no importes. Como el porcentaje se dispara sobre
-        bases chicas, sólo entran los modelos con al menos{" "}
-        <strong>{BASE_MINIMA} unidades</strong> en {f.anio - 1}, y sólo las{" "}
-        <strong>{TOPE_MARCAS} marcas de mayor volumen</strong> más las propias, que
-        entran siempre.
+        {tr("El eje vertical es la <b>variación %</b>, no el precio: la base de CADAM trae unidades, no importes. Como el porcentaje se dispara sobre bases chicas, sólo entran los modelos con al menos <b>{base} unidades</b> en {anio}, y sólo las <b>{tope} marcas de mayor volumen</b> más las propias, que entran siempre.", {
+          base: BASE_MINIMA, anio: f.anio - 1, tope: TOPE_MARCAS,
+        })}
         {bloques.map((b) => (
           <span key={b.fuente}>
-            {" "}En {NOMBRE[b.fuente]} ({b.periodo}) se grafican <strong>{b.visibles.length}</strong> de{" "}
-            {b.modelos.length} modelos, el{" "}
-            <strong>{b.volTotal ? formatPct(b.volGraficado / b.volTotal) : "—"}</strong> del
-            volumen; fuera quedan {b.entrantes} modelos nuevos (sin año anterior contra
-            qué comparar), {b.bajoBase} por debajo de la base mínima y {b.fueraDelTope} de
-            marcas que no llegan al tope
-            {b.propiasForzadas.length > 0 ? ` (propias que entran igual: ${b.propiasForzadas.join(", ")})` : ""}.
+            {" "}{tr("En {fuente} ({periodo}) se grafican <b>{n}</b> de {total} modelos, el <b>{pct}</b> del volumen; fuera quedan {entrantes} modelos nuevos (sin año anterior contra qué comparar), {bajoBase} por debajo de la base mínima y {fueraDelTope} de marcas que no llegan al tope{propias}.", {
+              fuente: NOMBRE[b.fuente],
+              periodo: b.periodo,
+              n: b.visibles.length,
+              total: b.modelos.length,
+              pct: b.volTotal ? formatPct(b.volGraficado / b.volTotal) : "—",
+              entrantes: b.entrantes,
+              bajoBase: b.bajoBase,
+              fueraDelTope: b.fueraDelTope,
+              propias: b.propiasForzadas.length > 0 ? ` ${t("(propias que entran igual: {marcas})", { marcas: b.propiasForzadas.join(", ") })}` : "",
+            })}
           </span>
         ))}
       </NotaDato>
 
-      <Seccion titulo="Posicionamiento por variación"
-        nota="Qué modelos crecen y cuáles se caen, y con cuánto volumen: arriba a la derecha están los que crecen y ya pesan.">
+      <Seccion titulo={t("Posicionamiento por variación")}
+        nota={t("Qué modelos crecen y cuáles se caen, y con cuánto volumen: arriba a la derecha están los que crecen y ya pesan.")}>
       {bloques.map((b) => (
       <Card key={b.fuente}>
         <CardHeader>
-          <CardTitle>Crecimiento por modelo — {NOMBRE[b.fuente]} · {b.periodo}</CardTitle>
+          <CardTitle>{t("Crecimiento por modelo — {fuente} · {periodo}", { fuente: NOMBRE[b.fuente], periodo: b.periodo })}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="pb-3 text-xs text-muted-foreground">
-            Eje Y = variación contra {b.f.anio - 1} · tamaño = unidades del período ·
-            las marcas propias van primero, con borde y su nombre resaltado en el
-            eje. Arriba de la línea del 0% crecen, abajo caen; el tamaño dice
-            cuánto pesa ese crecimiento. <strong>Tocá una burbuja</strong> y se
-            abre la ficha del modelo: su clase, contra quién compite, a qué
-            precio y cómo viene contra el año pasado.
+            {tr("Eje Y = variación contra {anio} · tamaño = unidades del período · las marcas propias van primero, con borde y su nombre resaltado en el eje. Arriba de la línea del 0% crecen, abajo caen; el tamaño dice cuánto pesa ese crecimiento. <b>Tocá una burbuja</b> y se abre la ficha del modelo: su clase, contra quién compite, a qué precio y cómo viene contra el año pasado.", { anio: b.f.anio - 1 })}
             {b.recortadas.length > 0 && (
               <>
-                {" "}El eje corta en +{TECHO_VARIACION}%:{" "}
-                <strong>{b.recortadas.length}</strong>{" "}
-                {b.recortadas.length === 1 ? "modelo se sale" : "modelos se salen"} y
-                {b.recortadas.length === 1 ? " queda dibujado" : " quedan dibujados"}{" "}
-                como triángulo en el tope —{" "}
-                {[...b.recortadas]
-                  .sort((x, y) => y.variacion - x.variacion)
-                  .slice(0, 3)
-                  .map((d) => `${d.marca} ${d.modelo} ${formatPct(d.variacion, { signed: true })}`)
-                  .join(", ")}
-                {b.recortadas.length > 3 ? " y otros" : ""}. El valor real está en el
-                tooltip de cada uno.
+                {" "}{notaRecortadas(b)}
               </>
             )}
           </p>
@@ -401,19 +417,13 @@ export default async function BubbleChartPage({
       )}
 
       {ver("versiones") && ordenPrecio.length > 0 && (
-        <Seccion titulo="Posicionamiento por versión"
-        nota="El mismo cruce de precio y volumen, pero versión por versión: es el nivel al que el cliente elige.">
+        <Seccion titulo={t("Posicionamiento por versión")}
+        nota={t("El mismo cruce de precio y volumen, pero versión por versión: es el nivel al que el cliente elige.")}>
         <Card>
           <CardHeader>
-            <CardTitle>Bubble chart por clase y versión</CardTitle>
+            <CardTitle>{t("Bubble chart por clase y versión")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Una burbuja por versión · eje X = clase de vehículo · eje Y =
-              precio de lista · tamaño = unidades · color = marca. Lo que
-              comparte columna compite entre sí: la clase separa el SUV chico
-              del grande, cosa que el segmento de CADAM no hace.{" "}
-              <strong>Tocá una burbuja</strong> y se abre contra quién compite
-              esa versión, a qué precio está cada rival y si estamos caros o
-              baratos.
+              {tr("Una burbuja por versión · eje X = clase de vehículo · eje Y = precio de lista · tamaño = unidades · color = marca. Lo que comparte columna compite entre sí: la clase separa el SUV chico del grande, cosa que el segmento de CADAM no hace. <b>Tocá una burbuja</b> y se abre contra quién compite esa versión, a qué precio está cada rival y si estamos caros o baratos.")}
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -435,37 +445,14 @@ export default async function BubbleChartPage({
               etiquetaColumna="Clase"
             />
             <NotaDato>
-              El precio sale del <strong>API de Cars</strong>, que solo conoce
-              nuestra gama: por eso acá están nuestras marcas y no el mercado
-              entero. CADAM no trae importes, así que no hay precio de
-              competencia a nivel versión en ninguna fuente que tengamos —
-              lo público de la competencia sale del relevamiento de precios, que
-              cubre pocos modelos. El <strong>segmento</strong> tampoco está en
-              Cars: se cruza contra el nombre de la versión en CADAM, y lo que no
-              cruza va a «Sin clasificar» en vez de adivinarse
-              {sinClasificar.length > 0 ? (
-                <>
-                  {" "}— {sinClasificar.length}{" "}
-                  {sinClasificar.length === 1 ? "versión" : "versiones"},{" "}
-                  {formatUnidades(unidadesSinClasificar)} u.:{" "}
-                  {[...sinClasificar]
-                    .sort((a, b) => b.unidades - a.unidades)
-                    .slice(0, 3)
-                    .map((b) => `${b.marca} ${b.version}`)
-                    .join(", ")}
-                  {sinClasificar.length > 3 ? " y otras" : ""}
-                </>
-              ) : (
-                ""
-              )}
-              . {ordenPrecio.length} versiones con precio,{" "}
-              {formatUnidades(unidadesBurbujas)} unidades facturadas en el
-              período; las versiones sin precio en Cars quedan fuera del
-              gráfico porque no tendrían dónde ubicarse en el eje
-              {canje > 0
-                ? `, y las ${canje} versiones de canje y usados (marcas que no distribuimos, una unidad cada una) también: están en /operacion`
-                : ""}
-              .
+              {tr("El precio sale del <b>API de Cars</b>, que solo conoce nuestra gama: por eso acá están nuestras marcas y no el mercado entero. CADAM no trae importes, así que no hay precio de competencia a nivel versión en ninguna fuente que tengamos — lo público de la competencia sale del relevamiento de precios, que cubre pocos modelos. El <b>segmento</b> tampoco está en Cars: se cruza contra el nombre de la versión en CADAM, y lo que no cruza va a «Sin clasificar» en vez de adivinarse{sinClasificar}. {n} versiones con precio, {unidades} unidades facturadas en el período; las versiones sin precio en Cars quedan fuera del gráfico porque no tendrían dónde ubicarse en el eje{canje}.", {
+                sinClasificar: textoSinClasificar,
+                n: ordenPrecio.length,
+                unidades: formatUnidades(unidadesBurbujas),
+                canje: canje > 0
+                  ? t(", y las {n} versiones de canje y usados (marcas que no distribuimos, una unidad cada una) también: están en /operacion", { n: canje })
+                  : "",
+              })}
             </NotaDato>
           </CardContent>
         </Card>
@@ -475,24 +462,22 @@ export default async function BubbleChartPage({
       {!embebido && pestana === "versiones" && ordenPrecio.length === 0 && versiones.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Ninguna versión con precio ni con ranking para este filtro.
+            {t("Ninguna versión con precio ni con ranking para este filtro.")}
           </CardContent>
         </Card>
       )}
 
       {ver("versiones") && versiones.length > 0 && (
-        <Seccion titulo="Ranking por versión">
+        <Seccion titulo={t("Ranking por versión")}>
         <Card>
           <CardHeader>
-            <CardTitle>Ranking de competidores por versión</CardTitle>
+            <CardTitle>{t("Ranking de competidores por versión")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="pb-3 text-xs text-muted-foreground">
-              {versiones.length} versiones · el Δ compara <strong>puntos de
-              share</strong>, no unidades: entre {f.anio - 1} y {f.anio} el
-              mercado cambió de tamaño, así que las unidades de los dos períodos
-              no son comparables entre sí — el share sí. Una versión puede vender
-              más y aun así ceder terreno.
+              {tr("{n} versiones · el Δ compara <b>puntos de share</b>, no unidades: entre {anioAnterior} y {anio} el mercado cambió de tamaño, así que las unidades de los dos períodos no son comparables entre sí — el share sí. Una versión puede vender más y aun así ceder terreno.", {
+                n: versiones.length, anioAnterior: f.anio - 1, anio: f.anio,
+              })}
             </p>
             <TablaVersiones filas={versiones} />
           </CardContent>

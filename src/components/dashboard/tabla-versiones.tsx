@@ -4,7 +4,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Marca } from "@/components/dashboard/logo-marca";
-import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/servidor";
 import type { FilaRanking } from "@/lib/cadam/mercado";
 
 /**
@@ -17,18 +17,20 @@ import type { FilaRanking } from "@/lib/cadam/mercado";
  * share sí es comparable, y su diferencia en pp es la única lectura honesta
  * de "ganó o cedió posición".
  */
-export function TablaVersiones({
+export async function TablaVersiones({
   filas,
   limite = 50,
 }: {
   filas: FilaRanking[];
   limite?: number;
 }) {
+  const { t, fmt } = await getI18n();
+  const { formatPct, formatPuntosPct, formatUnidades } = fmt;
   const visibles = filas.slice(0, limite);
   if (!visibles.length) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        Sin versiones para este filtro.
+        {t("Sin versiones para este filtro.")}
       </p>
     );
   }
@@ -58,14 +60,14 @@ export function TablaVersiones({
         <TableHeader>
           <TableRow>
             <TableHead className="w-10 text-right">#</TableHead>
-            <TableHead>Versión</TableHead>
-            <TableHead>Modelo</TableHead>
-            <TableHead>Marca</TableHead>
-            <TableHead className="text-right" nota="las del período">Unidades</TableHead>
-            <TableHead className="text-right" nota="su parte del mercado">Share</TableHead>
-            <TableHead className="text-right" nota="el mismo período del año pasado">Año ant.</TableHead>
-            <TableHead className="text-right" nota="la parte del año pasado">Share ant.</TableHead>
-            <TableHead className="w-36 text-right" nota="puntos que ganó o perdió">Δ share</TableHead>
+            <TableHead>{t("Versión")}</TableHead>
+            <TableHead>{t("Modelo")}</TableHead>
+            <TableHead>{t("Marca")}</TableHead>
+            <TableHead className="text-right" nota={t("las del período")}>{t("Unidades")}</TableHead>
+            <TableHead className="text-right" nota={t("su parte del mercado")}>{t("Share")}</TableHead>
+            <TableHead className="text-right" nota={t("el mismo período del año pasado")}>{t("Año ant.")}</TableHead>
+            <TableHead className="text-right" nota={t("la parte del año pasado")}>{t("Share ant.")}</TableHead>
+            <TableHead className="w-36 text-right" nota={t("puntos que ganó o perdió")}>{t("Δ share")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -93,7 +95,7 @@ export function TablaVersiones({
                   />
                   {f.esPropia && (
                     <Badge variant="outline" className="ml-1.5 text-[10px] font-normal">
-                      propia
+                      {t("propia")}
                     </Badge>
                   )}
                 </TableCell>
@@ -145,7 +147,7 @@ export function TablaVersiones({
           })}
           <TableRow className="border-t-2 font-semibold">
             <TableCell />
-            <TableCell>Total del mercado</TableCell>
+            <TableCell>{t("Total del mercado")}</TableCell>
             <TableCell />
             <TableCell />
             <TableCell className="text-right tabular-nums">
@@ -164,8 +166,7 @@ export function TablaVersiones({
       </Table>
       {filas.length > limite && (
         <p className="pt-2 text-xs text-muted-foreground">
-          Mostrando las {limite} primeras de {filas.length}. El total de arriba
-          es de todas.
+          {t("Mostrando las {limite} primeras de {total}. El total de arriba es de todas.", { limite, total: filas.length })}
         </p>
       )}
     </div>

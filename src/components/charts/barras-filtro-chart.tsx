@@ -3,7 +3,7 @@
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { useFiltroUrl } from "@/lib/filtro-url";
 import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 
 export interface Barra {
   nombre: string;
@@ -27,9 +27,13 @@ export function BarrasFiltroChart({
   param?: string;
   altura?: number;
 }) {
+  const { t, fmt } = useI18n();
+  const { formatUnidades, nombreDeSegmento } = fmt;
   const theme = useChartTheme();
   const { leer, alternar } = useFiltroUrl();
   const activo = leer(param);
+  /** Lo que se LEE: el valor crudo (CAMION…) sigue siendo la clave del filtro; el inglés traduce el segmento y el castellano lo deja como llega. */
+  const nombreVisible = (n: string) => (param === "segmento" && fmt.idioma === "en" ? nombreDeSegmento(n) : n);
 
   const ordenados = [...datos].sort((a, b) => a.valor - b.valor); // asc: ECharts pinta de abajo hacia arriba
 
@@ -46,8 +50,8 @@ export function BarrasFiltroChart({
       ...TOOLTIP_BASE,
       trigger: "item",
       formatter: (p: { name: string; value: number }) =>
-        `${p.name}<br/><b>${formatUnidades(p.value)}</b> u.<br/>` +
-        `<span style="font-size:11px;opacity:.75">${activo === p.name ? "Clic para quitar el filtro" : "Clic para filtrar"}</span>`,
+        `${nombreVisible(p.name)}<br/><b>${formatUnidades(p.value)}</b> ${t("u.")}<br/>` +
+        `<span style="font-size:11px;opacity:.75">${activo === p.name ? t("Clic para quitar el filtro") : t("Clic para filtrar")}</span>`,
     },
     xAxis: {
       type: "value",
@@ -58,7 +62,7 @@ export function BarrasFiltroChart({
       type: "category",
       data: ordenados.map((d) => d.nombre),
       axisLine: { lineStyle: { color: theme.grid } },
-      axisLabel: { color: theme.text, fontSize: 11 },
+      axisLabel: { color: theme.text, fontSize: 11, formatter: (v: string) => nombreVisible(v) },
     },
     series: [
       {
@@ -97,7 +101,7 @@ export function BarrasFiltroChart({
   if (!datos.length) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
-        Sin datos para este filtro.
+        {t("Sin datos para este filtro.")}
       </p>
     );
   }

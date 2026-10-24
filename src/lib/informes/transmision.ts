@@ -1,3 +1,5 @@
+import type { T } from "@/lib/i18n/traducir";
+
 /**
  * Transmisión de una versión, leída de su nombre.
  *
@@ -109,5 +111,7 @@ export function transmisionDe(nombre: string, marca?: string): Transmision | nul
 
 const PREFIJOS = new Set(["NUEVO", "NUEVA", "NEW", "ALL", "THE", "NOVO", "NOVA"]);
 
-export const etiquetaTransmision = (t: Transmision | null) =>
-  t === "MT" ? "mecánico" : t === "AT" ? "automático" : "sin dato";
+/** La transmisión como se lee en pantalla. `t` es el traductor del pedido (de
+ *  `getI18n()` o `useI18n()`): sin él no hay idioma que elegir. */
+export const etiquetaTransmision = (valor: Transmision | null, t: T) =>
+  valor === "MT" ? t("mecánico") : valor === "AT" ? t("automático") : t("sin dato");

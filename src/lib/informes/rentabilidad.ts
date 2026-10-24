@@ -1,3 +1,4 @@
+import type { T } from "@/lib/i18n/traducir";
 import type { AccionesMes, AccionVersion } from "./acciones";
 import {
   claveFamilia, cruzarVersiones, nombreDeClave, type FilaCars,
@@ -281,7 +282,7 @@ export interface PuntoRentabilidad {
   aproximado: boolean;
 }
 
-export function puntosRentabilidad(r: Rentabilidad, nivel: "version" | "modelo"): PuntoRentabilidad[] {
+export function puntosRentabilidad(r: Rentabilidad, nivel: "version" | "modelo", t: T): PuntoRentabilidad[] {
   const out: PuntoRentabilidad[] = [];
   for (const m of r.marcas) {
     for (const f of m.familias) {
@@ -289,7 +290,7 @@ export function puntosRentabilidad(r: Rentabilidad, nivel: "version" | "modelo")
         if (f.ticket === null || f.margenUnidad === null || f.unidades <= 0) continue;
         const cruzadas = f.versiones.reduce((s, v) => s + (v.unidades ?? 0), 0);
         out.push({
-          marca: m.marca, nombre: f.nombre, detalle: `${f.versiones.length} ${f.versiones.length === 1 ? "versión" : "versiones"}`,
+          marca: m.marca, nombre: f.nombre, detalle: f.versiones.length === 1 ? t("1 versión") : t("{n} versiones", { n: f.versiones.length }),
           unidades: cruzadas, ticket: f.ticket, margenUnidad: f.margenUnidad, margenPct: f.margenPct,
           facturacion: f.facturacion, facturacionSinIva: f.facturacionSinIva, margenTotal: f.margenTotal,
           aproximado: f.versiones.some((v) => v.aproximado),

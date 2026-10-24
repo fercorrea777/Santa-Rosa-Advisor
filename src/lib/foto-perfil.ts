@@ -1,3 +1,5 @@
+import type { T } from "@/lib/i18n/traducir";
+
 /**
  * Reglas de la foto de perfil, en un solo lugar para que el cliente (que recorta
  * y comprime) y el servidor (que valida) hablen de lo mismo.
@@ -57,18 +59,19 @@ export function medirJpeg(b: Uint8Array): { ancho: number; alto: number } | null
 
 export type ResultadoValidacion = { ok: true } | { ok: false; motivo: string };
 
-export function validarFoto(b: Uint8Array): ResultadoValidacion {
-  if (b.length === 0) return { ok: false, motivo: "La imagen llegó vacía." };
+/** `t` es el traductor del pedido: el motivo vuelve a la pantalla en el idioma de quien subió la foto. */
+export function validarFoto(b: Uint8Array, t: T): ResultadoValidacion {
+  if (b.length === 0) return { ok: false, motivo: t("La imagen llegó vacía.") };
   if (b.length > MAX_BYTES_FOTO) {
-    return { ok: false, motivo: "La imagen es demasiado pesada." };
+    return { ok: false, motivo: t("La imagen es demasiado pesada.") };
   }
   const medidas = medirJpeg(b);
   // El JPEG tiene que terminar con su marcador de fin (FF D9): un archivo
   // cortado o con basura pegada no pasa.
   const cierra = b.length >= 2 && b[b.length - 2] === 0xff && b[b.length - 1] === 0xd9;
-  if (!medidas || !cierra) return { ok: false, motivo: "El archivo no es una imagen JPEG válida." };
+  if (!medidas || !cierra) return { ok: false, motivo: t("El archivo no es una imagen JPEG válida.") };
   const { ancho, alto } = medidas;
-  if (ancho < LADO_MIN || alto < LADO_MIN) return { ok: false, motivo: "La imagen es demasiado chica." };
-  if (ancho > LADO_MAX || alto > LADO_MAX) return { ok: false, motivo: "La imagen es demasiado grande." };
+  if (ancho < LADO_MIN || alto < LADO_MIN) return { ok: false, motivo: t("La imagen es demasiado chica.") };
+  if (ancho > LADO_MAX || alto > LADO_MAX) return { ok: false, motivo: t("La imagen es demasiado grande.") };
   return { ok: true };
 }

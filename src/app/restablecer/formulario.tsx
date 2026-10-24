@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
 import { MarcoAcceso } from "@/components/acceso/marco-acceso";
 import { sincronizarAriaInvalid } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/cliente";
 import { campo, useGestoGlobito } from "../entrar/formulario";
 import { restablecerClave, type EstadoRestablecer } from "./acciones";
 
@@ -20,6 +21,7 @@ export function FormularioRestablecer({
   nombre: string;
   minimo: number;
 }) {
+  const { t, tr } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoRestablecer | null, FormData>(
     restablecerClave,
     null
@@ -30,19 +32,18 @@ export function FormularioRestablecer({
     <MarcoAcceso
       estado={gesto.estado}
       mirada={gesto.mirada}
-      titulo="Elegí tu clave"
-      subtitulo={
-        <>
-          Hola {nombre.split(" ")[0] || correo}. Tu usuario es{" "}
-          <strong className="font-semibold text-foreground">{correo}</strong>.
-        </>
-      }
+      titulo={t("Elegí tu clave")}
+      subtitulo={tr(
+        "Hola {nombre}. Tu usuario es <b>{correo}</b>.",
+        { nombre: nombre.split(" ")[0] || correo, correo },
+        { b: (h) => <strong className="font-semibold text-foreground">{h}</strong> }
+      )}
       pie={
         <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-          Mínimo {minimo} caracteres; no puede contener tu usuario ni el nombre de la empresa.
+          {t("Mínimo {minimo} caracteres; no puede contener tu usuario ni el nombre de la empresa.", { minimo })}
           <br />
           <Link href="/entrar" className="underline underline-offset-2 hover:text-foreground">
-            Volver a entrar
+            {t("Volver a entrar")}
           </Link>
         </p>
       }
@@ -53,7 +54,7 @@ export function FormularioRestablecer({
             gestor de claves del navegador guarde usuario y clave juntos. */}
         <input type="hidden" name="username" autoComplete="username" value={correo} readOnly />
         <label data-campo="clave" className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">Clave nueva</span>
+          <span className="text-sm font-medium">{t("Clave nueva")}</span>
           <CampoClave
             name="nueva"
             autoComplete="new-password"
@@ -64,11 +65,11 @@ export function FormularioRestablecer({
             onInput={sincronizarAriaInvalid}
             onVisibleChange={gesto.alMostrarClave}
             className={campo}
-            placeholder={`al menos ${minimo} caracteres`}
+            placeholder={t("al menos {minimo} caracteres", { minimo })}
           />
         </label>
         <label data-campo="clave" className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">Repetir la clave</span>
+          <span className="text-sm font-medium">{t("Repetir la clave")}</span>
           <CampoClave
             name="repetida"
             autoComplete="new-password"
@@ -78,11 +79,11 @@ export function FormularioRestablecer({
             onInput={sincronizarAriaInvalid}
             onVisibleChange={gesto.alMostrarClave}
             className={campo}
-            placeholder="la misma otra vez"
+            placeholder={t("la misma otra vez")}
           />
         </label>
         <Button type="submit" disabled={pendiente} className="mt-1 h-11 w-full rounded-xl text-[0.95rem]">
-          {pendiente ? "Guardando…" : "Guardar la clave"}
+          {pendiente ? t("Guardando…") : t("Guardar la clave")}
         </Button>
         {estado?.error && (
           <p role="alert" className="text-center text-sm text-destructive">

@@ -1,3 +1,5 @@
+/* i18n-ignore-file: ingesta máquina a máquina. La llama Hermes con un secreto (HERMES_INGEST_SECRET) y sus
+   errores los lee un script, no una persona: se quedan en castellano. */
 import { NextResponse } from "next/server";
 import {
   DIMENSIONES_HERMES, guardarInformeHermes, type DimensionInforme, type FuenteCitada,

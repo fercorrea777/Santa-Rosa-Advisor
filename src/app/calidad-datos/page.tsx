@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { mensajeLegible, tipoArchivoLegible } from "@/lib/tipo-archivo";
-import { etiquetaCorte } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +8,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { getArchivos, getCargaLog, getCobertura } from "@/lib/cadam/mercado";
-import { formatUnidades } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export default function CalidadDatosPage() {
+export default async function CalidadDatosPage() {
+  const i18n = await getI18n();
+  const { t, fmt } = i18n;
+  const { formatUnidades, etiquetaCorte } = fmt;
   const cobertura = getCobertura();
   const log = getCargaLog();
   const archivos = getArchivos();
@@ -24,29 +26,29 @@ export default function CalidadDatosPage() {
   return (
     <Pagina>
       <PageHeader
-        titulo="Calidad de datos"
-        descripcion="Todo lo que se detectó al cargar los archivos: controles cruzados contra el informe oficial de CADAM, huecos, ambigüedades y valores sin clasificar."
+        titulo={t("Calidad de datos")}
+        descripcion={t("Todo lo que se detectó al cargar los archivos: controles cruzados contra el informe oficial de CADAM, huecos, ambigüedades y valores sin clasificar.")}
         fuente={
           cobertura.snapshot
-            ? `Datos hasta ${etiquetaCorte(cobertura.snapshot)} · cargados el ${cobertura.fechaIngesta ?? "—"}.`
-            : "Todavía no hay ninguna carga registrada."
+            ? t("Datos hasta {corte} · cargados el {fecha}.", {
+                corte: etiquetaCorte(cobertura.snapshot), fecha: cobertura.fechaIngesta ?? "—",
+              })
+            : t("Todavía no hay ninguna carga registrada.")
         }
       />
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Contador label="Errores" n={errores.length} tono="error" />
-        <Contador label="Avisos" n={avisos.length} tono="aviso" />
-        <Contador label="Controles OK" n={controles.length} tono="ok" />
+        <Contador label={t("Errores")} n={errores.length} tono="error" />
+        <Contador label={t("Avisos")} n={avisos.length} tono="aviso" />
+        <Contador label={t("Controles OK")} n={controles.length} tono="ok" />
       </section>
 
       {controles.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Validación contra el informe oficial de CADAM</CardTitle>
+            <CardTitle>{t("Validación contra el informe oficial de CADAM")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              El control más fuerte que tenemos: los datos fila por fila tienen
-              que reproducir exactamente los totales que CADAM publica en su
-              informe. Se comparan solo los meses que están en las dos fuentes.
+              {t("El control más fuerte que tenemos: los datos fila por fila tienen que reproducir exactamente los totales que CADAM publica en su informe. Se comparan solo los meses que están en las dos fuentes.")}
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
@@ -58,7 +60,7 @@ export default function CalidadDatosPage() {
                 >
                   ✓
                 </span>
-                <span>{mensajeLegible(c.mensaje)}</span>
+                <span>{mensajeLegible(c.mensaje, i18n)}</span>
               </p>
             ))}
           </CardContent>
@@ -68,11 +70,9 @@ export default function CalidadDatosPage() {
       {(errores.length > 0 || avisos.length > 0) && (
         <Card>
           <CardHeader>
-            <CardTitle>Hallazgos</CardTitle>
+            <CardTitle>{t("Hallazgos")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Lo que no cerró al cargar, primero los errores y después los
-              avisos. Un error significa que ese dato no es confiable; un aviso,
-              que hay algo raro que conviene mirar.
+              {t("Lo que no cerró al cargar, primero los errores y después los avisos. Un error significa que ese dato no es confiable; un aviso, que hay algo raro que conviene mirar.")}
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -90,11 +90,11 @@ export default function CalidadDatosPage() {
                   {l.nivel === "error" ? "✕" : "!"}
                 </span>
                 <div className="flex flex-col gap-0.5">
-                  <p className="text-sm">{mensajeLegible(l.mensaje)}</p>
+                  <p className="text-sm">{mensajeLegible(l.mensaje, i18n)}</p>
                   <p className="text-xs text-muted-foreground">
                     <code className="rounded bg-muted px-1 py-0.5">{l.categoria}</code>
                     {l.archivo && <> · {l.archivo}</>}
-                    {l.n > 1 && <> · {formatUnidades(l.n)} filas afectadas</>}
+                    {l.n > 1 && <> · {t("{n} filas afectadas", { n: formatUnidades(l.n) })}</>}
                   </p>
                 </div>
               </div>
@@ -104,11 +104,11 @@ export default function CalidadDatosPage() {
       )}
 
       <Card>
-        <CardHeader><CardTitle>Archivos cargados</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("Archivos cargados")}</CardTitle></CardHeader>
         <CardContent>
           {!archivos.length ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Sin archivos cargados todavía.
+              {t("Sin archivos cargados todavía.")}
             </p>
           ) : (
             <>
@@ -117,16 +117,16 @@ export default function CalidadDatosPage() {
                   <div key={`${a.snapshot}-${a.nombre}`} className="flex flex-col gap-1 py-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="min-w-0 truncate font-medium">{a.nombre}</span>
-                      <Badge variant="outline" className="shrink-0 font-normal">{tipoArchivoLegible(a.tipo)}</Badge>
+                      <Badge variant="outline" className="shrink-0 font-normal">{tipoArchivoLegible(a.tipo, t)}</Badge>
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Datos de {etiquetaCorte(a.snapshot)} · cargado {a.fecha_ingesta}</span>
+                      <span>{t("Datos de {corte} · cargado {fecha}", { corte: etiquetaCorte(a.snapshot), fecha: a.fecha_ingesta })}</span>
                     </div>
                     <div className="flex items-center gap-3 text-xs tabular-nums text-muted-foreground">
-                      <span>{formatUnidades(a.filas_leidas)} leídas</span>
-                      <span>{formatUnidades(a.filas_cargadas)} cargadas</span>
+                      <span>{t("{n} leídas", { n: formatUnidades(a.filas_leidas) })}</span>
+                      <span>{t("{n} cargadas", { n: formatUnidades(a.filas_cargadas) })}</span>
                       <span className="font-mono font-semibold text-foreground">
-                        {formatUnidades(a.unidades)} u.
+                        {t("{n} u.", { n: formatUnidades(a.unidades) })}
                       </span>
                     </div>
                   </div>
@@ -136,13 +136,13 @@ export default function CalidadDatosPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Archivo</TableHead>
-                      <TableHead nota="qué informe creyó que era">Tipo detectado</TableHead>
-                      <TableHead nota="el mes al que pertenece el dato">Corte</TableHead>
-                      <TableHead className="text-right" nota="renglones que traía el archivo">Filas leídas</TableHead>
-                      <TableHead className="text-right" nota="las que entraron; el resto, descartes">Filas cargadas</TableHead>
-                      <TableHead className="text-right" nota="vehículos que suman esas filas">Unidades</TableHead>
-                      <TableHead nota="cuándo lo procesamos nosotros">Fecha de carga</TableHead>
+                      <TableHead>{t("Archivo")}</TableHead>
+                      <TableHead nota={t("qué informe creyó que era")}>{t("Tipo detectado")}</TableHead>
+                      <TableHead nota={t("el mes al que pertenece el dato")}>{t("Corte")}</TableHead>
+                      <TableHead className="text-right" nota={t("renglones que traía el archivo")}>{t("Filas leídas")}</TableHead>
+                      <TableHead className="text-right" nota={t("las que entraron; el resto, descartes")}>{t("Filas cargadas")}</TableHead>
+                      <TableHead className="text-right" nota={t("vehículos que suman esas filas")}>{t("Unidades")}</TableHead>
+                      <TableHead nota={t("cuándo lo procesamos nosotros")}>{t("Fecha de carga")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -150,7 +150,7 @@ export default function CalidadDatosPage() {
                       <TableRow key={`${a.snapshot}-${a.nombre}`}>
                         <TableCell className="font-medium">{a.nombre}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="font-normal">{tipoArchivoLegible(a.tipo)}</Badge>
+                          <Badge variant="outline" className="font-normal">{tipoArchivoLegible(a.tipo, t)}</Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{etiquetaCorte(a.snapshot)}</TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -171,23 +171,20 @@ export default function CalidadDatosPage() {
             </>
           )}
           <p className="mt-3 text-xs text-muted-foreground">
-            &ldquo;Filas leídas&rdquo; es lo que traía el Excel; &ldquo;filas
-            cargadas&rdquo; es lo que quedó después de descartar meses vacíos y
-            agrupar duplicados. La diferencia es normal, no una pérdida: las
-            unidades totales se conservan.
+            {t("“Filas leídas” es lo que traía el Excel; “filas cargadas” es lo que quedó después de descartar meses vacíos y agrupar duplicados. La diferencia es normal, no una pérdida: las unidades totales se conservan.")}
           </p>
         </CardContent>
       </Card>
 
       {resto.length > 0 && (
         <Card>
-          <CardHeader><CardTitle>Detalle del procesamiento</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{t("Detalle del procesamiento")}</CardTitle></CardHeader>
           <CardContent className="flex flex-col gap-2">
             {resto.map((l, i) => (
               <p key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                 <span aria-hidden="true" className="mt-0.5 shrink-0">·</span>
                 <span>
-                  {mensajeLegible(l.mensaje)}
+                  {mensajeLegible(l.mensaje, i18n)}
                   {l.n > 1 && <> — {formatUnidades(l.n)}</>}
                   {l.archivo && <> · {l.archivo}</>}
                 </span>

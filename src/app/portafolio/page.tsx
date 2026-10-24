@@ -18,10 +18,8 @@ import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
 import { tokens } from "@/lib/informes/segmento-version";
-import { formatPct, formatUnidades } from "@/lib/format";
-import {
-  aclaracionCortes, etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl, type SearchParams,
-} from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
+import { filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 /**
  * Portafolio por marca: la gama de UNA marca, modelo por modelo, con
@@ -48,6 +46,8 @@ export default async function PortafolioPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const { t, tr, fmt } = await getI18n();
+  const { formatPct, formatUnidades, etiquetaPeriodo, etiquetaCortes, aclaracionCortes } = fmt;
   const sp = await searchParams;
   const cobertura = getCobertura();
   const vista: FuenteVista =
@@ -55,7 +55,7 @@ export default async function PortafolioPage({
   const principal: Fuente = vista === "importacion" ? "importacion" : "matriculacion";
   const secundaria: Fuente | null =
     vista === "ambas" ? "importacion" : vista === "importacion" ? "matriculacion" : null;
-  const nombreFuente: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
+  const nombreFuente: Record<Fuente, string> = { matriculacion: t("matriculaciones"), importacion: t("importaciones") };
 
   // El período lo manda la fuente principal; la otra se recorta o se estira
   // a su propio último mes cuando la URL no fija el "hasta".
@@ -202,14 +202,26 @@ export default async function PortafolioPage({
     modelos80++;
   }
 
-  const verbo = principal === "importacion" ? "entró al país" : "matriculó";
+  const verbo = principal === "importacion" ? t("entró al país") : t("matriculó");
+
+  // De dónde sale el precio, dicho como se lee: «stock de Cars y catálogo Datacar».
+  const nombreDePrecio = (x: string) => (x === "cars" ? t("stock de Cars") : t("catálogo Datacar"));
+  const preciosDe = fuentesUsadas.length === 0
+    ? t("sin fuente con precio para esta marca")
+    : fuentesUsadas.length === 1
+      ? nombreDePrecio(fuentesUsadas[0])
+      : t("{a} y {b}", { a: nombreDePrecio(fuentesUsadas[0]), b: nombreDePrecio(fuentesUsadas[1]) });
+  const ventanas = [
+    `${nombreFuente[principal]} ${periodoPrin}`,
+    ...(secundaria ? [`${nombreFuente[secundaria]} ${periodoSec}`] : []),
+  ].join(" · ");
 
   return (
     <Pagina>
       <PageHeader
-        titulo="Portafolio por marca"
-        descripcion={`La gama de una marca, modelo por modelo: cuánto vende cada uno, cuánto entró al país y a qué precio de lista · ${nombreFuente[principal]} ${periodoPrin}${secundaria ? ` · ${nombreFuente[secundaria]} ${periodoSec}` : ""}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)} · precios: ${fuentesUsadas.length ? fuentesUsadas.map((x) => (x === "cars" ? "stock de Cars" : "catálogo Datacar")).join(" y ") : "sin fuente con precio para esta marca"}.`}
+        titulo={t("Portafolio por marca")}
+        descripcion={t("La gama de una marca, modelo por modelo: cuánto vende cada uno, cuánto entró al país y a qué precio de lista · {ventanas}.", { ventanas })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes} · precios: {precios}.", { cortes: etiquetaCortes(cobertura), precios: preciosDe })}
       />
 
       <div
@@ -222,68 +234,72 @@ export default async function PortafolioPage({
             pegajoso={false}
             anios={cobertura[principal].anios}
             mesMaximoPorAnio={mesMax}
-            opciones={[{ param: "marca", label: "Marca", valores: opciones.marcas }]}
+            opciones={[{ param: "marca", label: t("Marca"), valores: opciones.marcas }]}
           />
         </div>
       </div>
 
       <section className="flex flex-wrap items-center gap-3">
-        <Marca marca={marca} tamano="lg" claseNombre="text-2xl font-extrabold tracking-tight" />
+        <Marca marca={marca} tamano="lg" claseNombre="text-2xl font-bold tracking-tight" />
         {propias.has(marca) && (
           <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            marca propia
+            {t("marca propia")}
           </span>
         )}
       </section>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          label="Matriculaciones"
+          label={t("Matriculaciones")}
           value={kpiMat.sinDatos ? "—" : formatUnidades(kpiMat.valor)}
           variacion={kpiMat.sinDatos ? undefined : kpiMat.variacion}
-          periodo={kpiMat.sinDatos ? `${periodoMat} · todavía sin publicar` : periodoMat}
+          periodo={kpiMat.sinDatos ? t("{periodo} · todavía sin publicar", { periodo: periodoMat }) : periodoMat}
           tono={principal === "matriculacion" ? "azul" : undefined}
-          tooltip={`Chapas puestas de ${marca} en ${periodoMat}, contra el mismo período de ${f.anio - 1}.`}
+          tooltip={t("Chapas puestas de {marca} en {periodo}, contra el mismo período de {anio}.", { marca, periodo: periodoMat, anio: f.anio - 1 })}
         />
         <KpiCard
-          label="Importaciones"
+          label={t("Importaciones")}
           value={kpiImp.sinDatos ? "—" : formatUnidades(kpiImp.valor)}
           variacion={kpiImp.sinDatos ? undefined : kpiImp.variacion}
-          periodo={kpiImp.sinDatos ? `${periodoImp} · todavía sin publicar` : periodoImp}
+          periodo={kpiImp.sinDatos ? t("{periodo} · todavía sin publicar", { periodo: periodoImp }) : periodoImp}
           tono={principal === "importacion" ? "verde" : undefined}
-          tooltip={`Unidades de ${marca} que entraron al país en ${periodoImp}, contra el mismo período de ${f.anio - 1}. Lo que importa y no matricula es stock en camino.${aclaracion ? ` ${aclaracion}` : ""}`}
+          tooltip={t("Unidades de {marca} que entraron al país en {periodo}, contra el mismo período de {anio}. Lo que importa y no matricula es stock en camino.{aclaracion}", {
+            marca, periodo: periodoImp, anio: f.anio - 1, aclaracion: aclaracion ? ` ${aclaracion}` : "",
+          })}
         />
         <KpiCard
-          label="Participación de mercado"
+          label={t("Participación de mercado")}
           value={mercado ? formatPct(kpiPrin.valor / mercado) : "—"}
-          periodo={`de ${formatUnidades(mercado)} u. ${nombreFuente[principal]} · ${periodoPrin}`}
-          tooltip={`${principal === "importacion" ? "Importaciones" : "Matriculaciones"} de la marca sobre todas las del período.`}
+          periodo={t("de {mercado} u. {fuente} · {periodo}", { mercado: formatUnidades(mercado), fuente: nombreFuente[principal], periodo: periodoPrin })}
+          tooltip={principal === "importacion"
+            ? t("Importaciones de la marca sobre todas las del período.")
+            : t("Matriculaciones de la marca sobre todas las del período.")}
         />
         <KpiCard
-          label="Modelos en la gama"
+          label={t("Modelos en la gama")}
           value={String(filas.length)}
-          periodo={filas.length ? `${modelos80} hacen el 80% de la marca` : undefined}
-          tooltip={`Modelos con al menos una unidad en ${nombreFuente[principal]} del período. Cuántos de ellos concentran el 80% de las unidades dice si la marca depende de uno o dos.`}
+          periodo={filas.length ? t("{n} hacen el 80% de la marca", { n: modelos80 }) : undefined}
+          tooltip={t("Modelos con al menos una unidad en {fuente} del período. Cuántos de ellos concentran el 80% de las unidades dice si la marca depende de uno o dos.", { fuente: nombreFuente[principal] })}
         />
         <KpiCard
-          label="Rango de precios"
+          label={t("Rango de precios")}
           value={desdeGama !== null ? `${formatUnidades(Math.round(desdeGama / 1000))}–${formatUnidades(Math.round((hastaGama ?? desdeGama) / 1000))}k` : "—"}
-          periodo={desdeGama !== null ? `US$ · ${conPrecio.length} de ${filas.length} modelos con precio (${formatPct(kpiPrin.valor ? uConPrecio / kpiPrin.valor : 0)} de las unidades)` : "sin precio de lista"}
-          tooltip="De la versión más barata a la más cara de toda la gama, según las listas cargadas (Cars para las propias, Datacar para el resto)."
+          periodo={desdeGama !== null
+            ? t("US$ · {n} de {total} modelos con precio ({pct} de las unidades)", { n: conPrecio.length, total: filas.length, pct: formatPct(kpiPrin.valor ? uConPrecio / kpiPrin.valor : 0) })
+            : t("sin precio de lista")}
+          tooltip={t("De la versión más barata a la más cara de toda la gama, según las listas cargadas (Cars para las propias, Datacar para el resto).")}
         />
       </section>
 
       <Seccion
-        titulo="Escalera de precios"
-        nota="Cada barra va de la versión más barata a la más cara del modelo, en US$ de lista. Cuanto más pleno el color, más unidades. Los huecos entre barras son huecos de la gama; las barras que se pisan, modelos que compiten entre sí."
+        titulo={t("Escalera de precios")}
+        nota={t("Cada barra va de la versión más barata a la más cara del modelo, en US$ de lista. Cuanto más pleno el color, más unidades. Los huecos entre barras son huecos de la gama; las barras que se pisan, modelos que compiten entre sí.")}
       >
         <Card>
           <CardHeader>
-            <CardTitle>{marca} — dónde se para cada modelo</CardTitle>
+            <CardTitle>{t("{marca} — dónde se para cada modelo", { marca })}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Solo los modelos con precio propio en alguna fuente (las variantes que
-              toman el precio de su familia van en la tabla, con «≈»). Pasá el mouse
-              por una barra para ver el rango, las versiones y las unidades.
+              {t("Solo los modelos con precio propio en alguna fuente (las variantes que toman el precio de su familia van en la tabla, con «≈»). Pasá el mouse por una barra para ver el rango, las versiones y las unidades.")}
             </p>
           </CardHeader>
           <CardContent>
@@ -293,12 +309,16 @@ export default async function PortafolioPage({
       </Seccion>
 
       <Seccion
-        titulo="La gama, modelo por modelo"
-        nota={`Todos los modelos que la marca ${verbo} en ${periodoPrin}, tengan o no precio. El peso es la parte de cada uno dentro de la marca${secundaria ? `; la columna de ${nombreFuente[secundaria]} (${periodoSec}) se cruza por nombre con la otra base de CADAM` : ""}.`}
+        titulo={t("La gama, modelo por modelo")}
+        nota={secundaria
+          ? t("Todos los modelos que la marca {verbo} en {periodo}, tengan o no precio. El peso es la parte de cada uno dentro de la marca; la columna de {fuente} ({periodoSec}) se cruza por nombre con la otra base de CADAM.", {
+              verbo, periodo: periodoPrin, fuente: nombreFuente[secundaria], periodoSec,
+            })
+          : t("Todos los modelos que la marca {verbo} en {periodo}, tengan o no precio. El peso es la parte de cada uno dentro de la marca.", { verbo, periodo: periodoPrin })}
       >
         <Card>
           <CardHeader>
-            <CardTitle>{marca} — {filas.length} modelos · {nombreFuente[principal]} {periodoPrin}</CardTitle>
+            <CardTitle>{t("{marca} — {n} modelos · {fuente} {periodo}", { marca, n: filas.length, fuente: nombreFuente[principal], periodo: periodoPrin })}</CardTitle>
           </CardHeader>
           <CardContent>
             {filas.length ? (
@@ -313,7 +333,7 @@ export default async function PortafolioPage({
               />
             ) : (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                {marca} no tiene {nombreFuente[principal]} en {periodoPrin}.
+                {t("{marca} no tiene {fuente} en {periodo}.", { marca, fuente: nombreFuente[principal], periodo: periodoPrin })}
               </p>
             )}
           </CardContent>
@@ -321,28 +341,31 @@ export default async function PortafolioPage({
 
         {secundaria && sinCruceTotal > 0 && (
           <NotaDato>
-            <strong>{formatUnidades(sinCruceTotal)} unidades de {nombreFuente[secundaria]}</strong> de {marca} ({periodoSec}) no
-            cruzan con ningún modelo de la tabla por nombre y no se atribuyen a
-            ninguna fila: {sinCruceModelos.slice(0, 8).join(", ")}
-            {sinCruceModelos.length > 8 ? "…" : ""}.{" "}
-            {secundaria === "importacion"
-              ? "Suelen ser modelos que todavía no sacaron chapa o que la DNRA escribe con otro nombre."
-              : "Suelen ser modelos que ya no se importan o que las dos bases escriben distinto."}
+            {tr("<b>{n} unidades de {fuente}</b> de {marca} ({periodo}) no cruzan con ningún modelo de la tabla por nombre y no se atribuyen a ninguna fila: {modelos}. {nota}", {
+              n: formatUnidades(sinCruceTotal),
+              fuente: nombreFuente[secundaria],
+              marca,
+              periodo: periodoSec,
+              modelos: `${sinCruceModelos.slice(0, 8).join(", ")}${sinCruceModelos.length > 8 ? "…" : ""}`,
+              nota: secundaria === "importacion"
+                ? t("Suelen ser modelos que todavía no sacaron chapa o que la DNRA escribe con otro nombre.")
+                : t("Suelen ser modelos que ya no se importan o que las dos bases escriben distinto."),
+            })}
           </NotaDato>
         )}
 
         <NotaDato>
-          CADAM no publica precios. Los de nuestras marcas salen del stock de Cars
-          y los de la competencia del catálogo de Datacar; un modelo sin precio en
-          ninguna de las dos queda con el precio vacío, nunca inventado. El rango
-          toma las versiones que llevan el nombre del modelo, así que «desde»
-          puede no coincidir con la versión más vendida. Para ver contra quién
-          compite cada modelo, tocá su fila; para la vista de precio contra
-          volumen de toda la clase, está el{" "}
-          <Link href={`/bubble-chart?marca=${encodeURIComponent(marca)}`} className="underline underline-offset-4">
-            Bubble chart
-          </Link>
-          .
+          {tr(
+            "CADAM no publica precios. Los de nuestras marcas salen del stock de Cars y los de la competencia del catálogo de Datacar; un modelo sin precio en ninguna de las dos queda con el precio vacío, nunca inventado. El rango toma las versiones que llevan el nombre del modelo, así que «desde» puede no coincidir con la versión más vendida. Para ver contra quién compite cada modelo, tocá su fila; para la vista de precio contra volumen de toda la clase, está el <a>Bubble chart</a>.",
+            undefined,
+            {
+              a: (h) => (
+                <Link href={`/bubble-chart?marca=${encodeURIComponent(marca)}`} className="underline underline-offset-4">
+                  {h}
+                </Link>
+              ),
+            }
+          )}
         </NotaDato>
       </Seccion>
     </Pagina>

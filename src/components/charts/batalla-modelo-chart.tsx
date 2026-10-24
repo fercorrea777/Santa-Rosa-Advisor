@@ -8,7 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 import type { ModeloBatalla } from "@/lib/informes/batalla";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ export function BatallaModeloChart({
   /** Marcas del grupo (nombres CADAM), para resaltar las nuestras. */
   propias: string[];
 }) {
+  const { t } = useI18n();
   // Dos niveles: la marca nuestra (un Excel por marca) y, adentro, sus
   // modelos. Las marcas en el orden en que llegan (Jetour primero).
   const marcasPropias = [...new Set(modelos.map((x) => x.marca_propia))];
@@ -54,7 +55,7 @@ export function BatallaModeloChart({
   return (
     <div className="flex flex-col gap-4">
       {marcasPropias.length > 1 && (
-        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Marca propia">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("Marca propia")}>
           {marcasPropias.map((marca) => {
             const activa = marca === m.marca_propia;
             const n = modelos.filter((x) => x.marca_propia === marca).length;
@@ -85,7 +86,7 @@ export function BatallaModeloChart({
           })}
         </div>
       )}
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Modelo">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t("Modelo")}>
         {deLaMarca.map((x) => {
           const activa = claveDe(x) === claveDe(m);
           return (
@@ -137,6 +138,8 @@ function Batalla({
   onVisibles: (marcas: string[]) => void;
 }) {
   const theme = useChartTheme();
+  const { t, fmt } = useI18n();
+  const { formatUnidades } = fmt;
   const todasLasMarcas = m.marcas.map((x) => x.marca);
   const marcas = todasLasMarcas.filter((x) => visibles.includes(x));
   const indice = new Map(marcas.map((x, k) => [x, k]));
@@ -151,7 +154,7 @@ function Batalla({
   };
   const volumen = (v: { importaciones: number; matriculaciones: number }) =>
     m.tamano === "matriculaciones" ? v.matriculaciones : v.importaciones;
-  const etiquetaVolumen = m.tamano === "matriculaciones" ? "matriculaciones" : "importaciones";
+  const etiquetaVolumen = m.tamano === "matriculaciones" ? t("matriculaciones") : t("importaciones");
   const colorDe = (marca: string) => {
     const c = m.marcas.find((x) => x.marca === marca)?.color;
     if (c) return `#${c}`;
@@ -208,7 +211,7 @@ function Batalla({
         `<b>${p.data.marca}</b> · ${p.name}<br/>` +
         `US$ ${formatUnidades(p.data.value[1])}` +
         (p.data.medidas ? ` · ${p.data.medidas}` : "") +
-        `<br/>${formatUnidades(p.data.importaciones)} import. · ${formatUnidades(p.data.matriculaciones)} matric.`,
+        `<br/>${t("{imp} import. · {mat} matric.", { imp: formatUnidades(p.data.importaciones), mat: formatUnidades(p.data.matriculaciones) })}`,
     },
     xAxis: {
       type: "value" as const,
@@ -311,25 +314,25 @@ function Batalla({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-1.5" aria-label="Marcas en este gráfico">
+      <div className="flex flex-wrap items-center gap-1.5" aria-label={t("Marcas en este gráfico")}>
         <span className="mr-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Marcas en este gráfico
+          {t("Marcas en este gráfico")}
         </span>
         <button
           type="button"
           onClick={() => onVisibles(todasLasMarcas)}
           className="rounded-md border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground pointer-coarse:min-h-9"
         >
-          Todas
+          {t("Todas")}
         </button>
         {nuestras.length > 0 && (
           <button
             type="button"
             onClick={() => onVisibles(nuestras)}
-            title="Deja solo las marcas del grupo; después tocá las del mercado con las que querés comparar."
+            title={t("Deja solo las marcas del grupo; después tocá las del mercado con las que querés comparar.")}
             className="rounded-md border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground pointer-coarse:min-h-9"
           >
-            Nuestras
+            {t("Nuestras")}
           </button>
         )}
         <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
@@ -354,7 +357,7 @@ function Batalla({
               />
               <LogoMarca marca={marca} />
               {marca}
-              {propia && <span className="text-[10px] text-primary">nuestra</span>}
+              {propia && <span className="text-[10px] text-primary">{t("nuestra")}</span>}
             </button>
           );
         })}
@@ -362,22 +365,21 @@ function Batalla({
       <Card>
         <CardHeader>
           <CardTitle>
-            {m.modelo} — {m.titulo || "Bubble chart"}
+            {m.modelo} — {m.titulo || t("Bubble chart")}
             {m.periodo ? ` · ${m.periodo}` : ""}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Una burbuja por versión rival, en la columna de su marca · eje Y = precio de
-            lista (US$) · tamaño = {etiquetaVolumen} del período · al pie de cada columna, el
-            total de la marca.{" "}
+            {t("Una burbuja por versión rival, en la columna de su marca · eje Y = precio de lista (US$) · tamaño = {volumen} del período · al pie de cada columna, el total de la marca.", { volumen: etiquetaVolumen })}{" "}
             {marcas.length < todasLasMarcas.length
-              ? `Se muestran ${marcas.length} de ${todasLasMarcas.length} marcas (${versiones.length} de ${m.versiones.length} versiones). `
+              ? `${t("Se muestran {n} de {total} marcas ({v} de {vt} versiones).", { n: marcas.length, total: todasLasMarcas.length, v: versiones.length, vt: m.versiones.length })} `
               : ""}
-            Es el gráfico del equipo de producto, tal cual está en su
-            planilla{m.archivo ? ` «${m.archivo}»` : ""} (hoja «{m.hoja}»
-            {m.modelo_celda && m.modelo_celda.toUpperCase() !== m.modelo.toUpperCase()
-              ? `, que en su celda de modelo dice «${m.modelo_celda}»`
-              : ""}
-            ).
+            {t("Es el gráfico del equipo de producto, tal cual está en su planilla{archivo} (hoja «{hoja}»{celda}).", {
+              archivo: m.archivo ? ` ${t("«{archivo}»", { archivo: m.archivo })}` : "",
+              hoja: m.hoja,
+              celda: m.modelo_celda && m.modelo_celda.toUpperCase() !== m.modelo.toUpperCase()
+                ? t(", que en su celda de modelo dice «{celda}»", { celda: m.modelo_celda })
+                : "",
+            })}
           </p>
         </CardHeader>
         <CardContent>
@@ -388,10 +390,9 @@ function Batalla({
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Ranking por precio</CardTitle>
+            <CardTitle>{t("Ranking por precio")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Todas las versiones de la batalla, de la más cara a la más barata, con su
-              volumen ({etiquetaVolumen}).
+              {t("Todas las versiones de la batalla, de la más cara a la más barata, con su volumen ({volumen}).", { volumen: etiquetaVolumen })}
             </p>
           </CardHeader>
           <CardContent>
@@ -404,21 +405,21 @@ function Batalla({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Las versiones, con sus medidas</CardTitle>
+            <CardTitle>{t("Las versiones, con sus medidas")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Largo × ancho × alto en mm, como las anota producto. Las nuestras resaltadas.
+              {t("Largo × ancho × alto en mm, como las anota producto. Las nuestras resaltadas.")}
             </p>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Marca</TableHead>
-                  <TableHead>Versión</TableHead>
-                  <TableHead nota="largo × ancho × alto, en mm">Medidas</TableHead>
-                  <TableHead className="text-right" nota="el de la planilla de producto">Precio</TableHead>
-                  <TableHead className="text-right" nota="unidades que sacaron chapa">Matric.</TableHead>
-                  <TableHead className="text-right" nota="unidades que entraron al país">Import.</TableHead>
+                  <TableHead>{t("Marca")}</TableHead>
+                  <TableHead>{t("Versión")}</TableHead>
+                  <TableHead nota={t("largo × ancho × alto, en mm")}>{t("Medidas")}</TableHead>
+                  <TableHead className="text-right" nota={t("el de la planilla de producto")}>{t("Precio")}</TableHead>
+                  <TableHead className="text-right" nota={t("unidades que sacaron chapa")}>{t("Matric.")}</TableHead>
+                  <TableHead className="text-right" nota={t("unidades que entraron al país")}>{t("Import.")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

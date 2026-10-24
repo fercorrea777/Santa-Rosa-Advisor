@@ -15,7 +15,8 @@ import {
 } from "@/lib/cadam/bandas";
 import { getStockPropio } from "@/lib/informes/propios";
 import { getPreciosCompetencia } from "@/lib/informes/precios-competencia";
-import { etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
+import { filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 export default async function RankingsPage({
   searchParams,
@@ -23,6 +24,8 @@ export default async function RankingsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt } = await getI18n();
+  const { mesCorto, etiquetaPeriodo, etiquetaCortes } = fmt;
   const cobertura = getCobertura();
   // Las dos fuentes conviven en pestanas con un solo filtro. Por defecto
   // el periodo llega hasta el ultimo mes que CADAM publico de CUALQUIERA de
@@ -68,8 +71,8 @@ export default async function RankingsPage({
   for (const a of [...new Set([...cobertura.matriculacion.anios, ...cobertura.importacion.anios])].sort()) {
     mesMax[a] = a === ultimo?.anio ? ultimo.mes : 12;
   }
-  const nota = `Variación y cambio de posición contra ${periodoImp.replace(String(f.anio), String(f.anio - 1))}.`;
-  const notaMat = `Variación y cambio de posición contra ${periodoMat.replace(String(f.anio), String(f.anio - 1))}.`;
+  const nota = t("Variación y cambio de posición contra {periodo}.", { periodo: periodoImp.replace(String(f.anio), String(f.anio - 1)) });
+  const notaMat = t("Variación y cambio de posición contra {periodo}.", { periodo: periodoMat.replace(String(f.anio), String(f.anio - 1)) });
 
   // --- ficha de cada modelo, para abrirla desde su fila -------------------
   // Un ranking dice quién vendió más; la pregunta que sigue es contra quién
@@ -100,9 +103,9 @@ export default async function RankingsPage({
   return (
     <Pagina>
       <PageHeader
-        titulo="Rankings"
-        descripcion={`Marcas y modelos, matriculación e importación · ${periodo}${matricRecorta ? ` (matriculación hasta ${mesCorto(fMat.mesHasta)})` : ""}${importRecorta ? ` (importación hasta ${mesCorto(fImp.mesHasta)})` : ""}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Rankings")}
+        descripcion={`${t("Marcas y modelos, matriculación e importación · {periodo}", { periodo })}${matricRecorta ? ` ${t("(matriculación hasta {mes})", { mes: mesCorto(fMat.mesHasta) })}` : ""}${importRecorta ? ` ${t("(importación hasta {mes})", { mes: mesCorto(fImp.mesHasta) })}` : ""}.`}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       <FiltroPeriodo
@@ -111,38 +114,33 @@ export default async function RankingsPage({
         opciones={[
           // Marca puntual (pedido de Fernando, 15/09/2026): con una marca
           // elegida las pestañas de modelos son la gama de esa marca.
-          { param: "marca", label: "Marca", valores: opciones.marcas },
-          { param: "segmento", label: "Segmento", valores: opciones.segmentos },
-          { param: "tecnologia", label: "Tecnología", valores: [...TECNOLOGIAS] },
-          { param: "empresa", label: "Importador", valores: opciones.empresas },
+          { param: "marca", label: t("Marca"), valores: opciones.marcas },
+          { param: "segmento", label: t("Segmento"), valores: opciones.segmentos },
+          { param: "tecnologia", label: t("Tecnología"), valores: [...TECNOLOGIAS] },
+          { param: "empresa", label: t("Importador"), valores: opciones.empresas },
         ]}
       />
 
       <NotaDato>
-        CADAM no publica <strong>versión, motor, transmisión ni tracción</strong> en
-        ninguna de sus fuentes, así que el ranking por versión que pide la spec no
-        es construible. El mayor detalle disponible es el modelo tal como lo
-        escribe la DNRA, que a veces incluye la cilindrada en el texto.
+        {tr("CADAM no publica <b>versión, motor, transmisión ni tracción</b> en ninguna de sus fuentes, así que el ranking por versión que pide la spec no es construible. El mayor detalle disponible es el modelo tal como lo escribe la DNRA, que a veces incluye la cilindrada en el texto.")}
       </NotaDato>
 
       <Tabs defaultValue="marcas-mat">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="marcas-mat">Marcas · Matriculación</TabsTrigger>
-          <TabsTrigger value="marcas-imp">Marcas · Importación</TabsTrigger>
-          <TabsTrigger value="modelos-mat">Modelos · Matriculación</TabsTrigger>
-          <TabsTrigger value="modelos-imp">Modelos · Importación</TabsTrigger>
+          <TabsTrigger value="marcas-mat">{t("Marcas · Matriculación")}</TabsTrigger>
+          <TabsTrigger value="marcas-imp">{t("Marcas · Importación")}</TabsTrigger>
+          <TabsTrigger value="modelos-mat">{t("Modelos · Matriculación")}</TabsTrigger>
+          <TabsTrigger value="modelos-imp">{t("Modelos · Importación")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="marcas-mat">
           <Panel
-            titulo={`Marcas por matriculación (${marcasMat.length}) · ${periodoMat}`}
-            nota="Las marcas ordenadas por chapas puestas. Tocá una y toda la pantalla queda filtrada por ella; tocala de nuevo y se quita."
+            titulo={t("Marcas por matriculación ({n}) · {periodo}", { n: marcasMat.length, periodo: periodoMat })}
+            nota={t("Las marcas ordenadas por chapas puestas. Tocá una y toda la pantalla queda filtrada por ella; tocala de nuevo y se quita.")}
           >
             {matricRecorta && (
               <NotaDato>
-                CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
-                ranking llega hasta {mesCorto(fMat.mesHasta)}. La importación de{" "}
-                {mesCorto(f.mesHasta)} ya está, en las pestañas de importación.
+                {t("CADAM todavía no publicó la matriculación de {mes}: este ranking llega hasta {hasta}. La importación de {mes} ya está, en las pestañas de importación.", { mes: mesCorto(f.mesHasta), hasta: mesCorto(fMat.mesHasta) })}
               </NotaDato>
             )}
             <TablaRanking filas={marcasMat} notaVariacion={notaMat}
@@ -153,14 +151,12 @@ export default async function RankingsPage({
 
         <TabsContent value="marcas-imp">
           <Panel
-            titulo={`Marcas por importación (${marcasImp.length}) · ${periodoImp}`}
-            nota="Lo mismo, pero por unidades que entraron al país. Una marca puede liderar acá y todavía no aparecer en matriculación: es stock en camino."
+            titulo={t("Marcas por importación ({n}) · {periodo}", { n: marcasImp.length, periodo: periodoImp })}
+            nota={t("Lo mismo, pero por unidades que entraron al país. Una marca puede liderar acá y todavía no aparecer en matriculación: es stock en camino.")}
           >
             {importRecorta && (
               <NotaDato>
-                CADAM todavía no publicó la importación de {mesCorto(f.mesHasta)}: este
-                ranking llega hasta {mesCorto(fImp.mesHasta)}. La matriculación de{" "}
-                {mesCorto(f.mesHasta)} ya está, en las pestañas de matriculación.
+                {t("CADAM todavía no publicó la importación de {mes}: este ranking llega hasta {hasta}. La matriculación de {mes} ya está, en las pestañas de matriculación.", { mes: mesCorto(f.mesHasta), hasta: mesCorto(fImp.mesHasta) })}
               </NotaDato>
             )}
             <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />
@@ -172,13 +168,12 @@ export default async function RankingsPage({
 
         <TabsContent value="modelos-mat">
           <Panel
-            titulo={`Modelos por matriculación (${modelosMat.length}) · ${periodoMat}`}
-            nota="Modelo por modelo, con su segmento. Tocá una fila y se abre contra quién compite ese modelo: su clase, sus rivales y a qué precio."
+            titulo={t("Modelos por matriculación ({n}) · {periodo}", { n: modelosMat.length, periodo: periodoMat })}
+            nota={t("Modelo por modelo, con su segmento. Tocá una fila y se abre contra quién compite ese modelo: su clase, sus rivales y a qué precio.")}
           >
             {matricRecorta && (
               <NotaDato>
-                CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
-                ranking llega hasta {mesCorto(fMat.mesHasta)}.
+                {t("CADAM todavía no publicó la matriculación de {mes}: este ranking llega hasta {hasta}.", { mes: mesCorto(f.mesHasta), hasta: mesCorto(fMat.mesHasta) })}
               </NotaDato>
             )}
             <TablaRanking filas={modelosMat} mostrarModelo mostrarSegmento
@@ -192,13 +187,12 @@ export default async function RankingsPage({
 
         <TabsContent value="modelos-imp">
           <Panel
-            titulo={`Modelos por importación (${modelosImp.length}) · ${periodoImp}`}
-            nota="Los modelos por unidades importadas. Sirve para ver qué se está trayendo antes de que llegue al mercado."
+            titulo={t("Modelos por importación ({n}) · {periodo}", { n: modelosImp.length, periodo: periodoImp })}
+            nota={t("Los modelos por unidades importadas. Sirve para ver qué se está trayendo antes de que llegue al mercado.")}
           >
             {importRecorta && (
               <NotaDato>
-                CADAM todavía no publicó la importación de {mesCorto(f.mesHasta)}: este
-                ranking llega hasta {mesCorto(fImp.mesHasta)}.
+                {t("CADAM todavía no publicó la importación de {mes}: este ranking llega hasta {hasta}.", { mes: mesCorto(f.mesHasta), hasta: mesCorto(fImp.mesHasta) })}
               </NotaDato>
             )}
             <NotasImportacion f={f} marcasDelImportador={marcasDelImportador} />
@@ -218,24 +212,23 @@ export default async function RankingsPage({
           Garden, Toyota, Santa Rosa?»). */}
       <Seccion
         id="grupos"
-        titulo="Ranking por grupo"
-        nota="Las marcas juntas por el importador que las representa: en qué puesto está cada grupo y en cuál estaba hace un año. Respeta Año, Meses, Segmento y Tecnología; no Marca ni Importador, porque compara a los grupos entre sí."
+        titulo={t("Ranking por grupo")}
+        nota={t("Las marcas juntas por el importador que las representa: en qué puesto está cada grupo y en cuál estaba hace un año. Respeta Año, Meses, Segmento y Tecnología; no Marca ni Importador, porque compara a los grupos entre sí.")}
       >
         <Tabs defaultValue="grupos-mat">
           <TabsList className="flex-wrap">
-            <TabsTrigger value="grupos-mat">Matriculación</TabsTrigger>
-            <TabsTrigger value="grupos-imp">Importación</TabsTrigger>
+            <TabsTrigger value="grupos-mat">{t("Matriculación")}</TabsTrigger>
+            <TabsTrigger value="grupos-imp">{t("Importación")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="grupos-mat">
             <Panel
-              titulo={`Grupos por matriculación (${gruposMat.length}) · ${periodoMat}`}
-              nota="Quién puso más chapas, sumando todas las marcas que representa."
+              titulo={t("Grupos por matriculación ({n}) · {periodo}", { n: gruposMat.length, periodo: periodoMat })}
+              nota={t("Quién puso más chapas, sumando todas las marcas que representa.")}
             >
               {matricRecorta && (
                 <NotaDato>
-                  CADAM todavía no publicó la matriculación de {mesCorto(f.mesHasta)}: este
-                  ranking llega hasta {mesCorto(fMat.mesHasta)}.
+                  {t("CADAM todavía no publicó la matriculación de {mes}: este ranking llega hasta {hasta}.", { mes: mesCorto(f.mesHasta), hasta: mesCorto(fMat.mesHasta) })}
                 </NotaDato>
               )}
               <TablaGrupos filas={gruposMat} anioAnterior={f.anio - 1} />
@@ -244,19 +237,17 @@ export default async function RankingsPage({
 
           <TabsContent value="grupos-imp">
             <Panel
-              titulo={`Grupos por importación (${gruposImp.length}) · ${periodoImp}`}
-              nota="Quién trajo más unidades al país. Un grupo puede liderar acá y todavía no en matriculación: es stock en camino."
+              titulo={t("Grupos por importación ({n}) · {periodo}", { n: gruposImp.length, periodo: periodoImp })}
+              nota={t("Quién trajo más unidades al país. Un grupo puede liderar acá y todavía no en matriculación: es stock en camino.")}
             >
               {importRecorta && (
                 <NotaDato>
-                  CADAM todavía no publicó la importación de {mesCorto(f.mesHasta)}: este
-                  ranking llega hasta {mesCorto(fImp.mesHasta)}.
+                  {t("CADAM todavía no publicó la importación de {mes}: este ranking llega hasta {hasta}.", { mes: mesCorto(f.mesHasta), hasta: mesCorto(fImp.mesHasta) })}
                 </NotaDato>
               )}
               {f.tecnologia && (
                 <NotaDato>
-                  El filtro de tecnología solo aplica a matriculación: la base de
-                  importación no dice si el vehículo es híbrido o eléctrico.
+                  {t("El filtro de tecnología solo aplica a matriculación: la base de importación no dice si el vehículo es híbrido o eléctrico.")}
                 </NotaDato>
               )}
               <TablaGrupos filas={gruposImp} anioAnterior={f.anio - 1} />
@@ -270,23 +261,25 @@ export default async function RankingsPage({
 
 /** Qué pasa con los filtros que la base de importación no trae. Tecnología
  *  no se puede; importador se infiere por marca y se dice cuáles. */
-function NotasImportacion({
+async function NotasImportacion({
   f, marcasDelImportador,
 }: { f: { anio: number; tecnologia?: string; empresa?: string }; marcasDelImportador: string[] }) {
+  const { t, tr } = await getI18n();
   return (
     <>
       {f.tecnologia && (
         <NotaDato>
-          El filtro de tecnología solo aplica a matriculación: la base de
-          importación no dice si el vehículo es híbrido o eléctrico.
+          {t("El filtro de tecnología solo aplica a matriculación: la base de importación no dice si el vehículo es híbrido o eléctrico.")}
         </NotaDato>
       )}
       {f.empresa && (
         <NotaDato>
-          La base de importación no dice quién importa. Se muestran las marcas que{" "}
-          <strong>{f.empresa}</strong> representa —la empresa que más las matriculó en{" "}
-          {f.anio - 1} y {f.anio}—:{" "}
-          {marcasDelImportador.length ? marcasDelImportador.join(", ") : "ninguna con matriculación todavía"}.
+          {tr("La base de importación no dice quién importa. Se muestran las marcas que <b>{empresa}</b> representa —la empresa que más las matriculó en {anio1} y {anio2}—: {marcas}.", {
+            empresa: f.empresa,
+            anio1: f.anio - 1,
+            anio2: f.anio,
+            marcas: marcasDelImportador.length ? marcasDelImportador.join(", ") : t("ninguna con matriculación todavía"),
+          })}
         </NotaDato>
       )}
     </>

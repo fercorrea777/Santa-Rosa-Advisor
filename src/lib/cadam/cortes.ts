@@ -1,3 +1,4 @@
+/* i18n-ignore-file — capa de datos: consultas SQL y claves de la base (combustible, localidad); no tiene frases de pantalla. */
 import { getDb } from "./db";
 import type { FilaDimension, PuntoMensual, RangoMeses } from "./mercado";
 

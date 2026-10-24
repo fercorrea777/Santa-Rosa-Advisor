@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type { EntradaIndice } from "@/lib/informes/conocimiento";
-import { formatFecha } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /**
  * Que sabe el Copiloto sobre la competencia, y de cuando es.
@@ -30,10 +30,11 @@ function dias(desde: string | null): number | null {
 }
 
 function Antiguedad({ d }: { d: number | null }) {
+  const { t } = useI18n();
   if (d === null) {
-    return <span className="text-muted-foreground">sin fecha</span>;
+    return <span className="text-muted-foreground">{t("sin fecha")}</span>;
   }
-  const texto = d === 0 ? "hoy" : d === 1 ? "ayer" : `hace ${d} días`;
+  const texto = d === 0 ? t("hoy") : d === 1 ? t("ayer") : t("hace {n} días", { n: d });
   const tono =
     d >= DIAS_FRIO
       ? "text-rose-700 dark:text-rose-400"
@@ -44,6 +45,8 @@ function Antiguedad({ d }: { d: number | null }) {
 }
 
 export function ConocimientoPanel() {
+  const { t, tr, fmt } = useI18n();
+  const { formatFecha } = fmt;
   const [docs, setDocs] = React.useState<EntradaIndice[] | null>(null);
 
   React.useEffect(() => {
@@ -54,15 +57,17 @@ export function ConocimientoPanel() {
   }, []);
 
   if (docs === null) {
-    return <p className="text-sm text-muted-foreground">Cargando…</p>;
+    return <p className="text-sm text-muted-foreground">{t("Cargando…")}</p>;
   }
 
   if (!docs.length) {
     return (
       <p className="text-sm text-muted-foreground">
-        Hermes todavía no empujó nada. El cron corre todos los días a las 08:15;
-        si pasó la hora y sigue vacío, revisá el trabajo{" "}
-        <span className="font-mono text-xs">advisor-conocimiento</span> en Hermes.
+        {tr(
+          "Hermes todavía no empujó nada. El cron corre todos los días a las 08:15; si pasó la hora y sigue vacío, revisá el trabajo <job>advisor-conocimiento</job> en Hermes.",
+          undefined,
+          { job: (h) => <span className="font-mono text-xs">{h}</span> }
+        )}
       </p>
     );
   }
@@ -92,11 +97,13 @@ export function ConocimientoPanel() {
                   acá). Un benchmark de agosto empujado hoy sigue siendo de
                   agosto. */}
               <span className="block">
-                Dato: <Antiguedad d={dias(d.fechado_en)} />
+                {t("Dato:")} <Antiguedad d={dias(d.fechado_en)} />
               </span>
               <span className="block text-muted-foreground">
-                Subido {formatFecha(d.actualizado_en)} ·{" "}
-                {Math.round(d.caracteres / 1000)} k
+                {t("Subido {fecha} · {k} k", {
+                  fecha: formatFecha(d.actualizado_en),
+                  k: Math.round(d.caracteres / 1000),
+                })}
               </span>
             </span>
           </li>
@@ -104,8 +111,7 @@ export function ConocimientoPanel() {
       </ul>
       {masViejo !== null && masViejo >= DIAS_TIBIO && (
         <p className="text-xs text-muted-foreground">
-          Hay material de hasta {masViejo} días. El Copiloto cita la fecha de cada
-          documento cuando lo usa, pero conviene refrescar el relevamiento manual.
+          {t("Hay material de hasta {n} días. El Copiloto cita la fecha de cada documento cuando lo usa, pero conviene refrescar el relevamiento manual.", { n: masViejo })}
         </p>
       )}
     </div>

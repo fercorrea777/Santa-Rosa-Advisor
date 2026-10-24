@@ -11,6 +11,7 @@ import {
   verificarCredenciales,
 } from "@/lib/auth/usuarios";
 import { anotarFallo, bloqueadoPor, esHttps, ipDe, limpiarFallos } from "@/lib/auth/freno";
+import { getI18n } from "@/lib/i18n/servidor";
 
 export interface EstadoLogin {
   error: string;
@@ -67,17 +68,20 @@ async function intentar(
   _prev: EstadoLogin | null,
   form: FormData
 ): Promise<EstadoLogin> {
+  // Los errores vuelven a la pantalla en el idioma de quien está entrando.
+  const { t } = await getI18n();
   const clave = process.env.ADVISOR_CLAVE;
   if (!clave) {
-    return { error: "El tablero no tiene clave configurada; no hace falta entrar." };
+    return { error: t("El tablero no tiene clave configurada; no hace falta entrar.") };
   }
 
   const h = await headers();
   const ip = ipDe(h);
   const espera = bloqueadoPor(`ip:${ip}`);
   if (espera) {
-    void registrarEvento("login_bloqueado", { ip, detalle: `por IP, ${espera}s` });
-    return { error: `Demasiados intentos. Probá de nuevo en ${espera} segundos.` };
+    // El detalle de la auditoría se guarda en castellano (es un dato de la base) y se traduce al mostrarlo.
+    void registrarEvento("login_bloqueado", { ip, detalle: `por IP, ${espera}s` }); // i18n-ignore
+    return { error: t("Demasiados intentos. Probá de nuevo en {espera} segundos.", { espera }) };
   }
 
   const enviada = String(form.get("clave") ?? "");
@@ -98,12 +102,12 @@ async function intentar(
   } else {
     // El correo se valida antes de tocar la base: un correo de otro dominio
     // no puede ser de nadie, y decirlo no revela nada.
-    const problema = problemaConElUsuario(correo);
+    const problema = problemaConElUsuario(correo, t);
     if (problema) return { error: problema };
     const esperaCuenta = bloqueadoPor(`cuenta:${correo}`);
     if (esperaCuenta) {
-      void registrarEvento("login_bloqueado", { correo, ip, detalle: `por cuenta, ${esperaCuenta}s` });
-      return { error: `Demasiados intentos con esa cuenta. Probá de nuevo en ${Math.ceil(esperaCuenta / 60)} minutos.` };
+      void registrarEvento("login_bloqueado", { correo, ip, detalle: `por cuenta, ${esperaCuenta}s` }); // i18n-ignore
+      return { error: t("Demasiados intentos con esa cuenta. Probá de nuevo en {minutos} minutos.", { minutos: Math.ceil(esperaCuenta / 60) }) };
     }
     try {
       const persona = await verificarCredenciales(correo, enviada);
@@ -117,9 +121,10 @@ async function intentar(
       // mal: se dice lo que pasa y se ofrece la salida que sí funciona.
       console.error("Login: no se pudo consultar usuarios:", e);
       return {
-        error:
+        error: t(
           "No se pudo verificar el usuario (la base no responde). " +
-          "Avisale a Croman; mientras tanto se puede entrar con la clave general.",
+          "Avisale a Croman; mientras tanto se puede entrar con la clave general."
+        ),
       };
     }
   }
@@ -131,7 +136,7 @@ async function intentar(
     // El mensaje no distingue "usuario inexistente" de "clave incorrecta" ni
     // de "clave vacía": cualquier matiz es información gratis para quien está
     // probando.
-    return { error: "Correo o clave incorrectos." };
+    return { error: t("Correo o clave incorrectos.") };
   }
 
   limpiarFallos(`ip:${ip}`);

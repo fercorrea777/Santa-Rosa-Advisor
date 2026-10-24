@@ -83,6 +83,7 @@ export async function buscar(consulta: string): Promise<ResultadoBusqueda[]> {
     headers: { "User-Agent": UA, "Accept-Language": "es-PY,es;q=0.9" },
     signal: conTimeout(TIMEOUT_MS),
   });
+  // i18n-ignore (error de una herramienta: lo lee el modelo, que se lo explica a la persona; no se muestra tal cual)
   if (!r.ok) throw new Error(`DuckDuckGo respondió ${r.status}`);
   const html = await r.text();
 
@@ -112,12 +113,14 @@ export async function leerPagina(url: string): Promise<{ titulo: string; texto: 
   try {
     destino = new URL(url);
   } catch {
+    // i18n-ignore (error de una herramienta: lo lee el modelo, que se lo explica a la persona; no se muestra tal cual)
     throw new Error("URL inválida");
   }
   if (!/^https?:$/.test(destino.protocol)) throw new Error("Solo http(s)");
   // Nada de la red interna: esto lo pide un modelo con una URL que puede
   // venir de un resultado de búsqueda, no de una persona.
   if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.|\[::1\])/.test(destino.hostname)) {
+    // i18n-ignore (error de una herramienta: lo lee el modelo, que se lo explica a la persona; no se muestra tal cual)
     throw new Error("Dirección no permitida");
   }
   const r = await fetch(destino, {
@@ -125,9 +128,11 @@ export async function leerPagina(url: string): Promise<{ titulo: string; texto: 
     signal: conTimeout(TIMEOUT_MS),
     redirect: "follow",
   });
+  // i18n-ignore (error de una herramienta: lo lee el modelo, que se lo explica a la persona; no se muestra tal cual)
   if (!r.ok) throw new Error(`La página respondió ${r.status}`);
   const tipo = r.headers.get("content-type") ?? "";
   if (!/text\/html|text\/plain|application\/xhtml/.test(tipo)) {
+    // i18n-ignore (error de una herramienta: lo lee el modelo, que se lo explica a la persona; no se muestra tal cual)
     throw new Error(`No es una página de texto (${tipo.split(";")[0] || "tipo desconocido"})`);
   }
   const crudo = await r.arrayBuffer();

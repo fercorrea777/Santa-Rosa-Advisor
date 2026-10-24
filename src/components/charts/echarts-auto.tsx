@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import ReactECharts, { type EChartsReactProps } from "echarts-for-react";
+import { FUENTE_MONO_EJES, FUENTE_SANS_GRAFICOS } from "@/lib/chart-theme";
 
 /**
  * ReactECharts que sigue el ancho real de su contenedor. El componente base
@@ -17,7 +18,7 @@ import ReactECharts, { type EChartsReactProps } from "echarts-for-react";
  * ejemplo — y ahí el gráfico no aparece nunca. El RO tiene que ser corrección,
  * no requisito. El warning es cosmético; el chart se autocorrige.
  */
-export function EchartsAuto(props: EChartsReactProps) {
+export function EchartsAuto({ option, ...props }: EChartsReactProps) {
   const divRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactECharts>(null);
 
@@ -31,9 +32,36 @@ export function EchartsAuto(props: EChartsReactProps) {
     return () => ro.disconnect();
   }, []);
 
+  // El texto del canvas se dibuja con la fuente que haya en el instante del
+  // trazo: si Inter o JetBrains Mono todavía no bajaron, sale la de reserva y
+  // ECharts no se entera de que después llegó la buena. Cuando terminan de
+  // cargar se pide un repintado. Nunca condiciona el montaje (misma trampa que
+  // el ResizeObserver de arriba): si la carga falla, el gráfico igual se ve.
+  useEffect(() => {
+    if (typeof document === "undefined" || !document.fonts) return;
+    let vivo = true;
+    const repintar = () => {
+      if (vivo) chartRef.current?.getEchartsInstance()?.resize();
+    };
+    Promise.all([
+      document.fonts.load(`500 11px ${FUENTE_SANS_GRAFICOS}`),
+      document.fonts.load(`700 11px ${FUENTE_MONO_EJES}`),
+    ]).then(repintar, () => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  // La fuente base del gráfico es la sans del sistema (Inter); cada gráfico
+  // puede pisarla (los números de ejes ya piden la mono por su cuenta).
+  const conFuente = {
+    ...option,
+    textStyle: { fontFamily: FUENTE_SANS_GRAFICOS, ...(option?.textStyle ?? {}) },
+  };
+
   return (
     <div ref={divRef}>
-      <ReactECharts ref={chartRef} {...props} />
+      <ReactECharts ref={chartRef} option={conFuente} {...props} />
     </div>
   );
 }

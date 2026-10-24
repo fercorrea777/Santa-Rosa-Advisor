@@ -4,7 +4,7 @@ import { EchartsAuto } from "@/components/charts/echarts-auto";
 import {
   etiquetaValor, FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme,
 } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /**
  * Importaciones vs matriculaciones, mes a mes.
@@ -27,6 +27,8 @@ export function BrechaChart({
   diferencia: (number | null)[];
   altura?: number;
 }) {
+  const { t, fmt } = useI18n();
+  const { formatUnidades } = fmt;
   const theme = useChartTheme();
 
   const option = {
@@ -41,7 +43,7 @@ export function BrechaChart({
       ...TOOLTIP_BASE,
       trigger: "axis",
       valueFormatter: (v: number | null) =>
-        v === null || v === undefined ? "Sin datos" : formatUnidades(v),
+        v === null || v === undefined ? t("Sin datos") : formatUnidades(v),
     },
     legend: { top: 0, textStyle: { color: theme.text, fontSize: 12 } },
     xAxis: {
@@ -61,7 +63,7 @@ export function BrechaChart({
     },
     series: [
       {
-        name: "Diferencia (import. − matric.)",
+        name: t("Diferencia (import. − matric.)"),
         type: "bar",
         // La etiqueta va DEL LADO AL QUE APUNTA LA BARRA. Con `position: "top"`
         // fijo (que es lo que hereda del helper), una barra negativa dibuja su
@@ -95,7 +97,7 @@ export function BrechaChart({
         label: etiquetaValor(theme, { formatter: formatUnidades }),
       },
       {
-        name: "Importaciones",
+        name: t("Importaciones"),
         type: "line",
         smooth: true,
         symbolSize: 7,
@@ -104,7 +106,7 @@ export function BrechaChart({
         data: importaciones,
       },
       {
-        name: "Matriculaciones",
+        name: t("Matriculaciones"),
         type: "line",
         smooth: true,
         symbolSize: 7,

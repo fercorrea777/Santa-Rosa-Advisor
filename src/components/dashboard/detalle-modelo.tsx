@@ -6,7 +6,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import type { DetalleModelo } from "@/lib/cadam/bandas";
-import { formatPct, formatUnidades } from "@/lib/format";
+import type { I18n } from "@/lib/i18n/crear";
+import { useI18n } from "@/lib/i18n/cliente";
 import { transmisionDe } from "@/lib/informes/transmision";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,9 @@ export function DetalleModeloDialog({
   fuente?: "matriculacion" | "importacion";
   onClose: () => void;
 }) {
+  const i18n = useI18n();
+  const { t, tr, fmt } = i18n;
+  const { formatPct, formatUnidades } = fmt;
   const importacion = fuente === "importacion";
   const d = detalle;
   // QUÉ PRECIO SE COMPARA CON QUÉ. Mecánico con mecánico y automático con
@@ -52,6 +56,10 @@ export function DetalleModeloDialog({
   const base = comparacion(d, version);
   const dif = base.nuestro && base.mediana ? base.nuestro / base.mediana - 1 : null;
   const brecha = base.nuestro && base.mediana ? Math.abs(base.nuestro - base.mediana) : null;
+  /** Elige la frase según con qué caja se compara. Cada una se traduce entera:
+   *  «Precio mecánico» y «manual price» no tienen el mismo orden de palabras. */
+  const porCaja = (mecanico: string, automatico: string, desde: string) =>
+    base.etiqueta === "mecánico" ? mecanico : base.etiqueta === "automático" ? automatico : desde;
 
   return (
     <Dialog.Root open={!!d} onOpenChange={(abierto) => !abierto && onClose()}>
@@ -68,91 +76,95 @@ export function DetalleModeloDialog({
                     </Dialog.Title>
                     <Dialog.Description className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <LogoMarca marca={d.marca} />
-                      {d.marca} · {d.clase}
-                      {d.claseInferida ? " (clase por precio)" : ""}
-                      {version?.familia ? ` · familia ${version.familia}` : ""}
+                      {d.marca} · {t(d.clase)}
+                      {d.claseInferida ? ` ${t("(clase por precio)")}` : ""}
+                      {version?.familia ? ` · ${t("familia {familia}", { familia: version.familia })}` : ""}
                       {d.tecnologia ? ` · ${d.tecnologia}` : ""} · {periodo}
                     </Dialog.Description>
                   </div>
                   <Dialog.Close className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-muted">
-                    Cerrar
+                    {t("Cerrar")}
                   </Dialog.Close>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   <Cifra
-                    titulo={version ? "Facturó esta versión" : importacion ? "Importó" : "Matriculó"}
+                    titulo={version ? t("Facturó esta versión") : importacion ? t("Importó") : t("Matriculó")}
                     valor={formatUnidades(version ? version.unidades : d.unidades)}
-                    pie={version ? "unidades del período (Cars)" : `${formatPct(d.parteClase)} de su clase`}
+                    pie={version ? t("unidades del período (Cars)") : t("{pct} de su clase", { pct: formatPct(d.parteClase) })}
                   />
                   {/* Para una versión NO se muestran las unidades del modelo:
                       la familia de Cars se cruza con la de CADAM por palabras
                       y un "TANK 700" cae en el "TANK 400" del registro. La
                       clase sí es correcta, y es lo que define al rival. */}
                   <Cifra
-                    titulo="Su clase en el mercado"
+                    titulo={t("Su clase en el mercado")}
                     valor={formatUnidades(d.unidadesClase)}
-                    pie={`${d.clase} en el período`}
+                    pie={t("{clase} en el período", { clase: t(d.clase) })}
                   />
                   <Cifra
-                    titulo={`Precio ${base.etiqueta}`}
+                    titulo={porCaja(t("Precio mecánico"), t("Precio automático"), t("Precio desde"))}
                     valor={base.nuestro ? `US$ ${formatUnidades(base.nuestro)}` : "—"}
                     pie={
                       version
-                        ? `de esta versión (${base.etiqueta})`
+                        ? porCaja(t("de esta versión (mecánico)"), t("de esta versión (automático)"), t("de esta versión (desde)"))
                         : [
-                            d.precioMT ? `MT desde ${formatUnidades(d.precioMT)}` : null,
-                            d.precioAT ? `AT desde ${formatUnidades(d.precioAT)}` : null,
+                            d.precioMT ? t("MT desde {precio}", { precio: formatUnidades(d.precioMT) }) : null,
+                            d.precioAT ? t("AT desde {precio}", { precio: formatUnidades(d.precioAT) }) : null,
                           ]
                             .filter(Boolean)
-                            .join(" · ") || (d.precio ? "desde, sin transmisión en el nombre" : "sin precio")
+                            .join(" · ") || (d.precio ? t("desde, sin transmisión en el nombre") : t("sin precio"))
                     }
                   />
                   <Cifra
-                    titulo={`Su clase, ${base.etiqueta}`}
+                    titulo={porCaja(t("Su clase, mecánico"), t("Su clase, automático"), t("Su clase, desde"))}
                     valor={base.mediana ? `US$ ${formatUnidades(Math.round(base.mediana))}` : "—"}
                     pie={
                       base.n === 0
-                        ? `sin rivales con precio ${base.etiqueta}`
+                        ? porCaja(t("sin rivales con precio mecánico"), t("sin rivales con precio automático"), t("sin rivales con precio desde"))
                         : base.n === 1
-                          ? `el único rival con precio ${base.etiqueta}`
-                          : `mediana de ${base.n} rivales, ${base.etiqueta}`
+                          ? porCaja(t("el único rival con precio mecánico"), t("el único rival con precio automático"), t("el único rival con precio desde"))
+                          : porCaja(
+                              t("mediana de {n} rivales, mecánico", { n: base.n }),
+                              t("mediana de {n} rivales, automático", { n: base.n }),
+                              t("mediana de {n} rivales, desde", { n: base.n })
+                            )
                     }
                   />
                 </div>
 
                 <p className="mt-4 rounded-lg border-l-4 border-l-primary/60 bg-muted/40 p-3 text-sm leading-relaxed">
-                  <Lectura d={d} dif={dif} brecha={brecha} tieneVersion={!!version} base={base} />
+                  <Lectura d={d} dif={dif} brecha={brecha} tieneVersion={!!version} base={base} i18n={i18n} />
                 </p>
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-5 pt-4">
                 <h4 className="text-sm font-semibold">
-                  Contra quién compite{" "}
+                  {t("Contra quién compite")}{" "}
                   <span className="font-normal text-muted-foreground">
-                    ({formatUnidades(d.competidoresTotal)} en {d.clase}
+                    ({t("{n} en {clase}", { n: formatUnidades(d.competidoresTotal), clase: t(d.clase) })}
                     {d.competidoresTotal > d.competidores.length
-                      ? `, se listan los ${d.competidores.length} que más venden`
+                      ? `, ${t("se listan los {n} que más venden", { n: d.competidores.length })}`
                       : ""}
                     )
                   </span>
                 </h4>
                 {d.competidores.length === 0 ? (
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Ningún otro modelo con ventas en esta clase durante el período.
+                    {t("Ningún otro modelo con ventas en esta clase durante el período.")}
                   </p>
                 ) : (
                   <div className="mt-2 overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Modelo</TableHead>
-                          <TableHead className="text-right" nota="las del período">Unidades</TableHead>
-                          <TableHead className="text-right whitespace-nowrap" nota="su parte de la clase">% de la clase</TableHead>
-                          <TableHead className="text-right" nota="la versión más barata">Desde</TableHead>
-                          <TableHead className="text-right" nota="la más barata, mecánica">MT</TableHead>
-                          <TableHead className="text-right" nota="la más barata, automática">AT</TableHead>
-                          <TableHead>Motorización</TableHead>
+                          <TableHead>{t("Modelo")}</TableHead>
+                          <TableHead className="text-right" nota={t("las del período")}>{t("Unidades")}</TableHead>
+                          <TableHead className="text-right whitespace-nowrap" nota={t("su parte de la clase")}>{t("% de la clase")}</TableHead>
+                          <TableHead className="text-right" nota={t("la versión más barata")}>{t("Desde")}</TableHead>
+                          <TableHead className="text-right" nota={t("la más barata, mecánica")}>MT</TableHead>
+                          <TableHead className="text-right" nota={t("la más barata, automática")}>AT</TableHead>
+                          <TableHead>{t("Motorización")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -163,7 +175,7 @@ export function DetalleModeloDialog({
                               <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <LogoMarca marca={c.marca} />
                                 {c.marca}
-                                {c.esPropia ? " · nuestra" : ""}
+                                {c.esPropia ? ` · ${t("nuestra")}` : ""}
                               </span>
                             </TableCell>
                             <TableCell className="text-right tabular-nums">{formatUnidades(c.unidades)}</TableCell>
@@ -187,17 +199,11 @@ export function DetalleModeloDialog({
                   </div>
                 )}
                 <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-                  La clase (SUV chico, compacto, mediano, grande; pick-up compacta, mediana…) es un
-                  catálogo propio sobre los nombres del mercado: CADAM solo distingue SUV, pick-up,
-                  automóvil, camión, furgón y minibús, y eso pone a una X50 al lado de una Fortuner.
-                  Unidades: {importacion ? "importaciones" : "matriculaciones"} de CADAM del
-                  período{importacion ? " — lo importado se matricula dos o tres meses después" : ""}.
-                  Precios: los nuestros del stock de
-                  Cars, los de la competencia del catálogo de Datacar — no es lista oficial, y lo que
-                  no tiene precio no se adivina. <strong>MT</strong> y <strong>AT</strong> son el
-                  «desde» mecánico y automático de cada familia, leídos del nombre de la versión (MT,
-                  AT, CVT, DCT; un híbrido o eléctrico es automático): así se compara mecánico con
-                  mecánico. Lo que no dice su transmisión queda en «—» y no entra en esa cuenta.
+                  {t("La clase (SUV chico, compacto, mediano, grande; pick-up compacta, mediana…) es un catálogo propio sobre los nombres del mercado: CADAM solo distingue SUV, pick-up, automóvil, camión, furgón y minibús, y eso pone a una X50 al lado de una Fortuner.")}{" "}
+                  {importacion
+                    ? t("Unidades: importaciones de CADAM del período — lo importado se matricula dos o tres meses después.")
+                    : t("Unidades: matriculaciones de CADAM del período.")}{" "}
+                  {tr("Precios: los nuestros del stock de Cars, los de la competencia del catálogo de Datacar — no es lista oficial, y lo que no tiene precio no se adivina. <b>MT</b> y <b>AT</b> son el «desde» mecánico y automático de cada familia, leídos del nombre de la versión (MT, AT, CVT, DCT; un híbrido o eléctrico es automático): así se compara mecánico con mecánico. Lo que no dice su transmisión queda en «—» y no entra en esa cuenta.")}
                 </p>
               </div>
             </>
@@ -215,15 +221,33 @@ function Lectura({
   brecha,
   tieneVersion,
   base,
+  i18n,
 }: {
   d: DetalleModelo;
   dif: number | null;
   brecha: number | null;
   tieneVersion: boolean;
   base: Comparacion;
+  i18n: I18n;
 }) {
+  const { t, tr, fmt, idioma } = i18n;
+  const { formatPct, formatUnidades } = fmt;
   const lider = d.competidores[0];
   const esLider = !lider || d.unidades >= lider.unidades;
+  // La clase en medio de la frase. En castellano, en minúsculas enteras, como
+  // siempre («Lidera suv grande.»); en inglés, con la primera letra en
+  // minúscula y las siglas intactas («small SUV»).
+  const clase = idioma === "es" ? d.clase.toLowerCase() : minusculaInicial(t(d.clase));
+  const precioLider = lider?.precio ? ` ${t("a US$ {precio}", { precio: formatUnidades(lider.precio) })}` : "";
+  const datosLider: Record<string, string> = lider
+    ? { marca: lider.marca, modelo: lider.modelo, n: formatUnidades(lider.unidades), precio: precioLider }
+    : {};
+  const enEstaCaja = base.etiqueta === "mecánico" ? t("En mecánico, está") : base.etiqueta === "automático" ? t("En automático, está") : t("En desde, está");
+  const sujeto = tieneVersion ? t("Esta versión está") : enEstaCaja;
+  const contraRivales = base.justa
+    ? ` ${base.etiqueta === "mecánico" ? t("con mecánico") : t("con automático")}`
+    : t(", desde contra desde");
+  const vars = { brecha: formatUnidades(Math.round(brecha ?? 0)), n: base.n, sujeto, rivales: contraRivales };
   return (
     <>
       {/* De una VERSIÓN no se afirma cuánto vende ni cuánto creció: esas son
@@ -231,67 +255,65 @@ function Lectura({
           para las dos es contra quién compite y a qué precio. */}
       <strong>
         {tieneVersion
-          ? `Compite en ${d.clase.toLowerCase()}.`
+          ? t("Compite en {clase}.", { clase })
           : esLider
-            ? `Lidera ${d.clase.toLowerCase()}.`
-            : `${formatPct(d.parteClase)} de ${d.clase.toLowerCase()}.`}
+            ? t("Lidera {clase}.", { clase })
+            : t("{pct} de {clase}.", { pct: formatPct(d.parteClase), clase })}
       </strong>{" "}
       {tieneVersion && lider ? (
         <>
-          El que más vende en esa clase es <strong>{lider.marca} {lider.modelo}</strong> con{" "}
-          {formatUnidades(lider.unidades)} unidades
-          {lider.precio ? ` a US$ ${formatUnidades(lider.precio)}` : ""}.{" "}
+          {tr("El que más vende en esa clase es <b>{marca} {modelo}</b> con {n} unidades{precio}.", datosLider)}{" "}
         </>
       ) : lider && !esLider ? (
         <>
-          El que más vende en su clase es <strong>{lider.marca} {lider.modelo}</strong> con{" "}
-          {formatUnidades(lider.unidades)} unidades
-          {lider.precio ? ` a US$ ${formatUnidades(lider.precio)}` : ""}.{" "}
+          {tr("El que más vende en su clase es <b>{marca} {modelo}</b> con {n} unidades{precio}.", datosLider)}{" "}
         </>
       ) : lider ? (
         <>
-          Lo sigue <strong>{lider.marca} {lider.modelo}</strong> con {formatUnidades(lider.unidades)}{" "}
-          unidades
-          {lider.precio ? ` a US$ ${formatUnidades(lider.precio)}` : ""}.{" "}
+          {tr("Lo sigue <b>{marca} {modelo}</b> con {n} unidades{precio}.", datosLider)}{" "}
         </>
       ) : null}
       {!tieneVersion && d.variacion !== null && (
         <>
-          Contra el mismo período del año pasado{" "}
-          {d.variacion >= 0 ? "creció" : "cayó"} {formatPct(Math.abs(d.variacion))} (de{" "}
-          {formatUnidades(d.unidadesAnterior)} a {formatUnidades(d.unidades)}).{" "}
+          {d.variacion >= 0
+            ? t("Contra el mismo período del año pasado creció {pct} (de {antes} a {ahora}).", {
+                pct: formatPct(Math.abs(d.variacion)), antes: formatUnidades(d.unidadesAnterior), ahora: formatUnidades(d.unidades),
+              })
+            : t("Contra el mismo período del año pasado cayó {pct} (de {antes} a {ahora}).", {
+                pct: formatPct(Math.abs(d.variacion)), antes: formatUnidades(d.unidadesAnterior), ahora: formatUnidades(d.unidades),
+              })}{" "}
         </>
       )}
       {dif === null || base.n < 2 ? (
         <>
-          No hay precios suficientes {base.justa ? `en ${base.etiqueta} ` : ""}en la clase para decir
-          si está caro o barato.
+          {base.justa
+            ? base.etiqueta === "mecánico"
+              ? t("No hay precios suficientes en mecánico en la clase para decir si está caro o barato.")
+              : t("No hay precios suficientes en automático en la clase para decir si está caro o barato.")
+            : t("No hay precios suficientes en la clase para decir si está caro o barato.")}
         </>
       ) : dif >= 0.05 ? (
         <>
-          {tieneVersion ? "Esta versión está" : `En ${base.etiqueta}, está`}{" "}
-          <strong>US$ {formatUnidades(Math.round(brecha ?? 0))} por encima</strong> de la mediana de su
-          clase ({base.n} rivales{base.justa ? ` con ${base.etiqueta}` : ", desde contra desde"}): el
-          precio juega en contra y hay que compensarlo con producto o financiación.
+          {tr("{sujeto} <b>US$ {brecha} por encima</b> de la mediana de su clase ({n} rivales{rivales}): el precio juega en contra y hay que compensarlo con producto o financiación.", vars)}
         </>
       ) : dif <= -0.05 ? (
         <>
-          {tieneVersion ? "Esta versión está" : `En ${base.etiqueta}, está`}{" "}
-          <strong>US$ {formatUnidades(Math.round(brecha ?? 0))} por debajo</strong> de la mediana de su
-          clase ({base.n} rivales{base.justa ? ` con ${base.etiqueta}` : ", desde contra desde"}): el
-          precio es un argumento a favor{esLider ? " y hay espacio si el stock escasea" : ", así que lo que falta es presencia o producto"}.
+          {tr("{sujeto} <b>US$ {brecha} por debajo</b> de la mediana de su clase ({n} rivales{rivales}): el precio es un argumento a favor{cierre}.", {
+            ...vars,
+            cierre: esLider ? ` ${t("y hay espacio si el stock escasea")}` : t(", así que lo que falta es presencia o producto"),
+          })}
         </>
       ) : (
         <>
-          {base.justa ? `En ${base.etiqueta}, está` : "Está"} al precio de su clase: lo que decide es
-          el stock, la pauta y el seguimiento.
+          {t("{sujeto} al precio de su clase: lo que decide es el stock, la pauta y el seguimiento.", {
+            sujeto: base.justa ? enEstaCaja : t("Está"),
+          })}
         </>
       )}
       {!base.justa && base.n >= 2 && (
         <>
           {" "}
-          Ninguna versión con precio dice si es mecánica o automática, así que acá se comparó el
-          «desde» de cada uno.
+          {t("Ninguna versión con precio dice si es mecánica o automática, así que acá se comparó el «desde» de cada uno.")}
         </>
       )}
     </>
@@ -306,6 +328,12 @@ function Cifra({ titulo, valor, pie }: { titulo: string; valor: string; pie: str
       <span className="block text-[11px] text-muted-foreground">{pie}</span>
     </div>
   );
+}
+
+/** «Small SUV» → «small SUV»: baja la primera letra solo si la segunda ya está
+ *  en minúscula, así una sigla como «SUV» o «MPV» queda como está. */
+function minusculaInicial(texto: string): string {
+  return /^[A-Z][a-z]/.test(texto) ? texto[0].toLowerCase() + texto.slice(1) : texto;
 }
 
 /** Contra qué se compara el precio: mecánico con mecánico, automático con
@@ -324,8 +352,10 @@ function comparacion(
   version?: { nombre: string; precio: number } | null
 ): Comparacion {
   if (!d) return { etiqueta: "desde", nuestro: null, mediana: null, n: 0, justa: false };
+  // i18n-ignore-start (`etiqueta` es la clave de la comparación, no un texto: la pantalla dice cada caso con su propia frase, ver porCaja)
   const mt: Comparacion = { etiqueta: "mecánico", nuestro: d.precioMT, mediana: d.medianaClaseMT, n: d.nPreciosMT, justa: true };
   const at: Comparacion = { etiqueta: "automático", nuestro: d.precioAT, mediana: d.medianaClaseAT, n: d.nPreciosAT, justa: true };
+  // i18n-ignore-end
   const desde: Comparacion = { etiqueta: "desde", nuestro: d.precio, mediana: d.medianaClase, n: d.nPreciosClase, justa: false };
   if (version) {
     const t = transmisionDe(version.nombre, d.marca);

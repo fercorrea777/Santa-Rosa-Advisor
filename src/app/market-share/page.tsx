@@ -8,27 +8,23 @@ import { SelectorDimension } from "@/components/dashboard/selector-dimension";
 import { SerieAniosChart } from "@/components/charts/serie-anios-chart";
 import {
   getCobertura, getOpcionesFiltro, getPorDimension, getSerieMensual,
-  TECNOLOGIAS, type Fuente,
+  SIN_REPRESENTANTE, TECNOLOGIAS, type Fuente,
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
-import {
-  etiquetaCortes,
-  etiquetaPeriodo,
-  filtroDesdeUrl,
-  type SearchParams,
-  aclaracionCortes,
-} from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
+import { N_ } from "@/lib/i18n/traducir";
+import { filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
 const DIMENSIONES = {
-  marca: { label: "Marca", col: "marca" },
-  segmento: { label: "Segmento", col: "segmento" },
-  tecnologia: { label: "Tecnología", col: "tecnologia" },
-  empresa: { label: "Importador", col: "empresa" },
+  marca: { label: N_("Marca"), col: "marca" },
+  segmento: { label: N_("Segmento"), col: "segmento" },
+  tecnologia: { label: N_("Tecnología"), col: "tecnologia" },
+  empresa: { label: N_("Importador"), col: "empresa" },
 } as const;
 
 type Dim = keyof typeof DIMENSIONES;
 
-const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
+const NOMBRE: Record<Fuente, string> = { matriculacion: N_("matriculaciones"), importacion: N_("importaciones") };
 
 export default async function MarketSharePage({
   searchParams,
@@ -36,6 +32,8 @@ export default async function MarketSharePage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt } = await getI18n();
+  const { etiquetaCortes, etiquetaPeriodo, aclaracionCortes, nombreDeSegmento } = fmt;
   const cobertura = getCobertura();
   // Tres vistas (Croman, 15/09/2026: "el mismo selector en Market Share").
   // Con "Ambas", la tabla y la evolución van dos veces, una por fuente y
@@ -61,6 +59,19 @@ export default async function MarketSharePage({
   };
 
   const aclaracion = aclaracionCortes(cobertura);
+  // Los rótulos que viven en constantes del módulo (N_) se traducen al mostrarlos.
+  const nombreFuente = (fuente: Fuente) => t(NOMBRE[fuente]);
+  const etiquetaDimension = (d: Dim) => {
+    const { label } = DIMENSIONES[d];
+    return t(label);
+  };
+
+  /** Lo que se LEE de cada fila: el castellano muestra el dato tal como llega de CADAM (Automovil, Camion…), como siempre;
+   *  el inglés traduce el segmento. «Sin representante conocido» es una etiqueta nuestra y se traduce en los dos idiomas. */
+  const valorVisible = (d: Dim, v: string) =>
+    d === "segmento"
+      ? (fmt.idioma === "en" ? nombreDeSegmento(v) : v)
+      : d === "empresa" && v === SIN_REPRESENTANTE ? t(SIN_REPRESENTANTE) : v;
 
   // Un bloque por fuente: la tabla de participación y la evolución del top 5.
   const bloques = fuentes.map((fuente) => {
@@ -96,12 +107,16 @@ export default async function MarketSharePage({
         // Sin total del mes no hay porcentaje posible: queda como hueco.
         valores[p.mes - 1] = tot ? Number(((p.unidades / tot) * 100).toFixed(2)) : null;
       }
-      return { anio: r.valor, valores, punteada: i > 2, unidad: "porcentaje" as const };
+      return { anio: valorVisible(dimEfectiva, r.valor), valores, punteada: i > 2, unidad: "porcentaje" as const };
     });
-    return { fuente, f, periodo, dimEfectiva, dimDisponible, importadorInferido, filas, seriesShare };
+    return {
+      fuente, f, periodo, dimEfectiva, dimDisponible, importadorInferido,
+      filas: filas.map((r) => ({ ...r, valor: valorVisible(dimEfectiva, r.valor) })),
+      seriesShare,
+    };
   });
   const principalBloque = bloques[0];
-  const dimLabel = DIMENSIONES[dim].label.toLowerCase();
+  const dimLabel = etiquetaDimension(dim).toLowerCase();
 
   const mesMax: Record<number, number> = {};
   for (const a of cobertura[principal].anios) {
@@ -111,9 +126,16 @@ export default async function MarketSharePage({
   return (
     <Pagina>
       <PageHeader
-        titulo="Market Share"
-        descripcion={`Participación por ${dimLabel} sobre ${bloques.map((b) => `${NOMBRE[b.fuente]} ${b.periodo}`).join(" y ")} vs. ${principalBloque.f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Market Share")}
+        descripcion={bloques.length > 1
+          ? t("Participación por {dim} sobre {fuente1} {periodo1} y {fuente2} {periodo2} vs. {anio}.", {
+              dim: dimLabel, fuente1: nombreFuente(bloques[0].fuente), periodo1: bloques[0].periodo,
+              fuente2: nombreFuente(bloques[1].fuente), periodo2: bloques[1].periodo, anio: principalBloque.f.anio - 1,
+            })
+          : t("Participación por {dim} sobre {fuente} {periodo} vs. {anio}.", {
+              dim: dimLabel, fuente: nombreFuente(bloques[0].fuente), periodo: bloques[0].periodo, anio: principalBloque.f.anio - 1,
+            })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       <div
@@ -122,7 +144,7 @@ export default async function MarketSharePage({
       >
         <SelectorFuente fuente={vista} porDefecto="matriculacion" conAmbas aclaracion={aclaracion} />
         <SelectorDimension
-          dimensiones={Object.entries(DIMENSIONES).map(([k, v]) => ({ valor: k, label: v.label }))}
+          dimensiones={Object.entries(DIMENSIONES).map(([k, v]) => ({ valor: k, label: t(v.label) }))}
           dimensionActual={principalBloque.dimEfectiva}
         />
         <div className="min-w-0 sm:flex-1">
@@ -131,9 +153,9 @@ export default async function MarketSharePage({
             anios={cobertura[principal].anios}
             mesMaximoPorAnio={mesMax}
             opciones={[
-              { param: "segmento", label: "Segmento", valores: opciones.segmentos },
+              { param: "segmento", label: t("Segmento"), valores: opciones.segmentos },
               ...(fuentes.includes("matriculacion")
-                ? [{ param: "tecnologia", label: "Tecnología", valores: [...TECNOLOGIAS] }]
+                ? [{ param: "tecnologia", label: t("Tecnología"), valores: [...TECNOLOGIAS] }]
                 : []),
             ]}
           />
@@ -142,26 +164,21 @@ export default async function MarketSharePage({
 
       {bloques.some((b) => !b.dimDisponible) && (
         <NotaDato>
-          La base de importación no trae tecnología, así que esa vista solo
-          existe del lado de matriculación. En importaciones se muestra por marca.
+          {t("La base de importación no trae tecnología, así que esa vista solo existe del lado de matriculación. En importaciones se muestra por marca.")}
         </NotaDato>
       )}
 
       {bloques.some((b) => b.importadorInferido) && (
         <NotaDato>
-          La base de importación de CADAM no dice quién importa. En importaciones
-          cada unidad se le atribuye al <strong>representante de su marca</strong>: la
-          empresa que más chapas le puso a esa marca en {principalBloque.f.anio} y{" "}
-          {principalBloque.f.anio - 1}. Las marcas que todavía nadie matriculó quedan
-          en «Sin representante conocido».
+          {tr("La base de importación de CADAM no dice quién importa. En importaciones cada unidad se le atribuye al <b>representante de su marca</b>: la empresa que más chapas le puso a esa marca en {anio1} y {anio2}. Las marcas que todavía nadie matriculó quedan en «Sin representante conocido».", {
+            anio1: principalBloque.f.anio,
+            anio2: principalBloque.f.anio - 1,
+          })}
         </NotaDato>
       )}
 
       <NotaDato>
-        <strong>Crecer en unidades no es ganar market share.</strong> Si una marca
-        crece 40% pero el mercado creció 54%, pierde participación. Por eso las dos
-        columnas van juntas y las filas donde los signos no coinciden quedan
-        marcadas.
+        {tr("<b>Crecer en unidades no es ganar market share.</b> Si una marca crece 40% pero el mercado creció 54%, pierde participación. Por eso las dos columnas van juntas y las filas donde los signos no coinciden quedan marcadas.")}
       </NotaDato>
 
       {/* Con las dos fuentes, lado a lado en pantallas anchas: tabla sobre
@@ -172,19 +189,21 @@ export default async function MarketSharePage({
             <Card>
               <CardHeader>
                 <CardTitle>
-                  Participación por {DIMENSIONES[b.dimEfectiva].label.toLowerCase()} —{" "}
-                  {NOMBRE[b.fuente]} ({b.filas.length}) · {b.periodo}
+                  {t("Participación por {dim} — {fuente} ({n}) · {periodo}", {
+                    dim: etiquetaDimension(b.dimEfectiva).toLowerCase(),
+                    fuente: nombreFuente(b.fuente),
+                    n: b.filas.length,
+                    periodo: b.periodo,
+                  })}
                 </CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Unidades y parte del mercado de cada uno, contra el mismo período del
-                  año pasado. La columna que importa es la última: los puntos de
-                  participación que ganó o perdió.
+                  {t("Unidades y parte del mercado de cada uno, contra el mismo período del año pasado. La columna que importa es la última: los puntos de participación que ganó o perdió.")}
                 </p>
               </CardHeader>
               <CardContent>
                 <TablaShare
                   filas={b.filas}
-                  etiqueta={DIMENSIONES[b.dimEfectiva].label}
+                  etiqueta={etiquetaDimension(b.dimEfectiva)}
                   logos={b.dimEfectiva === "marca"}
                   anioAnterior={b.f.anio - 1}
                   nombreArchivo={`market-share-${b.dimEfectiva}-${b.fuente}-${b.f.anio}`}
@@ -195,8 +214,7 @@ export default async function MarketSharePage({
             <Card>
               <CardHeader>
                 <CardTitle>
-                  Evolución de la participación — top 5 en {NOMBRE[b.fuente]}, {b.f.anio}{" "}
-                  (% del mes)
+                  {t("Evolución de la participación — top 5 en {fuente}, {anio} (% del mes)", { fuente: nombreFuente(b.fuente), anio: b.f.anio })}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -204,13 +222,12 @@ export default async function MarketSharePage({
                   <>
                     <SerieAniosChart series={b.seriesShare} altura={300} ordenTooltip="seriesAsc" />
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Cada línea es el % que representó esa {DIMENSIONES[b.dimEfectiva].label.toLowerCase()} sobre
-                      el total del mes. Los meses sin dato quedan como hueco.
+                      {t("Cada línea es el % que representó esa {dim} sobre el total del mes. Los meses sin dato quedan como hueco.", { dim: etiquetaDimension(b.dimEfectiva).toLowerCase() })}
                     </p>
                   </>
                 ) : (
                   <p className="py-16 text-center text-sm text-muted-foreground">
-                    Sin datos para graficar.
+                    {t("Sin datos para graficar.")}
                   </p>
                 )}
               </CardContent>
@@ -220,11 +237,7 @@ export default async function MarketSharePage({
       </div>
 
       <NotaDato>
-        Falta el market share por <strong>fabricante</strong> y por{" "}
-        <strong>país de origen</strong>. Ninguno de los dos viene en el detalle
-        por vehículo: la base de importación solo marca si es de China o no, no
-        el país. El país real aparece únicamente en el Cuadro 12 del informe de
-        matriculación, y solo acumulado por año.
+        {tr("Falta el market share por <b>fabricante</b> y por <b>país de origen</b>. Ninguno de los dos viene en el detalle por vehículo: la base de importación solo marca si es de China o no, no el país. El país real aparece únicamente en el Cuadro 12 del informe de matriculación, y solo acumulado por año.")}
       </NotaDato>
     </Pagina>
   );

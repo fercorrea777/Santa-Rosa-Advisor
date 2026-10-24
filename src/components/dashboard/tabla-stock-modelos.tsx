@@ -7,7 +7,8 @@ import {
 } from "@/components/ui/table";
 import { IconChevron } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { decimal, formatDecimal, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
+import { N_ } from "@/lib/i18n/traducir";
 
 export type AccionStock = "pedir" | "llega" | "empujar" | "ok" | "sin ritmo";
 
@@ -39,11 +40,11 @@ export interface ModeloStock {
 }
 
 const ETIQUETA: Record<AccionStock, string> = {
-  pedir: "Pedir",
-  llega: "Llega en viaje",
-  empujar: "Empujar (promo)",
-  ok: "Bien",
-  "sin ritmo": "Vende poco",
+  pedir: N_("Pedir"),
+  llega: N_("Llega en viaje"),
+  empujar: N_("Empujar (promo)"),
+  ok: N_("Bien"),
+  "sin ritmo": N_("Vende poco"),
 };
 const TONO: Record<AccionStock, string> = {
   pedir: "text-rose-700 dark:text-rose-400",
@@ -54,13 +55,10 @@ const TONO: Record<AccionStock, string> = {
 };
 const FOCO = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1";
 
-const n = (v: number) => (v ? formatUnidades(v) : "—");
 /** Segundo renglón chico de una celda numérica. */
 const Sub = ({ children }: { children: React.ReactNode }) => (
   <span className="block text-[11px] leading-tight text-muted-foreground">{children}</span>
 );
-const ritmoTxt = (r: number) => (r > 0 ? `${decimal(r, 1)} /mes` : "—");
-const mesesTxt = (m: number | null) => formatDecimal(m);
 
 /**
  * Todo el stock en UNA tabla: una fila por modelo, y sus versiones adentro.
@@ -79,6 +77,11 @@ export function TablaStockModelos({
   /** Marcas que la casa no distribuye (canje y usados): una sola fila. */
   otras: { marcas: number; unidades: number } | null;
 }) {
+  const { t, fmt } = useI18n();
+  const { decimal, formatDecimal, formatUnidades } = fmt;
+  const n = (v: number) => (v ? formatUnidades(v) : "—");
+  const ritmoTxt = (r: number) => (r > 0 ? t("{n} /mes", { n: decimal(r, 1) }) : "—");
+  const mesesTxt = (m: number | null) => formatDecimal(m);
   const [abiertos, setAbiertos] = React.useState<Set<string>>(new Set());
   const alternar = (k: string) =>
     setAbiertos((prev) => {
@@ -91,14 +94,14 @@ export function TablaStockModelos({
     <Table className="sin-cebra">
       <TableHeader>
         <TableRow>
-          <TableHead className="min-w-[13rem]">Modelo</TableHead>
-          <TableHead className="text-right" nota="todos los estados">Total</TableHead>
-          <TableHead className="text-right" nota="entregables hoy · con seña">Libres</TableHead>
-          <TableHead className="text-right" nota="compradas, sin llegar">En viaje</TableHead>
-          <TableHead className="text-right" nota="por mes, últimos 3">Ritmo</TableHead>
-          <TableHead className="text-right" nota="libres ÷ ritmo">Meses</TableHead>
-          <TableHead className="text-right" nota="lista US$, la más barata">Precio desde</TableHead>
-          <TableHead nota="por versión">Qué hacer</TableHead>
+          <TableHead className="min-w-[13rem]">{t("Modelo")}</TableHead>
+          <TableHead className="text-right" nota={t("todos los estados")}>{t("Total")}</TableHead>
+          <TableHead className="text-right" nota={t("entregables hoy · con seña")}>{t("Libres")}</TableHead>
+          <TableHead className="text-right" nota={t("compradas, sin llegar")}>{t("En viaje")}</TableHead>
+          <TableHead className="text-right" nota={t("por mes, últimos 3")}>{t("Ritmo")}</TableHead>
+          <TableHead className="text-right" nota={t("libres ÷ ritmo")}>{t("Meses")}</TableHead>
+          <TableHead className="text-right" nota={t("lista US$, la más barata")}>{t("Precio desde")}</TableHead>
+          <TableHead nota={t("por versión")}>{t("Qué hacer")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -117,7 +120,11 @@ export function TablaStockModelos({
                       type="button"
                       onClick={() => alternar(k)}
                       aria-expanded={abierto}
-                      aria-label={`${abierto ? "Cerrar" : "Ver"} las ${m.versiones.length} versiones de ${m.modelo}`}
+                      aria-label={
+                        abierto
+                          ? t("Cerrar las {n} versiones de {modelo}", { n: m.versiones.length, modelo: m.modelo })
+                          : t("Ver las {n} versiones de {modelo}", { n: m.versiones.length, modelo: m.modelo })
+                      }
                       className={cn(
                         "-ml-1 flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground",
                         FOCO
@@ -133,7 +140,7 @@ export function TablaStockModelos({
                     <span className="block font-medium">{m.modelo}</span>
                     <span className="block text-[11px] leading-tight text-muted-foreground">
                       {m.marca}
-                      {m.versiones.length > 1 ? ` · ${m.versiones.length} versiones` : unica ? ` · ${unica.version}` : ""}
+                      {m.versiones.length > 1 ? ` · ${t("{n} versiones", { n: m.versiones.length })}` : unica ? ` · ${unica.version}` : ""}
                     </span>
                   </span>
                 </div>
@@ -141,7 +148,7 @@ export function TablaStockModelos({
               <TableCell className="text-right tabular-nums font-semibold">{formatUnidades(m.total)}</TableCell>
               <TableCell className="text-right tabular-nums">
                 {n(m.libres)}
-                {m.reservadas > 0 && <Sub>{formatUnidades(m.reservadas)} con seña</Sub>}
+                {m.reservadas > 0 && <Sub>{t("{n} con seña", { n: formatUnidades(m.reservadas) })}</Sub>}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">{n(m.enViaje)}</TableCell>
               <TableCell className="text-right tabular-nums">{ritmoTxt(m.ritmo)}</TableCell>
@@ -151,14 +158,14 @@ export function TablaStockModelos({
               </TableCell>
               <TableCell className="text-xs font-medium">
                 {unica ? (
-                  <span className={TONO[unica.accion]}>{ETIQUETA[unica.accion]}</span>
+                  <span className={TONO[unica.accion]}>{t(ETIQUETA[unica.accion])}</span>
                 ) : pedir || empujar ? (
                   <span className="flex flex-wrap gap-x-2">
-                    {pedir > 0 && <span className={TONO.pedir}>Pedir {pedir}</span>}
-                    {empujar > 0 && <span className={TONO.empujar}>Empujar {empujar}</span>}
+                    {pedir > 0 && <span className={TONO.pedir}>{t("Pedir {n}", { n: pedir })}</span>}
+                    {empujar > 0 && <span className={TONO.empujar}>{t("Empujar {n}", { n: empujar })}</span>}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">Sin alertas</span>
+                  <span className="text-muted-foreground">{t("Sin alertas")}</span>
                 )}
               </TableCell>
             </TableRow>,
@@ -173,7 +180,7 @@ export function TablaStockModelos({
                   </TableCell>
                   <TableCell className="py-1.5 text-right tabular-nums text-[13px]">
                     {n(v.libres)}
-                    {v.reservadas > 0 && <Sub>{formatUnidades(v.reservadas)} con seña</Sub>}
+                    {v.reservadas > 0 && <Sub>{t("{n} con seña", { n: formatUnidades(v.reservadas) })}</Sub>}
                   </TableCell>
                   <TableCell className="py-1.5 text-right tabular-nums text-[13px] text-muted-foreground">{n(v.enViaje)}</TableCell>
                   <TableCell className="py-1.5 text-right tabular-nums text-[13px]">{ritmoTxt(v.ritmo)}</TableCell>
@@ -181,7 +188,7 @@ export function TablaStockModelos({
                   <TableCell className="py-1.5 text-right tabular-nums text-[13px] text-muted-foreground">
                     {v.precio ? formatUnidades(v.precio) : "—"}
                   </TableCell>
-                  <TableCell className={cn("py-1.5 text-xs font-medium", TONO[v.accion])}>{ETIQUETA[v.accion]}</TableCell>
+                  <TableCell className={cn("py-1.5 text-xs font-medium", TONO[v.accion])}>{t(ETIQUETA[v.accion])}</TableCell>
                 </FilaVersion>
               );
             }
@@ -190,7 +197,7 @@ export function TablaStockModelos({
         })}
         {otras && otras.marcas > 0 && (
           <TableRow className="text-muted-foreground">
-            <TableCell className="pl-[3.25rem] italic">Otras {otras.marcas} marcas (canje y usados)</TableCell>
+            <TableCell className="pl-[3.25rem] italic">{t("Otras {n} marcas (canje y usados)", { n: otras.marcas })}</TableCell>
             <TableCell className="text-right tabular-nums">{formatUnidades(otras.unidades)}</TableCell>
             <TableCell colSpan={6} />
           </TableRow>

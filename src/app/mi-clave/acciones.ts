@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { crearTokenUsuario, leerSesion, NOMBRE_COOKIE, opcionesCookie } from "@/lib/auth/sesion";
 import { esHttps, ipDe } from "@/lib/auth/freno";
 import { olvidarVigencia } from "@/lib/auth/vigencia";
+import { getI18n } from "@/lib/i18n/servidor";
 import {
   cambiarClave, getUsuario, problemaConLaClave, registrarEvento, verificarCredenciales,
 } from "@/lib/auth/usuarios";
@@ -29,20 +30,22 @@ export async function cambiarMiClave(
   _prev: EstadoMiClave | null,
   form: FormData
 ): Promise<EstadoMiClave> {
+  const { t } = await getI18n();
   const claveEntorno = process.env.ADVISOR_CLAVE;
   if (!claveEntorno) {
-    return { error: "El tablero no tiene claves configuradas." };
+    return { error: t("El tablero no tiene claves configuradas.") };
   }
 
   const store = await cookies();
   const sesion = leerSesion(store.get(NOMBRE_COOKIE)?.value, claveEntorno);
-  if (!sesion) return { error: "Sesión vencida. Volvé a entrar." };
+  if (!sesion) return { error: t("Sesión vencida. Volvé a entrar.") };
   if (sesion.tipo !== "usuario") {
     return {
-      error:
+      error: t(
         "Entraste con la clave general del equipo, que no es de nadie en " +
         "particular: esa se cambia en Coolify. Entrá con tu usuario para " +
-        "cambiar tu clave.",
+        "cambiar tu clave."
+      ),
     };
   }
 
@@ -50,16 +53,16 @@ export async function cambiarMiClave(
   const nueva = String(form.get("nueva") ?? "");
   const repetida = String(form.get("repetida") ?? "");
 
-  if (nueva !== repetida) return { error: "Las dos claves nuevas no coinciden." };
-  if (nueva === actual) return { error: "La clave nueva es igual a la actual." };
+  if (nueva !== repetida) return { error: t("Las dos claves nuevas no coinciden.") };
+  if (nueva === actual) return { error: t("La clave nueva es igual a la actual.") };
 
   const persona = await getUsuario(sesion.id);
-  if (!persona) return { error: "Tu usuario ya no existe." };
-  const problema = problemaConLaClave(nueva, persona.usuario);
+  if (!persona) return { error: t("Tu usuario ya no existe.") };
+  const problema = problemaConLaClave(nueva, persona.usuario, t);
   if (problema) return { error: problema };
 
   if (!(await verificarCredenciales(persona.usuario, actual))) {
-    return { error: "La clave actual no es correcta." };
+    return { error: t("La clave actual no es correcta.") };
   }
 
   // Cambiar la clave sube la versión de sesión (cierra las demás sesiones
@@ -76,7 +79,9 @@ export async function cambiarMiClave(
   );
   void registrarEvento("clave_cambiada", { correo: persona.usuario, usuarioId: persona.id, ip: ipDe(h) });
   return {
-    ok: "Listo, tu clave quedó cambiada. Esta sesión sigue abierta; " +
-      "las que tuvieras abiertas en otros dispositivos se cerraron.",
+    ok: t(
+      "Listo, tu clave quedó cambiada. Esta sesión sigue abierta; " +
+      "las que tuvieras abiertas en otros dispositivos se cerraron."
+    ),
   };
 }

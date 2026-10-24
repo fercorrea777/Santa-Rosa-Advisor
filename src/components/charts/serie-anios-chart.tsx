@@ -4,8 +4,7 @@ import { EchartsAuto } from "@/components/charts/echarts-auto";
 import {
   etiquetaValor, FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme,
 } from "@/lib/chart-theme";
-import { decimal, formatUnidades } from "@/lib/format";
-import { MESES_CORTOS } from "@/lib/periodo";
+import { useI18n } from "@/lib/i18n/cliente";
 
 export interface SerieAnio {
   /** Nombre de la serie. Normalmente el año, pero tambien se usa para
@@ -45,6 +44,8 @@ export function SerieAniosChart({
    *  ajusta solo a los datos de cada gráfico. */
   maximo?: number;
 }) {
+  const { t, fmt } = useI18n();
+  const { decimal, formatUnidades, mesesCortos } = fmt;
   const theme = useChartTheme();
 
   const option = {
@@ -88,9 +89,9 @@ export function SerieAniosChart({
               : a.seriesIndex - b.seriesIndex
           );
         }
-        const fmt = (v: number | null) =>
+        const valorTexto = (v: number | null) =>
           v === null || v === undefined
-            ? "Sin datos"
+            ? t("Sin datos")
             : series[0]?.unidad === "porcentaje"
               ? `${decimal(v, 1)}%`
               : formatUnidades(v);
@@ -100,7 +101,7 @@ export function SerieAniosChart({
             (p) =>
               `<div style="display:flex;align-items:center;justify-content:space-between;gap:18px;line-height:1.7">` +
               `<span style="display:flex;align-items:center;gap:6px">${p.marker}${p.seriesName}</span>` +
-              `<span style="font-variant-numeric:tabular-nums;font-weight:600">${fmt(p.value)}</span>` +
+              `<span style="font-variant-numeric:tabular-nums;font-weight:600">${valorTexto(p.value)}</span>` +
               `</div>`
           )
           .join("");
@@ -118,7 +119,7 @@ export function SerieAniosChart({
     },
     xAxis: {
       type: "category",
-      data: MESES_CORTOS,
+      data: mesesCortos,
       axisLine: { lineStyle: { color: theme.grid } },
       axisLabel: { color: theme.text, fontSize: 11 },
       // Línea guía punteada al pasar el mouse (referencia 2026-07): conecta

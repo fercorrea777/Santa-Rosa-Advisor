@@ -1,6 +1,7 @@
 "use client";
 
 import { useFiltroUrl } from "@/lib/filtro-url";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
  * ninguna cifra.
  */
 function ChipsAniosSerie({ anios }: { anios: number[] }) {
+  const { t } = useI18n();
   const { leer, setParams, pendiente } = useFiltroUrl();
 
   const anioActual = Number(leer("anio")) || anios[anios.length - 1];
@@ -29,7 +31,7 @@ function ChipsAniosSerie({ anios }: { anios: number[] }) {
     .filter((a) => anios.includes(a));
 
   return (
-    <div role="group" aria-label="Años en el gráfico" aria-busy={pendiente} className="flex flex-wrap items-center gap-1">
+    <div role="group" aria-label={t("Años en el gráfico")} aria-busy={pendiente} className="flex flex-wrap items-center gap-1">
       {anios.map((a) => {
         const puesto = puestos.includes(a);
         return (
@@ -66,10 +68,11 @@ function ChipsAniosSerie({ anios }: { anios: number[] }) {
 /** Los chips con su rótulo al lado, para ponerlos en el encabezado de una
  *  sección de gráficos. */
 export function SelectorAniosSerie({ anios }: { anios: number[] }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
       <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        Años en el gráfico
+        {t("Años en el gráfico")}
       </span>
       <ChipsAniosSerie anios={anios} />
     </div>

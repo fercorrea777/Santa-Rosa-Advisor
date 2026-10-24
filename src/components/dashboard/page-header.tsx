@@ -11,7 +11,7 @@ export function PageHeader({
     // Lenguaje bento: título grande en caja alta/baja (no versalitas de
     // instrumento), descripción al lado del peso, fuente como pill suave.
     <header className="flex flex-col gap-1.5 pb-1">
-      <h1 className="text-3xl font-extrabold tracking-tight text-balance">
+      <h1 className="text-3xl font-bold tracking-[-0.015em] text-balance">
         {titulo}
       </h1>
       {descripcion && (

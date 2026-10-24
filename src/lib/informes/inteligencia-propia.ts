@@ -1,7 +1,7 @@
 import type { Filtro } from "@/lib/cadam/mercado";
 import type { Item } from "@/lib/cadam/inteligencia";
-import { formatUnidades } from "@/lib/format";
-import { mesCorto } from "@/lib/periodo";
+import { BANDAS, etiquetaBandaI18n } from "@/lib/cadam/bandas";
+import type { I18n } from "@/lib/i18n/crear";
 import { hayDatosPropios } from "./propios";
 import {
   anioActual, coincideFamilia, resumenDemanda, resumenPauta, resumenPedido, resumenPresupuesto,
@@ -16,17 +16,10 @@ import {
  *
  * Cada fuente puede faltar (Cars caído, Bitrix sin push): se salta con una
  * advertencia, no se cae la lectura entera.
+ *
+ * IDIOMA: igual que inteligencia.ts, escribe frases enteras con `t()` y las
+ * cifras ya formateadas por `fmt`; el `i18n` lo trae quien llama (la página).
  */
-
-const u = (n: number) => formatUnidades(n);
-const coma = (n: number, d = 1) => n.toFixed(d).replace(".", ",");
-const pct = (v: number) => `${coma(100 * v)} %`;
-
-/** "2026-09" -> "Sep 2026". */
-function mesLargo(periodo: string | null | undefined): string {
-  if (!periodo) return "";
-  return `${mesCorto(Number(periodo.slice(5, 7)))} ${periodo.slice(0, 4)}`;
-}
 
 export interface LecturaPropia {
   items: Item[];
@@ -34,7 +27,32 @@ export interface LecturaPropia {
   advertencias: string[];
 }
 
-export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Promise<LecturaPropia> {
+export async function generarLecturaPropia(
+  f: Filtro,
+  periodoCadam: string,
+  i18n: I18n
+): Promise<LecturaPropia> {
+  const { t, fmt } = i18n;
+  const { formatUnidades: u, decimal, mesCorto } = fmt;
+  // Un porcentaje con espacio antes del % en castellano («12,1 %») y pegado en inglés («12.1%»).
+  const pctDe = (porCiento: number, d = 1) => t("{n} %", { n: decimal(porCiento, d) });
+  const pct = (v: number) => pctDe(100 * v);
+  // resumenRivales (tablero.ts) trae la banda como etiqueta en castellano («15.000 a 21.000»), que es lo que
+  // lee el Copiloto: se vuelve a su clave y se escribe en el idioma de la pantalla. Las clases se traducen
+  // con t(clase) (sus nombres son frases marcadas con N_ en clases.ts).
+  const banda = (etiqueta: string) => {
+    const b = BANDAS.find((x) => x.etiqueta === etiqueta);
+    return b ? etiquetaBandaI18n(b.clave, t, fmt) : etiqueta;
+  };
+  // «SIN MARCA» es la etiqueta que demanda-bitrix.ts le pone a los leads que no nombran ninguna marca:
+  // un rótulo del tablero, no un dato de CADAM, así que se escribe en el idioma de la pantalla.
+  const marcaDe = (marca: string) => (marca === "SIN MARCA" ? t("SIN MARCA") : marca);
+  /** "2026-09" -> "Sep 2026". */
+  const mesLargo = (periodo: string | null | undefined): string => {
+    if (!periodo) return "";
+    return `${mesCorto(Number(periodo.slice(5, 7)))} ${periodo.slice(0, 4)}`;
+  };
+
   const items: Item[] = [];
   const resumen: string[] = [];
   const advertencias: string[] = [];
@@ -45,7 +63,9 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
   try {
     if (await hayDatosPropios()) {
       const p = await resumenPedido();
-      const periodo = `Stock de hoy · ritmo ${mesLargo(p.mesesRitmo[0])}–${mesLargo(p.mesesRitmo[2])} (Cars)`;
+      const periodo = t("Stock de hoy · ritmo {desde}–{hasta} (Cars)", {
+        desde: mesLargo(p.mesesRitmo[0]), hasta: mesLargo(p.mesesRitmo[2]),
+      });
       const versiones = [...p.pedir, ...p.empujar];
       libresDe = (marca, familia) => {
         const xs = versiones.filter((v) => v.marca === marca && coincideFamilia(familia, v.modelo));
@@ -54,74 +74,100 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
       if (p.pedir.length) {
         items.push({
           tipo: "alerta",
-          titulo: `${p.pedir.length} ${p.pedir.length === 1 ? "versión se queda" : "versiones se quedan"} sin stock en menos de un mes y medio`,
-          motivo: "Se venden y lo que hay libre, contando lo que viene en viaje, no llega al mes y medio: hay que pedir ahora.",
-          evidencia: p.pedir.slice(0, 4).map((v) => `${v.version}: ${v.libres} libres, ${coma(v.ritmoMensual)}/mes`).join(" · "),
+          titulo: p.pedir.length === 1
+            ? t("{n} versión se queda sin stock en menos de un mes y medio", { n: p.pedir.length })
+            : t("{n} versiones se quedan sin stock en menos de un mes y medio", { n: p.pedir.length }),
+          motivo: t("Se venden y lo que hay libre, contando lo que viene en viaje, no llega al mes y medio: hay que pedir ahora."),
+          evidencia: p.pedir.slice(0, 4).map((v) =>
+            t("{version}: {libres} libres, {ritmo}/mes", { version: v.version, libres: v.libres, ritmo: decimal(v.ritmoMensual) })
+          ).join(" · "),
           prioridad: p.pedir.length >= 5 ? "alta" : "media",
-          impacto: "Pedido de stock",
+          impacto: t("Pedido de stock"),
           periodo,
         });
       }
       if (p.empujar.length) {
         items.push({
           tipo: "oportunidad",
-          titulo: `${p.empujar.length} ${p.empujar.length === 1 ? "versión tiene" : "versiones tienen"} más de seis meses de stock`,
-          motivo: "Plata parada: salen con promoción, con incentivo al asesor o se frena el próximo pedido.",
-          evidencia: p.empujar.slice(0, 4).map((v) => `${v.version}: ${v.libres} libres${v.mesesDeStock !== null ? `, ${coma(v.mesesDeStock)} meses` : ", sin ritmo"}`).join(" · "),
+          titulo: p.empujar.length === 1
+            ? t("{n} versión tiene más de seis meses de stock", { n: p.empujar.length })
+            : t("{n} versiones tienen más de seis meses de stock", { n: p.empujar.length }),
+          motivo: t("Plata parada: salen con promoción, con incentivo al asesor o se frena el próximo pedido."),
+          evidencia: p.empujar.slice(0, 4).map((v) =>
+            v.mesesDeStock !== null
+              ? t("{version}: {libres} libres, {meses} meses", { version: v.version, libres: v.libres, meses: decimal(v.mesesDeStock) })
+              : t("{version}: {libres} libres, sin ritmo", { version: v.version, libres: v.libres })
+          ).join(" · "),
           prioridad: p.empujar.length >= 10 ? "alta" : "media",
-          impacto: "Promoción / freno de pedido",
+          impacto: t("Promoción / freno de pedido"),
           periodo,
         });
       }
       if (p.asesoresParados.length) {
         items.push({
           tipo: "riesgo",
-          titulo: `${p.asesoresParados.length} ${p.asesoresParados.length === 1 ? "asesor retail dejó" : "asesores retail dejaron"} de facturar en ${mesLargo(p.ultimoMesCerrado)}`,
-          motivo: "Vendían 3 o más vehículos en los dos meses anteriores y en el último mes cerrado no facturaron ninguno.",
-          evidencia: p.asesoresParados.slice(0, 5).map((a) => `${a.asesor} (${a.vehiculosAntes} antes)`).join(" · "),
+          titulo: p.asesoresParados.length === 1
+            ? t("{n} asesor retail dejó de facturar en {mes}", { n: p.asesoresParados.length, mes: mesLargo(p.ultimoMesCerrado) })
+            : t("{n} asesores retail dejaron de facturar en {mes}", { n: p.asesoresParados.length, mes: mesLargo(p.ultimoMesCerrado) }),
+          motivo: t("Vendían 3 o más vehículos en los dos meses anteriores y en el último mes cerrado no facturaron ninguno."),
+          evidencia: p.asesoresParados.slice(0, 5).map((a) =>
+            t("{asesor} ({n} antes)", { asesor: a.asesor, n: a.vehiculosAntes })
+          ).join(" · "),
           prioridad: p.asesoresParados.length >= 3 ? "alta" : "media",
           periodo: `${mesLargo(p.mesesRitmo[0])}–${mesLargo(p.ultimoMesCerrado)} (Cars)`,
         });
       }
     } else {
-      advertencias.push("Cars todavía no cargó facturación ni stock: las lecturas de pedido de stock y asesores no se generan.");
+      advertencias.push(t("Cars todavía no cargó facturación ni stock: las lecturas de pedido de stock y asesores no se generan."));
     }
   } catch {
-    advertencias.push("Cars no respondió: las lecturas de pedido de stock y asesores no se generan en esta corrida.");
+    advertencias.push(t("Cars no respondió: las lecturas de pedido de stock y asesores no se generan en esta corrida."));
   }
 
   // ------------------------------------ presupuesto (Excel de Finanzas)
   try {
     const pr = await resumenPresupuesto(anio);
     if (pr) {
-      const periodo = `Plan ${pr.version} · facturado a ${mesCorto(pr.ultimoMesCerrado)} ${anio} (Cars)`;
+      const periodo = t("Plan {version} · facturado a {mes} {anio} (Cars)", {
+        version: pr.version, mes: mesCorto(pr.ultimoMesCerrado), anio,
+      });
       if (pr.hechoTotal !== null) {
         resumen.push(
-          `Presupuesto ${anio}: ${pct(pr.hechoTotal)} hecho a ${mesCorto(pr.ultimoMesCerrado)} ` +
-          `(${u(pr.facturadoYtd)} facturados; plan vigente ${u(pr.planTotal)}).`
+          t("Presupuesto {anio}: {hecho} hecho a {mes} ({facturado} facturados; plan vigente {plan}).", {
+            anio, hecho: pct(pr.hechoTotal), mes: mesCorto(pr.ultimoMesCerrado),
+            facturado: u(pr.facturadoYtd), plan: u(pr.planTotal),
+          })
         );
       }
       for (const c of pr.canales) {
         if (c.cumplimiento === null) continue;
         resumen.push(
-          `${c.canal === "CDE" ? "CDE" : "Wholesale"} ${anio}: ${u(c.realYtd)} vendidos contra ${u(c.objetivoYtd)} de objetivo ` +
-          `a ${mesCorto(c.realHastaMes ?? 0)} (${pct(c.cumplimiento)}), según Finanzas; objetivo del año ${u(c.objetivoAnual)}.`
+          t("{canal} {anio}: {real} vendidos contra {objetivo} de objetivo a {mes} ({cumplimiento}), según Finanzas; objetivo del año {anual}.", {
+            canal: c.canal === "CDE" ? "CDE" : "Wholesale", anio, real: u(c.realYtd), objetivo: u(c.objetivoYtd),
+            mes: mesCorto(c.realHastaMes ?? 0), cumplimiento: pct(c.cumplimiento), anual: u(c.objetivoAnual),
+          })
         );
       }
       if (pr.atrasados.length) {
         items.push({
           tipo: "riesgo",
-          titulo: `${pr.atrasados.length} ${pr.atrasados.length === 1 ? "marca va" : "marcas van"} por debajo del ritmo que pide el plan ${anio}`,
-          motivo: "El ritmo de los últimos tres meses cerrados no alcanza el que hace falta para llegar al plan del año en los meses que quedan.",
-          evidencia: pr.atrasados.slice(0, 4).map((a) => `${a.marcas.join(" + ")}: ${coma(a.ritmo)}/mes, pide ${coma(a.necesario)}`).join(" · "),
+          titulo: pr.atrasados.length === 1
+            ? t("{n} marca va por debajo del ritmo que pide el plan {anio}", { n: pr.atrasados.length, anio })
+            : t("{n} marcas van por debajo del ritmo que pide el plan {anio}", { n: pr.atrasados.length, anio }),
+          motivo: t("El ritmo de los últimos tres meses cerrados no alcanza el que hace falta para llegar al plan del año en los meses que quedan."),
+          evidencia: pr.atrasados.slice(0, 4).map((a) =>
+            t("{marcas}: {ritmo}/mes, pide {necesario}", {
+              marcas: a.marcas.join(" + "), ritmo: decimal(a.ritmo), necesario: decimal(a.necesario),
+            })
+          ).join(" · "),
           prioridad: pr.atrasados.some((a) => a.faltaPorMes >= 10) ? "alta" : "media",
-          impacto: "Plan comercial",
+          impacto: t("Plan comercial"),
           periodo,
         });
       }
     }
   } catch (e) {
-    advertencias.push(`Presupuesto: ${(e as Error).message}`);
+    advertencias.push(t("Presupuesto: {mensaje}", { mensaje: (e as Error).message }));
   }
 
   // ------------------------------------------------------ Bitrix: demanda
@@ -129,33 +175,54 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
     const d = await resumenDemanda(anio);
     if (d) {
       const periodo = `${mesLargo(d.desde)}–${mesLargo(d.hasta)} (Bitrix)`;
+      const demanda = {
+        leads: u(d.total.leads), abiertos: u(d.total.abiertos), convertidos: u(d.total.convertidos),
+        perdidos: u(d.total.perdidos), descartados: u(d.total.descartados),
+        motivo: d.total.motivos[0] ? d.total.motivos[0].motivo.toLowerCase() : "",
+        cantidad: d.total.motivos[0] ? u(d.total.motivos[0].cantidad) : "",
+      };
       resumen.push(
-        `Demanda en Bitrix: ${u(d.total.leads)} leads en el año, ${u(d.total.abiertos)} siguen abiertos, ` +
-        `${u(d.total.convertidos)} se convirtieron y ${u(d.total.perdidos)} se perdieron` +
-        (d.total.motivos[0] ? ` (el motivo más frecuente: ${d.total.motivos[0].motivo.toLowerCase()}, ${u(d.total.motivos[0].cantidad)})` : "") +
-        `; ${u(d.total.descartados)} eran spam, duplicados o incontactables.`
+        d.total.motivos[0]
+          ? t("Demanda en Bitrix: {leads} leads en el año, {abiertos} siguen abiertos, {convertidos} se convirtieron y {perdidos} se perdieron (el motivo más frecuente: {motivo}, {cantidad}); {descartados} eran spam, duplicados o incontactables.", demanda)
+          : t("Demanda en Bitrix: {leads} leads en el año, {abiertos} siguen abiertos, {convertidos} se convirtieron y {perdidos} se perdieron; {descartados} eran spam, duplicados o incontactables.", demanda)
       );
       // Demanda sin producto: muchos leads y casi nada facturado.
       for (const m of d.porMarca.filter((x) => x.leads >= 300 && x.facturado <= 5)) {
+        const mv = {
+          abiertos: u(m.abiertos), perdidos: u(m.perdidos),
+          motivo: m.motivos[0] ? m.motivos[0].motivo.toLowerCase() : "",
+          cantidad: m.motivos[0] ? u(m.motivos[0].cantidad) : "",
+        };
         items.push({
           tipo: "oportunidad",
-          titulo: `${m.marca}: ${u(m.leads)} leads y ${m.facturado} ${m.facturado === 1 ? "vehículo facturado" : "vehículos facturados"}`,
-          motivo: "Hay demanda registrada sin producto que entregar: es la marca con más leads por vehículo del año.",
-          evidencia: `${u(m.abiertos)} abiertos · ${u(m.perdidos)} perdidos` + (m.motivos[0] ? ` (${m.motivos[0].motivo.toLowerCase()} ${u(m.motivos[0].cantidad)})` : ""),
+          titulo: m.facturado === 1
+            ? t("{marca}: {leads} leads y {n} vehículo facturado", { marca: marcaDe(m.marca), leads: u(m.leads), n: m.facturado })
+            : t("{marca}: {leads} leads y {n} vehículos facturados", { marca: marcaDe(m.marca), leads: u(m.leads), n: m.facturado }),
+          motivo: t("Hay demanda registrada sin producto que entregar: es la marca con más leads por vehículo del año."),
+          evidencia: m.motivos[0]
+            ? t("{abiertos} abiertos · {perdidos} perdidos ({motivo} {cantidad})", mv)
+            : t("{abiertos} abiertos · {perdidos} perdidos", mv),
           prioridad: "alta",
-          impacto: "Producto / preventa",
+          impacto: t("Producto / preventa"),
           periodo,
         });
       }
       // Muchos leads por vehículo: se desaprovechan o son de baja calidad.
       for (const m of d.porMarca.filter((x) => x.facturado >= 30 && (x.leadsPorVehiculo ?? 0) >= 25)) {
+        const mv = {
+          leads: u(m.leads), facturados: u(m.facturado), abiertos: u(m.abiertos), perdidos: u(m.perdidos),
+          motivo: m.motivos[0] ? m.motivos[0].motivo.toLowerCase() : "",
+          cantidad: m.motivos[0] ? u(m.motivos[0].cantidad) : "",
+        };
         items.push({
           tipo: "riesgo",
-          titulo: `${m.marca}: ${coma(m.leadsPorVehiculo ?? 0)} leads por cada vehículo facturado`,
-          motivo: "Muy por encima del resto del grupo: o la demanda se desaprovecha en el seguimiento o los leads llegan de baja calidad.",
-          evidencia: `${u(m.leads)} leads, ${u(m.facturado)} facturados, ${u(m.abiertos)} abiertos, ${u(m.perdidos)} perdidos` + (m.motivos[0] ? ` · ${m.motivos[0].motivo.toLowerCase()} ${u(m.motivos[0].cantidad)}` : ""),
+          titulo: t("{marca}: {n} leads por cada vehículo facturado", { marca: marcaDe(m.marca), n: decimal(m.leadsPorVehiculo ?? 0) }),
+          motivo: t("Muy por encima del resto del grupo: o la demanda se desaprovecha en el seguimiento o los leads llegan de baja calidad."),
+          evidencia: m.motivos[0]
+            ? t("{leads} leads, {facturados} facturados, {abiertos} abiertos, {perdidos} perdidos · {motivo} {cantidad}", mv)
+            : t("{leads} leads, {facturados} facturados, {abiertos} abiertos, {perdidos} perdidos", mv),
           prioridad: "media",
-          impacto: "Seguimiento comercial",
+          impacto: t("Seguimiento comercial"),
           periodo,
         });
       }
@@ -164,15 +231,23 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
         const porStock = m.motivos.filter((x) => /stock/i.test(x.motivo)).reduce((s, x) => s + x.cantidad, 0);
         if (porStock < 3) continue;
         const libres = libresDe(m.marca, m.modelo);
+        const mv = {
+          demanda: u(m.leads + m.negocios), abiertos: u(m.abiertos + m.negociosAbiertos),
+          facturados: u(m.facturado), libres: libres ?? 0,
+        };
         items.push({
           tipo: "alerta",
-          titulo: `${m.marca} ${m.modelo}: ${porStock} ${porStock === 1 ? "lead perdido" : "leads perdidos"} por falta de stock`,
+          titulo: porStock === 1
+            ? t("{marca} {modelo}: {n} lead perdido por falta de stock", { marca: m.marca, modelo: m.modelo, n: porStock })
+            : t("{marca} {modelo}: {n} leads perdidos por falta de stock", { marca: m.marca, modelo: m.modelo, n: porStock }),
           motivo: libres === 0
-            ? "Y hoy no hay unidades libres: cada lead que entra se pierde igual."
-            : "El CRM registra la pérdida por stock; conviene cruzarlo con lo que hay libre hoy.",
-          evidencia: `${u(m.leads + m.negocios)} de demanda en el año, ${u(m.abiertos + m.negociosAbiertos)} abiertos, ${u(m.facturado)} facturados` + (libres !== null ? `, ${libres} libres hoy` : ""),
+            ? t("Y hoy no hay unidades libres: cada lead que entra se pierde igual.")
+            : t("El CRM registra la pérdida por stock; conviene cruzarlo con lo que hay libre hoy."),
+          evidencia: libres !== null
+            ? t("{demanda} de demanda en el año, {abiertos} abiertos, {facturados} facturados, {libres} libres hoy", mv)
+            : t("{demanda} de demanda en el año, {abiertos} abiertos, {facturados} facturados", mv),
           prioridad: libres === 0 ? "alta" : "media",
-          impacto: "Pedido de stock",
+          impacto: t("Pedido de stock"),
           periodo,
         });
       }
@@ -182,63 +257,84 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
         if (libres === null || libres < 5) continue;
         items.push({
           tipo: "oportunidad",
-          titulo: `${m.marca} ${m.modelo}: ${u(m.abiertos + m.negociosAbiertos)} contactos abiertos y ${libres} unidades libres`,
-          motivo: "Demanda registrada y stock para entregar: es el modelo para empujar con el equipo esta semana.",
-          evidencia: `${u(m.leads + m.negocios)} de demanda en el año, ${u(m.facturado)} facturados`,
+          titulo: t("{marca} {modelo}: {abiertos} contactos abiertos y {libres} unidades libres", {
+            marca: m.marca, modelo: m.modelo, abiertos: u(m.abiertos + m.negociosAbiertos), libres,
+          }),
+          motivo: t("Demanda registrada y stock para entregar: es el modelo para empujar con el equipo esta semana."),
+          evidencia: t("{demanda} de demanda en el año, {facturados} facturados", {
+            demanda: u(m.leads + m.negocios), facturados: u(m.facturado),
+          }),
           prioridad: "media",
-          impacto: "Seguimiento comercial",
+          impacto: t("Seguimiento comercial"),
           periodo,
         });
       }
     } else {
-      advertencias.push("Bitrix todavía no cargó leads ni negocios: las lecturas de demanda no se generan.");
+      advertencias.push(t("Bitrix todavía no cargó leads ni negocios: las lecturas de demanda no se generan."));
     }
   } catch {
-    advertencias.push("No se pudo leer la demanda de Bitrix en esta corrida.");
+    advertencias.push(t("No se pudo leer la demanda de Bitrix en esta corrida."));
   }
 
   // ------------------------------------------------------------ Meta: pauta
   try {
     const p = await resumenPauta(anio);
     if (p) {
-      const periodo = `${mesLargo(p.desde)}–${mesLargo(p.hasta)} (Meta y Cars)`;
+      const periodo = t("{desde}–{hasta} (Meta y Cars)", { desde: mesLargo(p.desde), hasta: mesLargo(p.hasta) });
       if (p.pautaPorVehiculoUsd !== null) {
         resumen.push(
-          `Pauta en Meta: US$ ${u(p.totalGastoUsd)} en el año, US$ ${u(p.pautaPorVehiculoUsd)} por cada vehículo facturado.`
+          t("Pauta en Meta: US$ {total} en el año, US$ {porVehiculo} por cada vehículo facturado.", {
+            total: u(p.totalGastoUsd), porVehiculo: u(p.pautaPorVehiculoUsd),
+          })
         );
       }
       for (const m of p.marcas.filter((x) => x.gastoUsd >= 3000 && (x.pautaPorVehiculoUsd ?? 0) >= 500)) {
+        const mv = {
+          gasto: u(m.gastoUsd), facturados: u(m.facturado), leads: u(m.leads),
+          costo: m.costoPorLeadUsd !== null ? decimal(m.costoPorLeadUsd) : "",
+        };
         items.push({
           tipo: "alerta",
-          titulo: `${m.marca}: US$ ${u(m.pautaPorVehiculoUsd ?? 0)} de pauta por cada vehículo facturado`,
-          motivo: "Muy por encima del promedio del grupo: la pauta no se está convirtiendo en ventas, o la marca vende poco por otro motivo.",
-          evidencia: `US$ ${u(m.gastoUsd)} de pauta, ${u(m.facturado)} facturados, ${u(m.leads)} leads` + (m.costoPorLeadUsd !== null ? ` (US$ ${coma(m.costoPorLeadUsd)} por lead)` : ""),
+          titulo: t("{marca}: US$ {porVehiculo} de pauta por cada vehículo facturado", {
+            marca: m.marca, porVehiculo: u(m.pautaPorVehiculoUsd ?? 0),
+          }),
+          motivo: t("Muy por encima del promedio del grupo: la pauta no se está convirtiendo en ventas, o la marca vende poco por otro motivo."),
+          evidencia: m.costoPorLeadUsd !== null
+            ? t("US$ {gasto} de pauta, {facturados} facturados, {leads} leads (US$ {costo} por lead)", mv)
+            : t("US$ {gasto} de pauta, {facturados} facturados, {leads} leads", mv),
           prioridad: "media",
-          impacto: "Pauta",
+          impacto: t("Pauta"),
           periodo,
         });
       }
     }
   } catch {
-    advertencias.push("No se pudo leer la pauta de Meta en esta corrida.");
+    advertencias.push(t("No se pudo leer la pauta de Meta en esta corrida."));
   }
 
   // ------------------------------------ CADAM + clases: huecos y precio
   try {
     const r = await resumenRivales(f);
-    const periodo = `${periodoCadam} (CADAM y precios de lista)`;
+    const periodo = t("{periodo} (CADAM y precios de lista)", { periodo: periodoCadam });
     // Huecos: casilleros grandes del mercado donde casi no estamos.
     const huecos = r.mapa
       .filter((c) => c.banda !== "sin precio" && c.mercado >= 1000 && c.parteNuestraPct < 2)
       .sort((a, b) => b.mercado - a.mercado);
     for (const c of huecos.slice(0, 4)) {
+      const hueco = { clase: t(c.clase), banda: banda(c.banda), n: u(c.mercado) };
       items.push({
         tipo: "oportunidad",
-        titulo: `Hueco en ${c.clase} de US$ ${c.banda}: ${u(c.mercado)} unidades y ${c.parteNuestraPct === 0 ? "ninguna" : `${coma(c.parteNuestraPct)} %`} nuestra`,
-        motivo: "El mercado compra ahí en volumen y no tenemos oferta, o la tenemos a otro precio.",
-        evidencia: `${u(c.mercado)} u. en el casillero, ${u(c.nuestras)} nuestras`,
+        titulo: c.parteNuestraPct === 0
+          ? t("Hueco en {clase} de US$ {banda}: {n} unidades y ninguna nuestra", hueco)
+          : t("Hueco en {clase} de US$ {banda}: {n} unidades y {parte} nuestra", {
+              ...hueco, parte: pctDe(c.parteNuestraPct),
+            }),
+        motivo: t("El mercado compra ahí en volumen y no tenemos oferta, o la tenemos a otro precio."),
+        evidencia: t("{mercado} u. en el casillero, {nuestras} nuestras", {
+          mercado: u(c.mercado), nuestras: u(c.nuestras),
+        }),
         prioridad: c.mercado >= 3000 ? "alta" : "media",
-        impacto: "Producto / precio",
+        impacto: t("Producto / precio"),
         periodo,
       });
     }
@@ -246,9 +342,9 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
     for (const c of r.clases.filter((x) => x.mercado >= 300 && x.nuestras / x.mercado >= 0.2)) {
       items.push({
         tipo: "hallazgo",
-        titulo: `${c.clase}: ${pct(c.nuestras / c.mercado)} de la clase es nuestro`,
-        motivo: "Es una clase donde el grupo pesa: cuidar stock y precio ahí rinde más que en cualquier otra.",
-        evidencia: `${u(c.nuestras)} de ${u(c.mercado)} unidades`,
+        titulo: t("{clase}: {parte} de la clase es nuestro", { clase: t(c.clase), parte: pct(c.nuestras / c.mercado) }),
+        motivo: t("Es una clase donde el grupo pesa: cuidar stock y precio ahí rinde más que en cualquier otra."),
+        evidencia: t("{nuestras} de {mercado} unidades", { nuestras: u(c.nuestras), mercado: u(c.mercado) }),
         prioridad: "baja",
         periodo,
       });
@@ -259,28 +355,39 @@ export async function generarLecturaPropia(f: Filtro, periodoCadam: string): Pro
       if (m.diferenciaContraClasePct >= 10) {
         items.push({
           tipo: "riesgo",
-          titulo: `${m.modelo} está ${coma(m.diferenciaContraClasePct, 0)} % por encima de la mediana de su clase`,
-          motivo: `Compite en ${m.clase} y la mitad de sus rivales cuesta menos: el precio es un argumento en contra.`,
-          evidencia: `US$ ${u(m.precioUsd)} contra mediana US$ ${u(m.medianaClaseUsd ?? 0)} · ${u(m.unidades)} u., ${coma(m.parteDeLaClase ?? 0)} % de la clase`,
+          titulo: t("{modelo} está {diferencia} por encima de la mediana de su clase", {
+            modelo: m.modelo, diferencia: pctDe(m.diferenciaContraClasePct, 0),
+          }),
+          motivo: t("Compite en {clase} y la mitad de sus rivales cuesta menos: el precio es un argumento en contra.", { clase: t(m.clase) }),
+          evidencia: t("US$ {precio} contra mediana US$ {mediana} · {unidades} u., {parte} de la clase", {
+            precio: u(m.precioUsd), mediana: u(m.medianaClaseUsd ?? 0), unidades: u(m.unidades),
+            parte: pctDe(m.parteDeLaClase ?? 0),
+          }),
           prioridad: m.unidades >= 50 ? "media" : "baja",
-          impacto: "Precio",
+          impacto: t("Precio"),
           periodo,
         });
       } else if (m.diferenciaContraClasePct <= -15 && (m.parteDeLaClase ?? 0) < 3) {
         items.push({
           tipo: "hallazgo",
-          titulo: `${m.modelo} está ${coma(-m.diferenciaContraClasePct, 0)} % por debajo de su clase y tiene ${coma(m.parteDeLaClase ?? 0)} % de ella`,
-          motivo: "El precio no es la barrera: lo que falta es presencia, pauta o argumento de producto.",
-          evidencia: `US$ ${u(m.precioUsd)} contra mediana US$ ${u(m.medianaClaseUsd ?? 0)} · ${u(m.unidades)} de ${u(m.unidadesClase)} u. de la clase`,
+          titulo: t("{modelo} está {diferencia} por debajo de su clase y tiene {parte} de ella", {
+            modelo: m.modelo, diferencia: pctDe(-m.diferenciaContraClasePct, 0),
+            parte: pctDe(m.parteDeLaClase ?? 0),
+          }),
+          motivo: t("El precio no es la barrera: lo que falta es presencia, pauta o argumento de producto."),
+          evidencia: t("US$ {precio} contra mediana US$ {mediana} · {unidades} de {unidadesClase} u. de la clase", {
+            precio: u(m.precioUsd), mediana: u(m.medianaClaseUsd ?? 0), unidades: u(m.unidades),
+            unidadesClase: u(m.unidadesClase),
+          }),
           prioridad: m.unidades >= 50 ? "media" : "baja",
-          impacto: "Comercial",
+          impacto: t("Comercial"),
           periodo,
         });
       }
     }
-    if (!r.carsDisponible) advertencias.push("Cars no respondió: el precio de nuestros modelos no entra en la lectura por clase.");
+    if (!r.carsDisponible) advertencias.push(t("Cars no respondió: el precio de nuestros modelos no entra en la lectura por clase."));
   } catch {
-    advertencias.push("No se pudo armar la lectura por clase de vehículo en esta corrida.");
+    advertencias.push(t("No se pudo armar la lectura por clase de vehículo en esta corrida."));
   }
 
   return { items, resumen, advertencias };

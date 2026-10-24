@@ -1,3 +1,5 @@
+import { N_ } from "@/lib/i18n/traducir";
+
 /** Id del ícono de línea propio (ver src/components/icons.tsx). */
 export type IconoNav =
   | "inicio" | "mercado" | "evolucion" | "rankings" | "segmentos"
@@ -47,24 +49,24 @@ export const NAV_GROUPS: NavGroup[] = [
     // diez que mezclaba el mercado con el producto. Ahora el mercado va
     // junto (del resumen al detalle) y lo de producto y precio, aparte. Los
     // ítems no cambiaron de orden.
-    titulo: "Mercado",
+    titulo: N_("Mercado"),
     items: [
-      { href: "/mercado", label: "Resumen del mercado", icono: "mercado", implementado: true , pista: "Cómo viene el mercado entero: unidades, segmentos, tecnologías y quién gana o pierde participación." },
-      { href: "/evolucion", label: "Evolución mensual", icono: "evolucion", implementado: true , pista: "El mercado mes a mes, un año contra otro. Para ver la estacionalidad y proyectar el cierre." },
-      { href: "/rankings", label: "Rankings", icono: "rankings", implementado: true , pista: "Marcas y modelos ordenados por unidades, en matriculación y en importación." },
-      { href: "/segmentos", label: "Segmentos", icono: "segmentos", implementado: true , pista: "Qué tipo de vehículo compra el paraguayo y cuánto de cada segmento es nuestro." },
-      { href: "/combustibles", label: "Combustibles y tecnologías", icono: "combustibles", implementado: true , pista: "Nafta, diésel, híbrido o eléctrico: qué se vende y para dónde se está moviendo." },
-      { href: "/localidades", label: "Localidades", icono: "localidades", implementado: true , pista: "En qué ciudades se pone la chapa. Dice dónde hay mercado sin local nuestro." },
-      { href: "/market-share", label: "Market Share", icono: "market-share", implementado: true , pista: "Nuestra parte del mercado y la de cada competidor, contra el año pasado." },
-      { href: "/brecha", label: "Import. vs matric.", icono: "brecha", implementado: true , pista: "Lo que entró al país y todavía no sacó chapa: stock que ya está acá y aún no se vendió." },
+      { href: "/mercado", label: N_("Resumen del mercado"), icono: "mercado", implementado: true , pista: N_("Cómo viene el mercado entero: unidades, segmentos, tecnologías y quién gana o pierde participación.") },
+      { href: "/evolucion", label: N_("Evolución mensual"), icono: "evolucion", implementado: true , pista: N_("El mercado mes a mes, un año contra otro. Para ver la estacionalidad y proyectar el cierre.") },
+      { href: "/rankings", label: N_("Rankings"), icono: "rankings", implementado: true , pista: N_("Marcas y modelos ordenados por unidades, en matriculación y en importación.") },
+      { href: "/segmentos", label: N_("Segmentos"), icono: "segmentos", implementado: true , pista: N_("Qué tipo de vehículo compra el paraguayo y cuánto de cada segmento es nuestro.") },
+      { href: "/combustibles", label: N_("Combustibles y tecnologías"), icono: "combustibles", implementado: true , pista: N_("Nafta, diésel, híbrido o eléctrico: qué se vende y para dónde se está moviendo.") },
+      { href: "/localidades", label: N_("Localidades"), icono: "localidades", implementado: true , pista: N_("En qué ciudades se pone la chapa. Dice dónde hay mercado sin local nuestro.") },
+      { href: "/market-share", label: N_("Market Share"), icono: "market-share", implementado: true , pista: N_("Nuestra parte del mercado y la de cada competidor, contra el año pasado.") },
+      { href: "/brecha", label: N_("Import. vs matric."), icono: "brecha", implementado: true , pista: N_("Lo que entró al país y todavía no sacó chapa: stock que ya está acá y aún no se vendió.") },
     ],
   },
   {
-    titulo: "Producto y precio",
+    titulo: N_("Producto y precio"),
     items: [
-      { href: "/bubble-chart", label: "Bubble chart", icono: "bubble", implementado: true , pista: "El cuadro de producto: cada modelo contra sus rivales, por precio y por volumen." },
-      { href: "/mapa", label: "Dónde competir", icono: "market-share", implementado: true , pista: "Contra quién compite cada modelo nuestro y si estamos caros o baratos frente a ellos." },
-      { href: "/portafolio", label: "Portafolio por marca", icono: "portafolio", implementado: true , pista: "La gama de cualquier marca, modelo por modelo: precio de lista, cuánto vende cada uno y qué hueco deja." },
+      { href: "/bubble-chart", label: N_("Bubble chart"), icono: "bubble", implementado: true , pista: N_("El cuadro de producto: cada modelo contra sus rivales, por precio y por volumen.") },
+      { href: "/mapa", label: N_("Dónde competir"), icono: "market-share", implementado: true , pista: N_("Contra quién compite cada modelo nuestro y si estamos caros o baratos frente a ellos.") },
+      { href: "/portafolio", label: N_("Portafolio por marca"), icono: "portafolio", implementado: true , pista: N_("La gama de cualquier marca, modelo por modelo: precio de lista, cuánto vende cada uno y qué hueco deja.") },
     ],
   },
   {
@@ -73,31 +75,31 @@ export const NAV_GROUPS: NavGroup[] = [
     // comerciales, CBD, Carflow y la gama propia vinculada a todo eso).
     // Gama propia y Nuestra operación se mudaron acá desde Análisis: son
     // datos de la casa, no del mercado.
-    titulo: "Santa Rosa",
+    titulo: N_("Santa Rosa"),
     items: [
-      { href: "/acciones-comerciales", label: "Acciones comerciales", icono: "acciones", implementado: true , pista: "La planilla del mes de Fernando: descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión, cruzada con lo que importa, matricula y factura cada familia." },
-      { href: "/gama-propia", label: "Gama propia", icono: "gama", implementado: true , pista: "Nuestros modelos, su precio, cuánto vende cada uno y qué acción comercial tiene este mes. Tocá una burbuja para ver sus rivales." },
+      { href: "/acciones-comerciales", label: N_("Acciones comerciales"), icono: "acciones", implementado: true , pista: N_("La planilla del mes de Fernando: descuento máximo, precio con descuento, bono al vendedor y mecánica de cada versión, cruzada con lo que importa, matricula y factura cada familia.") },
+      { href: "/gama-propia", label: N_("Gama propia"), icono: "gama", implementado: true , pista: N_("Nuestros modelos, su precio, cuánto vende cada uno y qué acción comercial tiene este mes. Tocá una burbuja para ver sus rivales.") },
       // Márgenes en todas las columnas: solo admin (mismo criterio que el
       // costo en Acciones comerciales).
-      { href: "/rentabilidad", label: "Rentabilidad", icono: "rentabilidad", implementado: true, soloAdmin: true , pista: "Precio y margen de cada versión según la planilla, contra lo que facturamos: qué vende, a qué ticket y qué deja. En cuatro cuadrantes." },
-      { href: "/operacion", label: "Nuestra operación", icono: "operacion", implementado: true , pista: "Lo nuestro: qué facturamos, qué stock hay, cómo vamos contra el presupuesto y quién vende." },
-      { href: "/cbd", label: "CBD", icono: "cbd", implementado: false , pista: "Cost break down: de FOB a costo puesto en playa, versión por versión. Falta el archivo de cada marca." },
-      { href: "/carflow", label: "Carflow", icono: "carflow", implementado: false , pista: "El flujo de unidades: pedido, embarque, tránsito, aduana y playa. Falta definir la fuente." },
+      { href: "/rentabilidad", label: N_("Rentabilidad"), icono: "rentabilidad", implementado: true, soloAdmin: true , pista: N_("Precio y margen de cada versión según la planilla, contra lo que facturamos: qué vende, a qué ticket y qué deja. En cuatro cuadrantes.") },
+      { href: "/operacion", label: N_("Nuestra operación"), icono: "operacion", implementado: true , pista: N_("Lo nuestro: qué facturamos, qué stock hay, cómo vamos contra el presupuesto y quién vende.") },
+      { href: "/cbd", label: N_("CBD"), icono: "cbd", implementado: false , pista: N_("Cost break down: de FOB a costo puesto en playa, versión por versión. Falta el archivo de cada marca.") },
+      { href: "/carflow", label: N_("Carflow"), icono: "carflow", implementado: false , pista: N_("El flujo de unidades: pedido, embarque, tránsito, aduana y playa. Falta definir la fuente.") },
     ],
   },
   {
-    titulo: "Inteligencia",
+    titulo: N_("Inteligencia"),
     items: [
-      { href: "/inteligencia", label: "Centro de Inteligencia", icono: "inteligencia", implementado: true , pista: "La lectura del período escrita, más lo que se sabe de la competencia." },
-      { href: "/copiloto", label: "Copiloto", icono: "copiloto", implementado: true , pista: "Preguntale a los datos en castellano; contesta citando de dónde sacó cada cifra." },
+      { href: "/inteligencia", label: N_("Centro de Inteligencia"), icono: "inteligencia", implementado: true , pista: N_("La lectura del período escrita, más lo que se sabe de la competencia.") },
+      { href: "/copiloto", label: N_("Copiloto"), icono: "copiloto", implementado: true , pista: N_("Preguntale a los datos en castellano; contesta citando de dónde sacó cada cifra.") },
     ],
   },
   {
-    titulo: "Datos",
+    titulo: N_("Datos"),
     items: [
-      { href: "/cargas", label: "Estado de los datos", icono: "cargas", implementado: true , pista: "Hasta qué fecha llega cada fuente y quién la trae. Se mira cuando un número parece viejo." },
-      { href: "/calidad-datos", label: "Calidad de datos", icono: "calidad", implementado: true , pista: "Los controles que corrieron al cargar los archivos y qué no cerró." },
-      { href: "/configuracion", label: "Configuración", icono: "configuracion", implementado: true, soloAdmin: true , pista: "Marcas propias, metas y competidores." },
+      { href: "/cargas", label: N_("Estado de los datos"), icono: "cargas", implementado: true , pista: N_("Hasta qué fecha llega cada fuente y quién la trae. Se mira cuando un número parece viejo.") },
+      { href: "/calidad-datos", label: N_("Calidad de datos"), icono: "calidad", implementado: true , pista: N_("Los controles que corrieron al cargar los archivos y qué no cerró.") },
+      { href: "/configuracion", label: N_("Configuración"), icono: "configuracion", implementado: true, soloAdmin: true , pista: N_("Marcas propias, metas y competidores.") },
     ],
   },
 ];
@@ -110,6 +112,7 @@ export const NAV_GROUPS: NavGroup[] = [
  * NAV_GROUPS para no ensuciar la definición del menú; el buscador ya no
  * distingue tildes ni mayúsculas.
  */
+// i18n-ignore-start (palabras clave de búsqueda en castellano: no se traducen, se les suma ALIAS_NAV_EN)
 export const ALIAS_NAV: Record<string, string> = {
   "/mercado": "resumen mercado inicio home panorama",
   "/evolucion": "mensual estacionalidad proyeccion cierre meses",
@@ -133,6 +136,37 @@ export const ALIAS_NAV: Record<string, string> = {
   "/cargas": "fuentes fechas actualizacion cadam cars estado",
   "/calidad-datos": "controles errores avisos validacion",
   "/configuracion": "metas marcas competidores usuarios admin",
+};
+// i18n-ignore-end
+
+/**
+ * Lo mismo en inglés: con el idioma en inglés el buscador (Ctrl K) busca en las
+ * dos listas, porque quien escribe «brecha» en una pantalla en inglés también
+ * tiene que encontrar «Imports vs. registrations».
+ */
+export const ALIAS_NAV_EN: Record<string, string> = {
+  "/mercado": "market overview home summary dashboard",
+  "/evolucion": "monthly trend seasonality projection close months",
+  "/rankings": "brands models ranking top positions",
+  "/segmentos": "suv pick up pickup car truck van bus vehicle type",
+  "/combustibles": "gasoline petrol diesel hybrid electric powertrain engine fuel technology",
+  "/localidades": "cities departments asuncion capital interior where locations",
+  "/market-share": "share participation quota percentage",
+  "/brecha": "gap imports registrations stock in transit difference",
+  "/bubble-chart": "bubbles product map price volume",
+  "/mapa": "map rivals competitors competition where to compete expensive cheap",
+  "/portafolio": "range brand models portfolio versions",
+  "/acciones-comerciales": "promotions discounts bonus mechanics sheet fernando commercial actions",
+  "/gama-propia": "our models own range prices",
+  "/rentabilidad": "margin ticket price profit profitability",
+  "/operacion": "invoicing billing stock budget salespeople advisors sales operation",
+  "/cbd": "costs fob landed cost yard",
+  "/carflow": "flow shipment customs transit order",
+  "/inteligencia": "report reading alerts opportunities center intelligence",
+  "/copiloto": "chat questions assistant ai help copilot",
+  "/cargas": "sources dates update cadam cars status data",
+  "/calidad-datos": "checks errors warnings validation quality",
+  "/configuracion": "targets goals brands competitors users admin settings",
 };
 
 /** El menú que le toca a un rol. Los grupos que quedan sin items desaparecen

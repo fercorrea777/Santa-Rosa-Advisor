@@ -7,6 +7,7 @@ import { salir } from "@/app/entrar/acciones";
 import { Avatar } from "@/components/perfil/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { IconSalir } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/cliente";
 
 const BOTON_SALIR =
   "grid size-9 shrink-0 place-items-center rounded-lg text-white/65 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--barra-foreground)]/60 pointer-coarse:size-11";
@@ -31,6 +32,7 @@ export function TarjetaPerfil({
   colapsado?: boolean;
   onNavigate?: () => void;
 }) {
+  const { t } = useI18n();
   if (colapsado) {
     return (
       <div className="flex flex-col items-center gap-1 px-2 pt-3">
@@ -40,7 +42,7 @@ export function TarjetaPerfil({
               <Link
                 href="/mi-cuenta"
                 onClick={onNavigate}
-                aria-label={`Mi cuenta, ${perfil.nombre}`}
+                aria-label={t("Mi cuenta, {nombre}", { nombre: t(perfil.nombre) })}
                 className="grid size-10 place-items-center rounded-xl outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[var(--barra-foreground)]/60"
               />
             }
@@ -49,19 +51,19 @@ export function TarjetaPerfil({
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={10}>
             <span className="flex flex-col">
-              <strong className="font-semibold">{perfil.nombre}</strong>
-              <span className="opacity-70">{perfil.rolEtiqueta} · Mi cuenta</span>
+              <strong className="font-semibold">{t(perfil.nombre)}</strong>
+              <span className="opacity-70">{t(perfil.rolEtiqueta)} · {t("Mi cuenta")}</span>
             </span>
           </TooltipContent>
         </Tooltip>
         <form action={salir}>
           <Tooltip>
             <TooltipTrigger
-              render={<button type="submit" aria-label="Cerrar sesión" className={BOTON_SALIR} />}
+              render={<button type="submit" aria-label={t("Cerrar sesión")} className={BOTON_SALIR} />}
             >
               <IconSalir size={17} />
             </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={10}>Cerrar sesión</TooltipContent>
+            <TooltipContent side="right" sideOffset={10}>{t("Cerrar sesión")}</TooltipContent>
           </Tooltip>
         </form>
       </div>
@@ -73,20 +75,20 @@ export function TarjetaPerfil({
       <Link
         href="/mi-cuenta"
         onClick={onNavigate}
-        title="Mi cuenta"
+        title={t("Mi cuenta")}
         className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1.5 py-1 outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[var(--barra-foreground)]/60 pointer-coarse:min-h-11"
       >
         <Avatar nombre={perfil.nombre} fotoUrl={perfil.fotoUrl} tamano="md" sobre="navy" />
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-[13px] font-semibold text-white">{perfil.nombre}</span>
+          <span className="block truncate text-[13px] font-semibold text-white">{t(perfil.nombre)}</span>
           <span className="block truncate text-[11px] text-[var(--barra-muted)]">
-            {perfil.rolEtiqueta}
-            {perfil.emergencia && " · emergencia"}
+            {t(perfil.rolEtiqueta)}
+            {perfil.emergencia && ` · ${t("emergencia")}`}
           </span>
         </span>
       </Link>
       <form action={salir}>
-        <button type="submit" aria-label="Cerrar sesión" title="Cerrar sesión" className={cn(BOTON_SALIR)}>
+        <button type="submit" aria-label={t("Cerrar sesión")} title={t("Cerrar sesión")} className={cn(BOTON_SALIR)}>
           <IconSalir size={17} />
         </button>
       </form>

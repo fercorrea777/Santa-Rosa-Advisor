@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import { N_ } from "@/lib/i18n/traducir";
+import type { I18n } from "@/lib/i18n/crear";
 
 /**
  * Correos del tablero: el enlace para poner clave (olvido, invitación,
@@ -53,7 +55,7 @@ function escapar(s: string): string {
 
 async function enviar(para: string, asunto: string, texto: string, html: string): Promise<void> {
   const c = configCorreo();
-  if (!c) throw new Error("SMTP sin configurar (SMTP_HOST, SMTP_USER, SMTP_PASS).");
+  if (!c) throw new Error("SMTP sin configurar (SMTP_HOST, SMTP_USER, SMTP_PASS)."); // i18n-ignore (error técnico que se registra, no texto de pantalla)
   const transporte = nodemailer.createTransport({
     host: c.host,
     port: c.port,
@@ -68,16 +70,21 @@ async function enviar(para: string, asunto: string, texto: string, html: string)
 
 export type TipoEnlace = "olvido" | "invitacion" | "reset_admin";
 
+// N_: el asunto se traduce al armar cada correo, en el idioma de quien lo pidió.
 const TITULOS: Record<TipoEnlace, string> = {
-  olvido: "Restablecer tu clave del Advisor",
-  invitacion: "Tu acceso al Advisor de Santa Rosa",
-  reset_admin: "Tu clave del Advisor fue restablecida",
+  olvido: N_("Restablecer tu clave del Advisor"),
+  invitacion: N_("Tu acceso al Advisor de Santa Rosa"),
+  reset_admin: N_("Tu clave del Advisor fue restablecida"),
 };
 
 /**
  * El correo con el enlace para poner clave. El texto cambia según el motivo
  * (la persona pidió, la invitaron, un admin le reseteó), el enlace es el
  * mismo mecanismo. Nunca lleva la clave: la elige la persona.
+ *
+ * `i18n` es el idioma de quien pidió el correo (o del admin que lo manda): el
+ * asunto y el cuerpo salen en ese idioma. Se pasa por parámetro y no se lee
+ * acá porque el correo puede armarse en `after()`, ya sin el pedido.
  */
 export async function enviarEnlaceClave(datos: {
   para: string;
@@ -86,51 +93,55 @@ export async function enviarEnlaceClave(datos: {
   tipo: TipoEnlace;
   minutosValido: number;
   porQuien?: string;
+  i18n: I18n;
 }): Promise<void> {
+  const { t } = datos.i18n;
   const enlace = `${urlApp()}/restablecer?token=${encodeURIComponent(datos.token)}`;
   const validez =
     datos.minutosValido >= 60 * 24
-      ? `${Math.round(datos.minutosValido / (60 * 24))} días`
-      : `${datos.minutosValido} minutos`;
+      ? t("{n} días", { n: Math.round(datos.minutosValido / (60 * 24)) })
+      : t("{n} minutos", { n: datos.minutosValido });
   const nombre = datos.nombre.trim() || datos.para;
 
   const intro: Record<TipoEnlace, string> = {
     olvido:
-      "Alguien pidió restablecer la clave de tu cuenta del Advisor (el tablero de mercado de Santa Rosa). Si fuiste vos, entrá al enlace y elegí una clave nueva. Si no fuiste vos, ignorá este correo: tu clave sigue igual.",
-    invitacion:
-      `${datos.porQuien ? `${datos.porQuien} te dio` : "Te dieron"} acceso al Advisor, el tablero de inteligencia comercial de Santa Rosa. Para entrar, elegí tu clave desde este enlace. Tu usuario es tu correo.`,
-    reset_admin:
-      `${datos.porQuien ? `${datos.porQuien} restableció` : "Se restableció"} la clave de tu cuenta del Advisor. Elegí una clave nueva desde este enlace; la anterior ya no sirve.`,
+      t("Alguien pidió restablecer la clave de tu cuenta del Advisor (el tablero de mercado de Santa Rosa). Si fuiste vos, entrá al enlace y elegí una clave nueva. Si no fuiste vos, ignorá este correo: tu clave sigue igual."),
+    invitacion: datos.porQuien
+      ? t("{quien} te dio acceso al Advisor, el tablero de inteligencia comercial de Santa Rosa. Para entrar, elegí tu clave desde este enlace. Tu usuario es tu correo.", { quien: datos.porQuien })
+      : t("Te dieron acceso al Advisor, el tablero de inteligencia comercial de Santa Rosa. Para entrar, elegí tu clave desde este enlace. Tu usuario es tu correo."),
+    reset_admin: datos.porQuien
+      ? t("{quien} restableció la clave de tu cuenta del Advisor. Elegí una clave nueva desde este enlace; la anterior ya no sirve.", { quien: datos.porQuien })
+      : t("Se restableció la clave de tu cuenta del Advisor. Elegí una clave nueva desde este enlace; la anterior ya no sirve."),
   };
 
   const texto = [
-    `Hola ${nombre},`,
+    t("Hola {nombre},", { nombre }),
     "",
     intro[datos.tipo],
     "",
     enlace,
     "",
-    `El enlace vale ${validez} y se puede usar una sola vez.`,
+    t("El enlace vale {validez} y se puede usar una sola vez.", { validez }),
     "",
-    "El Advisor incluye precios, stock e inteligencia de la competencia: no compartas tu clave ni este enlace.",
+    t("El Advisor incluye precios, stock e inteligencia de la competencia: no compartas tu clave ni este enlace."),
     "",
-    "— Santa Rosa · Innovación",
+    t("— Santa Rosa · Innovación"),
   ].join("\n");
 
   const html = `
 <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#1f2430">
   <p style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6b7280;margin:0 0 16px">Santa Rosa · Advisor</p>
-  <p style="font-size:16px;margin:0 0 12px">Hola ${escapar(nombre)},</p>
+  <p style="font-size:16px;margin:0 0 12px">${escapar(t("Hola {nombre},", { nombre }))}</p>
   <p style="font-size:15px;line-height:1.5;margin:0 0 20px">${escapar(intro[datos.tipo])}</p>
   <p style="margin:0 0 20px">
     <a href="${escapar(enlace)}" style="display:inline-block;background:#1b2559;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">
-      ${datos.tipo === "invitacion" ? "Elegir mi clave" : "Poner una clave nueva"}
+      ${datos.tipo === "invitacion" ? t("Elegir mi clave") : t("Poner una clave nueva")}
     </a>
   </p>
-  <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:0 0 8px">Si el botón no abre, copiá este enlace en el navegador:<br><span style="word-break:break-all">${escapar(enlace)}</span></p>
-  <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:0 0 8px">El enlace vale ${validez} y se puede usar una sola vez.</p>
-  <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:16px 0 0">El Advisor incluye precios, stock e inteligencia de la competencia: no compartas tu clave ni este enlace.</p>
+  <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:0 0 8px">${t("Si el botón no abre, copiá este enlace en el navegador:")}<br><span style="word-break:break-all">${escapar(enlace)}</span></p>
+  <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:0 0 8px">${t("El enlace vale {validez} y se puede usar una sola vez.", { validez })}</p>
+  <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:16px 0 0">${t("El Advisor incluye precios, stock e inteligencia de la competencia: no compartas tu clave ni este enlace.")}</p>
 </div>`;
 
-  await enviar(datos.para, TITULOS[datos.tipo], texto, html);
+  await enviar(datos.para, t(TITULOS[datos.tipo]), texto, html);
 }

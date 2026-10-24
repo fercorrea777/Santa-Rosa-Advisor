@@ -3,8 +3,10 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useHasMounted } from "@/lib/use-has-mounted";
 import { cn } from "@/lib/utils";
-import { ALIAS_NAV, navPara } from "@/lib/nav";
+import { ALIAS_NAV, ALIAS_NAV_EN, navPara } from "@/lib/nav";
+import { useI18n } from "@/lib/i18n/cliente";
 import { salir } from "@/app/entrar/acciones";
 import { ICONOS } from "@/components/layout/iconos-nav";
 import { IconBuscar, IconLuna, IconSalir, IconSol, IconCamara } from "@/components/icons";
@@ -55,6 +57,7 @@ export function PaletaComandos({
   /** Hay sesión de persona: se ofrecen «Mi cuenta» y «Cerrar sesión». */
   conCuenta: boolean;
 }) {
+  const { t, idioma } = useI18n();
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const dialogo = React.useRef<HTMLDialogElement>(null);
@@ -63,7 +66,10 @@ export function PaletaComandos({
   const [consulta, setConsulta] = React.useState("");
   const [activa, setActiva] = React.useState(0);
   const idLista = React.useId();
-  const esOscuro = resolvedTheme === "dark";
+  // Con el tema oscuro guardado, el cliente lo sabe en el primer cuadro y el servidor no: sin esperar a
+  // montar, el ícono del servidor (luna) y el del cliente (sol) no coinciden y React rehace todo el árbol.
+  const montado = useHasMounted();
+  const esOscuro = montado && resolvedTheme === "dark";
 
   const entradas = React.useMemo<Entrada[]>(() => {
     const pantallas: Entrada[] = navPara(esAdmin).flatMap((g) =>
@@ -71,10 +77,11 @@ export function PaletaComandos({
         const Icono = ICONOS[i.icono];
         return {
           id: i.href,
-          etiqueta: i.label,
-          grupo: g.titulo,
-          pista: i.pista,
-          alias: ALIAS_NAV[i.href],
+          etiqueta: t(i.label),
+          grupo: t(g.titulo),
+          pista: i.pista ? t(i.pista) : undefined,
+          // En inglés se busca en las dos listas: quien escribe «brecha» también la encuentra.
+          alias: idioma === "en" ? `${ALIAS_NAV_EN[i.href] ?? ""} ${ALIAS_NAV[i.href] ?? ""}` : ALIAS_NAV[i.href],
           icono: <Icono size={16} />,
           href: i.href,
         };
@@ -83,24 +90,24 @@ export function PaletaComandos({
     const cuenta: Entrada[] = [
       ...(conCuenta
         ? [{
-            id: "mi-cuenta", etiqueta: "Mi cuenta", grupo: "Cuenta",
-            pista: "Tu foto, tus datos y tu clave.", icono: <IconCamara size={16} />, href: "/mi-cuenta",
+            id: "mi-cuenta", etiqueta: t("Mi cuenta"), grupo: t("Cuenta"),
+            pista: t("Tu foto, tus datos y tu clave."), icono: <IconCamara size={16} />, href: "/mi-cuenta",
           }]
         : []),
       {
-        id: "tema", etiqueta: esOscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro", grupo: "Cuenta",
-        pista: "El oscuro está pensado para la sala de reuniones.",
+        id: "tema", etiqueta: esOscuro ? t("Cambiar a modo claro") : t("Cambiar a modo oscuro"), grupo: t("Cuenta"),
+        pista: t("El oscuro está pensado para la sala de reuniones."),
         icono: esOscuro ? <IconSol size={16} /> : <IconLuna size={16} />, accion: "tema" as const,
       },
       ...(conCuenta
         ? [{
-            id: "salir", etiqueta: "Cerrar sesión", grupo: "Cuenta",
-            pista: "Salir de este equipo.", icono: <IconSalir size={16} />, accion: "salir" as const,
+            id: "salir", etiqueta: t("Cerrar sesión"), grupo: t("Cuenta"),
+            pista: t("Salir de este equipo."), icono: <IconSalir size={16} />, accion: "salir" as const,
           }]
         : []),
     ];
     return [...pantallas, ...cuenta];
-  }, [esAdmin, conCuenta, esOscuro]);
+  }, [esAdmin, conCuenta, esOscuro, t, idioma]);
 
   const resultados = React.useMemo(() => {
     const fichas = sinTildes(consulta).split(/\s+/).filter(Boolean);
@@ -183,7 +190,7 @@ export function PaletaComandos({
   return (
     <dialog
       ref={dialogo}
-      aria-label="Buscar pantalla"
+      aria-label={t("Buscar pantalla")}
       onClose={onCerrar}
       // Un clic en el telón (el propio <dialog>, fuera de la caja) cierra.
       onClick={(e) => {
@@ -201,13 +208,13 @@ export function PaletaComandos({
           aria-controls={idLista}
           aria-activedescendant={resultados.length ? `${idLista}-${Math.min(activa, resultados.length - 1)}` : undefined}
           aria-autocomplete="list"
-          aria-label="Buscar una pantalla o una acción"
+          aria-label={t("Buscar una pantalla o una acción")}
           type="text"
           autoComplete="off"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          placeholder="Buscar una pantalla o una acción…"
+          placeholder={t("Buscar una pantalla o una acción…")}
           value={consulta}
           onChange={(e) => {
             setConsulta(e.target.value);
@@ -217,6 +224,7 @@ export function PaletaComandos({
           className="h-14 min-w-0 flex-1 bg-transparent text-[0.95rem] outline-none placeholder:text-muted-foreground"
         />
         <kbd className="hidden rounded-md border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:block">
+          {/* i18n-ignore (nombre de la tecla) */}
           esc
         </kbd>
       </div>
@@ -224,7 +232,7 @@ export function PaletaComandos({
       <ul
         id={idLista}
         role="listbox"
-        aria-label="Resultados"
+        aria-label={t("Resultados")}
         className="max-h-[min(26rem,60vh)] overflow-y-auto overscroll-contain p-2"
       >
         {resultados.map((e, i) => {
@@ -275,18 +283,18 @@ export function PaletaComandos({
 
       {resultados.length === 0 && (
         <p role="status" className="px-4 pb-6 pt-4 text-center text-sm text-muted-foreground">
-          Nada coincide con «{consulta.trim()}». Probá con otra palabra: «brecha», «precios», «copiloto».
+          {t("Nada coincide con «{consulta}». Probá con otra palabra: «brecha», «precios», «copiloto».", { consulta: consulta.trim() })}
         </p>
       )}
       {/* Anuncia cuántos resultados hay sin mover el foco. */}
       <p className="sr-only" role="status" aria-live="polite">
-        {resultados.length === 0 ? "Sin resultados" : `${resultados.length} resultados`}
+        {resultados.length === 0 ? t("Sin resultados") : t("{n} resultados", { n: resultados.length })}
       </p>
 
       <div className="hidden items-center gap-4 border-t border-border bg-muted/40 px-4 py-2 text-[11px] text-muted-foreground sm:flex">
-        <span><kbd className="font-mono">↑↓</kbd> moverse</span>
-        <span><kbd className="font-mono">↵</kbd> abrir</span>
-        <span><kbd className="font-mono">esc</kbd> cerrar</span>
+        <span><kbd className="font-mono">↑↓</kbd> {t("moverse")}</span>
+        <span><kbd className="font-mono">↵</kbd> {t("abrir")}</span>
+        <span><kbd className="font-mono">{/* i18n-ignore (nombre de la tecla) */}esc</kbd> {t("cerrar")}</span>
       </div>
     </dialog>
   );

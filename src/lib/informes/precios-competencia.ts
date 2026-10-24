@@ -1,3 +1,4 @@
+/* i18n-ignore-file — acceso a datos (SQL y cruces de nombres): ningún texto de pantalla. */
 import { getPool } from "./db";
 
 /**

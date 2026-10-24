@@ -12,6 +12,7 @@ import {
   DOMINIO_CORREO, listarAuditoria, listarUsuarios, type EventoAuditoria, type Usuario,
 } from "@/lib/auth/usuarios";
 import { hayCorreo } from "@/lib/auth/correo";
+import { getI18n } from "@/lib/i18n/servidor";
 import { getVentasPropias } from "@/lib/informes/propios";
 import { EditorConfiguracion } from "./editor";
 import { PanelUsuarios } from "./usuarios";
@@ -21,6 +22,7 @@ import { PanelUsuarios } from "./usuarios";
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
+  const { t, tr } = await getI18n();
   const parametros = getParametros();
   const info = getPeriodoInfo();
   const anioMetas = Number(hoyEnAsuncion().slice(0, 4));
@@ -50,22 +52,27 @@ export default async function ConfiguracionPage() {
     usuarios = await listarUsuarios();
     auditoria = await listarAuditoria(60);
   } catch (e) {
-    errorUsuarios =
-      `No se pudo leer la lista de usuarios: ${(e as Error).message}. ` +
-      `Mientras tanto se entra con la clave general.`;
+    errorUsuarios = t(
+      "No se pudo leer la lista de usuarios: {motivo}. Mientras tanto se entra con la clave general.",
+      { motivo: (e as Error).message }
+    );
   }
 
   return (
     <Pagina>
       <PageHeader
-        titulo="Configuración"
-        descripcion="Quién entra, qué metas se persiguen y qué catálogo usa el tablero. Metas y competidores se guardan en parametros.json, el mismo archivo que la app ya leía."
-        fuente={info ? `Último informe CADAM: ${info.periodo} · ${info.anioActual} (ene–mes ${info.mesMax}) vs. ${info.anioAnterior}.` : "Sin informes ingestados."}
+        titulo={t("Configuración")}
+        descripcion={t("Quién entra, qué metas se persiguen y qué catálogo usa el tablero. Metas y competidores se guardan en parametros.json, el mismo archivo que la app ya leía.")}
+        fuente={info
+          ? t("Último informe CADAM: {periodo} · {anio} (ene–mes {mes}) vs. {anterior}.", {
+              periodo: info.periodo, anio: info.anioActual, mes: info.mesMax, anterior: info.anioAnterior,
+            })
+          : t("Sin informes ingestados.")}
       />
 
       <Seccion
-        titulo="Acceso"
-        nota="Cada persona entra con su correo de la empresa. Los administradores manejan usuarios y ven costos y márgenes; los lectores ven el tablero."
+        titulo={t("Acceso")}
+        nota={t("Cada persona entra con su correo de la empresa. Los administradores manejan usuarios y ven costos y márgenes; los lectores ven el tablero.")}
       >
         <PanelUsuarios
           usuarios={usuarios}
@@ -77,8 +84,8 @@ export default async function ConfiguracionPage() {
       </Seccion>
 
       <Seccion
-        titulo="Metas"
-        nota="Contra esto se mide el tablero: el share y el ranking objetivo en el Centro de Inteligencia, y las unidades por marca y mes en Nuestra operación."
+        titulo={t("Metas")}
+        nota={t("Contra esto se mide el tablero: el share y el ranking objetivo en el Centro de Inteligencia, y las unidades por marca y mes en Nuestra operación.")}
       >
         <EditorConfiguracion
           anio={anioMetas}
@@ -109,16 +116,14 @@ export default async function ConfiguracionPage() {
       </Seccion>
 
       <Seccion
-        titulo="Catálogo"
-        nota="Lo que el tablero da por sabido: qué marcas son nuestras y qué caja lleva cada familia."
+        titulo={t("Catálogo")}
+        nota={t("Lo que el tablero da por sabido: qué marcas son nuestras y qué caja lleva cada familia.")}
       >
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Marcas propias</CardTitle>
+            <CardTitle className="text-base">{t("Marcas propias")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Las marcas que la casa distribuye y con qué grupo las presupuesta
-              Finanzas. De esta lista sale qué filas van resaltadas en todo el
-              tablero y qué se cuenta como «nuestro».
+              {t("Las marcas que la casa distribuye y con qué grupo las presupuesta Finanzas. De esta lista sale qué filas van resaltadas en todo el tablero y qué se cuenta como «nuestro».")}
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -136,10 +141,7 @@ export default async function ConfiguracionPage() {
               ))}
             </ul>
             <NotaDato>
-              Las <strong>marcas propias no se editan desde acá</strong>, a propósito:
-              son el numerador del share en todo el tablero y el vínculo con los
-              nombres exactos de CADAM. Un cambio distraído acá serían cifras mal
-              calculadas en doce pantallas — se tocan en el archivo, a conciencia.
+              {tr("Las <b>marcas propias no se editan desde acá</b>, a propósito: son el numerador del share en todo el tablero y el vínculo con los nombres exactos de CADAM. Un cambio distraído acá serían cifras mal calculadas en doce pantallas — se tocan en el archivo, a conciencia.")}
             </NotaDato>
           </CardContent>
         </Card>

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Marca } from "@/components/dashboard/logo-marca";
-import { KpiCard } from "@/components/dashboard/kpi-card";
 import { NotaDato, PageHeader } from "@/components/dashboard/page-header";
 import { Pagina } from "@/components/movimiento/pagina";
 import { FiltroPeriodo } from "@/components/dashboard/filtro-periodo";
@@ -12,13 +11,17 @@ import { SelectorFuente } from "@/components/dashboard/selector-fuente";
 import { SelectorAniosSerie } from "@/components/dashboard/selector-anios-serie";
 import { Seccion } from "@/components/dashboard/seccion";
 import { AccionesSemana } from "@/components/dashboard/acciones-semana";
+import { Panorama, type DatosPanorama } from "@/components/bento/panorama";
 import {
   acotarAFuente, conPuestoDeMercado, getCobertura, getKpi, getOpcionesFiltro, getPorDimension,
-  getRankingMarcas, getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
+  getRankingGrupos, getRankingMarcas, getRankingModelos, getRankingVersiones, getSerieMensual, type Fuente,
 } from "@/lib/cadam/mercado";
-import { getParametros } from "@/lib/cadam/config";
-import { aniosDeSerie, etiquetaPeriodo, filtroDesdeUrl, mesCorto, type SearchParams, etiquetaCortes } from "@/lib/periodo";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { getMarcasPropiasSet, getParametros } from "@/lib/cadam/config";
+import {
+  armarTreemap, estacionalidad, marcasPropias, participacionPropiaMensual, serieDeAnio,
+} from "@/lib/cadam/panorama";
+import { aniosDeSerie, filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
 import { serieAAnios, techoComun } from "@/lib/serie";
 
 export default async function MercadoPage({
@@ -27,6 +30,8 @@ export default async function MercadoPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt } = await getI18n();
+  const { formatUnidades, etiquetaPeriodo, mesCorto, etiquetaCortes } = fmt;
   const cobertura = getCobertura();
   // Fuente activa: manda sobre los cortes por dimension, el ranking y
   // TAMBIEN sobre hasta que mes se puede pedir. La importacion suele ir un
@@ -34,7 +39,7 @@ export default async function MercadoPage({
   // el detalle), y topar todo con la matriculacion escondia ese mes.
   const fuente: Fuente = sp.fuente === "importacion" ? "importacion" : "matriculacion";
   const esImportacion = fuente === "importacion";
-  const etiquetaFuente = esImportacion ? "importaciones" : "matriculaciones";
+  const etiquetaFuente = esImportacion ? t("importaciones") : t("matriculaciones");
   const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
 
@@ -90,9 +95,9 @@ export default async function MercadoPage({
 
   const notaVar =
     ((esImportacion ? import_ : matric).baseDisponible
-      ? `Variación contra ${periodo.replace(String(f.anio), String(f.anio - 1))}.`
-      : `Sin datos de ${f.anio - 1} para comparar.`) +
-    (f.segmento ? "" : " Incluye livianos y pesados: filtrá por segmento para separarlos.");
+      ? t("Variación contra {periodo}.", { periodo: periodoPrevio })
+      : t("Sin datos de {anio} para comparar.", { anio: f.anio - 1 })) +
+    (f.segmento ? "" : ` ${t("Incluye livianos y pesados: filtrá por segmento para separarlos.")}`);
 
   // Ganadores y perdedores por variacion absoluta de unidades: es lo que
   // mueve el mercado. El % solo puede ser enorme sobre bases minimas.
@@ -151,12 +156,78 @@ export default async function MercadoPage({
   const diferenciaPosible = !importComun.sinDatos && !matricComun.sinDatos;
   const diferencia = importComun.valor - matricComun.valor;
 
+  // ------- Panorama (el bento de arriba): lo que cada tarjeta necesita, con los
+  // mismos filtros que el resto de la pantalla.
+  const propiasSet = getMarcasPropiasSet();
+  const fFuente = esImportacion ? fImp : fMat;
+  const mesUltimo = fFuente.mesHasta;
+  const aniosBento = [f.anio - 1, f.anio];
+  const puntosMat = getSerieMensual("matriculacion", aniosBento, cortes);
+  const puntosImp = getSerieMensual("importacion", aniosBento, cortes);
+  const puntosFuente = esImportacion ? puntosImp : puntosMat;
+  const marcasUltimoMes = getRankingMarcas(fuente, { ...f, mesDesde: mesUltimo, mesHasta: mesUltimo });
+  const treemap = armarTreemap([marcas, marcasPrevias, marcasUltimoMes]);
+  const serieUlt = serieDeAnio(puntosFuente, f.anio)[mesUltimo - 1];
+  const serieUltPrev = serieDeAnio(puntosFuente, f.anio - 1)[mesUltimo - 1];
+  const variacionUltimoMes = serieUlt !== null && serieUltPrev !== null && serieUltPrev > 0 ? serieUlt / serieUltPrev - 1 : null;
+  const participacionMensual = participacionPropiaMensual(fuente, aniosBento, cortes, propiasSet);
+  const gruposDelPeriodo = getRankingGrupos(fuente, fFuente);
+  const filaGrupoPropio = gruposDelPeriodo.find((g) => g.esPropio);
+  const aniosEstacionales = [f.anio - 2, f.anio - 1, f.anio].filter((a) => cobertura.matriculacion.anios.includes(a));
+  const estacional = estacionalidad(getSerieMensual("matriculacion", aniosEstacionales, cortes), aniosEstacionales);
+  const panorama: DatosPanorama = {
+    matriculaciones: {
+      anio: f.anio, mesDesde: fMat.mesDesde, mesHasta: fMat.mesHasta, recorta: matricRecorta, sinDatos: matric.sinDatos,
+      valor: matric.valor, variacion: matric.sinDatos ? null : matric.variacion, baseValor: matric.baseValor,
+      actual: serieDeAnio(puntosMat, f.anio), previa: serieDeAnio(puntosMat, f.anio - 1),
+      nota: t("Unidades matriculadas en el período. Comparación contra {periodo}: {n} u.", {
+        periodo: periodoMat.replace(String(f.anio), String(f.anio - 1)), n: formatUnidades(matric.baseValor),
+      }) + (matricRecorta ? ` ${t("CADAM todavía no publicó la matriculación de {meses}: la importación de ese mes ya está, la matriculación no.", { meses: mesesSinPublicar(fMat.mesHasta + 1, f.mesHasta) })}` : ""),
+    },
+    importaciones: {
+      anio: f.anio, mesDesde: fImp.mesDesde, mesHasta: fImp.mesHasta, recorta: importRecorta, sinDatos: import_.sinDatos,
+      valor: import_.valor, variacion: import_.sinDatos ? null : import_.variacion, baseValor: import_.baseValor,
+      impActual: serieDeAnio(puntosImp, f.anio), impPrevia: serieDeAnio(puntosImp, f.anio - 1),
+      matActual: serieDeAnio(puntosMat, f.anio), matPrevia: serieDeAnio(puntosMat, f.anio - 1),
+      diferencia: diferenciaPosible
+        ? { valor: diferencia, sobraImportacion: diferencia >= 0, periodo: comunRecorta ? periodoComun : null }
+        : null,
+      nota: t("Unidades importadas de vehículos livianos, una por una, según CADAM. No incluye camiones: se reportan aparte. Comparación contra {periodo}: {n} u.", {
+        periodo: periodoImp.replace(String(f.anio), String(f.anio - 1)), n: formatUnidades(import_.baseValor),
+      }) + (importRecorta ? ` ${t("CADAM todavía no publicó la importación de {meses}: la matriculación de ese mes ya está, la importación no.", { meses: mesesSinPublicar(fImp.mesHasta + 1, f.mesHasta) })}` : ""),
+      notaDiferencia: t("Señal orientativa, NO stock real: hay desfasajes temporales, unidades importadas en períodos anteriores, reexportaciones y registros tardíos."),
+    },
+    treemap: {
+      items: treemap.items, totales: treemap.totales, anio: f.anio, mesDesde: fFuente.mesDesde, mesHasta: fFuente.mesHasta,
+      mesUltimo, variacionPeriodo: (esImportacion ? import_ : matric).sinDatos ? null : (esImportacion ? import_ : matric).variacion,
+      variacionUltimoMes, fuente,
+    },
+    participacion: {
+      anio: f.anio, mesDesde: fFuente.mesDesde, mesHasta: fFuente.mesHasta, participacion: participacionPropias,
+      cambioPp: cambioParticipacion, unidadesPropias: propiasU, unidadesMercado: totalU,
+      mensual: participacionMensual[f.anio] ?? Array(12).fill(null),
+      mensualPrevia: participacionMensual[f.anio - 1] ?? Array(12).fill(null),
+      grupo: filaGrupoPropio
+        ? { puesto: filaGrupoPropio.posicion, de: gruposDelPeriodo.length, puestoAntes: filaGrupoPropio.posicionAnterior }
+        : null,
+      nota: t("{marcas}, sobre el total de {fuente} del período filtrado.", { marcas: nombresPropias, fuente: etiquetaFuente }),
+      fuente,
+    },
+    marcas: {
+      marcas: marcasPropias(marcas),
+      totalConVentas: marcas.filter((m) => m.esPropia && m.unidades > 0).length,
+      fuente,
+      periodoPrevio: periodoPrevio,
+    },
+    estacionalidad: estacional.length ? { anios: estacional } : null,
+  };
+
   return (
     <Pagina>
       <PageHeader
-        titulo="Resumen del mercado"
-        descripcion={`Analizando ${etiquetaFuente} · ${periodo} vs. mismo período ${f.anio - 1}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Resumen del mercado")}
+        descripcion={t("Analizando {fuente} · {periodo} vs. mismo período {previo}.", { fuente: etiquetaFuente, periodo, previo: f.anio - 1 })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       {/* El sticky va acá y no en FiltroPeriodo (de ahí el pegajoso={false}):
@@ -181,13 +252,13 @@ export default async function MercadoPage({
             anios={cobertura[fuente].anios}
             mesMaximoPorAnio={mesMax}
             opciones={[
-              { param: "marca", label: "Marca", valores: opciones.marcas },
-              { param: "segmento", label: "Segmento", valores: opciones.segmentos },
+              { param: "marca", label: t("Marca"), valores: opciones.marcas },
+              { param: "segmento", label: t("Segmento"), valores: opciones.segmentos },
               ...(esImportacion
                 ? []
                 : [{
                     param: "tecnologia",
-                    label: "Tecnología",
+                    label: t("Tecnología"),
                     valores: ["ICE", "MHEV", "HEV", "PHEV", "REEV", "EV"],
                   }]),
             ]}
@@ -195,74 +266,34 @@ export default async function MercadoPage({
         </div>
       </div>
 
-      {/* 5 columnas en lg (era 4): con la tarjeta de marcas propias, un
-          grid de 4 dejaba la quinta sola en una segunda fila. */}
       {/* Lo primero después del filtro: qué hacer esta semana. Las cifras
           del mercado vienen después; el gerente entra a decidir, no a mirar. */}
       <AccionesSemana f={f} periodo={periodo} />
 
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <KpiCard
-          label={matricRecorta ? `Matriculaciones (hasta ${mesCorto(fMat.mesHasta)})` : "Matriculaciones"}
-          value={matric.sinDatos ? "—" : formatUnidades(matric.valor)}
-          variacion={matric.sinDatos ? undefined : matric.variacion}
-          periodo={matric.sinDatos ? `${periodoMat} · todavía sin publicar` : periodoMat}
-          tooltip={`Unidades matriculadas en el período. Comparación contra ${periodoMat.replace(String(f.anio), String(f.anio - 1))}: ${formatUnidades(matric.baseValor)} u.${matricRecorta ? ` CADAM todavía no publicó la matriculación de ${mesesSinPublicar(fMat.mesHasta + 1, f.mesHasta)}: la importación de ese mes ya está, la matriculación no.` : ""}`}
-        />
-        <KpiCard
-          label={importRecorta ? `Importaciones (hasta ${mesCorto(fImp.mesHasta)})` : "Importaciones"}
-          value={import_.sinDatos ? "—" : formatUnidades(import_.valor)}
-          variacion={import_.sinDatos ? undefined : import_.variacion}
-          periodo={import_.sinDatos ? `${periodoImp} · todavía sin publicar` : periodoImp}
-          tooltip={`Unidades importadas de vehículos livianos, una por una, según CADAM. No incluye camiones: se reportan aparte. Comparación contra ${periodoImp.replace(String(f.anio), String(f.anio - 1))}: ${formatUnidades(import_.baseValor)} u.${importRecorta ? ` CADAM todavía no publicó la importación de ${mesesSinPublicar(fImp.mesHasta + 1, f.mesHasta)}: la matriculación de ese mes ya está, la importación no.` : ""}`}
-        />
-        <KpiCard
-          label="Diferencia import. − matric."
-          value={diferenciaPosible ? formatUnidades(Math.abs(diferencia)) : "—"}
-          periodo={
-            diferenciaPosible
-              ? `${diferencia >= 0 ? "importación por encima" : "matriculación por encima"}${comunRecorta ? ` · ${periodoComun}` : ""}`
-              : "las dos fuentes no tienen este período"
-          }
-          tooltip="Señal orientativa, NO stock real: hay desfasajes temporales, unidades importadas en períodos anteriores, reexportaciones y registros tardíos."
-        />
-        <KpiCard
-          label={`Marca líder — ${etiquetaFuente}`}
-          value={marcas[0]?.marca ?? "—"}
-          periodo={marcas[0] ? `${formatUnidades(marcas[0].unidades)} u. · ${formatPct(marcas[0].participacion)}` : undefined}
-          tooltip={`Marca con más ${etiquetaFuente} en el período filtrado.`}
-        />
-        <KpiCard
-          label="Participación marcas propias"
-          value={participacionPropias === null ? "—" : formatPct(participacionPropias)}
-          variacionPp={cambioParticipacion}
-          periodo={participacionPropias === null ? undefined : `${formatUnidades(propiasU)} u.`}
-          tooltip={`${nombresPropias}, sobre el total de ${etiquetaFuente} del período filtrado.`}
-        />
-      </section>
+      {/* El Panorama reemplaza a la fila de cinco indicadores: las mismas cifras
+          (matriculaciones, importaciones, diferencia, participación propia, quién
+          lidera) con su historia al lado. Ver components/bento/. */}
+      <Panorama datos={panorama} />
 
-      <Seccion titulo="Evolución del mercado"
-        nota="Cómo se mueve el mercado mes a mes, en chapas puestas y en unidades que entraron al país. Los dos gráficos comparten escala."
+      <Seccion titulo={t("Evolución del mercado")}
+        nota={t("Cómo se mueve el mercado mes a mes, en chapas puestas y en unidades que entraron al país. Los dos gráficos comparten escala.")}
         accion={<SelectorAniosSerie anios={cobertura[fuente].anios} />}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Evolución mensual — matriculaciones</CardTitle>
+            <CardTitle>{t("Evolución mensual — matriculaciones")}</CardTitle>
             {/* lg:min-h-8 (dos renglones) en los dos subtítulos: con uno de
                 una línea y otro de dos, los gráficos arrancaban a alturas
                 distintas y la escala compartida no se podía comparar a ojo. */}
             <p className="text-xs text-muted-foreground lg:min-h-8">
-              Chapas puestas por mes, una línea por año. Es el mercado que ya se
-              vendió.
+              {t("Chapas puestas por mes, una línea por año. Es el mercado que ya se vendió.")}
             </p>
           </CardHeader>
           <CardContent>
             <SerieAniosChart series={serieMat} maximo={techoSerie} />
             {cobertura.mesesFaltantes.matriculacion.length > 0 && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Los meses sin dato quedan como hueco en la línea, no como cero.
-                Faltante detectado en el origen:{" "}
-                {cobertura.mesesFaltantes.matriculacion.join(", ")}.
+                {t("Los meses sin dato quedan como hueco en la línea, no como cero. Faltante detectado en el origen: {meses}.", { meses: cobertura.mesesFaltantes.matriculacion.join(", ") })}
               </p>
             )}
           </CardContent>
@@ -270,10 +301,9 @@ export default async function MercadoPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Evolución mensual — importaciones</CardTitle>
+            <CardTitle>{t("Evolución mensual — importaciones")}</CardTitle>
             <p className="text-xs text-muted-foreground lg:min-h-8">
-              Unidades que entraron al país por mes. Va adelante de la
-              matriculación: lo que sube acá se vende en los meses que siguen.
+              {t("Unidades que entraron al país por mes. Va adelante de la matriculación: lo que sube acá se vende en los meses que siguen.")}
             </p>
           </CardHeader>
           <CardContent>
@@ -281,7 +311,7 @@ export default async function MercadoPage({
               <SerieAniosChart series={serieImp} maximo={techoSerie} />
             ) : (
               <p className="py-16 text-center text-sm text-muted-foreground">
-                Sin datos de importación para estos años.
+                {t("Sin datos de importación para estos años.")}
               </p>
             )}
           </CardContent>
@@ -290,13 +320,13 @@ export default async function MercadoPage({
       </div>
       </Seccion>
 
-      <Seccion titulo="Segmentos y tecnología"
-        nota="Qué tipo de vehículo y qué motorización está comprando el paraguayo, y para dónde se está moviendo.">
+      <Seccion titulo={t("Segmentos y tecnología")}
+        nota={t("Qué tipo de vehículo y qué motorización está comprando el paraguayo, y para dónde se está moviendo.")}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>
-              Participación por segmento — {etiquetaFuente}
+              {t("Participación por segmento — {fuente}", { fuente: etiquetaFuente })}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -305,13 +335,11 @@ export default async function MercadoPage({
               param="segmento"
             />
             <p className="text-xs text-muted-foreground">
-              Hacé clic en una barra para filtrar toda la página por ese
-              segmento; otro clic lo quita.
+              {t("Hacé clic en una barra para filtrar toda la página por ese segmento; otro clic lo quita.")}
             </p>
             {segmentos.some((s) => s.valor === "Sin clasificar") && (
               <NotaDato>
-                CADAM no clasifica el segmento antes de 2024. Las unidades sin
-                segmento se muestran aparte, no se reparten entre los demás.
+                {t("CADAM no clasifica el segmento antes de 2024. Las unidades sin segmento se muestran aparte, no se reparten entre los demás.")}
               </NotaDato>
             )}
           </CardContent>
@@ -323,19 +351,17 @@ export default async function MercadoPage({
               {/* La tecnologia solo existe en matriculacion, asi que el
                   titulo la nombra siempre: aclara de donde sale el dato
                   aunque arriba este elegida la otra fuente. */}
-              Participación por tecnología — matriculaciones
+              {t("Participación por tecnología — matriculaciones")}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {esImportacion ? (
               <>
                 <p className="py-16 text-center text-sm text-muted-foreground">
-                  Sin corte por tecnología para importaciones.
+                  {t("Sin corte por tecnología para importaciones.")}
                 </p>
                 <NotaDato>
-                  La base de importación de CADAM no trae columna de tecnología.
-                  El detalle ICE/MHEV/HEV/PHEV/REEV/EV solo existe del lado de
-                  matriculación.
+                  {t("La base de importación de CADAM no trae columna de tecnología. El detalle ICE/MHEV/HEV/PHEV/REEV/EV solo existe del lado de matriculación.")}
                 </NotaDato>
               </>
             ) : (
@@ -345,11 +371,10 @@ export default async function MercadoPage({
                   param="tecnologia"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Hacé clic en una barra para filtrar por esa tecnología.
+                  {t("Hacé clic en una barra para filtrar por esa tecnología.")}
                 </p>
                 <NotaDato>
-                  Cada tecnología se muestra por separado: MHEV no es HEV, PHEV no es
-                  HEV y REEV no es EV.
+                  {t("Cada tecnología se muestra por separado: MHEV no es HEV, PHEV no es HEV y REEV no es EV.")}
                 </NotaDato>
               </>
             )}
@@ -358,19 +383,19 @@ export default async function MercadoPage({
       </div>
       </Seccion>
 
-      <Seccion titulo="Quién gana y quién pierde"
-        nota="Las marcas que más unidades sumaron y las que más perdieron contra el mismo período del año pasado.">
+      <Seccion titulo={t("Quién gana y quién pierde")}
+        nota={t("Las marcas que más unidades sumaron y las que más perdieron contra el mismo período del año pasado.")}>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <MoviminetoCard
-          titulo={`Principales ganadores — ${etiquetaFuente}`}
-          subtitulo={`Unidades ganadas frente a ${periodoPrevio} (mismo período del año anterior). El % solo se muestra con una base de ${BASE_MINIMA_PCT} u. o más.`}
+          titulo={t("Principales ganadores — {fuente}", { fuente: etiquetaFuente })}
+          subtitulo={t("Unidades ganadas frente a {previo} (mismo período del año anterior). El % solo se muestra con una base de {base} u. o más.", { previo: periodoPrevio, base: BASE_MINIMA_PCT })}
           filas={ganadores}
           positivo
           disponible={(esImportacion ? import_ : matric).baseDisponible}
         />
         <MoviminetoCard
-          titulo={`Principales perdedores — ${etiquetaFuente}`}
-          subtitulo={`Unidades perdidas frente a ${periodoPrevio} (mismo período del año anterior). El % solo se muestra con una base de ${BASE_MINIMA_PCT} u. o más.`}
+          titulo={t("Principales perdedores — {fuente}", { fuente: etiquetaFuente })}
+          subtitulo={t("Unidades perdidas frente a {previo} (mismo período del año anterior). El % solo se muestra con una base de {base} u. o más.", { previo: periodoPrevio, base: BASE_MINIMA_PCT })}
           filas={perdedores}
           positivo={false}
           disponible={(esImportacion ? import_ : matric).baseDisponible}
@@ -379,23 +404,21 @@ export default async function MercadoPage({
 
       </Seccion>
 
-      <Seccion titulo="Rankings">
+      <Seccion titulo={t("Rankings")}>
       <Card>
         <CardHeader>
-          <CardTitle>Rankings — {etiquetaFuente}</CardTitle>
+          <CardTitle>{t("Rankings — {fuente}", { fuente: etiquetaFuente })}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Hacé clic en una marca, modelo o versión para filtrar toda la
-            página; otro clic lo quita. Los filtros se acumulan entre sí y con
-            los de arriba.
+            {t("Hacé clic en una marca, modelo o versión para filtrar toda la página; otro clic lo quita. Los filtros se acumulan entre sí y con los de arriba.")}
           </p>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="marcas">
             <TabsList className="flex-wrap">
-              <TabsTrigger value="marcas">Marcas ({marcas.length})</TabsTrigger>
-              <TabsTrigger value="modelos">Modelos ({modelos.length})</TabsTrigger>
+              <TabsTrigger value="marcas">{t("Marcas ({n})", { n: marcas.length })}</TabsTrigger>
+              <TabsTrigger value="modelos">{t("Modelos ({n})", { n: modelos.length })}</TabsTrigger>
               <TabsTrigger value="versiones">
-                Versiones {esImportacion ? "" : `(${versiones.length})`}
+                {esImportacion ? t("Versiones") : t("Versiones ({n})", { n: versiones.length })}
               </TabsTrigger>
             </TabsList>
 
@@ -413,7 +436,7 @@ export default async function MercadoPage({
                 filas={conPuestoDeMercado(fuente, modelos, f, "modelo")}
                 mostrarModelo
                 mostrarSegmento
-                etiquetaModelo="Modelo"
+                etiquetaModelo={t("Modelo")}
                 filtrarPor={{ marca: "marca", detalle: "modelo" }}
                 nombreArchivo={`ranking-modelos-${fuente}-${f.anio}`}
                 notaVariacion={notaVar}
@@ -423,9 +446,7 @@ export default async function MercadoPage({
             <TabsContent value="versiones" className="mt-3">
               {esImportacion ? (
                 <NotaDato>
-                  La base de importación de CADAM llega hasta el modelo
-                  (<code>HILUX</code>), no hasta la versión. El detalle por
-                  versión solo existe del lado de matriculación.
+                  {tr("La base de importación de CADAM llega hasta el modelo (<code>HILUX</code>), no hasta la versión. El detalle por versión solo existe del lado de matriculación.")}
                 </NotaDato>
               ) : (
                 <>
@@ -433,17 +454,14 @@ export default async function MercadoPage({
                     filas={conPuestoDeMercado("matriculacion", versiones, f, "version")}
                     mostrarModelo
                     mostrarSegmento
-                    etiquetaModelo="Versión"
+                    etiquetaModelo={t("Versión")}
                     filtrarPor={{ marca: "marca", detalle: "version" }}
                     nombreArchivo={`ranking-versiones-${f.anio}`}
                     notaVariacion={notaVar}
                   />
                   <div className="mt-3">
                     <NotaDato>
-                      CADAM no publica un campo de versión: esto es el nombre tal
-                      como lo carga la DNRA, que en la práctica incluye el
-                      acabado y a veces el motor (<code>HILUX D/C 4X4 SRV AUT</code>).
-                      No hay motor, transmisión ni tracción como campos aparte.
+                      {tr("CADAM no publica un campo de versión: esto es el nombre tal como lo carga la DNRA, que en la práctica incluye el acabado y a veces el motor (<code>HILUX D/C 4X4 SRV AUT</code>). No hay motor, transmisión ni tracción como campos aparte.")}
                     </NotaDato>
                   </div>
                 </>
@@ -463,7 +481,7 @@ export default async function MercadoPage({
  *  unidades sí se muestran: son lo que mueve el mercado. */
 const BASE_MINIMA_PCT = 30;
 
-function MoviminetoCard({
+async function MoviminetoCard({
   titulo, subtitulo, filas, positivo, disponible,
 }: {
   titulo: string;
@@ -472,6 +490,8 @@ function MoviminetoCard({
   positivo: boolean;
   disponible: boolean;
 }) {
+  const { t, fmt } = await getI18n();
+  const { formatPct, formatUnidades } = fmt;
   return (
     <Card>
       <CardHeader>
@@ -485,7 +505,7 @@ function MoviminetoCard({
       <CardContent>
         {!disponible ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Sin período anterior cargado para comparar.
+            {t("Sin período anterior cargado para comparar.")}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -497,11 +517,11 @@ function MoviminetoCard({
                   <span className="flex items-baseline gap-3 tabular-nums">
                     {/* 700 y no 600: a 14 px sobre blanco el 600 no llega a 4,5:1. */}
                     <span className={positivo ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400"}>
-                      {delta > 0 ? "+" : ""}{formatUnidades(delta)} u.
+                      {delta > 0 ? "+" : ""}{t("{n} u.", { n: formatUnidades(delta) })}
                     </span>
                     <span
                       className="w-16 text-right text-xs text-muted-foreground"
-                      title={m.unidadesAnterior < BASE_MINIMA_PCT ? `Base de ${m.unidadesAnterior} u.: el % no es comparable` : undefined}
+                      title={m.unidadesAnterior < BASE_MINIMA_PCT ? t("Base de {n} u.: el % no es comparable", { n: m.unidadesAnterior }) : undefined}
                     >
                       {m.unidadesAnterior >= BASE_MINIMA_PCT ? formatPct(m.variacion, { signed: true }) : "—"}
                     </span>

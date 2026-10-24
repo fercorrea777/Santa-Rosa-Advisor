@@ -17,16 +17,11 @@ import {
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
-import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
-import {
-  etiquetaCortes,
-  etiquetaPeriodo,
-  filtroDesdeUrl,
-  type SearchParams,
-  aclaracionCortes,
-} from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
+import { N_ } from "@/lib/i18n/traducir";
+import { filtroDesdeUrl, type SearchParams } from "@/lib/periodo";
 
-const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
+const NOMBRE: Record<Fuente, string> = { matriculacion: N_("matriculaciones"), importacion: N_("importaciones") };
 
 export default async function SegmentosPage({
   searchParams,
@@ -34,6 +29,12 @@ export default async function SegmentosPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt } = await getI18n();
+  const {
+    formatPct, formatPuntosPct, formatUnidades, etiquetaCortes, etiquetaPeriodo, aclaracionCortes, nombreDeSegmento,
+  } = fmt;
+  // El castellano muestra el segmento tal como llega de CADAM (Automovil, Camion…), como siempre; el inglés lo traduce.
+  const segmentoVisible = (s: string) => (fmt.idioma === "en" ? nombreDeSegmento(s) : s);
   const cobertura = getCobertura();
   // Tres vistas, como en Portafolio (Croman, 15/09/2026): la fuente
   // PRINCIPAL define el ranking, las unidades y el detalle; con "Ambas", la
@@ -100,14 +101,18 @@ export default async function SegmentosPage({
     q.set("segmento", segmento);
     return `/segmentos?${q.toString()}`;
   };
-  const rotuloUnidades = principal === "importacion" ? "importadas en el período" : "matriculadas en el período";
+  const rotuloUnidades = principal === "importacion" ? t("importadas en el período") : t("matriculadas en el período");
+  const fuentePrin = t(NOMBRE[principal]);
+  const fuenteSec = secundaria ? t(NOMBRE[secundaria]) : "";
 
   return (
     <Pagina>
       <PageHeader
-        titulo="Segmentos"
-        descripcion={`Participación, evolución y liderazgo por segmento sobre ${NOMBRE[principal]} · ${periodo}${secundaria ? ` · ${NOMBRE[secundaria]} ${periodoSec} al lado` : ""}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Segmentos")}
+        descripcion={secundaria
+          ? t("Participación, evolución y liderazgo por segmento sobre {fuente} · {periodo} · {fuente2} {periodo2} al lado.", { fuente: fuentePrin, periodo, fuente2: fuenteSec, periodo2: periodoSec })
+          : t("Participación, evolución y liderazgo por segmento sobre {fuente} · {periodo}.", { fuente: fuentePrin, periodo })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       <div
@@ -121,7 +126,7 @@ export default async function SegmentosPage({
             anios={cobertura[principal].anios}
             mesMaximoPorAnio={mesMax}
             opciones={[{
-              param: "segmento", label: "Segmento",
+              param: "segmento", label: t("Segmento"),
               valores: segmentos.map((s) => s.valor),
             }]}
           />
@@ -131,22 +136,20 @@ export default async function SegmentosPage({
       {cobertura.primerAnioConSegmento !== null &&
         f.anio < cobertura.primerAnioConSegmento && (
         <NotaDato>
-          CADAM no clasifica el segmento antes de {cobertura.primerAnioConSegmento}:
-          en {f.anio} todas las unidades vienen como <em>Sin clasificar</em>. El
-          análisis por segmento arranca en {cobertura.primerAnioConSegmento}.
+          {tr("CADAM no clasifica el segmento antes de {desde}: en {anio} todas las unidades vienen como <i>Sin clasificar</i>. El análisis por segmento arranca en {desde}.", { desde: cobertura.primerAnioConSegmento, anio: f.anio })}
         </NotaDato>
       )}
 
       <Card>
         <CardHeader>
           <CardTitle>
-            Ranking de segmentos — {NOMBRE[principal]} · {periodo}
+            {t("Ranking de segmentos — {fuente} · {periodo}", { fuente: fuentePrin, periodo })}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Qué tipo de vehículo {principal === "importacion" ? "entra al país" : "compra el paraguayo"} y cuánto de cada uno es
-            nuestro. Tocá un segmento y la pantalla se abre en ese: su
-            evolución, sus marcas y sus modelos.
-            {secundaria ? ` La columna de ${NOMBRE[secundaria]} (${periodoSec}) va al lado para comparar de un vistazo.` : ""}
+            {principal === "importacion"
+              ? t("Qué tipo de vehículo entra al país y cuánto de cada uno es nuestro. Tocá un segmento y la pantalla se abre en ese: su evolución, sus marcas y sus modelos.")
+              : t("Qué tipo de vehículo compra el paraguayo y cuánto de cada uno es nuestro. Tocá un segmento y la pantalla se abre en ese: su evolución, sus marcas y sus modelos.")}
+            {secundaria ? ` ${t("La columna de {fuente} ({periodo}) va al lado para comparar de un vistazo.", { fuente: fuenteSec, periodo: periodoSec })}` : ""}
           </p>
         </CardHeader>
         <CardContent>
@@ -165,10 +168,10 @@ export default async function SegmentosPage({
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                       {i + 1}
                     </span>
-                    <span className="min-w-0 truncate font-medium">{s.valor}</span>
+                    <span className="min-w-0 truncate font-medium">{segmentoVisible(s.valor)}</span>
                     {s.valor === SEGMENTO_SIN_CLASIFICAR && (
                       <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px] font-normal">
-                        sin dato de origen
+                        {t("sin dato de origen")}
                       </Badge>
                     )}
                   </span>
@@ -188,10 +191,10 @@ export default async function SegmentosPage({
                   </span>
                 </div>
                 <div className="pl-6 text-xs text-muted-foreground">
-                  Marcas propias: {formatPct(propiasPorSegmento.get(s.valor) ?? 0)}
+                  {t("Marcas propias: {pct}", { pct: formatPct(propiasPorSegmento.get(s.valor) ?? 0) })}
                   {secundaria && (
                     <>
-                      {" · "}{NOMBRE[secundaria]} {periodoSec}:{" "}
+                      {" · "}{fuenteSec} {periodoSec}:{" "}
                       {otros.has(s.valor)
                         ? `${formatUnidades(otros.get(s.valor)!.unidades)} (${formatPct(otros.get(s.valor)!.participacion)})`
                         : "—"}
@@ -206,20 +209,20 @@ export default async function SegmentosPage({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10">#</TableHead>
-                  <TableHead>Segmento</TableHead>
-                  <TableHead className="text-right" nota={rotuloUnidades}>Unidades</TableHead>
-                  <TableHead className="text-right" nota="su parte del mercado">Participación</TableHead>
-                  <TableHead className="text-right" nota="cuánto creció o cayó el segmento">Var. vs {f.anio - 1}</TableHead>
-                  <TableHead className="text-right" nota="puntos que ganó o perdió">Δ participación</TableHead>
+                  <TableHead>{t("Segmento")}</TableHead>
+                  <TableHead className="text-right" nota={rotuloUnidades}>{t("Unidades")}</TableHead>
+                  <TableHead className="text-right" nota={t("su parte del mercado")}>{t("Participación")}</TableHead>
+                  <TableHead className="text-right" nota={t("cuánto creció o cayó el segmento")}>{t("Var. vs {anio}", { anio: f.anio - 1 })}</TableHead>
+                  <TableHead className="text-right" nota={t("puntos que ganó o perdió")}>{t("Δ participación")}</TableHead>
                   {secundaria && (
                     <>
-                      <TableHead className="text-right" nota={`${NOMBRE[secundaria]} · ${periodoSec}`}>
-                        {secundaria === "importacion" ? "Import." : "Matric."}
+                      <TableHead className="text-right" nota={`${fuenteSec} · ${periodoSec}`}>
+                        {secundaria === "importacion" ? t("Import.") : t("Matric.")}
                       </TableHead>
-                      <TableHead className="text-right" nota={`su parte en ${NOMBRE[secundaria]}`}>Part.</TableHead>
+                      <TableHead className="text-right" nota={t("su parte en {fuente}", { fuente: fuenteSec })}>{t("Part.")}</TableHead>
                     </>
                   )}
-                  <TableHead className="text-right" nota="cuánto de ese segmento es nuestro">Marcas propias</TableHead>
+                  <TableHead className="text-right" nota={t("cuánto de ese segmento es nuestro")}>{t("Marcas propias")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -230,11 +233,11 @@ export default async function SegmentosPage({
                       <TableCell className="tabular-nums text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-medium">
                         <Link href={enlace(s.valor)} className="hover:underline">
-                          {s.valor}
+                          {segmentoVisible(s.valor)}
                         </Link>
                         {s.valor === SEGMENTO_SIN_CLASIFICAR && (
                           <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] font-normal">
-                            sin dato de origen
+                            {t("sin dato de origen")}
                           </Badge>
                         )}
                       </TableCell>
@@ -268,9 +271,7 @@ export default async function SegmentosPage({
             </Table>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Hacé clic en un segmento para ver su evolución, marcas y modelos.
-            <strong> Δ participación</strong> en puntos porcentuales: un segmento
-            puede crecer en unidades y perder participación.
+            {tr("Hacé clic en un segmento para ver su evolución, marcas y modelos.<b> Δ participación</b> en puntos porcentuales: un segmento puede crecer en unidades y perder participación.")}
           </p>
         </CardContent>
       </Card>
@@ -280,11 +281,10 @@ export default async function SegmentosPage({
           <Card>
             <CardHeader>
               <CardTitle>
-                Evolución mensual — {seleccionado}, {NOMBRE[principal]}
+                {t("Evolución mensual — {segmento}, {fuente}", { segmento: segmentoVisible(seleccionado), fuente: fuentePrin })}
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Una línea por año: dice si el segmento está creciendo o si solo
-                se movió con el mercado.
+                {t("Una línea por año: dice si el segmento está creciendo o si solo se movió con el mercado.")}
               </p>
             </CardHeader>
             <CardContent><SerieAniosChart series={serie} /></CardContent>
@@ -293,10 +293,9 @@ export default async function SegmentosPage({
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Marcas líderes en {seleccionado} · {NOMBRE[principal]}</CardTitle>
+                <CardTitle>{t("Marcas líderes en {segmento} · {fuente}", { segmento: segmentoVisible(seleccionado), fuente: fuentePrin })}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Contra quién se compite en ese segmento. Las marcas propias van
-                  resaltadas.
+                  {t("Contra quién se compite en ese segmento. Las marcas propias van resaltadas.")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -305,10 +304,9 @@ export default async function SegmentosPage({
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Modelos líderes en {seleccionado} · {NOMBRE[principal]}</CardTitle>
+                <CardTitle>{t("Modelos líderes en {segmento} · {fuente}", { segmento: segmentoVisible(seleccionado), fuente: fuentePrin })}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Los modelos concretos que se llevan el segmento: es el nivel al
-                  que el cliente elige.
+                  {t("Los modelos concretos que se llevan el segmento: es el nivel al que el cliente elige.")}
                 </p>
               </CardHeader>
               <CardContent>

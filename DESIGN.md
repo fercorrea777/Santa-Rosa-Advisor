@@ -77,21 +77,36 @@ Contraste medido sobre el panel oscuro: principal **16,1:1**, secundario
 
 | Rol | Familia | Uso |
 |---|---|---|
-| Interfaz | **Archivo** (400/500/600/700/800) | Todo el texto, títulos y etiquetas |
+| Interfaz | **Inter** (variable, 100–900, eje `opsz`) | Todo el texto, títulos y etiquetas |
 | Cifras | **JetBrains Mono** (700) | Métricas, columnas numéricas |
 
 El par sans + mono es un contraste real (grotesca vs. monoespaciada), no dos
 sans parecidas; y los dígitos de JetBrains Mono se distinguen entre sí a
 distancia, que es lo que hace falta cuando esto se proyecta.
 
-Archivo es grotesca americana de x-height alta y remates rectos, dibujada para
-rendir igual en titular y en cuerpo de tabla — los mismos criterios que llevaron
-a descartar Nunito Sans. Se eligió sobre Inter (la familia anterior) porque
-Inter es funcionalmente impecable pero visualmente anónima: es la sans por
-defecto de casi toda interfaz generada, y en un tablero que se proyecta en una
-reunión eso resta carácter sin dar nada a cambio.
+Inter se carga **variable con el eje de tamaño óptico** (`axes: ["opsz"]` en
+`layout.tsx`): el navegador lo aplica solo (`font-optical-sizing: auto`), así el
+cuerpo de tabla usa el corte de texto y los títulos el corte «Display», más
+cerrado, sin cargar una segunda familia. Consecuencias que hay que conocer:
 
-> Historial: Nunito Sans → Inter (2026-07-23) → Archivo (2026-08-27).
+- **Es ~10 % más ancha que Archivo** en etiquetas cortas. Por eso el menú lateral
+  pasó de 15 a 16,5 rem (con 15 rem «Combustibles y tecnologías» se cortaba). Si
+  se agrega una etiqueta de menú, medir la holgura con el menú abierto.
+- **No sumar tracking negativo a los títulos.** El cierre ya lo trae `opsz`:
+  `tracking-tight` (−0,025 em) hacía que las letras de un titular en negrita se
+  tocaran, así que el token quedó en −0,015 em y el título de página va en 700,
+  no en 800.
+- **Los gráficos (ECharts) dibujan en canvas**, y un canvas ignora una fuente
+  escrita con `var()`: hasta octubre de 2026 todos los ejes salían en la
+  `sans-serif` del sistema. Ahora `chart-theme.ts` usa los nombres reales
+  (`FUENTE_SANS_GRAFICOS`, `FUENTE_MONO_EJES`) y `EchartsAuto` repinta cuando las
+  fuentes terminan de cargar. Si se cambia una familia en `layout.tsx`, hay que
+  cambiarla también ahí.
+
+> Historial: Nunito Sans → Inter (2026-07-23) → Archivo (2026-08-27) → Inter
+> (2026-10-24, pedido de Croman: «mejorar la fuente, usar la familia de Inter»).
+> Archivo se había elegido porque Inter se veía anónima; la decisión se revirtió
+> por pedido, y la presencia que daba Archivo la dan ahora el peso y el eje `opsz`.
 
 > Los tokens `--font-sans` / `--font-mono` en `@theme inline` deben apuntar a
 > `var(--font-geist-sans)` / `var(--font-geist-mono)`, que es lo que inyecta
@@ -137,17 +152,70 @@ los dos modos**, porque el resultado depende de la superficie sobre la que se
 dibuja. El comando está en el skill `dataviz`:
 `node scripts/validate_palette.js "<los 8 hex>" --mode light --surface "#ffffff"`.
 
-## Números: es-PY, siempre
+### El Panorama del Resumen (`components/bento/`)
 
-Miles con punto (`42.328`), decimales con coma (`12,1 %`, `+1,8 pp`). Un `+49.8%`
-junto a un `42.328` se lee como cuarenta y nueve mil. Todo decimal pasa por
-`src/lib/format.ts`: `formatUnidades`, `formatPct`, `formatPuntosPct`,
-`formatDecimal`/`decimal`. `<Cifra>` entiende la coma al animar. Los CSV que se
-exportan quedan con punto: son para máquinas.
+Seis tarjetas arriba de `/mercado`, con **datos reales** (los mismos del resto de
+la pantalla, con los mismos filtros), dibujadas a mano en SVG y no con ECharts:
+comparten un solo tooltip y una sola animación de entrada, y se pueden leer con
+la precisión de un píxel. Orden: matriculaciones (línea del año contra el
+anterior + franja de variación interanual), importaciones (ondas espejadas:
+importación arriba, matriculación abajo), mercado por marca (treemap), la
+participación de las marcas propias, nuestras marcas (pila de tarjetas) y la
+estacionalidad (radar).
+
+- **Color = qué es, no cuánto**: matriculaciones `--chart-1` (azul), importaciones
+  `--chart-4` (ámbar), lo propio `--primary` (cian). El treemap pinta por **grupo
+  importador** (`bento-g-*`, contraste verificado en claro y oscuro) y cada marca
+  propia lleva su matiz en OKLCH.
+- La franja interanual **diverge desde una línea cero**, y la subida/bajada lleva
+  ▲/▼ además del color. Nada depende solo del tono.
+- **Nada es "en vivo"**: no hay datos que parpadeen ni cifras inventadas. Las
+  tarjetas animan **una sola vez, cuando entran en pantalla** (`useEntrada`), y
+  con `prefers-reduced-motion` aparecen ya dibujadas.
+- Cada gráfico tiene su **tabla oculta** (`sr-only`) con los mismos números. Las
+  barras mensuales (franja interanual y participación) y los recuadros del
+  treemap se alcanzan con Tab y muestran el mismo tooltip; la línea, las ondas y
+  el radar solo responden al puntero, y su dato completo está en la tabla.
+- Un clic en una marca del treemap o de la pila **filtra la pantalla** por esa
+  marca (el mismo `?marca=` de siempre); clic de nuevo, la quita.
+
+## Números: el formato sigue al idioma
+
+En español (el idioma por defecto): miles con punto (`42.328`), decimales con
+coma (`12,1 %`, `+1,8 pp`). Un `+49.8%` junto a un `42.328` se lee como cuarenta
+y nueve mil. En inglés cambia **todo junto**: `42,328`, `12.1%`, `+1.8 pp`,
+fechas `Sep 4, 2026`, hora de 24 h. Nunca se mezclan los dos en una pantalla.
+
+Todo número y fecha pasa por `fmt` (`getI18n()` en el servidor, `useI18n()` en el
+cliente), que lleva los mismos nombres de siempre: `formatUnidades`, `formatPct`,
+`formatPuntosPct`, `formatDecimal`/`decimal`, `formatFecha(Hora)`. `src/lib/
+format.ts` quedó como atajo en español para los scripts y las rutas que no
+conocen al usuario; una pantalla nunca lo importa (`node scripts/i18n.mjs
+--estricto` lo marca). `<Cifra>` entiende la coma o el punto según el idioma al
+animar. Los CSV que se exportan quedan con punto: son para máquinas.
 
 Los segmentos llegan de CADAM sin tilde (`CAMION`, `OMNIBUS`) y así viajan por
-la URL; para **mostrarlos** se pasan por `nombreDeSegmento` (Camión, Ómnibus,
-Furgón, Minibús, Automóvil).
+la URL; para **mostrarlos** se pasan por `nombreDeSegmento` (Camión / Truck,
+Ómnibus / Bus, Furgón / Van, Minibús / Minibus, Automóvil / Passenger car).
+
+## Idioma: español e inglés
+
+Selector **ES | EN** en la barra de arriba, junto al tema. Guarda la cookie
+`advisor_idioma` (un año) y recarga el servidor: el HTML ya llega en el idioma
+elegido, sin parpadeo. El español es el default y su texto es la **clave** del
+catálogo: `t("Matriculaciones")`, `tr("Hay <b>{n}</b> marcas")` para texto con
+etiquetas, `N_("…")` para constantes de módulo que se traducen al mostrarlas. Lo
+que falta en el catálogo inglés se muestra en español, nunca vacío.
+
+- Las reglas, el glosario (matriculación = registration, chapa = plate,
+  participación = share…) y los patrones están en `src/lib/i18n/LEEME.md`.
+- `node scripts/i18n.mjs` mide la cobertura y `--estricto` falla si queda texto
+  sin envolver o sin traducir: correrlo antes de subir.
+- **No se traduce** lo que viene de los datos: nombres de marca y modelo, las
+  planillas de Finanzas y de Producto, y los informes de competencia ya generados
+  (se guardan en la base en el idioma en que se escribieron).
+- Los textos más largos en inglés (y en español) no pueden romper la tarjeta: se
+  prueba cada pantalla en los dos idiomas a 390 px.
 
 ## Barra de filtros pegajosa
 

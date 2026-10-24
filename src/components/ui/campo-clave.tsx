@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/cliente";
 import { IconOjo, IconOjoTachado } from "@/components/icons";
 
 /**
@@ -36,6 +37,7 @@ export function CampoClave({
    *  se tapa los ojos mientras se escribe una clave oculta y mira cuando se ve. */
   onVisibleChange?: (visible: boolean) => void;
 }) {
+  const { t } = useI18n();
   const [visible, setVisible] = React.useState(visiblePorDefecto);
   const alternar = () => {
     const nuevo = !visible;
@@ -60,8 +62,8 @@ export function CampoClave({
         // pantalla escucha "mostrar clave, activado" en vez de que el botón
         // le cambie de nombre abajo del dedo.
         aria-pressed={visible}
-        aria-label="Mostrar la clave"
-        title={visible ? "Ocultar la clave" : "Mostrar la clave"}
+        aria-label={t("Mostrar la clave")}
+        title={visible ? t("Ocultar la clave") : t("Mostrar la clave")}
         // -translate-y-1/2 con top-1/2: centrado vertical sea cual sea el
         // alto del campo (el login usa uno y la app otro).
         className={cn(

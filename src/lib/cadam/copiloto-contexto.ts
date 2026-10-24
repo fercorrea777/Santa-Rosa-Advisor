@@ -2,6 +2,7 @@ import { getCobertura } from "./mercado";
 import { getParametros } from "./config";
 import type { EntradaIndice } from "@/lib/informes/conocimiento";
 import { hoyEnAsuncion } from "@/lib/format";
+import { I18N_ES, type I18n } from "@/lib/i18n/crear";
 
 /**
  * Contexto que recibe el copiloto: esquema real de la base y las reglas
@@ -11,8 +12,16 @@ import { hoyEnAsuncion } from "@/lib/format";
  *
  * El texto es estable a proposito (sin timestamps): es el prefijo
  * cacheado del prompt. Lo variable (snapshot, cobertura) va al final.
+ *
+ * IDIOMA. El prompt es una instruccion al modelo y SE QUEDA EN CASTELLANO en
+ * los dos idiomas de la pantalla. Lo unico que cambia con el idioma de quien
+ * pregunta es el final: si lee en ingles, se le agrega la orden explicita de
+ * contestar en ingles y de escribir las cifras a la inglesa (los ejemplos de
+ * cifras del prompt tambien salen con el formato del idioma, para que el
+ * modelo no copie «3.463» en una respuesta en ingles).
  */
 
+// i18n-ignore-start (el prompt del sistema es una instrucción para el modelo: se queda en castellano)
 const ESQUEMA = `
 ## Esquema de la base interna (SQLite, vía consultar_base)
 
@@ -51,7 +60,8 @@ base tienen ademas la columna "snapshot" con cargas historicas.
 ### snapshots / archivos — trazabilidad de cargas
 `;
 
-const REGLAS = `
+/** `u`: las unidades con el separador de miles del idioma (formatUnidades de fmt). */
+const reglas = (u: (n: number) => string) => `
 ## Reglas del dominio para datos internos (NO negociables)
 
 1. NUNCA inventes cifras internas. Todo numero de matriculacion/
@@ -148,8 +158,8 @@ const REGLAS = `
     nosotros" — CADAM mide el mercado, no nuestra caja.
     CUIDADO AL CRUZAR: Cars cuenta FACTURAS y CADAM cuenta MATRICULACIONES.
     Son eventos distintos y en distinto momento (se factura antes; el
-    comprador matricula después, o nunca si es flota). Ene-jul 2026 dio 2.381
-    facturas contra 1.990 matriculaciones de marcas propias: la brecha es
+    comprador matricula después, o nunca si es flota). Ene-jul 2026 dio ${u(2381)}
+    facturas contra ${u(1990)} matriculaciones de marcas propias: la brecha es
     normal, no un error. Nunca los restes como si la diferencia fuera algo
     que falta. Y NO hay importes de facturación: los que devuelve Cars son
     inconsistentes y se descartaron — si preguntan por plata facturada, decí
@@ -186,7 +196,7 @@ const REGLAS = `
 
 - En español, tono ejecutivo (hablas con el equipo comercial de un
   importador automotor paraguayo). Anda al grano.
-- Cita las cifras internas con su periodo: "3.463 u. en ene-jun 2026".
+- Cita las cifras internas con su periodo: "${u(3463)} u. en ene-jun 2026".
   Cita las cifras externas con su fuente: "según [medio], en [fecha]".
 - Usa pocas consultas y bien pensadas (agrega con GROUP BY, no pidas
   filas sueltas). Maximo ~5 consultas de SQL por pregunta.
@@ -246,6 +256,31 @@ un modelo contra otro usa 'battle-cards'. Citá siempre la fecha del dato.
 }
 
 /**
+ * Lo ultimo que lee el modelo cuando la persona usa el tablero en ingles. Va
+ * AL FINAL (despues del estado y del indice de Hermes) porque es lo que mas pesa
+ * en un modelo chico, y dice expresamente que pisa el «En español» de arriba.
+ * Esta en ingles a proposito: es la orden, y asi no se confunde con el resto.
+ */
+const RESPONDER_EN_INGLES = `
+## Language of the answer (this OVERRIDES the "En español" line above)
+
+The person is using the English version of the dashboard. Write EVERY answer in
+English: the text, the table headers, the source citations and the one-line
+extra remark at the end. Everything above (these instructions, the database,
+the tool results, the saved documents) is in Spanish: read it as it is, but do
+not answer in Spanish, and translate any Spanish label you quote (segments,
+loss reasons, section titles) unless it is a brand, a model, an acronym or a
+proper name.
+
+Write numbers the English way: a comma as the thousands separator and a period
+as the decimal separator (42,328 units; 12.1%; +1,466 units), even though the
+data, the SQL results and the examples above use the Spanish style (42.328;
+12,1%). Never copy a figure with the Spanish separators into your answer. Keep
+brand names, model names, acronyms, column names and tool names exactly as they
+are. Every other rule above still applies as written.
+`;
+
+/**
  * @param conWeb  true cuando hay busqueda en internet: desde el 15/09/2026
  *   son dos herramientas locales (buscar_en_internet y leer_pagina, ver
  *   src/lib/copiloto/web.ts), asi que con Gemma sobre Ollama TAMBIEN se
@@ -254,10 +289,14 @@ un modelo contra otro usa 'battle-cards'. Citá siempre la fecha del dato.
  * @param conocimiento  indice de la base de Hermes. Se pasa desde la ruta
  *   porque vive en Postgres (async) y esto es sincrono. Si viene vacio el
  *   prompt lo dice en vez de callarlo.
+ * @param i18n  el idioma de quien pregunta (el de `getI18n()` en la ruta).
+ *   Sin el, castellano. Con ingles, el prompt termina con la orden de
+ *   contestar en ingles.
  */
 export function armarSystemPrompt(
-  opciones: { conWeb?: boolean; conocimiento?: EntradaIndice[] } = {}
+  opciones: { conWeb?: boolean; conocimiento?: EntradaIndice[]; i18n?: I18n } = {}
 ): string {
+  const { idioma, fmt } = opciones.i18n ?? I18N_ES;
   const conWeb = opciones.conWeb ?? false;
   const parametros = getParametros();
   const cobertura = getCobertura();
@@ -323,8 +362,10 @@ export function armarSystemPrompt(
     `de verdad para cifras del mercado paraguayo) ` + fuentes + ` ` +
     `No mezcles fuentes distintas sin aclarar cual es cual.\n` +
     ESQUEMA +
-    REGLAS +
+    reglas(fmt.formatUnidades) +
     estado +
-    bloqueConocimiento(opciones.conocimiento ?? [])
+    bloqueConocimiento(opciones.conocimiento ?? []) +
+    (idioma === "en" ? RESPONDER_EN_INGLES : "")
   );
 }
+// i18n-ignore-end

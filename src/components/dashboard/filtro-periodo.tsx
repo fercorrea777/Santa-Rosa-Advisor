@@ -5,16 +5,16 @@ import { AnimatePresence, motion } from "motion/react";
 import { QuitarFiltros } from "@/components/dashboard/quitar-filtros";
 import { DURACION, SUAVE_BEZIER } from "@/lib/movimiento";
 import { useFiltroUrl } from "@/lib/filtro-url";
-import { nombreDeSegmento } from "@/lib/format";
-import { MESES_CORTOS } from "@/lib/periodo";
+import { useI18n } from "@/lib/i18n/cliente";
+import { N_ } from "@/lib/i18n/traducir";
 import { cn } from "@/lib/utils";
 
 /** Filtros que se aplican con un clic (grafico o fila de ranking) y no
  *  tienen desplegable: se muestran como chip para poder sacarlos. */
 const CHIPS = [
-  { param: "marca", label: "Marca" },
-  { param: "modelo", label: "Modelo" },
-  { param: "version", label: "Versión" },
+  { param: "marca", label: N_("Marca") },
+  { param: "modelo", label: N_("Modelo") },
+  { param: "version", label: N_("Versión") },
 ] as const;
 
 export interface OpcionFiltro {
@@ -51,6 +51,8 @@ export function FiltroPeriodo({
    *  fuente): dos sticky anidados se pisan. */
   pegajoso?: boolean;
 }) {
+  const { t, fmt } = useI18n();
+  const { nombreDeSegmento, mesesCortos } = fmt;
   // La mecánica de "que el filtro se quede quieto" vive en el hook: por qué
   // hace falta está explicado ahí.
   const { leer, setParams, pendiente } = useFiltroUrl();
@@ -89,7 +91,7 @@ export function FiltroPeriodo({
         />
       )}
       {!sinPeriodo && (<>
-      <Campo label="Año">
+      <Campo label={t("Año")}>
         <select
           className={selectCls}
           value={anioActual}
@@ -105,7 +107,7 @@ export function FiltroPeriodo({
         </select>
       </Campo>
 
-      <Campo label="Desde">
+      <Campo label={t("Desde")}>
         <select
           className={selectCls}
           value={desde}
@@ -114,19 +116,19 @@ export function FiltroPeriodo({
             setParams({ desde: d, hasta: Math.max(d, hasta) });
           }}
         >
-          {MESES_CORTOS.slice(0, topeMes).map((m, i) => (
+          {mesesCortos.slice(0, topeMes).map((m, i) => (
             <option key={m} value={i + 1}>{m}</option>
           ))}
         </select>
       </Campo>
 
-      <Campo label="Hasta">
+      <Campo label={t("Hasta")}>
         <select
           className={selectCls}
           value={hasta}
           onChange={(e) => setParams({ hasta: Number(e.target.value) })}
         >
-          {MESES_CORTOS.slice(0, topeMes).map((m, i) => (
+          {mesesCortos.slice(0, topeMes).map((m, i) => (
             <option key={m} value={i + 1} disabled={i + 1 < desde}>{m}</option>
           ))}
         </select>
@@ -140,7 +142,7 @@ export function FiltroPeriodo({
             value={leer(o.param) ?? "todos"}
             onChange={(e) => setParams({ [o.param]: e.target.value })}
           >
-            <option value="todos">Todos</option>
+            <option value="todos">{t("Todos")}</option>
             {o.valores.map((v) => {
               const valor = typeof v === "string" ? v : v.valor;
               const label = typeof v === "string"
@@ -179,10 +181,10 @@ export function FiltroPeriodo({
               exit={{ opacity: 0, scale: 0.85 }}
               transition={{ duration: DURACION.corta * 0.7, ease: SUAVE_BEZIER }}
               onClick={() => setParams({ [param]: null })}
-              title="Quitar este filtro"
+              title={t("Quitar este filtro")}
               className="inline-flex h-8 items-center gap-1.5 self-end rounded-md border border-primary/40 bg-primary/10 px-2.5 text-xs"
             >
-              <span className="text-muted-foreground">{label}:</span>
+              <span className="text-muted-foreground">{t(label)}:</span>
               <span className="font-medium">{valor}</span>
               <span aria-hidden="true" className="opacity-70">✕</span>
             </motion.button>

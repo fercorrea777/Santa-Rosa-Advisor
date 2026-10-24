@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CampoClave } from "@/components/ui/campo-clave";
 import { cn, sincronizarAriaInvalid } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cambiarMiClave, type EstadoMiClave } from "./acciones";
 
 export function FormularioMiClave({ quien }: { quien: string | null }) {
+  const { t } = useI18n();
   const [estado, enviar, pendiente] = useActionState<EstadoMiClave | null, FormData>(
     cambiarMiClave,
     null
@@ -21,24 +23,24 @@ export function FormularioMiClave({ quien }: { quien: string | null }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Mi clave</CardTitle>
+        <CardTitle className="text-base">{t("Mi clave")}</CardTitle>
         <p className="text-xs text-muted-foreground">
           {quien
-            ? `Estás como ${quien}. Cambiá acá la clave con la que entrás.`
-            : "Entraste con la clave general del equipo, que no es de una persona en particular."}
+            ? t("Estás como {quien}. Cambiá acá la clave con la que entrás.", { quien })
+            : t("Entraste con la clave general del equipo, que no es de una persona en particular.")}
         </p>
       </CardHeader>
       <CardContent>
         <form ref={form} action={enviar} className="flex flex-col gap-3">
-          <Campo name="actual" label="Clave actual" autoComplete="current-password" />
-          <Campo name="nueva" label="Clave nueva" autoComplete="new-password" minLength={10} />
-          <Campo name="repetida" label="Repetir la clave nueva" autoComplete="new-password" minLength={10} />
+          <Campo name="actual" label={t("Clave actual")} autoComplete="current-password" />
+          <Campo name="nueva" label={t("Clave nueva")} autoComplete="new-password" minLength={10} />
+          <Campo name="repetida" label={t("Repetir la clave nueva")} autoComplete="new-password" minLength={10} />
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] text-muted-foreground">
-              Mínimo 10 caracteres.
+              {t("Mínimo 10 caracteres.")}
             </span>
             <Button type="submit" size="sm" disabled={pendiente}>
-              {pendiente ? "Cambiando…" : "Cambiar mi clave"}
+              {pendiente ? t("Cambiando…") : t("Cambiar mi clave")}
             </Button>
           </div>
           {(estado?.error || estado?.ok) && (

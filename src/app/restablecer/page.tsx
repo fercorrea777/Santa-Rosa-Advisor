@@ -6,11 +6,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LARGO_MINIMO_CLAVE, usuarioDeRecuperacion } from "@/lib/auth/usuarios";
 import type { SearchParams } from "@/lib/periodo";
+import { getI18n } from "@/lib/i18n/servidor";
 
-export const metadata: Metadata = {
-  title: "Elegí tu clave",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return {
+    title: t("Elegí tu clave"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +28,7 @@ export default async function RestablecerPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const { t } = await getI18n();
   const sp = await searchParams;
   const token = (Array.isArray(sp.token) ? sp.token[0] : sp.token) ?? "";
   let persona = null;
@@ -38,11 +43,11 @@ export default async function RestablecerPage({
     return (
       <MarcoAcceso
         estado="error"
-        titulo={errorBase ? "No se pudo verificar el enlace" : "Este enlace ya no sirve"}
+        titulo={errorBase ? t("No se pudo verificar el enlace") : t("Este enlace ya no sirve")}
         subtitulo={
           errorBase
-            ? "La base no respondió. Probá de nuevo en un rato."
-            : "Venció, ya se usó o no es válido. Los enlaces valen una hora y se usan una sola vez."
+            ? t("La base no respondió. Probá de nuevo en un rato.")
+            : t("Venció, ya se usó o no es válido. Los enlaces valen una hora y se usan una sola vez.")
         }
       >
         <div className="flex flex-col gap-3">
@@ -50,13 +55,13 @@ export default async function RestablecerPage({
             href="/entrar/olvide"
             className={cn(buttonVariants(), "h-11 w-full rounded-xl text-[0.95rem]")}
           >
-            Pedir un enlace nuevo
+            {t("Pedir un enlace nuevo")}
           </Link>
           <Link
             href="/entrar"
             className={cn(buttonVariants({ variant: "outline" }), "h-11 w-full rounded-xl text-[0.95rem]")}
           >
-            Volver a entrar
+            {t("Volver a entrar")}
           </Link>
         </div>
       </MarcoAcceso>

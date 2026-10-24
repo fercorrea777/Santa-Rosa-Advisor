@@ -4,10 +4,9 @@ import * as React from "react";
 import { useActionState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n/cliente";
 import { guardarMetasMensuales } from "./acciones-metas";
 import type { EstadoGuardado } from "./acciones";
-
-const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 /**
  * Grilla de metas: una fila por marca, doce casilleros. Se completa lo que
@@ -47,6 +46,10 @@ export function EditorMetasMensuales({
     anual: Record<string, number | null>;
   } | null;
 }) {
+  const { t, tr, fmt } = useI18n();
+  const { formatUnidades } = fmt;
+  // Los meses salen del idioma de la pantalla (Ene…Dic / Jan…Dec).
+  const MESES = fmt.mesesCortos;
   const [estado, enviar, pendiente] = useActionState<EstadoGuardado | null, FormData>(
     guardarMetasMensuales,
     null
@@ -87,27 +90,30 @@ export function EditorMetasMensuales({
     <form action={enviar} className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Metas de vehículos por marca y mes</CardTitle>
+          <CardTitle className="text-base">{t("Metas de vehículos por marca y mes")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Contra esto se compara lo facturado en Cars (Nuestra operación), mes
-            a mes y en el año: ventas propias, no matriculaciones del mercado.
-            {facturado ? " Debajo de cada meta, en gris, lo facturado ese mes." : ""} Dejá
-            vacío lo que no tenga meta: la app muestra «sin meta», nunca un cero.
+            {t("Contra esto se compara lo facturado en Cars (Nuestra operación), mes a mes y en el año: ventas propias, no matriculaciones del mercado.")}
+            {facturado ? ` ${t("Debajo de cada meta, en gris, lo facturado ese mes.")}` : ""}{" "}
+            {t("Dejá vacío lo que no tenga meta: la app muestra «sin meta», nunca un cero.")}
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {presupuesto && (
             <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
-              Cargado desde <em>{presupuesto.archivo}</em> (archivo del{" "}
-              {presupuesto.modificado.slice(0, 10)}, cargado el{" "}
-              {presupuesto.cargado_en.slice(0, 16).replace("T", " ")} UTC, versión{" "}
-              {presupuesto.version}). Lo que edites acá lo pisa la próxima carga del
-              Excel. El presupuesto anual es la cifra original del año y no se edita.
+              {tr(
+                "Cargado desde <i>{archivo}</i> (archivo del {modificado}, cargado el {cargado} UTC, versión {version}). Lo que edites acá lo pisa la próxima carga del Excel. El presupuesto anual es la cifra original del año y no se edita.",
+                {
+                  archivo: presupuesto.archivo,
+                  modificado: presupuesto.modificado.slice(0, 10),
+                  cargado: presupuesto.cargado_en.slice(0, 16).replace("T", " "),
+                  version: presupuesto.version,
+                }
+              )}
             </p>
           )}
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Año</span>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("Año")}</span>
               <select name="anio" defaultValue={anio} className="input-base">
                 {anios.map((a) => (
                   <option key={a} value={a}>{a}</option>
@@ -115,7 +121,7 @@ export function EditorMetasMensuales({
               </select>
             </label>
             <span className="pb-2 text-[11px] text-muted-foreground">
-              Para cargar otro año: elegilo, completá la grilla y guardá.
+              {t("Para cargar otro año: elegilo, completá la grilla y guardá.")}
             </span>
           </div>
           {/* La primera columna queda fija: en una notebook la grilla de
@@ -125,13 +131,13 @@ export function EditorMetasMensuales({
             <table className="w-full min-w-[56rem] text-xs">
               <thead>
                 <tr className="text-muted-foreground">
-                  <th className="sticky left-0 z-10 bg-card py-1.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide">Marca</th>
+                  <th className="sticky left-0 z-10 bg-card py-1.5 pr-3 text-left text-[11px] font-medium uppercase tracking-wide">{t("Marca")}</th>
                   {MESES.map((m) => (
                     <th key={m} className="px-0.5 py-1.5 text-right text-[11px] font-medium uppercase tracking-wide">{m}</th>
                   ))}
-                  <th className="border-l py-1.5 pl-3 text-right text-[11px] font-medium uppercase tracking-wide">Año</th>
+                  <th className="border-l py-1.5 pl-3 text-right text-[11px] font-medium uppercase tracking-wide">{t("Año")}</th>
                   {presupuesto && (
-                    <th className="py-1.5 pl-3 text-right text-[11px] font-medium uppercase tracking-wide whitespace-nowrap">Ppto. anual</th>
+                    <th className="py-1.5 pl-3 text-right text-[11px] font-medium uppercase tracking-wide whitespace-nowrap">{t("Ppto. anual")}</th>
                   )}
                 </tr>
               </thead>
@@ -143,7 +149,7 @@ export function EditorMetasMensuales({
                     <td className="sticky left-0 z-10 bg-card py-1.5 pr-3 font-medium whitespace-nowrap">
                       {f.etiqueta}
                       {f.conjunta && (
-                        <span className="block text-[10px] font-normal text-muted-foreground">meta conjunta</span>
+                        <span className="block text-[10px] font-normal text-muted-foreground">{t("meta conjunta")}</span>
                       )}
                     </td>
                     {MESES.map((_, i) => {
@@ -162,7 +168,7 @@ export function EditorMetasMensuales({
                           {facturado && (
                             <span
                               className="block pr-1 text-right text-[10px] tabular-nums text-muted-foreground"
-                              title={`Facturado en Cars, ${MESES[i]} ${anio}`}
+                              title={t("Facturado en Cars, {mes} {anio}", { mes: MESES[i], anio })}
                             >
                               {vendido(f, i) || "·"}
                             </span>
@@ -171,26 +177,26 @@ export function EditorMetasMensuales({
                       );
                     })}
                     <td className="border-l py-1.5 pl-3 text-right tabular-nums font-medium align-top">
-                      {totalFila(m) ? totalFila(m).toLocaleString("es-PY") : "—"}
+                      {totalFila(m) ? formatUnidades(totalFila(m)) : "—"}
                       {facturado && (
                         <span className="block text-[10px] font-normal text-muted-foreground">
-                          {(vendidoAnio(f) ?? 0).toLocaleString("es-PY")} fact.
+                          {t("{n} fact.", { n: formatUnidades(vendidoAnio(f) ?? 0) })}
                         </span>
                       )}
                     </td>
                     {presupuesto && (
                       <td className="py-1.5 pl-3 text-right tabular-nums text-muted-foreground align-top">
-                        {presupuesto.anual[m] ? presupuesto.anual[m]?.toLocaleString("es-PY") : "—"}
+                        {presupuesto.anual[m] ? formatUnidades(presupuesto.anual[m] ?? 0) : "—"}
                       </td>
                     )}
                   </tr>
                   );
                 })}
                 <tr className="border-t bg-muted/40 font-medium">
-                  <td className="sticky left-0 z-10 bg-muted/40 py-1.5 pr-3">Total</td>
+                  <td className="sticky left-0 z-10 bg-muted/40 py-1.5 pr-3">{t("Total")}</td>
                   {MESES.map((_, i) => (
                     <td key={i} className="px-1.5 py-1.5 text-right tabular-nums align-top">
-                      {totalCol(i) ? totalCol(i).toLocaleString("es-PY") : "—"}
+                      {totalCol(i) ? formatUnidades(totalCol(i)) : "—"}
                       {facturado && (
                         <span className="block text-[10px] font-normal text-muted-foreground">
                           {vendidoCol(i) || "·"}
@@ -199,11 +205,11 @@ export function EditorMetasMensuales({
                     </td>
                   ))}
                   <td className="border-l py-1.5 pl-3 text-right tabular-nums">
-                    {totalAnio ? totalAnio.toLocaleString("es-PY") : "—"}
+                    {totalAnio ? formatUnidades(totalAnio) : "—"}
                   </td>
                   {presupuesto && (
                     <td className="py-1.5 pl-3 text-right tabular-nums">
-                      {Object.values(presupuesto.anual).reduce((s: number, v) => s + (v ?? 0), 0).toLocaleString("es-PY")}
+                      {formatUnidades(Object.values(presupuesto.anual).reduce((s: number, v) => s + (v ?? 0), 0))}
                     </td>
                   )}
                 </tr>
@@ -217,7 +223,7 @@ export function EditorMetasMensuales({
               </p>
             )}
             <Button type="submit" disabled={pendiente}>
-              {pendiente ? "Guardando…" : "Guardar metas por mes"}
+              {pendiente ? t("Guardando…") : t("Guardar metas por mes")}
             </Button>
           </div>
         </CardContent>

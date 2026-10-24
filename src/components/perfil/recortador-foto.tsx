@@ -3,6 +3,8 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { LADO_FOTO, MAX_BYTES_FOTO } from "@/lib/foto-perfil";
+import { useI18n } from "@/lib/i18n/cliente";
+import { N_ } from "@/lib/i18n/traducir";
 
 /**
  * Recortador de la foto de perfil: se abre con el archivo elegido, se encuadra
@@ -94,6 +96,7 @@ export function RecortadorFoto({
    *  padre cierra el recortador). */
   onGuardar: (jpeg: Blob) => Promise<string | null>;
 }) {
+  const { t } = useI18n();
   const dialogo = React.useRef<HTMLDialogElement>(null);
   const lienzo = React.useRef<HTMLCanvasElement>(null);
   const imagen = React.useRef<Imagen | null>(null);
@@ -135,7 +138,8 @@ export function RecortadorFoto({
       () => {
         if (!vigente) return;
         setCarga("error");
-        setError("Ese archivo no se pudo leer como imagen. Probá con un JPG o un PNG.");
+        // N_: el mensaje se traduce al dibujarlo (abajo), así el efecto no depende del idioma.
+        setError(N_("Ese archivo no se pudo leer como imagen. Probá con un JPG o un PNG."));
       }
     );
     return () => {
@@ -257,13 +261,14 @@ export function RecortadorFoto({
       let blob = await aBlob(0.86);
       if (blob && blob.size > MAX_BYTES_FOTO) blob = await aBlob(0.7);
       if (!blob || blob.size > MAX_BYTES_FOTO) {
-        setError("No se pudo comprimir la imagen. Probá con otra foto.");
+        setError(N_("No se pudo comprimir la imagen. Probá con otra foto."));
         return;
       }
       const falla = await onGuardar(blob);
+      // `falla` ya viene traducida por quien sube la foto; `t()` la deja igual si no es una frase del catálogo.
       if (falla) setError(falla);
     } catch {
-      setError("No se pudo preparar la foto. Probá de nuevo.");
+      setError(N_("No se pudo preparar la foto. Probá de nuevo."));
     } finally {
       setGuardando(false);
     }
@@ -290,23 +295,22 @@ export function RecortadorFoto({
       <div className="flex flex-col gap-4 p-5">
         <div>
           <h2 id={`${idAyuda}-titulo`} className="text-base font-bold tracking-tight">
-            Encuadrá tu foto
+            {t("Encuadrá tu foto")}
           </h2>
           <p id={`${idAyuda}-ayuda`} className="mt-1 text-xs text-muted-foreground">
-            Arrastrala para moverla y acercala con el control de abajo o con la rueda. Se guarda
-            como un cuadrado y se muestra en círculo.
+            {t("Arrastrala para moverla y acercala con el control de abajo o con la rueda. Se guarda como un cuadrado y se muestra en círculo.")}
           </p>
         </div>
 
         <div className="mx-auto w-full max-w-72">
           {carga === "cargando" && (
             <div className="grid aspect-square place-items-center rounded-xl bg-muted text-sm text-muted-foreground" role="status">
-              Abriendo la imagen…
+              {t("Abriendo la imagen…")}
             </div>
           )}
           {carga === "error" && (
             <div className="grid aspect-square place-items-center rounded-xl bg-muted p-6 text-center text-sm text-muted-foreground">
-              No se pudo abrir esa imagen.
+              {t("No se pudo abrir esa imagen.")}
             </div>
           )}
           {carga === "lista" && (
@@ -314,7 +318,7 @@ export function RecortadorFoto({
               ref={lienzo}
               tabIndex={0}
               role="img"
-              aria-label="Vista previa del encuadre de tu foto"
+              aria-label={t("Vista previa del encuadre de tu foto")}
               aria-describedby={`${idAyuda}-ayuda`}
               aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown + -"
               onPointerDown={alApretar}
@@ -329,7 +333,7 @@ export function RecortadorFoto({
 
         {carga === "lista" && (
           <label className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="w-10 shrink-0">Zoom</span>
+            <span className="w-10 shrink-0">{t("Zoom")}</span>
             <input
               type="range"
               min={ZOOM_MIN}
@@ -337,7 +341,7 @@ export function RecortadorFoto({
               step={0.01}
               value={zoom}
               onChange={(e) => cambiarZoom(Number(e.target.value))}
-              aria-label="Acercar la foto"
+              aria-label={t("Acercar la foto")}
               className="h-1.5 flex-1 cursor-pointer accent-primary"
             />
           </label>
@@ -345,16 +349,16 @@ export function RecortadorFoto({
 
         {error && (
           <p role="alert" className="rounded-md border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-xs text-rose-700 dark:text-rose-400">
-            {error}
+            {t(error)}
           </p>
         )}
 
         <div className="flex items-center justify-end gap-2">
           <Button type="button" variant="ghost" onClick={cerrar} disabled={guardando}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
           <Button type="button" onClick={guardar} disabled={carga !== "lista" || guardando}>
-            {guardando ? "Guardando…" : "Guardar foto"}
+            {guardando ? t("Guardando…") : t("Guardar foto")}
           </Button>
         </div>
       </div>

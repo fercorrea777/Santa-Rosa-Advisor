@@ -6,7 +6,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { formatPct, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cn } from "@/lib/utils";
 
 /**
@@ -55,6 +55,7 @@ export interface CeldaMapa {
 
 export interface ColumnaMapa {
   clave: string;
+  /** Ya traducida por quien arma el mapa (la página). */
   etiqueta: string;
   /** No lleva marca de acción: es un hueco de datos, no una posición. */
   sinAccion?: boolean;
@@ -76,8 +77,8 @@ export function MapaClases({
   filas,
   columnas,
   celdas,
-  /** Cómo se llama una columna al explicarla: "banda de precio" o "motorización". */
-  nombreColumna,
+  /** Qué son las columnas, para explicarlas: una banda de precio o una motorización. */
+  tipoColumna,
   /** Para la frase del detalle: "Ene–Jul 2026". */
   periodo,
   fuente = "matriculacion",
@@ -85,11 +86,13 @@ export function MapaClases({
   filas: string[];
   columnas: ColumnaMapa[];
   celdas: CeldaMapa[];
-  nombreColumna: string;
+  tipoColumna: "precio" | "motorizacion";
   periodo: string;
   /** De qué base salen las unidades: lo dice la frase del detalle. */
   fuente?: "matriculacion" | "importacion";
 }) {
+  const { t, fmt } = useI18n();
+  const { formatPct, formatUnidades } = fmt;
   const [abierto, setAbierto] = useState<CeldaMapa | null>(null);
 
   const porClave = new Map(celdas.map((c) => [`${c.fila}|${c.columna}`, c]));
@@ -109,10 +112,10 @@ export function MapaClases({
 
   const totalColumna = new Map<string, { mercado: number; propias: number }>();
   for (const c of celdas) {
-    const t = totalColumna.get(c.columna) ?? { mercado: 0, propias: 0 };
-    t.mercado += c.mercado;
-    t.propias += c.propias;
-    totalColumna.set(c.columna, t);
+    const tot = totalColumna.get(c.columna) ?? { mercado: 0, propias: 0 };
+    tot.mercado += c.mercado;
+    tot.propias += c.propias;
+    totalColumna.set(c.columna, tot);
   }
 
   return (
@@ -122,25 +125,25 @@ export function MapaClases({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Clase</TableHead>
+              <TableHead>{t("Clase")}</TableHead>
               {columnas.map((c) => (
                 <TableHead key={c.clave} className="text-right whitespace-nowrap">{c.etiqueta}</TableHead>
               ))}
-              <TableHead className="text-right" nota="toda la clase, sumando las columnas">Total</TableHead>
+              <TableHead className="text-right" nota={t("toda la clase, sumando las columnas")}>{t("Total")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filas.map((fila) => {
               const total = columnas.reduce(
-                (t, c) => {
+                (acc, c) => {
                   const x = celda(fila, c.clave);
-                  return { mercado: t.mercado + (x?.mercado ?? 0), propias: t.propias + (x?.propias ?? 0) };
+                  return { mercado: acc.mercado + (x?.mercado ?? 0), propias: acc.propias + (x?.propias ?? 0) };
                 },
                 { mercado: 0, propias: 0 }
               );
               return (
                 <TableRow key={fila}>
-                  <TableCell className="font-medium whitespace-nowrap">{fila}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{t(fila)}</TableCell>
                   {columnas.map((col) => {
                     const x = celda(fila, col.clave);
                     const share = x && x.mercado ? x.propias / x.mercado : 0;
@@ -159,7 +162,7 @@ export function MapaClases({
                           <button
                             type="button"
                             onClick={() => setAbierto(x)}
-                            title={`Ver el detalle de ${fila} · ${col.etiqueta}`}
+                            title={t("Ver el detalle de {fila} · {columna}", { fila: t(fila), columna: col.etiqueta })}
                             className="w-full cursor-pointer px-2 py-2 text-right transition-colors hover:bg-foreground/5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
                           >
                             <span className="block tabular-nums font-semibold">{formatUnidades(x.mercado)}</span>
@@ -172,7 +175,7 @@ export function MapaClases({
                                 x.propias ? "text-foreground" : "text-muted-foreground"
                               )}
                             >
-                              {x.propias ? `${formatUnidades(x.propias)} nuestras · ${formatPct(share)}` : "—"}
+                              {x.propias ? t("{n} nuestras · {pct}", { n: formatUnidades(x.propias), pct: formatPct(share) }) : "—"}
                             </span>
                             {accion && (
                               // Una chapa con fondo propio y no solo color de texto: el verde
@@ -185,7 +188,7 @@ export function MapaClases({
                                     : "bg-emerald-700 text-white dark:bg-emerald-300 dark:text-emerald-950"
                                 )}
                               >
-                                {accion}
+                                {accion === "entrar" ? t("entrar") : t("defender")}
                               </span>
                             )}
                           </button>
@@ -205,14 +208,14 @@ export function MapaClases({
               );
             })}
             <TableRow className="font-medium">
-              <TableCell>Total</TableCell>
+              <TableCell>{t("Total")}</TableCell>
               {columnas.map((c) => {
-                const t = totalColumna.get(c.clave);
+                const tot = totalColumna.get(c.clave);
                 return (
                   <TableCell key={c.clave} className="text-right align-top">
-                    <span className="block tabular-nums">{t ? formatUnidades(t.mercado) : "·"}</span>
+                    <span className="block tabular-nums">{tot ? formatUnidades(tot.mercado) : "·"}</span>
                     <span className="block text-[11px] tabular-nums text-muted-foreground">
-                      {t?.propias ? `${formatUnidades(t.propias)} · ${formatPct(t.propias / t.mercado)}` : "—"}
+                      {tot?.propias ? `${formatUnidades(tot.propias)} · ${formatPct(tot.propias / tot.mercado)}` : "—"}
                     </span>
                   </TableCell>
                 );
@@ -229,7 +232,7 @@ export function MapaClases({
         accion={abierto ? accionDe(abierto, columnas.find((c) => c.clave === abierto.columna) ?? { clave: "", etiqueta: "" }) : null}
         peso={abierto && totalMapa ? abierto.mercado / totalMapa : 0}
         pesoPropio={abierto && totalPropias ? abierto.propias / totalPropias : 0}
-        nombreColumna={nombreColumna}
+        tipoColumna={tipoColumna}
         periodo={periodo}
         fuente={fuente}
         onClose={() => setAbierto(null)}
@@ -239,30 +242,34 @@ export function MapaClases({
 }
 
 function Leyenda() {
+  const { t, tr } = useI18n();
   const pasos = [0, 0.05, 0.1, 0.2, 0.3];
+  // El mismo énfasis de siempre en la palabra de la acción: la etiqueta <b>
+  // del traductor, pero con el peso y el color de esta leyenda.
+  const enfasis = { b: (h: React.ReactNode) => <strong className="font-medium text-foreground">{h}</strong> };
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] text-muted-foreground">
       <span className="flex items-center gap-2">
-        Cuánto del casillero es nuestro:
+        {t("Cuánto del casillero es nuestro:")}
         <span className="flex overflow-hidden rounded border">
           {pasos.map((s) => (
             <span key={s} className="h-4 w-7" style={{ backgroundColor: tinte(s) ?? "transparent" }} />
           ))}
         </span>
-        0 % → 30 % o más
+        {t("0 % → 30 % o más")}
       </span>
       <span className="flex items-center gap-1.5">
         <span className="inline-block h-4 w-4 rounded-sm ring-2 ring-amber-500 ring-inset" />
-        <strong className="font-medium text-foreground">Entrar</strong>: el mercado compra ahí y casi no estamos
+        {tr("<b>Entrar</b>: el mercado compra ahí y casi no estamos", undefined, enfasis)}
       </span>
       <span className="flex items-center gap-1.5">
         <span
           className="inline-block h-4 w-4 rounded-sm ring-2 ring-emerald-600 ring-inset"
           style={{ backgroundColor: tinte(0.3) }}
         />
-        <strong className="font-medium text-foreground">Defender</strong>: pesa y mandamos nosotros
+        {tr("<b>Defender</b>: pesa y mandamos nosotros", undefined, enfasis)}
       </span>
-      <span className="text-muted-foreground">Tocá cualquier casillero para ver el detalle.</span>
+      <span className="text-muted-foreground">{t("Tocá cualquier casillero para ver el detalle.")}</span>
     </div>
   );
 }
@@ -274,7 +281,7 @@ function DetalleCasillero({
   accion,
   peso,
   pesoPropio,
-  nombreColumna,
+  tipoColumna,
   periodo,
   fuente,
   onClose,
@@ -284,11 +291,13 @@ function DetalleCasillero({
   accion: AccionCasillero | null;
   peso: number;
   pesoPropio: number;
-  nombreColumna: string;
+  tipoColumna: "precio" | "motorizacion";
   periodo: string;
   fuente: "matriculacion" | "importacion";
   onClose: () => void;
 }) {
+  const { t, tr, fmt } = useI18n();
+  const { formatPct, formatUnidades } = fmt;
   const share = celda && celda.mercado ? celda.propias / celda.mercado : 0;
   const propios = celda?.modelos.filter((m) => m.esPropia) ?? [];
   const rivales = celda?.modelos.filter((m) => !m.esPropia) ?? [];
@@ -296,6 +305,13 @@ function DetalleCasillero({
     celda?.precioNuestro && celda?.precioRival ? celda.precioNuestro / celda.precioRival - 1 : null;
   const brecha =
     celda?.precioNuestro && celda?.precioRival ? Math.abs(celda.precioNuestro - celda.precioRival) : null;
+  const vars = {
+    peso: formatPct(peso),
+    pesoPropio: formatPct(pesoPropio),
+    share: formatPct(share),
+    precioRival: celda?.precioRival ? formatUnidades(Math.round(celda.precioRival)) : "",
+    brecha: brecha !== null ? formatUnidades(Math.round(brecha)) : "",
+  };
 
   return (
     <Dialog.Root open={!!celda} onOpenChange={(abierto) => !abierto && onClose()}>
@@ -313,42 +329,43 @@ function DetalleCasillero({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <Dialog.Title className="text-lg font-semibold">
-                    {celda.fila} · {columna?.etiqueta}
+                    {t(celda.fila)} · {columna?.etiqueta}
                   </Dialog.Title>
                   <Dialog.Description className="text-xs text-muted-foreground">
-                    {celda.fila} en {nombreColumna === "banda de precio" ? "la banda" : "la motorización"}{" "}
-                    {columna?.etiqueta} · {periodo}
+                    {tipoColumna === "precio"
+                      ? t("{fila} en la banda {columna} · {periodo}", { fila: t(celda.fila), columna: columna?.etiqueta ?? "", periodo })
+                      : t("{fila} en la motorización {columna} · {periodo}", { fila: t(celda.fila), columna: columna?.etiqueta ?? "", periodo })}
                   </Dialog.Description>
                 </div>
                 <Dialog.Close className="rounded-md border px-2.5 py-1 text-xs font-medium hover:bg-muted">
-                  Cerrar
+                  {t("Cerrar")}
                 </Dialog.Close>
               </div>
 
               {/* Las tres cifras que definen el casillero. */}
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Cifra titulo="Vendió el mercado" valor={formatUnidades(celda.mercado)} pie={`${formatPct(peso)} del mapa`} />
-                <Cifra titulo="Vendimos nosotros" valor={formatUnidades(celda.propias)} pie={`${formatPct(share)} del casillero`} />
+                <Cifra titulo={t("Vendió el mercado")} valor={formatUnidades(celda.mercado)} pie={t("{pct} del mapa", { pct: vars.peso })} />
+                <Cifra titulo={t("Vendimos nosotros")} valor={formatUnidades(celda.propias)} pie={t("{pct} del casillero", { pct: vars.share })} />
                 <Cifra
-                  titulo="Precio de los rivales"
+                  titulo={t("Precio de los rivales")}
                   valor={celda.precioRival ? `US$ ${formatUnidades(Math.round(celda.precioRival))}` : "—"}
                   pie={
                     celda.nPreciosRivales === 0
-                      ? "ninguno con precio cargado"
+                      ? t("ninguno con precio cargado")
                       : celda.nPreciosRivales === 1
-                        ? "el único rival con precio"
-                        : `mediana de ${celda.nPreciosRivales} precios`
+                        ? t("el único rival con precio")
+                        : t("mediana de {n} precios", { n: celda.nPreciosRivales })
                   }
                 />
                 <Cifra
-                  titulo="Nuestro precio"
+                  titulo={t("Nuestro precio")}
                   valor={celda.precioNuestro ? `US$ ${formatUnidades(Math.round(celda.precioNuestro))}` : "—"}
                   pie={
                     dif === null
                       ? celda.nPreciosNuestros === 0
-                        ? "no tenemos modelo con precio acá"
-                        : "sin rivales con precio para comparar"
-                      : `${dif > 0 ? "+" : ""}${(dif * 100).toFixed(0).replace("-", "−")} % contra los rivales`
+                        ? t("no tenemos modelo con precio acá")
+                        : t("sin rivales con precio para comparar")
+                      : t("{n} % contra los rivales", { n: `${dif > 0 ? "+" : ""}${(dif * 100).toFixed(0).replace("-", "−")}` })
                   }
                 />
               </div>
@@ -362,61 +379,43 @@ function DetalleCasillero({
               >
                 {accion === "entrar" ? (
                   <>
-                    <strong>Acá hay que entrar.</strong> Es uno de los casilleros grandes del mercado
-                    ({formatPct(peso)} de todo lo que se vendió en el mapa) y nosotros tenemos{" "}
-                    {formatPct(share)}.{" "}
+                    {tr("<b>Acá hay que entrar.</b> Es uno de los casilleros grandes del mercado ({peso} de todo lo que se vendió en el mapa) y nosotros tenemos {share}.", vars)}{" "}
                     {celda.precioRival && celda.nPreciosRivales >= 2 ? (
                       <>
-                        El comprador de este casillero paga alrededor de{" "}
-                        <strong>US$ {formatUnidades(Math.round(celda.precioRival))}</strong>: entrar significa
-                        traer un modelo a ese precio, o acercar el nuestro. Un modelo bueno al precio
-                        equivocado no compite acá.
+                        {tr("El comprador de este casillero paga alrededor de <b>US$ {precioRival}</b>: entrar significa traer un modelo a ese precio, o acercar el nuestro. Un modelo bueno al precio equivocado no compite acá.", vars)}
                       </>
                     ) : celda.precioRival ? (
                       <>
-                        El único rival con precio cargado está en{" "}
-                        <strong>US$ {formatUnidades(Math.round(celda.precioRival))}</strong>: alcanza como
-                        referencia, no como el precio del casillero.
+                        {tr("El único rival con precio cargado está en <b>US$ {precioRival}</b>: alcanza como referencia, no como el precio del casillero.", vars)}
                       </>
                     ) : (
-                      <>No hay precios de rivales cargados en este casillero, así que no se puede decir a qué precio se compra.</>
+                      <>{t("No hay precios de rivales cargados en este casillero, así que no se puede decir a qué precio se compra.")}</>
                     )}
                   </>
                 ) : accion === "defender" ? (
                   <>
-                    <strong>Acá mandamos y hay que defenderlo.</strong> De este casillero sale el{" "}
-                    {formatPct(pesoPropio)} de todo lo que vendemos en el mapa, y tenemos{" "}
-                    {formatPct(share)} de él. Lo que se cuida es el stock —quedarse sin unidades acá es
-                    regalar participación— y el precio.{" "}
+                    {tr("<b>Acá mandamos y hay que defenderlo.</b> De este casillero sale el {pesoPropio} de todo lo que vendemos en el mapa, y tenemos {share} de él. Lo que se cuida es el stock —quedarse sin unidades acá es regalar participación— y el precio.", vars)}{" "}
                     {dif !== null && celda.nPreciosRivales < 2 ? (
                       <>
-                        Hay un solo rival con precio cargado en el casillero: no alcanza para decir si
-                        estamos caros o baratos.
+                        {t("Hay un solo rival con precio cargado en el casillero: no alcanza para decir si estamos caros o baratos.")}
                       </>
                     ) : dif !== null && brecha !== null && dif <= -0.05 ? (
                       <>
-                        Estamos <strong>US$ {formatUnidades(Math.round(brecha))} por debajo</strong> de la
-                        mediana del casillero y aun así lideramos: hay espacio de precio, sobre todo si el
-                        stock escasea.
+                        {tr("Estamos <b>US$ {brecha} por debajo</b> de la mediana del casillero y aun así lideramos: hay espacio de precio, sobre todo si el stock escasea.", vars)}
                       </>
                     ) : dif !== null && brecha !== null && dif >= 0.05 ? (
                       <>
-                        Estamos <strong>US$ {formatUnidades(Math.round(brecha))} por encima</strong> de la
-                        mediana y lideramos igual: el precio no es la barrera, no hace falta resignarlo.
+                        {tr("Estamos <b>US$ {brecha} por encima</b> de la mediana y lideramos igual: el precio no es la barrera, no hace falta resignarlo.", vars)}
                       </>
                     ) : dif !== null ? (
-                      <>Estamos al precio del casillero: lo que decide es el stock y el seguimiento.</>
+                      <>{t("Estamos al precio del casillero: lo que decide es el stock y el seguimiento.")}</>
                     ) : (
-                      <>No hay precios suficientes para comparar dentro del casillero.</>
+                      <>{t("No hay precios suficientes para comparar dentro del casillero.")}</>
                     )}
                   </>
                 ) : (
                   <>
-                    <strong>Casillero para mirar, no para actuar todavía.</strong> Pesa {formatPct(peso)} del
-                    mercado del mapa, de acá sale el {formatPct(pesoPropio)} de lo que vendemos y tenemos{" "}
-                    {formatPct(share)} de él: ni es lo bastante grande como para justificar entrar, ni
-                    concentra tanto de nuestro volumen como para llamarlo fortaleza. La comparativa está
-                    abajo igual.
+                    {tr("<b>Casillero para mirar, no para actuar todavía.</b> Pesa {peso} del mercado del mapa, de acá sale el {pesoPropio} de lo que vendemos y tenemos {share} de él: ni es lo bastante grande como para justificar entrar, ni concentra tanto de nuestro volumen como para llamarlo fortaleza. La comparativa está abajo igual.", vars)}
                   </>
                 )}
               </p>
@@ -426,21 +425,21 @@ function DetalleCasillero({
               {/* La comparativa entera. */}
               <div className="min-h-0 flex-1 overflow-y-auto p-5 pt-4">
               <h4 className="text-sm font-semibold">
-                Todos los modelos del casillero{" "}
+                {t("Todos los modelos del casillero")}{" "}
                 <span className="font-normal text-muted-foreground">
                   ({formatUnidades(celda.modelosTotal)}
-                  {celda.modelosTotal > celda.modelos.length ? `, se listan los ${celda.modelos.length} que más venden` : ""})
+                  {celda.modelosTotal > celda.modelos.length ? `, ${t("se listan los {n} que más venden", { n: celda.modelos.length })}` : ""})
                 </span>
               </h4>
               <div className="mt-2 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Modelo</TableHead>
-                      <TableHead className="text-right" nota="las del período">Unidades</TableHead>
-                      <TableHead className="text-right whitespace-nowrap" nota="su parte de este casillero">% del casillero</TableHead>
-                      <TableHead className="text-right" nota="el más barato de la gama">Precio</TableHead>
-                      <TableHead>Motorización</TableHead>
+                      <TableHead>{t("Modelo")}</TableHead>
+                      <TableHead className="text-right" nota={t("las del período")}>{t("Unidades")}</TableHead>
+                      <TableHead className="text-right whitespace-nowrap" nota={t("su parte de este casillero")}>{t("% del casillero")}</TableHead>
+                      <TableHead className="text-right" nota={t("el más barato de la gama")}>{t("Precio")}</TableHead>
+                      <TableHead>{t("Motorización")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -451,7 +450,7 @@ function DetalleCasillero({
                           <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                             <LogoMarca marca={m.marca} />
                             {m.marca}
-                            {m.esPropia ? " · nuestra" : ""}
+                            {m.esPropia ? ` · ${t("nuestra")}` : ""}
                           </span>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{formatUnidades(m.unidades)}</TableCell>
@@ -469,12 +468,15 @@ function DetalleCasillero({
               </div>
               <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
                 {propios.length === 0
-                  ? "No tenemos ningún modelo con ventas en este casillero."
-                  : `Nuestros modelos acá: ${propios.map((m) => m.modelo).join(", ")}.`}{" "}
-                {rivales.length} {rivales.length === 1 ? "rival" : "rivales"} con unidades. Unidades:
-                {fuente === "importacion" ? " importaciones" : " matriculaciones"} de CADAM del período. Precios: los nuestros del stock de Cars, los de la
-                competencia del catálogo de Datacar — no es lista oficial, y lo que no tiene precio no se
-                adivina.
+                  ? t("No tenemos ningún modelo con ventas en este casillero.")
+                  : t("Nuestros modelos acá: {modelos}.", { modelos: propios.map((m) => m.modelo).join(", ") })}{" "}
+                {rivales.length === 1
+                  ? t("{n} rival con unidades.", { n: rivales.length })
+                  : t("{n} rivales con unidades.", { n: rivales.length })}{" "}
+                {fuente === "importacion"
+                  ? t("Unidades: importaciones de CADAM del período.")
+                  : t("Unidades: matriculaciones de CADAM del período.")}{" "}
+                {t("Precios: los nuestros del stock de Cars, los de la competencia del catálogo de Datacar — no es lista oficial, y lo que no tiene precio no se adivina.")}
               </p>
               </div>
             </>

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { enviarEnlaceClave, hayCorreo } from "@/lib/auth/correo";
 import { anotarFallo, bloqueadoPor, ipDe } from "@/lib/auth/freno";
+import { getI18n } from "@/lib/i18n/servidor";
 import {
   crearRecuperacion, getUsuarioPorCorreo, MINUTOS_RECUPERACION, normalizarUsuario,
   problemaConElUsuario, registrarEvento,
@@ -19,10 +20,6 @@ export interface EstadoOlvide {
 const FRENO_IP = { max: 3, esperaMs: 15 * 60_000 };
 const FRENO_CORREO = { max: 1, esperaMs: 5 * 60_000 };
 
-const RESPUESTA =
-  "Si ese correo tiene cuenta, en un minuto le llega un enlace para poner " +
-  "una clave nueva. Vale una hora. Revisá también el spam.";
-
 /**
  * "Olvidé mi clave": manda por correo un enlace de un solo uso para poner
  * una clave nueva.
@@ -36,32 +33,42 @@ export async function pedirRecuperacion(
   _prev: EstadoOlvide | null,
   form: FormData
 ): Promise<EstadoOlvide> {
+  // Todo lo que vuelve a la pantalla (y el correo) sale en el idioma de quien lo pide.
+  const i18n = await getI18n();
+  const { t } = i18n;
+  // Siempre la misma respuesta, exista o no la cuenta (ver arriba).
+  const respuesta = t(
+    "Si ese correo tiene cuenta, en un minuto le llega un enlace para poner " +
+    "una clave nueva. Vale una hora. Revisá también el spam."
+  );
   const h = await headers();
   const ip = ipDe(h);
   const correo = normalizarUsuario(String(form.get("correo") ?? ""));
 
-  const problema = problemaConElUsuario(correo);
+  const problema = problemaConElUsuario(correo, t);
   if (problema) return { error: problema };
 
   const esperaIp = bloqueadoPor(`olvide-ip:${ip}`);
   if (esperaIp) {
-    return { error: `Demasiados pedidos. Probá de nuevo en ${Math.ceil(esperaIp / 60)} minutos.` };
+    return { error: t("Demasiados pedidos. Probá de nuevo en {minutos} minutos.", { minutos: Math.ceil(esperaIp / 60) }) };
   }
   // Por casilla se frena en silencio: decir "ya pediste hace un rato" para
   // un correo ajeno sería confirmar que existe.
   const esperaCorreo = bloqueadoPor(`olvide-correo:${correo}`);
   anotarFallo(`olvide-ip:${ip}`, FRENO_IP);
   anotarFallo(`olvide-correo:${correo}`, FRENO_CORREO);
-  void registrarEvento("recuperacion_pedida", { correo, ip, detalle: esperaCorreo ? "frenado por casilla" : null });
-  if (esperaCorreo) return { ok: RESPUESTA };
+  // El detalle de la auditoría se guarda en castellano (es un dato de la base) y se traduce al mostrarlo.
+  void registrarEvento("recuperacion_pedida", { correo, ip, detalle: esperaCorreo ? "frenado por casilla" : null }); // i18n-ignore
+  if (esperaCorreo) return { ok: respuesta };
 
   if (!hayCorreo()) {
     // Esto sí se dice: es un problema de configuración nuestro, no
     // información sobre la cuenta.
     return {
-      error:
+      error: t(
         "El envío de correos no está configurado en el servidor. Pedile a un " +
-        "administrador que te restablezca la clave.",
+        "administrador que te restablezca la clave."
+      ),
     };
   }
 
@@ -76,6 +83,7 @@ export async function pedirRecuperacion(
         token,
         tipo: "olvido",
         minutosValido: MINUTOS_RECUPERACION,
+        i18n,
       });
       void registrarEvento("recuperacion_enviada", { correo, usuarioId: persona.id, ip });
     } catch (e) {
@@ -84,5 +92,5 @@ export async function pedirRecuperacion(
     }
   });
 
-  return { ok: RESPUESTA };
+  return { ok: respuesta };
 }

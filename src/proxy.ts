@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { NOMBRE_COOKIE, leerSesion } from "@/lib/auth/sesion";
+import { COOKIE_IDIOMA, idiomaDe } from "@/lib/i18n/idioma";
 
 /**
  * Puerta de entrada del tablero.
@@ -64,13 +65,32 @@ const SIN_PUERTA = new Set([
   "/api/acciones-comerciales",
 ]);
 
+/**
+ * Las pocas frases que la puerta contesta en JSON, en el idioma de la cookie
+ * `advisor_idioma`.
+ *
+ * Acá NO se puede usar `getI18n()`: la puerta corre antes que cualquier pantalla,
+ * sin el contexto de React ni el catálogo (que se carga bajo demanda y pesa
+ * miles de frases). Son dos textos, así que viven en este archivo, por idioma.
+ */
+// i18n-ignore-start (la tabla por idioma: el castellano es el dato, no un texto a traducir)
+const FRASES = {
+  es: { sesion: "Sesión requerida.", admin: "Necesitás rol de administrador." },
+  en: { sesion: "Sign-in required.", admin: "You need the administrator role." },
+} as const;
+// i18n-ignore-end
+
+function frasesDe(request: NextRequest) {
+  return FRASES[idiomaDe(request.cookies.get(COOKIE_IDIOMA)?.value)];
+}
+
 /** A la pantalla de acceso, recordando adonde queria ir. Para las rutas de
  *  API se responde 401 en JSON: un fetch que recibe el HTML del login no
  *  tiene forma de darse cuenta de que lo que le falta es la sesion. */
 function aLogin(request: NextRequest): NextResponse {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json(
-      { error: "Sesión requerida." },
+      { error: frasesDe(request).sesion },
       { status: 401, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -134,7 +154,7 @@ export function proxy(request: NextRequest) {
   if (esDeAdmins(request.nextUrl.pathname) && sesion.rol !== "admin") {
     if (request.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json(
-        { error: "Necesitás rol de administrador." },
+        { error: frasesDe(request).admin },
         { status: 403, headers: { "Cache-Control": "no-store" } }
       );
     }

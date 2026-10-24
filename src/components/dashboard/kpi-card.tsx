@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { formatPct, formatPuntosPct, formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 import { Cifra } from "@/components/movimiento/cifra";
 import { IconBrecha, IconEvolucion, IconMarketShare, IconSegmentos } from "@/components/icons";
 
@@ -61,11 +61,6 @@ interface KpiCardProps {
   chipTono?: "violet" | "mint" | "amber" | "pink";
 }
 
-const FORMATEADORES: Record<NonNullable<KpiCardProps["formato"]>, (n: number) => string> = {
-  unidades: formatUnidades,
-  porcentaje: (n) => formatPct(n),
-};
-
 export function KpiCard({
   label,
   value,
@@ -81,6 +76,12 @@ export function KpiCard({
   chipIcono,
   chipTono,
 }: KpiCardProps) {
+  const { t, fmt } = useI18n();
+  const { formatPct, formatPuntosPct, formatUnidades } = fmt;
+  const FORMATEADORES: Record<NonNullable<KpiCardProps["formato"]>, (n: number) => string> = {
+    unidades: formatUnidades,
+    porcentaje: (n) => formatPct(n),
+  };
   const ChipIcono = chipIcono ? CHIP_ICONOS[chipIcono] : undefined;
   // El conteo lo hace <Cifra> sobre el texto final: acá solo se decide qué
   // texto es.
@@ -97,8 +98,8 @@ export function KpiCard({
           {tooltip && <InfoTip text={tooltip} />}
         </CardHeader>
         <CardContent className="px-4">
-          <p className="text-lg font-medium text-muted-foreground">Sin datos cargados</p>
-          <p className="text-xs text-muted-foreground">Pendiente de ingesta</p>
+          <p className="text-lg font-medium text-muted-foreground">{t("Sin datos cargados")}</p>
+          <p className="text-xs text-muted-foreground">{t("Pendiente de ingesta")}</p>
         </CardContent>
       </Card>
     );
@@ -171,7 +172,7 @@ export function KpiCard({
               {textoCambio}
             </span>
           ) : sinBase ? (
-            <span className="text-xs text-muted-foreground">Sin base comparativa</span>
+            <span className="text-xs text-muted-foreground">{t("Sin base comparativa")}</span>
           ) : null}
           {periodo && <span className="text-xs text-muted-foreground">{periodo}</span>}
         </div>

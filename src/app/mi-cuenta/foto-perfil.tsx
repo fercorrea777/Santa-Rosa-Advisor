@@ -7,6 +7,7 @@ import { Avatar } from "@/components/perfil/avatar";
 import { RecortadorFoto } from "@/components/perfil/recortador-foto";
 import { IconCamara, IconCheck, IconSubir } from "@/components/icons";
 import { TIPO_FOTO, URL_FOTO } from "@/lib/foto-perfil";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cn } from "@/lib/utils";
 
 /** Una foto de celular puede pesar 10 MB; más que esto casi seguro no es una
@@ -35,6 +36,7 @@ export function FotoPerfil({
    *  a la que colgarle una foto. */
   puedeCambiar: boolean;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const selector = React.useRef<HTMLInputElement>(null);
   const [archivo, setArchivo] = React.useState<File | null>(null);
@@ -54,11 +56,11 @@ export function FotoPerfil({
     if (!f) return;
     setAviso(null);
     if (!f.type.startsWith("image/")) {
-      setAviso({ tipo: "error", texto: "Ese archivo no es una imagen. Elegí un JPG, un PNG o un WebP." });
+      setAviso({ tipo: "error", texto: t("Ese archivo no es una imagen. Elegí un JPG, un PNG o un WebP.") });
       return;
     }
     if (f.size > MAX_ARCHIVO) {
-      setAviso({ tipo: "error", texto: "Esa imagen pesa más de 15 MB. Elegí una más liviana." });
+      setAviso({ tipo: "error", texto: t("Esa imagen pesa más de 15 MB. Elegí una más liviana.") });
       return;
     }
     setGeneracion((g) => g + 1);
@@ -74,14 +76,15 @@ export function FotoPerfil({
         credentials: "same-origin",
       });
       const datos = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (!r.ok) return datos.error ?? "No se pudo guardar la foto.";
+      // `datos.error` ya viene en el idioma de la persona (lo traduce la ruta de la API).
+      if (!r.ok) return datos.error ?? t("No se pudo guardar la foto.");
       setLocal(datos.url ?? null);
       setArchivo(null);
-      setAviso({ tipo: "ok", texto: "Listo, tu foto quedó guardada." });
+      setAviso({ tipo: "ok", texto: t("Listo, tu foto quedó guardada.") });
       router.refresh();
       return null;
     } catch {
-      return "No se pudo conectar con el servidor. Revisá tu conexión y probá de nuevo.";
+      return t("No se pudo conectar con el servidor. Revisá tu conexión y probá de nuevo.");
     }
   }
 
@@ -93,10 +96,10 @@ export function FotoPerfil({
       if (!r.ok) throw new Error();
       setLocal(null);
       setConfirmando(false);
-      setAviso({ tipo: "ok", texto: "Quitaste tu foto. Se ven tus iniciales." });
+      setAviso({ tipo: "ok", texto: t("Quitaste tu foto. Se ven tus iniciales.") });
       router.refresh();
     } catch {
-      setAviso({ tipo: "error", texto: "No se pudo quitar la foto. Probá de nuevo." });
+      setAviso({ tipo: "error", texto: t("No se pudo quitar la foto. Probá de nuevo.") });
     } finally {
       setQuitando(false);
     }
@@ -143,32 +146,31 @@ export function FotoPerfil({
             <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
               <Button type="button" onClick={() => selector.current?.click()}>
                 <IconSubir size={15} />
-                {mostrada ? "Cambiar foto" : "Subir foto"}
+                {mostrada ? t("Cambiar foto") : t("Subir foto")}
               </Button>
               {mostrada && !confirmando && (
                 <Button type="button" variant="ghost" onClick={() => setConfirmando(true)}>
-                  Quitar
+                  {t("Quitar")}
                 </Button>
               )}
               {confirmando && (
                 <>
                   <Button type="button" variant="destructive" onClick={quitar} disabled={quitando}>
-                    {quitando ? "Quitando…" : "Sí, quitar la foto"}
+                    {quitando ? t("Quitando…") : t("Sí, quitar la foto")}
                   </Button>
                   <Button type="button" variant="ghost" onClick={() => setConfirmando(false)} disabled={quitando}>
-                    Cancelar
+                    {t("Cancelar")}
                   </Button>
                 </>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              JPG, PNG o WebP. También podés arrastrar una imagen sobre tu foto.
+              {t("JPG, PNG o WebP. También podés arrastrar una imagen sobre tu foto.")}
             </p>
           </>
         ) : (
           <p className="max-w-xs text-sm text-muted-foreground">
-            Este acceso no es una cuenta personal, así que no tiene foto. Entrá con tu correo para
-            ponerte la tuya.
+            {t("Este acceso no es una cuenta personal, así que no tiene foto. Entrá con tu correo para ponerte la tuya.")}
           </p>
         )}
         {aviso && (
@@ -193,7 +195,7 @@ export function FotoPerfil({
             accept="image/jpeg,image/png,image/webp,image/gif"
             className="sr-only"
             tabIndex={-1}
-            aria-label="Elegir una imagen para tu foto de perfil"
+            aria-label={t("Elegir una imagen para tu foto de perfil")}
             onChange={(e) => {
               elegir(e.target.files?.[0]);
               // Para poder elegir el mismo archivo dos veces seguidas.

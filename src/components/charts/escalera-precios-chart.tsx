@@ -2,7 +2,7 @@
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { FUENTE_MONO_EJES, TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 
 export interface PeldanoPrecio {
   modelo: string;
@@ -28,21 +28,24 @@ export interface PeldanoPrecio {
  */
 export function EscaleraPreciosChart({
   filas,
-  etiquetaUnidades = "matriculadas",
+  etiquetaUnidades,
 }: {
   filas: PeldanoPrecio[];
   /** De qué fuente son las unidades del tooltip ("matriculaciones",
-   *  "importaciones"). */
+   *  "importaciones"), ya traducida por quien lo llama. Sin ella, «matriculadas». */
   etiquetaUnidades?: string;
 }) {
   const theme = useChartTheme();
+  const { t, fmt } = useI18n();
+  const { formatUnidades } = fmt;
   if (!filas.length) {
     return (
       <p className="py-12 text-center text-sm text-muted-foreground">
-        Ningún modelo de esta marca tiene precio de lista en las fuentes cargadas.
+        {t("Ningún modelo de esta marca tiene precio de lista en las fuentes cargadas.")}
       </p>
     );
   }
+  const unidadesDe = etiquetaUnidades ?? t("matriculadas");
   // Ascendente: ECharts pinta las categorías de abajo hacia arriba, y la
   // escalera se lee mejor con lo barato abajo.
   const ordenadas = [...filas].sort((a, b) => a.desde - b.desde);
@@ -59,10 +62,14 @@ export function EscaleraPreciosChart({
       trigger: "item",
       formatter: (p: { dataIndex: number }) => {
         const f = ordenadas[p.dataIndex];
+        const vars = { n: f.versiones, u: formatUnidades(f.unidades), fuente: unidadesDe };
+        const versiones = f.versiones === 1
+          ? t("{n} versión con precio · {u} {fuente}", vars)
+          : t("{n} versiones con precio · {u} {fuente}", vars);
         return (
-          `<b>${f.modelo}</b> · ${f.clase}<br/>` +
-          `${usd(f.desde)}${f.hasta > f.desde ? ` a ${usd(f.hasta)}` : ""}` +
-          `<br/><span style="font-size:11px;opacity:.75">${f.versiones} ${f.versiones === 1 ? "versión" : "versiones"} con precio · ${formatUnidades(f.unidades)} ${etiquetaUnidades}</span>`
+          `<b>${f.modelo}</b> · ${t(f.clase)}<br/>` +
+          `${f.hasta > f.desde ? t("{desde} a {hasta}", { desde: usd(f.desde), hasta: usd(f.hasta) }) : usd(f.desde)}` +
+          `<br/><span style="font-size:11px;opacity:.75">${versiones}</span>`
         );
       },
     },

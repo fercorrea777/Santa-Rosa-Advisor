@@ -3,6 +3,7 @@
 import * as React from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useFiltroUrl } from "@/lib/filtro-url";
+import { useI18n } from "@/lib/i18n/cliente";
 import { cn } from "@/lib/utils";
 
 export interface Vista {
@@ -51,6 +52,7 @@ export function SelectorVista({
    *  servidor volvería a leerlos y la pestaña por defecto no se podría elegir. */
   quitar?: string[];
 }) {
+  const { t } = useI18n();
   const { leer, setParams, pendiente } = useFiltroUrl();
   const sp = useSearchParams();
   const pathname = usePathname();
@@ -94,7 +96,7 @@ export function SelectorVista({
   }, []);
 
   return (
-    <nav aria-label="Vistas de la pantalla" aria-busy={pendiente} data-revelar="">
+    <nav aria-label={t("Vistas de la pantalla")} aria-busy={pendiente} data-revelar="">
       {/* Una sola fila siempre: en el celular se desliza de lado en vez de
           partirse en dos renglones (una pestaña suelta abajo parecía otra
           cosa). */}

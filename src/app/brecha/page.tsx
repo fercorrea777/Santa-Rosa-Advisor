@@ -20,13 +20,13 @@ import {
 } from "@/lib/cadam/mercado";
 import { getMarcasPropiasSet } from "@/lib/cadam/config";
 import { serieAAnios } from "@/lib/serie";
-import { decimal, formatPct, formatUnidades } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/servidor";
+import { N_ } from "@/lib/i18n/traducir";
 import {
-  aclaracionCortes, corteComun, etiquetaCortes, etiquetaPeriodo, filtroDesdeUrl,
-  fuenteAdelantada, mesCorto, type SearchParams,
+  corteComun, filtroDesdeUrl, fuenteAdelantada, type SearchParams,
 } from "@/lib/periodo";
 
-const NOMBRE: Record<Fuente, string> = { matriculacion: "matriculaciones", importacion: "importaciones" };
+const NOMBRE: Record<Fuente, string> = { matriculacion: N_("matriculaciones"), importacion: N_("importaciones") };
 
 export default async function BrechaPage({
   searchParams,
@@ -34,6 +34,8 @@ export default async function BrechaPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  const { t, tr, fmt } = await getI18n();
+  const { decimal, formatUnidades, aclaracionCortes, etiquetaCortes, etiquetaPeriodo, mesCorto } = fmt;
   const cobertura = getCobertura();
   // Tres vistas (Croman, 15/09/2026: "el mismo selector en Segmentos y
   // Brecha"). "Ambas" es la brecha de siempre: las dos fuentes sobre la
@@ -89,10 +91,10 @@ export default async function BrechaPage({
   const marcas = [...new Set([...imp.keys(), ...mat.keys()])]
     .map((m) => {
       const i = imp.get(m) ?? 0;
-      const t = mat.get(m) ?? 0;
+      const mt = mat.get(m) ?? 0;
       return {
-        marca: m, importaciones: i, matriculaciones: t, diferencia: i - t,
-        ratio: i ? t / i : null, esPropia: propias.has(m),
+        marca: m, importaciones: i, matriculaciones: mt, diferencia: i - mt,
+        ratio: i ? mt / i : null, esPropia: propias.has(m),
       };
     })
     .filter((r) => r.importaciones + r.matriculaciones >= 20)
@@ -117,6 +119,19 @@ export default async function BrechaPage({
           .map(([marca, unidades]) => ({ marca, unidades }))
           .sort((a, b) => b.unidades - a.unidades);
   const extraTotal = extraMarcas.reduce((s, r) => s + r.unidades, 0);
+  // La nota del mes que solo tiene una fuente: titular en negrita + explicación, según cuál va adelante.
+  const nExtra = formatUnidades(extraTotal);
+  const marcasExtra = extraMarcas.slice(0, 6).map((r) => `${r.marca} ${formatUnidades(r.unidades)}`).join(" · ");
+  const tituloExtra = !mesesExtra ? "" : mesesExtra.fuente === "importacion"
+    ? (mesesExtra.desde === mesesExtra.hasta
+        ? t("En {mes} entraron {n} unidades más", { mes: mesCorto(mesesExtra.hasta), n: nExtra })
+        : t("Entre {desde} y {hasta} entraron {n} unidades más", { desde: mesCorto(mesesExtra.desde), hasta: mesCorto(mesesExtra.hasta), n: nExtra }))
+    : (mesesExtra.desde === mesesExtra.hasta
+        ? t("En {mes} se patentaron {n} livianos más", { mes: mesCorto(mesesExtra.hasta), n: nExtra })
+        : t("Entre {desde} y {hasta} se patentaron {n} livianos más", { desde: mesCorto(mesesExtra.desde), hasta: mesCorto(mesesExtra.hasta), n: nExtra }));
+  const textoExtra = !mesesExtra ? "" : mesesExtra.fuente === "importacion"
+    ? t("que no entran en los totales ni en la brecha por marca: CADAM ya publicó esa importación pero todavía no la matriculación de ese mes, así que compararlas sería contar stock que no tuvo tiempo de sacar chapa. En el gráfico y la tabla de abajo ese mes aparece con la matriculación «sin dato». Las que más trajeron: {marcas}.", { marcas: marcasExtra })
+    : t("que no entran en los totales ni en la brecha por marca: CADAM ya publicó esa matriculación pero todavía no la importación de ese mes, así que restarlas haría parecer que se vendió stock viejo. En el gráfico y la tabla de abajo ese mes aparece con la importación «sin dato». Las que más patentaron: {marcas}.", { marcas: marcasExtra });
 
   const mesMax: Record<number, number> = {};
   for (const a of cobertura.matriculacion.anios) {
@@ -126,9 +141,9 @@ export default async function BrechaPage({
   return (
     <Pagina>
       <PageHeader
-        titulo="Importaciones vs. matriculaciones"
-        descripcion={`Brecha entre lo que entra al país y lo que se patenta · ${periodo}${mesesExtra ? ` (${mesesExtra.fuente === "importacion" ? "importación" : "matriculación"} hasta ${mesCorto(mesesExtra.hasta)})` : ""}.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Importaciones vs. matriculaciones")}
+        descripcion={`${t("Brecha entre lo que entra al país y lo que se patenta · {periodo}", { periodo })}${mesesExtra ? ` ${mesesExtra.fuente === "importacion" ? t("(importación hasta {mes})", { mes: mesCorto(mesesExtra.hasta) }) : t("(matriculación hasta {mes})", { mes: mesCorto(mesesExtra.hasta) })}` : ""}.`}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       <div
@@ -142,67 +157,47 @@ export default async function BrechaPage({
       </div>
 
       <NotaDato>
-        <strong>Esto es una señal de análisis, no stock real.</strong> La
-        diferencia entre importar y matricular no equivale a inventario: hay
-        desfasajes temporales, unidades importadas en períodos anteriores,
-        exportaciones y reexportaciones, registros tardíos y diferencias de
-        clasificación entre ambas fuentes. Sirve para detectar un cambio de
-        ritmo, no para afirmar cuántas unidades hay en playa.
+        {tr("<b>Esto es una señal de análisis, no stock real.</b> La diferencia entre importar y matricular no equivale a inventario: hay desfasajes temporales, unidades importadas en períodos anteriores, exportaciones y reexportaciones, registros tardíos y diferencias de clasificación entre ambas fuentes. Sirve para detectar un cambio de ritmo, no para afirmar cuántas unidades hay en playa.")}
       </NotaDato>
 
       <NotaDato>
-        Se comparan <strong>solo vehículos livianos</strong>. La base de
-        importación de CADAM no incluye camiones ni ómnibus (van en un archivo
-        aparte), así que la matriculación se toma sin esos segmentos. Sin este
-        recorte la brecha se inflaba con 1.509 unidades de pesados y aparecían
-        marcas de camiones con cero importaciones y cientos de matriculaciones.
+        {tr("Se comparan <b>solo vehículos livianos</b>. La base de importación de CADAM no incluye camiones ni ómnibus (van en un archivo aparte), así que la matriculación se toma sin esos segmentos. Sin este recorte la brecha se inflaba con 1.509 unidades de pesados y aparecían marcas de camiones con cero importaciones y cientos de matriculaciones.")}
       </NotaDato>
 
       {mesesExtra && extraTotal > 0 && (
         <NotaDato>
-          <strong>
-            {`${mesesExtra.desde === mesesExtra.hasta
-              ? `En ${mesCorto(mesesExtra.hasta)}`
-              : `Entre ${mesCorto(mesesExtra.desde)} y ${mesCorto(mesesExtra.hasta)}`} ${
-              mesesExtra.fuente === "importacion" ? "entraron" : "se patentaron"} ${formatUnidades(extraTotal)} ${
-              mesesExtra.fuente === "importacion" ? "unidades" : "livianos"} más`}
-          </strong>{" "}
-          {mesesExtra.fuente === "importacion"
-            ? "que no entran en los totales ni en la brecha por marca: CADAM ya publicó esa importación pero todavía no la matriculación de ese mes, así que compararlas sería contar stock que no tuvo tiempo de sacar chapa. En el gráfico y la tabla de abajo ese mes aparece con la matriculación «sin dato». Las que más trajeron: "
-            : "que no entran en los totales ni en la brecha por marca: CADAM ya publicó esa matriculación pero todavía no la importación de ese mes, así que restarlas haría parecer que se vendió stock viejo. En el gráfico y la tabla de abajo ese mes aparece con la importación «sin dato». Las que más patentaron: "}
-          {extraMarcas.slice(0, 6).map((r) => `${r.marca} ${formatUnidades(r.unidades)}`).join(" · ")}.
+          <strong>{tituloExtra}</strong>{" "}
+          {textoExtra}
         </NotaDato>
       )}
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Importaciones" value={formatUnidades(totImp)} periodo={periodo}
-          tooltip="Unidades importadas en la ventana común de las dos fuentes." />
-        <KpiCard label="Matriculaciones" value={formatUnidades(totMat)} periodo={periodo}
-          tooltip="Unidades patentadas en la ventana común de las dos fuentes." />
+        <KpiCard label={t("Importaciones")} value={formatUnidades(totImp)} periodo={periodo}
+          tooltip={t("Unidades importadas en la ventana común de las dos fuentes.")} />
+        <KpiCard label={t("Matriculaciones")} value={formatUnidades(totMat)} periodo={periodo}
+          tooltip={t("Unidades patentadas en la ventana común de las dos fuentes.")} />
         <KpiCard
-          label="Diferencia"
+          label={t("Diferencia")}
           value={formatUnidades(Math.abs(totImp - totMat))}
-          periodo={totImp >= totMat ? "entró más de lo que se patentó" : "se patentó más de lo que entró"}
-          tooltip="Diferencia absoluta del período. Orientativa: ver la nota de arriba."
+          periodo={totImp >= totMat ? t("entró más de lo que se patentó") : t("se patentó más de lo que entró")}
+          tooltip={t("Diferencia absoluta del período. Orientativa: ver la nota de arriba.")}
         />
         <KpiCard
-          label="Relación matric. / import."
+          label={t("Relación matric. / import.")}
           value={ratio === null ? "—" : decimal(ratio, 2)}
           periodo={ratio === null ? undefined
-            : ratio > 1 ? "se patenta más de lo que entra" : "se patenta menos de lo que entra"}
-          tooltip="Por cada unidad importada, cuántas se patentaron. Sostenido por debajo de 1 sugiere acumulación; por encima de 1, salida de inventario previo."
+            : ratio > 1 ? t("se patenta más de lo que entra") : t("se patenta menos de lo que entra")}
+          tooltip={t("Por cada unidad importada, cuántas se patentaron. Sostenido por debajo de 1 sugiere acumulación; por encima de 1, salida de inventario previo.")}
         />
       </section>
 
-      <Seccion titulo="Evolución de la brecha"
-        nota="Cuánto de lo que entra al país todavía no sacó chapa. Es stock que está en la calle de la competencia y todavía no se ve como venta.">
+      <Seccion titulo={t("Evolución de la brecha")}
+        nota={t("Cuánto de lo que entra al país todavía no sacó chapa. Es stock que está en la calle de la competencia y todavía no se ve como venta.")}>
       <Card>
         <CardHeader>
-          <CardTitle>Evolución de la brecha — {f.anio}</CardTitle>
+          <CardTitle>{t("Evolución de la brecha — {anio}", { anio: f.anio })}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Mes a mes: cuánto entró al país, cuánto sacó chapa y el hueco entre
-            las dos líneas. Ese hueco es stock que ya está acá y todavía no se
-            vendió.
+            {t("Mes a mes: cuánto entró al país, cuánto sacó chapa y el hueco entre las dos líneas. Ese hueco es stock que ya está acá y todavía no se vendió.")}
           </p>
         </CardHeader>
         <CardContent>
@@ -217,11 +212,9 @@ export default async function BrechaPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Detalle mensual</CardTitle>
+          <CardTitle>{t("Detalle mensual")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Los mismos meses en números, con qué parte de lo importado ya sacó
-            chapa. Arriba del 100% se está vendiendo stock viejo; muy abajo, se
-            está cargando stock.
+            {t("Los mismos meses en números, con qué parte de lo importado ya sacó chapa. Arriba del 100% se está vendiendo stock viejo; muy abajo, se está cargando stock.")}
           </p>
         </CardHeader>
         <CardContent>
@@ -231,20 +224,20 @@ export default async function BrechaPage({
                 <div className="flex items-baseline justify-between">
                   <span className="font-medium">{mesCorto(p.mes)}</span>
                   <span className="text-xs tabular-nums text-muted-foreground">
-                    ratio {p.ratio === null ? "—" : decimal(p.ratio, 2)}
+                    {t("ratio {valor}", { valor: p.ratio === null ? "—" : decimal(p.ratio, 2) })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="tabular-nums text-muted-foreground">
-                    Import. {p.importaciones === null ? "sin dato" : formatUnidades(p.importaciones)}
+                    {t("Import. {valor}", { valor: p.importaciones === null ? t("sin dato") : formatUnidades(p.importaciones) })}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
-                    Matric. {p.matriculaciones === null ? "sin dato" : formatUnidades(p.matriculaciones)}
+                    {t("Matric. {valor}", { valor: p.matriculaciones === null ? t("sin dato") : formatUnidades(p.matriculaciones) })}
                   </span>
                 </div>
                 <span className="font-mono text-sm font-semibold tabular-nums">
                   {p.diferencia === null ? "—" :
-                    `${p.diferencia > 0 ? "+" : ""}${formatUnidades(p.diferencia)} dif.`}
+                    t("{valor} dif.", { valor: `${p.diferencia > 0 ? "+" : ""}${formatUnidades(p.diferencia)}` })}
                 </span>
               </div>
             ))}
@@ -253,11 +246,11 @@ export default async function BrechaPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Mes</TableHead>
-                  <TableHead className="text-right" nota="unidades que entraron al país">Importaciones</TableHead>
-                  <TableHead className="text-right" nota="unidades que sacaron chapa">Matriculaciones</TableHead>
-                  <TableHead className="text-right" nota="importado menos matriculado">Diferencia</TableHead>
-                  <TableHead className="text-right" nota="cuánto de lo importado ya se patentó">Matric. / import.</TableHead>
+                  <TableHead>{t("Mes")}</TableHead>
+                  <TableHead className="text-right" nota={t("unidades que entraron al país")}>{t("Importaciones")}</TableHead>
+                  <TableHead className="text-right" nota={t("unidades que sacaron chapa")}>{t("Matriculaciones")}</TableHead>
+                  <TableHead className="text-right" nota={t("importado menos matriculado")}>{t("Diferencia")}</TableHead>
+                  <TableHead className="text-right" nota={t("cuánto de lo importado ya se patentó")}>{t("Matric. / import.")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -266,12 +259,12 @@ export default async function BrechaPage({
                     <TableCell className="font-medium">{mesCorto(p.mes)}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {p.importaciones === null
-                        ? <span className="text-muted-foreground">sin dato</span>
+                        ? <span className="text-muted-foreground">{t("sin dato")}</span>
                         : formatUnidades(p.importaciones)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {p.matriculaciones === null
-                        ? <span className="text-muted-foreground">sin dato</span>
+                        ? <span className="text-muted-foreground">{t("sin dato")}</span>
                         : formatUnidades(p.matriculaciones)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -291,17 +284,17 @@ export default async function BrechaPage({
 
       </Seccion>
 
-      <Seccion titulo="Marcas que más se apartan"
-        nota={`Las marcas donde más se despega lo importado de lo matriculado (${periodo}): o están cargando stock, o lo están liquidando.`}>
+      <Seccion titulo={t("Marcas que más se apartan")}
+        nota={t("Las marcas donde más se despega lo importado de lo matriculado ({periodo}): o están cargando stock, o lo están liquidando.", { periodo })}>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <TablaBrechaMarcas
-          titulo="Importan más de lo que matriculan"
-          subtitulo="Podría indicar acumulación de inventario"
+          titulo={t("Importan más de lo que matriculan")}
+          subtitulo={t("Podría indicar acumulación de inventario")}
           filas={masImporta}
         />
         <TablaBrechaMarcas
-          titulo="Matriculan más de lo que importan"
-          subtitulo="Podría indicar salida de inventario previo"
+          titulo={t("Matriculan más de lo que importan")}
+          subtitulo={t("Podría indicar salida de inventario previo")}
           filas={masMatricula}
         />
       </div>
@@ -309,8 +302,7 @@ export default async function BrechaPage({
       </Seccion>
 
       <p className="text-xs text-muted-foreground">
-        Se excluyen las marcas con menos de 20 unidades sumando ambas fuentes:
-        con bases tan chicas la brecha no dice nada.
+        {t("Se excluyen las marcas con menos de 20 unidades sumando ambas fuentes: con bases tan chicas la brecha no dice nada.")}
       </p>
     </Pagina>
   );
@@ -330,6 +322,8 @@ async function UnaFuente({
   cobertura: ReturnType<typeof getCobertura>;
   aclaracion?: string;
 }) {
+  const { t, fmt } = await getI18n();
+  const { formatPct, formatUnidades, etiquetaCortes, etiquetaPeriodo } = fmt;
   const f = filtroDesdeUrl(sp, cobertura[fuente].ultimo);
   const periodo = etiquetaPeriodo(f.anio, f.mesDesde, f.mesHasta);
   const kpi = getKpi(fuente, f);
@@ -342,14 +336,14 @@ async function UnaFuente({
   }
   const propias = getMarcasPropiasSet();
   const propiasU = marcas.filter((m) => propias.has(m.marca)).reduce((s, m) => s + m.unidades, 0);
-  const verbo = fuente === "importacion" ? "entró al país" : "sacó chapa";
+  const fuenteTxt = t(NOMBRE[fuente]);
 
   return (
     <Pagina>
       <PageHeader
-        titulo="Importaciones vs. matriculaciones"
-        descripcion={`Solo ${NOMBRE[fuente]} · ${periodo}. Volvé a «Ambas» para ver la brecha entre las dos.`}
-        fuente={`Fuente: CADAM / DNRA · ${etiquetaCortes(cobertura)}.`}
+        titulo={t("Importaciones vs. matriculaciones")}
+        descripcion={t("Solo {fuente} · {periodo}. Volvé a «Ambas» para ver la brecha entre las dos.", { fuente: fuenteTxt, periodo })}
+        fuente={t("Fuente: CADAM / DNRA · {cortes}.", { cortes: etiquetaCortes(cobertura) })}
       />
 
       <div
@@ -364,33 +358,34 @@ async function UnaFuente({
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label={fuente === "importacion" ? "Importaciones" : "Matriculaciones"}
+          label={fuente === "importacion" ? t("Importaciones") : t("Matriculaciones")}
           value={formatUnidades(kpi.valor)}
           variacion={kpi.variacion}
           periodo={periodo}
           tono={fuente === "importacion" ? "verde" : "azul"}
-          tooltip={`Lo que ${verbo} en ${periodo}, contra el mismo período de ${f.anio - 1}.`}
+          tooltip={fuente === "importacion"
+            ? t("Lo que entró al país en {periodo}, contra el mismo período de {anio}.", { periodo, anio: f.anio - 1 })
+            : t("Lo que sacó chapa en {periodo}, contra el mismo período de {anio}.", { periodo, anio: f.anio - 1 })}
         />
         <KpiCard
-          label="Marcas propias"
+          label={t("Marcas propias")}
           value={formatUnidades(propiasU)}
-          periodo={kpi.valor ? `${formatPct(propiasU / kpi.valor)} del total` : undefined}
-          tooltip={`Unidades de nuestras marcas en ${NOMBRE[fuente]} del período.`}
+          periodo={kpi.valor ? t("{pct} del total", { pct: formatPct(propiasU / kpi.valor) }) : undefined}
+          tooltip={t("Unidades de nuestras marcas en {fuente} del período.", { fuente: fuenteTxt })}
         />
         <KpiCard
-          label="Marcas con unidades"
+          label={t("Marcas con unidades")}
           value={String(marcas.length)}
           periodo={periodo}
-          tooltip={`Marcas con al menos una unidad en ${NOMBRE[fuente]} del período.`}
+          tooltip={t("Marcas con al menos una unidad en {fuente} del período.", { fuente: fuenteTxt })}
         />
       </section>
 
       <Card>
         <CardHeader>
-          <CardTitle>Evolución mensual — {NOMBRE[fuente]} ({anios.join(" vs. ")})</CardTitle>
+          <CardTitle>{t("Evolución mensual — {fuente} ({anios})", { fuente: fuenteTxt, anios: anios.join(" vs. ") })}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Una línea por año. Los meses que la fuente todavía no tiene quedan
-            sin punto, no en cero.
+            {t("Una línea por año. Los meses que la fuente todavía no tiene quedan sin punto, no en cero.")}
           </p>
         </CardHeader>
         <CardContent><SerieAniosChart series={serie} /></CardContent>
@@ -398,10 +393,9 @@ async function UnaFuente({
 
       <Card>
         <CardHeader>
-          <CardTitle>Marcas por {NOMBRE[fuente]} · {periodo}</CardTitle>
+          <CardTitle>{t("Marcas por {fuente} · {periodo}", { fuente: fuenteTxt, periodo })}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Todas las marcas ordenadas por unidades, con su variación contra el
-            año pasado. Tocá una y la pantalla queda filtrada por ella.
+            {t("Todas las marcas ordenadas por unidades, con su variación contra el año pasado. Tocá una y la pantalla queda filtrada por ella.")}
           </p>
         </CardHeader>
         <CardContent>
@@ -417,13 +411,15 @@ async function UnaFuente({
   );
 }
 
-function TablaBrechaMarcas({
+async function TablaBrechaMarcas({
   titulo, subtitulo, filas,
 }: {
   titulo: string;
   subtitulo: string;
   filas: { marca: string; importaciones: number; matriculaciones: number; diferencia: number; ratio: number | null; esPropia: boolean }[];
 }) {
+  const { t, fmt } = await getI18n();
+  const { formatUnidades } = fmt;
   return (
     <Card>
       <CardHeader>
@@ -441,14 +437,14 @@ function TablaBrechaMarcas({
               <span className="inline-flex min-w-0 items-center gap-2">
                 <LogoMarca marca={r.marca} />
                 <span className="truncate font-medium">{r.marca}</span>
-                {r.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propia</Badge>}
+                {r.esPropia && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">{t("propia")}</Badge>}
               </span>
               <span className="shrink-0 text-right text-xs">
                 <span className="font-mono font-semibold tabular-nums">
                   {r.diferencia > 0 ? "+" : ""}{formatUnidades(r.diferencia)}
                 </span>
                 <span className="block tabular-nums text-muted-foreground">
-                  {formatUnidades(r.importaciones)} imp. · {formatUnidades(r.matriculaciones)} mat.
+                  {t("{imp} imp. · {mat} mat.", { imp: formatUnidades(r.importaciones), mat: formatUnidades(r.matriculaciones) })}
                 </span>
               </span>
             </div>
@@ -458,10 +454,10 @@ function TablaBrechaMarcas({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Marca</TableHead>
-                <TableHead className="text-right" nota="unidades que entraron al país">Import.</TableHead>
-                <TableHead className="text-right" nota="unidades que sacaron chapa">Matric.</TableHead>
-                <TableHead className="text-right" nota="importado menos matriculado">Dif.</TableHead>
+                <TableHead>{t("Marca")}</TableHead>
+                <TableHead className="text-right" nota={t("unidades que entraron al país")}>{t("Import.")}</TableHead>
+                <TableHead className="text-right" nota={t("unidades que sacaron chapa")}>{t("Matric.")}</TableHead>
+                <TableHead className="text-right" nota={t("importado menos matriculado")}>{t("Dif.")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -471,7 +467,7 @@ function TablaBrechaMarcas({
                     <span className="inline-flex items-center gap-2">
                       <LogoMarca marca={r.marca} />
                       {r.marca}
-                      {r.esPropia && <Badge className="h-5 px-1.5 text-[10px]">propia</Badge>}
+                      {r.esPropia && <Badge className="h-5 px-1.5 text-[10px]">{t("propia")}</Badge>}
                     </span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{formatUnidades(r.importaciones)}</TableCell>

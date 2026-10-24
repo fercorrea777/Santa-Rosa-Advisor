@@ -23,7 +23,15 @@
  * de VRAM no alcanzan ni para el de 9,6. El unico viable es el chico, y el
  * contexto util lo fija `num_ctx` (ver COPILOTO_CTX): pedir 128k reventaria
  * la placa igual, porque el KV cache crece con el contexto, no con el modelo.
+ *
+ * IDIOMA. Lo que va y vuelve del modelo (prompt, herramientas, sus resultados)
+ * es castellano y se queda asi. Lo que SI ve la persona son los mensajes con
+ * que este modulo contesta cuando el modelo no responde (se cayo, tardo, se
+ * quedo sin pasos): esos se traducen con el `t` del pedido, que llega por
+ * parametro porque en el servidor no hay un idioma global.
  */
+
+import type { T } from "@/lib/i18n/traducir";
 
 export interface HerramientaLocal {
   nombre: string;
@@ -80,7 +88,7 @@ const CANDIDATOS = [
 
 let baseResuelta: string | null = process.env.COPILOTO_OLLAMA_URL ?? null;
 
-async function resolverBase(): Promise<string> {
+async function resolverBase(t: T): Promise<string> {
   if (baseResuelta) return baseResuelta;
   for (const url of CANDIDATOS) {
     try {
@@ -99,8 +107,11 @@ async function resolverBase(): Promise<string> {
     }
   }
   throw new Error(
-    `No se encontró Ollama en ninguna de estas direcciones: ${CANDIDATOS.join(", ")}. ` +
-      `Definí COPILOTO_OLLAMA_URL si está en otra.`
+    t(
+      "No se encontró Ollama en ninguna de estas direcciones: {lista}. " +
+        "Definí COPILOTO_OLLAMA_URL si está en otra.",
+      { lista: CANDIDATOS.join(", ") }
+    )
   );
 }
 const MODELO = process.env.COPILOTO_MODELO ?? "gemma4-hermes:latest";
@@ -125,12 +136,13 @@ export function modeloCopiloto(): string {
 
 async function llamar(
   mensajes: MensajeChat[],
-  herramientas: HerramientaLocal[]
+  herramientas: HerramientaLocal[],
+  t: T
 ): Promise<{ mensaje: MensajeChat } | { error: string }> {
   let r: Response;
   let base: string;
   try {
-    base = await resolverBase();
+    base = await resolverBase(t);
   } catch (e) {
     return { error: (e as Error).message };
   }
@@ -162,9 +174,10 @@ async function llamar(
     const err = e as Error & { cause?: { code?: string; message?: string } };
     if (err.name === "TimeoutError" || err.message.includes("HEADERS_TIMEOUT")) {
       return {
-        error:
+        error: t(
           "El modelo no respondió a tiempo. Suele pasar en la primera pregunta " +
-          "después de un rato, mientras se carga en la placa. Probá de nuevo.",
+          "después de un rato, mientras se carga en la placa. Probá de nuevo."
+        ),
       };
     }
     // `fetch` de Node envuelve TODO en un "fetch failed" que no dice nada; el
@@ -173,22 +186,24 @@ async function llamar(
     const causa = err.cause?.code ?? err.cause?.message ?? "";
     console.error("Copiloto/Ollama:", base, err.name, err.message, causa);
     return {
-      error:
-        `No se pudo contactar al modelo (${MODELO}) en ${base}: ` +
-        `${err.message}${causa ? ` (${causa})` : ""}`,
+      error: t("No se pudo contactar al modelo ({modelo}) en {base}: {detalle}", {
+        modelo: MODELO,
+        base,
+        detalle: `${err.message}${causa ? ` (${causa})` : ""}`,
+      }),
     };
   }
 
   if (!r.ok) {
     const detalle = (await r.text()).slice(0, 300);
-    return { error: `El modelo respondió ${r.status}: ${detalle}` };
+    return { error: t("El modelo respondió {status}: {detalle}", { status: r.status, detalle }) };
   }
 
   const json = (await r.json()) as {
     choices?: { message?: MensajeChat }[];
   };
   const mensaje = json.choices?.[0]?.message;
-  if (!mensaje) return { error: "El modelo devolvió una respuesta vacía." };
+  if (!mensaje) return { error: t("El modelo devolvió una respuesta vacía.") };
   return { mensaje };
 }
 
@@ -200,16 +215,19 @@ export async function responderConGemma(params: {
   system: string;
   turnos: { role: "user" | "assistant"; content: string }[];
   herramientas: HerramientaLocal[];
+  /** El traductor del pedido: para los mensajes que ve la persona. */
+  t: T;
 }): Promise<ResultadoCopiloto> {
+  const { t } = params;
   const mensajes: MensajeChat[] = [
     { role: "system", content: params.system },
-    ...params.turnos.map((t) => ({ role: t.role, content: t.content })),
+    ...params.turnos.map((turno) => ({ role: turno.role, content: turno.content })),
   ];
   const porNombre = new Map(params.herramientas.map((h) => [h.nombre, h]));
   const usadas: string[] = [];
 
   for (let i = 0; i < MAX_ITERACIONES; i++) {
-    const r = await llamar(mensajes, params.herramientas);
+    const r = await llamar(mensajes, params.herramientas, t);
     if ("error" in r) {
       return { respuesta: r.error, herramientasUsadas: usadas, truncada: false };
     }
@@ -217,7 +235,7 @@ export async function responderConGemma(params: {
 
     if (!m.tool_calls?.length) {
       return {
-        respuesta: (m.content ?? "").trim() || "No obtuve respuesta. Probá reformular.",
+        respuesta: (m.content ?? "").trim() || t("No obtuve respuesta. Probá reformular."),
         herramientasUsadas: usadas,
         truncada: false,
       };
@@ -230,6 +248,7 @@ export async function responderConGemma(params: {
         mensajes.push({
           role: "tool",
           tool_call_id: tc.id,
+          // i18n-ignore (resultado de herramienta: lo lee el modelo, no la persona)
           content: JSON.stringify({ error: `No existe la herramienta ${tc.function.name}` }),
         });
         continue;
@@ -245,6 +264,7 @@ export async function responderConGemma(params: {
           role: "tool",
           tool_call_id: tc.id,
           content: JSON.stringify({
+            // i18n-ignore (resultado de herramienta: lo lee el modelo, no la persona)
             error: "Los argumentos no son JSON válido. Mandá un objeto JSON.",
           }),
         });
@@ -262,9 +282,10 @@ export async function responderConGemma(params: {
   }
 
   return {
-    respuesta:
+    respuesta: t(
       "Me quedé sin pasos antes de llegar a una respuesta. Probá una pregunta " +
-      "más acotada (una marca, un período).",
+      "más acotada (una marca, un período)."
+    ),
     herramientasUsadas: usadas,
     truncada: true,
   };

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Globito } from "@/components/ui/globito";
 import { IconBrecha, IconEvolucion, IconMarketShare } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /**
  * El lado ilustrado de las pantallas de acceso: lo que hay adentro, sin dejar
@@ -27,6 +28,7 @@ import { IconBrecha, IconEvolucion, IconMarketShare } from "@/components/icons";
  * escriben directo en el elemento, sin pasar por el estado de React.
  */
 export function PanelIlustrado({ className }: { className?: string }) {
+  const { t } = useI18n();
   const panel = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -89,7 +91,7 @@ export function PanelIlustrado({ className }: { className?: string }) {
                   <IconEvolucion size={15} />
                 </span>
                 <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/75">
-                  Matriculaciones
+                  {t("Matriculaciones")}
                 </span>
               </div>
               <svg viewBox="0 0 200 64" className="mt-3 h-16 w-full overflow-visible">
@@ -163,7 +165,7 @@ export function PanelIlustrado({ className }: { className?: string }) {
               </svg>
               <div className="flex flex-col gap-1.5">
                 <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/70">
-                  <IconMarketShare size={12} /> Participación
+                  <IconMarketShare size={12} /> {t("Participación")}
                 </span>
                 <span className="h-2 w-14 rounded-full bg-white/22" />
               </div>
@@ -176,7 +178,7 @@ export function PanelIlustrado({ className }: { className?: string }) {
           <div className="acceso-entra" style={{ "--retraso": "0.75s" } as React.CSSProperties}>
             <div className="acceso-flota-a acceso-tarjeta p-3.5" style={{ "--retraso": "-4s" } as React.CSSProperties}>
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/70">
-                <IconBrecha size={12} /> Importar vs. patentar
+                <IconBrecha size={12} /> {t("Importar vs. patentar")}
               </span>
               <div className="mt-3 flex flex-col gap-2">
                 <span className="acceso-barra h-2 w-full rounded-full bg-[#52deef]" />
@@ -198,14 +200,14 @@ export function PanelIlustrado({ className }: { className?: string }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium leading-snug text-white/92">
                     <span className="acceso-escribe inline-block whitespace-nowrap">
-                      ¿Qué marca ganó más participación este año?
+                      {t("¿Qué marca ganó más participación este año?")}
                     </span>
                   </p>
                   <div className="acceso-respuesta mt-2.5 flex flex-col gap-1.5">
                     <span className="h-2 w-[92%] rounded-full bg-white/22" />
                     <span className="h-2 w-[68%] rounded-full bg-white/14" />
                     <span className="mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/65">
-                      cita de dónde sacó cada cifra
+                      {t("cita de dónde sacó cada cifra")}
                     </span>
                   </div>
                 </div>
@@ -216,12 +218,11 @@ export function PanelIlustrado({ className }: { className?: string }) {
       </div>
 
       <div className="max-w-md">
-        <h2 className="text-[2rem] font-extrabold leading-[1.1] tracking-tight text-balance xl:text-[2.25rem]">
-          Del dato a la decisión, en un solo lugar.
+        <h2 className="text-[2rem] font-bold leading-[1.1] tracking-tight text-balance xl:text-[2.25rem]">
+          {t("Del dato a la decisión, en un solo lugar.")}
         </h2>
         <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/72 text-pretty">
-          Matriculaciones, importaciones, precios y stock propio, con un copiloto
-          que contesta citando de dónde sacó cada cifra.
+          {t("Matriculaciones, importaciones, precios y stock propio, con un copiloto que contesta citando de dónde sacó cada cifra.")}
         </p>
       </div>
     </div>

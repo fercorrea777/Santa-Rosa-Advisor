@@ -2,8 +2,7 @@
 
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { formatUnidades } from "@/lib/format";
-import { mesCorto } from "@/lib/periodo";
+import { useI18n } from "@/lib/i18n/cliente";
 
 export interface MesPlan {
   mes: number;
@@ -24,17 +23,20 @@ export function PlanVsFacturadoChart({
   meses,
   referenciaMensual,
   altura = 300,
-  etiquetaPlan = "Plan vigente",
-  etiquetaReal = "Facturado (Cars)",
+  etiquetaPlan,
+  etiquetaReal,
 }: {
   meses: MesPlan[];
   referenciaMensual: number | null;
   altura?: number;
   /** Nombres de las dos series en la leyenda: para los canales el real no
-   *  es de Cars sino de Finanzas, y el plan es un objetivo puro. */
+   *  es de Cars sino de Finanzas, y el plan es un objetivo puro. Ya vienen
+   *  traducidos; sin ellos, «Plan vigente» y «Facturado (Cars)». */
   etiquetaPlan?: string;
   etiquetaReal?: string;
 }) {
+  const { t, fmt } = useI18n();
+  const { formatUnidades, mesCorto } = fmt;
   const theme = useChartTheme();
   const cerrados = meses.filter((m) => m.cerrado);
   const option = {
@@ -48,9 +50,9 @@ export function PlanVsFacturadoChart({
         if (!m) return "";
         const dif = m.facturado - m.plan;
         return (
-          `<b>${mesCorto(m.mes)}</b>${m.cerrado ? " · cerrado (el plan es el real)" : ""}<br/>` +
-          `plan ${formatUnidades(m.plan)} · facturado ${formatUnidades(m.facturado)}` +
-          (m.cerrado ? "" : `<br/>diferencia <b>${dif >= 0 ? "+" : ""}${formatUnidades(dif)}</b>`)
+          `<b>${mesCorto(m.mes)}</b>${m.cerrado ? ` · ${t("cerrado (el plan es el real)")}` : ""}<br/>` +
+          t("plan {plan} · facturado {facturado}", { plan: formatUnidades(m.plan), facturado: formatUnidades(m.facturado) }) +
+          (m.cerrado ? "" : `<br/>${t("diferencia")} <b>${dif >= 0 ? "+" : ""}${formatUnidades(dif)}</b>`)
         );
       },
     },
@@ -69,7 +71,7 @@ export function PlanVsFacturadoChart({
     },
     series: [
       {
-        name: etiquetaPlan,
+        name: etiquetaPlan ?? t("Plan vigente"),
         type: "bar" as const,
         data: meses.map((m) => m.plan),
         itemStyle: { color: theme.axis, borderRadius: [4, 4, 0, 0] },
@@ -83,7 +85,7 @@ export function PlanVsFacturadoChart({
                 position: "insideTop" as const,
                 color: theme.text,
                 fontSize: 10,
-                formatter: "cerrado",
+                formatter: t("cerrado"),
               },
               data: [
                 [
@@ -103,14 +105,14 @@ export function PlanVsFacturadoChart({
                   position: "end" as const,
                   color: theme.text,
                   fontSize: 10,
-                  formatter: "ppto ÷ 12",
+                  formatter: t("ppto ÷ 12"),
                 },
                 data: [{ yAxis: Math.round(referenciaMensual) }],
               }
             : undefined,
       },
       {
-        name: etiquetaReal,
+        name: etiquetaReal ?? t("Facturado (Cars)"),
         type: "bar" as const,
         data: meses.map((m) => m.facturado),
         itemStyle: { color: theme.primary, borderRadius: [4, 4, 0, 0] },

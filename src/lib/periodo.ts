@@ -1,58 +1,25 @@
 import type { Filtro } from "./cadam/mercado";
-
-export const MESES_CORTOS = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
-];
-
-export const MESES_LARGOS = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
-export function mesCorto(mes: number): string {
-  return MESES_CORTOS[mes - 1] ?? String(mes);
-}
+import { I18N_ES } from "./i18n/crear";
 
 /**
- * El corte de datos, en criollo: '2026-08' -> 'Ago 2026'.
- *
- * El pie de cada pantalla decía «snapshot 2026-08». «Snapshot» es una palabra
- * de máquina: nombra cómo se guarda el dato, no qué significa. Lo que el
- * lector necesita saber es hasta cuándo llegan los números, y eso se dice
- * «datos hasta Ago 2026».
+ * Lo que escribe una frase o un nombre de mes (mesCorto, etiquetaPeriodo,
+ * etiquetaCortes, aclaracionCortes…) vive ahora en @/lib/i18n/formatos, porque
+ * cambia con el idioma. Acá quedan las versiones en CASTELLANO, para código de
+ * texto fijo; una pantalla usa `fmt` de getI18n()/useI18n() y destructura de ahí
+ * los mismos nombres. Lo que sigue en este archivo (filtroDesdeUrl, corteComun,
+ * aniosDeSerie…) no lleva texto y es igual en todos los idiomas.
  */
-export function etiquetaCorte(periodo: string | null | undefined): string {
-  if (!periodo) return "—";
-  const [anio, mes] = periodo.split("-");
-  const m = mesCorto(Number(mes));
-  return anio && m ? `${m} ${anio}` : periodo;
-}
+const ES = I18N_ES.fmt;
+
+export const MESES_CORTOS = ES.mesesCortos;
+export const MESES_LARGOS = ES.mesesLargos;
+export const mesCorto = ES.mesCorto;
+export const etiquetaCorte = ES.etiquetaCorte;
+export const etiquetaCortes = ES.etiquetaCortes;
+export const aclaracionCortes = ES.aclaracionCortes;
+export const etiquetaPeriodo = ES.etiquetaPeriodo;
 
 type Corte = { anio: number; mes: number } | null;
-
-/**
- * Hasta dónde llega cada fuente, para la píldora de fuente de cada pantalla.
- *
- * «datos hasta Ago 2026» mentía a medias cuando las dos fuentes no van
- * parejas: en septiembre de 2026 CADAM ya había publicado la importación de
- * agosto y la matriculación llegaba a julio. Croman (15/09/2026): "ponéme
- * nomás una aclaración de que las matriculaciones son hasta julio y que
- * agosto ya tenemos las importaciones". Cuando coinciden vuelve al texto
- * corto de siempre.
- */
-export function etiquetaCortes(cobertura: {
-  snapshot: string | null;
-  matriculacion: { ultimo: Corte };
-  importacion: { ultimo: Corte };
-}): string {
-  const m = cobertura.matriculacion.ultimo;
-  const i = cobertura.importacion.ultimo;
-  if (m && i && (m.anio !== i.anio || m.mes !== i.mes)) {
-    return `matriculaciones hasta ${mesCorto(m.mes)} ${m.anio} · importaciones hasta ${mesCorto(i.mes)} ${i.anio}`;
-  }
-  return `datos hasta ${etiquetaCorte(cobertura.snapshot)}`;
-}
 
 type Cortes = { matriculacion: { ultimo: Corte }; importacion: { ultimo: Corte } };
 
@@ -76,40 +43,6 @@ export function corteComun(cobertura: Cortes): Corte {
   const i = cobertura.importacion.ultimo;
   if (!m || !i) return m ?? i;
   return orden(m) <= orden(i) ? m : i;
-}
-
-/**
- * La aclaración de las pantallas que muestran las dos fuentes, cuando no
- * van parejas. Antes decía siempre «CADAM ya publicó la importación…»: en
- * sep-2026 era cierto, pero en oct-2026 la que iba adelante era la
- * matriculación (septiembre, con la importación en agosto) y el texto
- * afirmaba lo contrario de lo que pasaba.
- */
-export function aclaracionCortes(cobertura: Cortes): string | undefined {
-  const m = cobertura.matriculacion.ultimo;
-  const i = cobertura.importacion.ultimo;
-  const adelante = fuenteAdelantada(cobertura);
-  if (!m || !i || !adelante) return undefined;
-  const conAnio = m.anio !== i.anio;
-  const mes = (c: { anio: number; mes: number }) => `${mesCorto(c.mes)}${conAnio ? ` ${c.anio}` : ""}`;
-  const [lider, atras] = adelante === "importacion" ? [i, m] : [m, i];
-  const varios = orden(lider) - orden(atras) > 1;
-  const meses = varios
-    ? `${mes({ anio: atras.mes === 12 ? atras.anio + 1 : atras.anio, mes: (atras.mes % 12) + 1 })}–${mes(lider)}`
-    : mes(lider);
-  const [ya, falta] = adelante === "importacion"
-    ? ["la importación", "la matriculación"]
-    : ["la matriculación", "la importación"];
-  return `Matriculaciones hasta ${mes(m)} · importaciones hasta ${mes(i)}: CADAM ya publicó ${ya} de ${meses}, ${falta} de ${varios ? "esos meses" : "ese mes"} todavía no.`;
-}
-
-/** 'Ene–Jun 2026' | 'Mayo 2026' */
-export function etiquetaPeriodo(anio: number, desde: number, hasta: number): string {
-  if (desde === hasta) {
-    const m = MESES_LARGOS[desde - 1] ?? String(desde);
-    return `${m[0].toUpperCase()}${m.slice(1)} ${anio}`;
-  }
-  return `${mesCorto(desde)}–${mesCorto(hasta)} ${anio}`;
 }
 
 export type SearchParams = Record<string, string | string[] | undefined>;

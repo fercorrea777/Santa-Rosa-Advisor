@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getMarcasPropiasSet, getParametros, guardarParametros } from "@/lib/cadam/config";
+import { getI18n } from "@/lib/i18n/servidor";
 import { exigirAdminSiHayClave, type EstadoGuardado } from "./acciones";
 
 /**
@@ -16,12 +17,13 @@ export async function guardarMetasMensuales(
   _prev: EstadoGuardado | null,
   form: FormData
 ): Promise<EstadoGuardado> {
+  const { t, fmt } = await getI18n();
   const sinPermiso = await exigirAdminSiHayClave();
   if (sinPermiso) return { ok: false, mensaje: sinPermiso };
 
   const anio = Number(form.get("anio"));
   if (!Number.isInteger(anio) || anio < 2020 || anio > 2100) {
-    return { ok: false, mensaje: "Año inválido." };
+    return { ok: false, mensaje: t("Año inválido.") };
   }
   const propias = getMarcasPropiasSet();
   const metasAnio: Record<string, (number | null)[]> = {};
@@ -38,7 +40,7 @@ export async function guardarMetasMensuales(
       if (!Number.isInteger(n) || n < 0 || n > 100_000) {
         return {
           ok: false,
-          mensaje: `${marca}, mes ${mes}: "${crudo}" no es una cantidad válida de vehículos.`,
+          mensaje: t('{marca}, mes {mes}: "{crudo}" no es una cantidad válida de vehículos.', { marca, mes, crudo }),
         };
       }
       meses.push(n);
@@ -54,14 +56,17 @@ export async function guardarMetasMensuales(
     console.error("guardarMetasMensuales:", e);
     return {
       ok: false,
-      mensaje:
-        "No se pudo escribir parametros.json en el servidor. Si pasa siempre, es un tema de permisos del volumen /datos.",
+      mensaje: t(
+        "No se pudo escribir parametros.json en el servidor. Si pasa siempre, es un tema de permisos del volumen /datos."
+      ),
     };
   }
   revalidatePath("/", "layout");
   const total = Object.values(metasAnio).flat().reduce((s: number, v) => s + (v ?? 0), 0);
   return {
     ok: true,
-    mensaje: `Guardado ${anio}: ${cargadas} casilleros con meta, ${total.toLocaleString("es-PY")} vehículos en el año.`,
+    mensaje: t("Guardado {anio}: {cargadas} casilleros con meta, {total} vehículos en el año.", {
+      anio, cargadas, total: fmt.formatUnidades(total),
+    }),
   };
 }

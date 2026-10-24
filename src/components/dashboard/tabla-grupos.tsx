@@ -6,9 +6,9 @@ import {
 import { CambioPosicion, ParteYPuesto, Variacion } from "@/components/dashboard/celdas-ranking";
 import type { FilaGrupo } from "@/lib/cadam/mercado";
 import { GRUPO_RESTO, REPARTO_POR_MARCA } from "@/lib/cadam/grupos";
-import {
-  formatPct, formatPuntosPct, formatUnidades, nombreDeGrupo, nombreDeMarca,
-} from "@/lib/format";
+import { nombreDeMarca } from "@/lib/format";
+import { getI18n } from "@/lib/i18n/servidor";
+import type { I18n } from "@/lib/i18n/crear";
 import { cn } from "@/lib/utils";
 
 /** Cuántos logos entran en la fila; el resto va como «+N» y el detalle completo,
@@ -18,14 +18,14 @@ const LOGOS_VISIBLES = 6;
 /** «Chevrolet (40 %)»: una marca repartida entre varios grupos dice qué parte
  *  de ella es de ESTE grupo, para que nadie crea que Garden vende todos los
  *  Chevrolet ni que De la Sobera no vende ninguno. */
-function etiquetaDeMarca(m: FilaGrupo["marcas"][number]): string {
+function etiquetaDeMarca(m: FilaGrupo["marcas"][number], t: I18n["t"]): string {
   return m.parte !== undefined
-    ? `${nombreDeMarca(m.marca)} (${Math.round(m.parte * 100)} %)`
+    ? `${nombreDeMarca(m.marca)} (${t("{n} %", { n: Math.round(m.parte * 100) })})`
     : nombreDeMarca(m.marca);
 }
 
-function detalleDeMarcas(marcas: FilaGrupo["marcas"]): string {
-  return marcas.map((m) => `${etiquetaDeMarca(m)} ${formatUnidades(m.unidades)}`).join(" · ");
+function detalleDeMarcas(marcas: FilaGrupo["marcas"], { fmt, t }: I18n): string {
+  return marcas.map((m) => `${etiquetaDeMarca(m, t)} ${fmt.formatUnidades(m.unidades)}`).join(" · ");
 }
 
 /**
@@ -35,13 +35,14 @@ function detalleDeMarcas(marcas: FilaGrupo["marcas"]): string {
  * con unidades, en un texto solo para el lector de pantalla: el chip del logo
  * es decorativo. Una marca repartida lleva su porcentaje pegado al logo.
  */
-function MarcasDelGrupo({ marcas }: { marcas: FilaGrupo["marcas"] }) {
+function MarcasDelGrupo({ marcas, i18n }: { marcas: FilaGrupo["marcas"]; i18n: I18n }) {
+  const { t, fmt } = i18n;
   const visibles = marcas.slice(0, LOGOS_VISIBLES);
   const resto = marcas.slice(LOGOS_VISIBLES);
   return (
     <span className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-2">
       {visibles.map((m) => (
-        <span key={m.marca} className="relative" title={`${etiquetaDeMarca(m)} · ${formatUnidades(m.unidades)} u.`}>
+        <span key={m.marca} className="relative" title={t("{marca} · {n} u.", { marca: etiquetaDeMarca(m, t), n: fmt.formatUnidades(m.unidades) })}>
           <LogoMarca marca={m.marca} />
           {m.parte !== undefined && (
             <span
@@ -56,12 +57,12 @@ function MarcasDelGrupo({ marcas }: { marcas: FilaGrupo["marcas"] }) {
       {resto.length > 0 && (
         <span
           className="rounded-md bg-muted px-1.5 py-1 text-[11px] font-medium text-muted-foreground"
-          title={detalleDeMarcas(resto)}
+          title={detalleDeMarcas(resto, i18n)}
         >
           +{resto.length}
         </span>
       )}
-      <span className="sr-only">{detalleDeMarcas(marcas)}</span>
+      <span className="sr-only">{detalleDeMarcas(marcas, i18n)}</span>
     </span>
   );
 }
@@ -78,11 +79,14 @@ function MarcasDelGrupo({ marcas }: { marcas: FilaGrupo["marcas"] }) {
  * Mismo criterio que la tabla de marcas: lista de tarjetas en el celular y
  * tabla desde sm; la fila del grupo propio va teñida y con su chapa.
  */
-export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioAnterior: number }) {
+export async function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioAnterior: number }) {
+  const i18n = await getI18n();
+  const { t, fmt } = i18n;
+  const { formatPct, formatPuntosPct, formatUnidades, nombreDeGrupo } = fmt;
   if (!filas.length) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        Sin datos para este filtro.
+        {t("Sin datos para este filtro.")}
       </p>
     );
   }
@@ -93,7 +97,7 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
   // Sale de la misma constante que hace la cuenta: el texto no puede quedar
   // diciendo 35 % si alguien cambia el reparto a 35.
   const repartoDeChevrolet = REPARTO_POR_MARCA.CHEVROLET
-    .map((p) => `${p.grupo === GRUPO_RESTO ? "Otros" : nombreDeGrupo(p.grupo)} ${Math.round(p.parte * 100)} %`)
+    .map((p) => `${p.grupo === GRUPO_RESTO ? t("Otros") : nombreDeGrupo(p.grupo)} ${t("{n} %", { n: Math.round(p.parte * 100) })}`)
     .join(", ");
 
   return (
@@ -109,16 +113,16 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
               <span className="flex min-w-0 items-center gap-2">
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{f.posicion}</span>
                 <span className="min-w-0 truncate font-medium">{nombreDeGrupo(f.grupo)}</span>
-                {f.esPropio && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">propio</Badge>}
+                {f.esPropio && <Badge className="h-5 shrink-0 px-1.5 text-[10px]">{t("propio")}</Badge>}
               </span>
-              <AntesDelGrupo f={f} anioAnterior={anioAnterior} />
+              <AntesDelGrupo f={f} anioAnterior={anioAnterior} i18n={i18n} />
             </div>
             <div className="pl-6">
-              <MarcasDelGrupo marcas={f.marcas} />
+              <MarcasDelGrupo marcas={f.marcas} i18n={i18n} />
             </div>
             {conMercado && (
               <p className="pl-6 text-xs text-muted-foreground">
-                En el mercado: <span className="font-medium text-foreground">{f.posicionMercado ? `#${f.posicionMercado}` : "—"}</span>
+                {t("En el mercado:")} <span className="font-medium text-foreground">{f.posicionMercado ? `#${f.posicionMercado}` : "—"}</span>
                 {" · "}
                 <span className="tabular-nums">{f.participacionMercado == null ? "—" : formatPct(f.participacionMercado)}</span>
               </p>
@@ -127,9 +131,9 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
               <span className="font-mono text-lg font-semibold tabular-nums">{formatUnidades(f.unidades)}</span>
               <span className="flex items-center gap-3 text-xs">
                 <span className="tabular-nums text-muted-foreground">
-                  {formatPct(f.participacion)}{conMercado ? " del filtro" : ""}
+                  {conMercado ? t("{pct} del filtro", { pct: formatPct(f.participacion) }) : formatPct(f.participacion)}
                 </span>
-                <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0 && hayBase} />
+                <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0 && hayBase} i18n={i18n} />
               </span>
             </div>
           </li>
@@ -140,20 +144,20 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-0" nota={conMercado ? "en el filtro" : undefined}>#</TableHead>
-              <TableHead>Grupo</TableHead>
-              <TableHead className={cn("text-right", conMercado && "min-w-0")} nota="las del período">Unidades</TableHead>
+              <TableHead className="min-w-0" nota={conMercado ? t("en el filtro") : undefined}>#</TableHead>
+              <TableHead>{t("Grupo")}</TableHead>
+              <TableHead className={cn("text-right", conMercado && "min-w-0")} nota={t("las del período")}>{t("Unidades")}</TableHead>
               {conMercado && (
-                <TableHead className="min-w-0 text-right" nota="parte y puesto, sin filtros">Mercado</TableHead>
+                <TableHead className="min-w-0 text-right" nota={t("parte y puesto, sin filtros")}>{t("Mercado")}</TableHead>
               )}
               <TableHead
                 className="text-right"
-                nota={conMercado ? "sobre lo filtrado y cuánto cambió" : "su parte y cuánto cambió en puntos"}
+                nota={conMercado ? t("sobre lo filtrado y cuánto cambió") : t("su parte y cuánto cambió en puntos")}
               >
-                {conMercado ? "Filtro" : "Part."}
+                {conMercado ? t("Filtro") : t("Part.")}
               </TableHead>
-              <TableHead className={cn("text-right", conMercado && "min-w-0")} nota="contra el año pasado">Var.</TableHead>
-              <TableHead className={cn("text-right", conMercado && "min-w-0")} nota={`su puesto en ${anioAnterior}`}>Antes</TableHead>
+              <TableHead className={cn("text-right", conMercado && "min-w-0")} nota={t("contra el año pasado")}>{t("Var.")}</TableHead>
+              <TableHead className={cn("text-right", conMercado && "min-w-0")} nota={t("su puesto en {anio}", { anio: anioAnterior })}>{t("Antes")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -163,14 +167,14 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
                 <TableCell className="align-top">
                   <span className="flex items-center gap-2 font-medium">
                     {nombreDeGrupo(f.grupo)}
-                    {f.esPropio && <Badge className="h-5 px-1.5 text-[10px]">propio</Badge>}
+                    {f.esPropio && <Badge className="h-5 px-1.5 text-[10px]">{t("propio")}</Badge>}
                   </span>
-                  <MarcasDelGrupo marcas={f.marcas} />
+                  <MarcasDelGrupo marcas={f.marcas} i18n={i18n} />
                 </TableCell>
                 <TableCell className="text-right align-top tabular-nums">{formatUnidades(f.unidades)}</TableCell>
                 {conMercado && (
                   <TableCell className="text-right align-top tabular-nums">
-                    <ParteYPuesto parte={f.participacionMercado} puesto={f.posicionMercado} />
+                    <ParteYPuesto parte={f.participacionMercado} puesto={f.posicionMercado} i18n={i18n} />
                   </TableCell>
                 )}
                 <TableCell className="text-right align-top tabular-nums">
@@ -180,10 +184,10 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
                   )}
                 </TableCell>
                 <TableCell className="text-right align-top tabular-nums">
-                  <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0 && hayBase} />
+                  <Variacion v={f.variacion} entrante={f.unidadesAnterior === 0 && hayBase} i18n={i18n} />
                 </TableCell>
                 <TableCell className="text-right align-top tabular-nums">
-                  <AntesDelGrupo f={f} anioAnterior={anioAnterior} />
+                  <AntesDelGrupo f={f} anioAnterior={anioAnterior} i18n={i18n} />
                 </TableCell>
               </TableRow>
             ))}
@@ -192,11 +196,9 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Un grupo es el importador que representa las marcas, según la lista de Fernando; lo que no
-        está en ella va a Otros. Chevrolet se reparte: {repartoDeChevrolet}. «Antes» es el puesto
-        del grupo en el mismo período de {anioAnterior}.
+        {t("Un grupo es el importador que representa las marcas, según la lista de Fernando; lo que no está en ella va a Otros. Chevrolet se reparte: {reparto}. «Antes» es el puesto del grupo en el mismo período de {anio}.", { reparto: repartoDeChevrolet, anio: anioAnterior })}
         {conMercado
-          ? " «Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Filtro», sobre lo que queda con el filtro."
+          ? ` ${t("«Mercado» es la parte y el puesto sobre el mercado entero, sin filtros; «#» y «Filtro», sobre lo que queda con el filtro.")}`
           : ""}
       </p>
     </div>
@@ -204,18 +206,19 @@ export function TablaGrupos({ filas, anioAnterior }: { filas: FilaGrupo[]; anioA
 }
 
 /** «#6 =», «#10 ▲2», «Nuevo»: dónde estaba y cuánto se movió. */
-function AntesDelGrupo({ f, anioAnterior }: { f: FilaGrupo; anioAnterior: number }) {
+function AntesDelGrupo({ f, anioAnterior, i18n }: { f: FilaGrupo; anioAnterior: number; i18n: I18n }) {
+  const { t } = i18n;
   if (f.posicionAnterior === null) {
     return (
-      <span className="text-xs text-muted-foreground" title={`No figuraba en ${anioAnterior}`}>
-        {f.unidadesAnterior === 0 && f.deltaShare !== null ? "Nuevo" : "—"}
+      <span className="text-xs text-muted-foreground" title={t("No figuraba en {anio}", { anio: anioAnterior })}>
+        {f.unidadesAnterior === 0 && f.deltaShare !== null ? t("Nuevo") : "—"}
       </span>
     );
   }
   return (
     <span className="inline-flex items-baseline gap-1.5">
-      <span className="text-muted-foreground" title={`Puesto en ${anioAnterior}`}>#{f.posicionAnterior}</span>
-      <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} />
+      <span className="text-muted-foreground" title={t("Puesto en {anio}", { anio: anioAnterior })}>#{f.posicionAnterior}</span>
+      <CambioPosicion cambio={f.cambioPosicion} anterior={f.posicionAnterior} i18n={i18n} />
     </span>
   );
 }

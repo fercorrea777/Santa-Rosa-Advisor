@@ -10,9 +10,8 @@ import {
   getStockPropio, getVentasAsesor, getVentasPropias, hayDatosPropios,
 } from "@/lib/informes/propios";
 import { calcularCobertura, type CoberturaVersion } from "@/lib/informes/cobertura";
-import { formatDecimal, formatPuntosPct, formatUnidades } from "@/lib/format";
-import { mesCorto } from "@/lib/periodo";
 import { anioActual, resumenPresupuesto } from "@/lib/informes/tablero";
+import { getI18n } from "@/lib/i18n/servidor";
 import { cn } from "@/lib/utils";
 
 /** Una fila de la tarjeta: a la izquierda qué (se corta si no entra), a la
@@ -42,8 +41,18 @@ interface Fila {
  * cualquier pantalla (hoy en /mercado, que es la home real: "/" redirige
  * ahí). Si Cars no responde, las tres tarjetas que dependen de Cars lo
  * dicen; la página no se cae.
+ *
+ * IDIOMA. Cada frase de las tarjetas es UNA clave entera, con la unidad
+ * («versiones», «modelos»…) adentro: la frase se lee a continuación del
+ * número grande, y el inglés tiene que poder ordenarla a su manera.
  */
 export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: string }) {
+  const { t, fmt, idioma } = await getI18n();
+  const { formatDecimal, formatPuntosPct, formatUnidades, mesCorto } = fmt;
+  // Con UN solo elemento el inglés tiene que concordar («1 version is selling…»). El castellano no cambia nunca
+  // con el número: sus frases dicen siempre «versiones se venden…», también con 1; las frases en singular de abajo
+  // (en castellano correcto) se usan solo para el inglés.
+  const unico = (n: number | null) => idioma === "en" && n === 1;
   const propias = getMarcasPropiasSet();
   // Solo el período: ver «ALCANCE» arriba.
   const fMercado: Filtro = { anio: f.anio, mesDesde: f.mesDesde, mesHasta: f.mesHasta };
@@ -140,11 +149,15 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
     presupuesto = null;
   }
   const hayPresupuestoCargado = getPresupuesto(anioActual()) !== null;
+  const nPedir = acciones ? acciones.pedir.length : null;
+  const nEmpujar = acciones ? acciones.empujar.length : null;
+  const nParados = acciones ? acciones.parados.length : null;
+  const nAtrasados = presupuesto ? presupuesto.atrasados.length : null;
 
   return (
     <Seccion
-      titulo="Acciones de la semana"
-      nota="Los rivales miran todo el mercado del período; stock, asesores y plan, lo último de Cars. Ninguna cambia con Marca, Segmento ni Tecnología."
+      titulo={t("Acciones de la semana")}
+      nota={t("Los rivales miran todo el mercado del período; stock, asesores y plan, lo último de Cars. Ninguna cambia con Marca, Segmento ni Tecnología.")}
     >
       {/* En el celular, una tira que se desliza (cada tarjeta al 82% para que
           asome la siguiente): seis tarjetas apiladas eran más de mil píxeles
@@ -153,37 +166,46 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           nombres de versión salían cortados. */}
       <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scroll-padding-inline:1rem] [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3 2xl:grid-cols-6 [&::-webkit-scrollbar]:hidden">
         <TarjetaAccion
-          titulo="Pedir stock"
-          numero={acciones ? acciones.pedir.length : null}
-          unidad="versiones"
-          vacio="Ninguna versión con menos de un mes y medio de stock."
-          frase="se venden y tienen menos de un mes y medio de stock libre, aun contando lo que viene en viaje."
+          titulo={t("Pedir stock")}
+          numero={nPedir}
+          vacio={t("Ninguna versión con menos de un mes y medio de stock.")}
+          frase={
+            unico(nPedir)
+              ? t("versión se vende y tiene menos de un mes y medio de stock libre, aun contando lo que viene en viaje.")
+              : t("versiones se venden y tienen menos de un mes y medio de stock libre, aun contando lo que viene en viaje.")
+          }
           filas={acciones?.pedir.slice(0, 3).map((v) => ({
             nombre: v.version,
-            valor: `${formatDecimal(v.meses)} meses`,
+            valor: t("{n} meses", { n: formatDecimal(v.meses) }),
           })) ?? []}
           href="/operacion?vista=stock#pedido"
           tono="rojo"
         />
         <TarjetaAccion
-          titulo="Empujar con promo"
-          numero={acciones ? acciones.empujar.length : null}
-          unidad="versiones"
-          vacio="Ninguna versión con más de seis meses de stock."
-          frase="tienen más de seis meses de stock o casi no se mueven. Plata parada."
+          titulo={t("Empujar con promo")}
+          numero={nEmpujar}
+          vacio={t("Ninguna versión con más de seis meses de stock.")}
+          frase={
+            unico(nEmpujar)
+              ? t("versión tiene más de seis meses de stock o casi no se mueve. Plata parada.")
+              : t("versiones tienen más de seis meses de stock o casi no se mueven. Plata parada.")
+          }
           filas={acciones?.empujar.slice(0, 3).map((v) => ({
             nombre: v.version,
-            valor: `${formatUnidades(v.libres)} libres`,
+            valor: t("{n} libres", { n: formatUnidades(v.libres) }),
           })) ?? []}
           href="/operacion?vista=stock#pedido"
           tono="ambar"
         />
         <TarjetaAccion
-          titulo="Rivales en alza"
+          titulo={t("Rivales en alza")}
           numero={rivalesEnAlza.length}
-          unidad="modelos"
-          vacio="Ningún modelo rival ganó participación de forma notable."
-          frase={`de otras marcas ganaron más participación en los segmentos donde vendemos · ${periodo}.`}
+          vacio={t("Ningún modelo rival ganó participación de forma notable.")}
+          frase={
+            unico(rivalesEnAlza.length)
+              ? t("modelo de otra marca ganó más participación en los segmentos donde vendemos · {periodo}.", { periodo })
+              : t("modelos de otras marcas ganaron más participación en los segmentos donde vendemos · {periodo}.", { periodo })
+          }
           filas={rivalesEnAlza.map((m) => ({
             nombre: `${m.marca} ${m.modelo}`,
             valor: formatPuntosPct(m.deltaShare ?? 0),
@@ -192,56 +214,65 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
           tono="tinta"
         />
         <TarjetaAccion
-          titulo="Asesores parados"
-          numero={acciones ? acciones.parados.length : null}
-          unidad="asesores"
-          vacio="Ningún asesor retail dejó de facturar."
+          titulo={t("Asesores parados")}
+          numero={nParados}
+          vacio={t("Ningún asesor retail dejó de facturar.")}
           frase={
             acciones
-              ? `venían vendiendo y en ${mesCerrado} no facturaron ningún vehículo.`
-              : "venían vendiendo y el último mes no facturaron."
+              ? unico(nParados)
+                ? t("asesor venía vendiendo y en {mes} no facturó ningún vehículo.", { mes: mesCerrado })
+                : t("asesores venían vendiendo y en {mes} no facturaron ningún vehículo.", { mes: mesCerrado })
+              : unico(nParados)
+                ? t("asesor venía vendiendo y el último mes no facturó.")
+                : t("asesores venían vendiendo y el último mes no facturaron.")
           }
           filas={acciones?.parados.slice(0, 3).map((p) => ({
             nombre: p.asesor,
-            valor: `${p.antes} antes`,
+            valor: t("{n} antes", { n: p.antes }),
           })) ?? []}
           href="/operacion?vista=equipo#asesores"
           tono="ambar"
         />
         <TarjetaAccion
-          titulo="Rivales cargando stock"
+          titulo={t("Rivales cargando stock")}
           numero={rivalesCargando.length}
-          unidad="marcas"
-          vacio="Ninguna marca rival importa muy por encima de lo que matricula."
-          frase="importaron al menos 50% más de lo que matricularon: stock que va a salir a la calle."
+          vacio={t("Ninguna marca rival importa muy por encima de lo que matricula.")}
+          frase={
+            unico(rivalesCargando.length)
+              ? t("marca importó al menos 50% más de lo que matriculó: stock que va a salir a la calle.")
+              : t("marcas importaron al menos 50% más de lo que matricularon: stock que va a salir a la calle.")
+          }
           filas={rivalesCargando.map((x) => ({
             nombre: x.marca,
-            valor: `${formatUnidades(x.imp)} imp. · ${formatUnidades(x.matric)} mat.`,
+            valor: t("{imp} imp. · {mat} mat.", { imp: formatUnidades(x.imp), mat: formatUnidades(x.matric) }),
           }))}
           href="/brecha"
           tono="tinta"
         />
         <TarjetaAccion
-          titulo="Atrasados contra el plan"
-          numero={presupuesto ? presupuesto.atrasados.length : null}
-          unidad="marcas"
-          vacio="Todas las marcas al ritmo del plan."
+          titulo={t("Atrasados contra el plan")}
+          numero={nAtrasados}
+          vacio={t("Todas las marcas al ritmo del plan.")}
           // Acá null no siempre es «Cars no respondió»: también es «no hay
           // presupuesto cargado», y la tarjeta decía lo primero en los dos casos.
           sinDatosTexto={
             hayPresupuestoCargado
-              ? "Hay presupuesto cargado pero Cars no respondió: sin facturas no hay ritmo que comparar."
-              : "Sin presupuesto cargado: se lee solo del Excel de Finanzas, una vez por hora."
+              ? t("Hay presupuesto cargado pero Cars no respondió: sin facturas no hay ritmo que comparar.")
+              : t("Sin presupuesto cargado: se lee solo del Excel de Finanzas, una vez por hora.")
           }
           frase={
             presupuesto
-              ? `van más lento que lo que pide el plan ${presupuesto.version} para lo que queda del año.`
-              : "van más lento que el plan del año."
+              ? unico(nAtrasados)
+                ? t("marca va más lento que lo que pide el plan {version} para lo que queda del año.", { version: presupuesto.version })
+                : t("marcas van más lento que lo que pide el plan {version} para lo que queda del año.", { version: presupuesto.version })
+              : unico(nAtrasados)
+                ? t("marca va más lento que el plan del año.")
+                : t("marcas van más lento que el plan del año.")
           }
           filas={
             presupuesto?.atrasados.slice(0, 3).map((a) => ({
               nombre: a.marcas.join(" + "),
-              valor: `falta ${formatDecimal(a.faltaPorMes)}/mes`,
+              valor: t("falta {n}/mes", { n: formatDecimal(a.faltaPorMes) }),
             })) ?? []
           }
           href={presupuesto ? "/operacion#marcas" : "/cargas"}
@@ -257,21 +288,24 @@ export async function AccionesSemana({ f, periodo }: { f: Filtro; periodo: strin
  * no respondió (Cars caído): se dice, no se muestra un cero que parecería
  * "no hay nada que hacer".
  */
-function TarjetaAccion({
-  titulo, numero, unidad, vacio, sinDatosTexto = "Sin datos de Cars ahora mismo.", frase, filas, href, tono,
+async function TarjetaAccion({
+  titulo, numero, vacio, sinDatosTexto, frase, filas, href, tono,
 }: {
   titulo: string;
   numero: number | null;
-  unidad: string;
   /** Qué decir cuando el número es 0: en singular y en positivo. */
   vacio: string;
-  /** Qué decir cuando no hay número (la fuente no respondió o no hay carga). */
+  /** Qué decir cuando no hay número (la fuente no respondió o no hay carga).
+   *  Sin esto, «Sin datos de Cars ahora mismo.». */
   sinDatosTexto?: string;
+  /** La frase entera que sigue al número grande, con su unidad adentro
+   *  («versiones se venden y…»): se traduce como UNA clave. */
   frase: string;
   filas: Fila[];
   href: string;
   tono: "rojo" | "ambar" | "tinta";
 }) {
+  const { t } = await getI18n();
   const sinDatos = numero === null;
   const nada = numero === 0;
   return (
@@ -307,7 +341,7 @@ function TarjetaAccion({
             )}
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            {sinDatos ? sinDatosTexto : nada ? vacio : `${unidad} ${frase}`}
+            {sinDatos ? (sinDatosTexto ?? t("Sin datos de Cars ahora mismo.")) : nada ? vacio : frase}
           </p>
           {filas.length > 0 && (
             <ul className="mt-3 flex flex-col text-xs">
@@ -323,7 +357,7 @@ function TarjetaAccion({
               ))}
             </ul>
           )}
-          <span className="mt-auto pt-2 text-xs font-medium text-primary">Ver <span aria-hidden="true">→</span></span>
+          <span className="mt-auto pt-2 text-xs font-medium text-primary">{t("Ver")} <span aria-hidden="true">→</span></span>
         </CardContent>
       </Card>
     </Link>

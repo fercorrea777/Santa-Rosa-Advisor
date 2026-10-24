@@ -4,10 +4,12 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { useHasMounted } from "@/lib/use-has-mounted";
 import { IconLuna, IconSol } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/cliente";
 
 /** Botón de tema como ícono (sol/luna del set propio), no texto. El label
  *  accesible dice a qué modo CAMBIA, que es lo que el click hace. */
 export function ThemeToggle() {
+  const { t } = useI18n();
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useHasMounted();
 
@@ -21,7 +23,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
-      aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      aria-label={isDark ? t("Cambiar a modo claro") : t("Cambiar a modo oscuro")}
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
       <span className="transition-transform duration-300 ease-out hover:rotate-12">

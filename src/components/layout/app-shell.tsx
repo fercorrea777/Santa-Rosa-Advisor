@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SelectorIdioma } from "@/components/layout/selector-idioma";
+import { useI18n } from "@/lib/i18n/cliente";
 import { MenuLateral } from "@/components/layout/menu-lateral";
 import { PaletaComandos } from "@/components/layout/paleta-comandos";
 import { Avatar } from "@/components/perfil/avatar";
@@ -14,7 +16,8 @@ import type { PerfilVisible } from "@/lib/auth/perfil";
 import { COOKIE_MENU, MENU_DESPLEGADO, MENU_PLEGADO } from "@/lib/menu";
 import { cn } from "@/lib/utils";
 
-const ANCHO_MENU = "15rem";
+/** Inter es ~10 % mas ancha que Archivo: con 15rem «Combustibles y tecnologías» se cortaba (y con 16rem, en negrita, la página activa). */
+const ANCHO_MENU = "16.5rem";
 /** Dentro o fuera de un iframe no cambia mientras la página vive: no hay nada
  *  a lo que suscribirse. useSyncExternalStore es la forma de leer «¿estoy en
  *  un frame?» sin diferencia de hidratación (el servidor responde `false`). */
@@ -48,6 +51,7 @@ export function AppShell({
   /** Estado de la cookie del menú, leído en el servidor. */
   menuPlegadoInicial?: boolean;
 }) {
+  const { t } = useI18n();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [paletaAbierta, setPaletaAbierta] = React.useState(false);
   const [plegado, setPlegado] = React.useState(menuPlegadoInicial);
@@ -159,12 +163,12 @@ export function AppShell({
       {/* Enlace para saltar el menú: invisible hasta que recibe el foco
           con Tab. Quien navega con teclado o lector de pantalla no tiene
           que pasar por veintidós renglones en cada página. */}
-      <nav aria-label="Atajos">
+      <nav aria-label={t("Atajos")}>
         <a
           href="#contenido"
           className="sr-only z-[60] rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
         >
-          Saltar al contenido
+          {t("Saltar al contenido")}
         </a>
       </nav>
       <BarraMarca
@@ -189,11 +193,11 @@ export function AppShell({
             contenido claro. Sin borde, sin radio, sin sombra: navy contra
             lienzo claro no necesita ninguna de las tres.
 
-            El ancho lo decide `plegado` (15rem o 4.5rem). No se anima: mover
+            El ancho lo decide `plegado` (16.5rem o 4.5rem). No se anima: mover
             el ancho obliga a recalcular el layout de todos los gráficos en
             cada cuadro, y se ve peor que el salto. */}
         <aside
-          aria-label="Menú principal"
+          aria-label={t("Menú principal")}
           className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] shrink-0 self-start overflow-hidden md:flex md:flex-col"
           style={{
             width: plegado ? ANCHO_MENU_PLEGADO : ANCHO_MENU,
@@ -243,7 +247,7 @@ export function AppShell({
             id="menu-movil"
             role="dialog"
             aria-modal="true"
-            aria-label="Menú"
+            aria-label={t("Menú")}
             className="relative flex w-72 max-w-[85vw] flex-col shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
             style={{
               translate: mobileOpen ? "0" : "-100%",
@@ -256,7 +260,7 @@ export function AppShell({
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold tracking-tight">
-                  Mercado Automotor PY
+                  {t("Mercado Automotor PY")}
                 </span>
               </div>
               <Button
@@ -264,7 +268,7 @@ export function AppShell({
                 variant="ghost"
                 size="icon"
                 className="size-8 text-base leading-none text-white/80 hover:bg-white/10 hover:text-white"
-                aria-label="Cerrar menú"
+                aria-label={t("Cerrar menú")}
                 onClick={() => setMobileOpen(false)}
               >
                 ✕
@@ -352,6 +356,7 @@ function BarraMarca({
   refBoton: React.RefObject<HTMLButtonElement | null>;
   perfil: PerfilVisible | null;
 }) {
+  const { t } = useI18n();
   return (
     <header
       className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 px-4 shadow-[0_10px_20px_-16px_oklch(0_0_0/45%)]"
@@ -362,7 +367,7 @@ function BarraMarca({
         variant="ghost"
         size="icon"
         className="size-8 text-base leading-none text-[var(--barra-foreground)] hover:bg-white/10 hover:text-[var(--barra-foreground)] md:hidden"
-        aria-label="Abrir menú"
+        aria-label={t("Abrir menú")}
         aria-expanded={abierto}
         aria-controls="menu-movil"
         onClick={onAbrirMenu}
@@ -372,7 +377,7 @@ function BarraMarca({
       <Link
         href="/"
         className="flex min-w-0 items-center gap-3 pointer-coarse:min-h-11"
-        aria-label="Mercado Automotor PY — inicio"
+        aria-label={t("Mercado Automotor PY — inicio")}
       >
         {/* El logo es negro sobre transparente; invert lo pasa a blanco
             para el navy. brightness-0 primero, para aplanar el azul del
@@ -388,13 +393,13 @@ function BarraMarca({
         <span className="hidden h-5 w-px shrink-0 bg-white/25 sm:block" aria-hidden="true" />
         <span className="hidden min-w-0 flex-col leading-tight sm:flex">
           <span className="truncate text-[0.7rem] font-bold uppercase tracking-[0.14em]">
-            Mercado Automotor
+            {t("Mercado Automotor")}
           </span>
           <span
             className="truncate text-[0.65rem] font-medium uppercase tracking-[0.12em]"
             style={{ color: "var(--barra-muted)" }}
           >
-            Inteligencia comercial · Paraguay
+            {t("Inteligencia comercial · Paraguay")}
           </span>
         </span>
       </Link>
@@ -403,7 +408,7 @@ function BarraMarca({
           variant="ghost"
           size="icon"
           className="text-[var(--barra-foreground)] hover:bg-white/10 hover:text-[var(--barra-foreground)] md:hidden"
-          aria-label="Buscar pantalla"
+          aria-label={t("Buscar pantalla")}
           onClick={onBuscar}
         >
           <IconBuscar size={17} />
@@ -411,12 +416,13 @@ function BarraMarca({
         {perfil && (
           <Link
             href="/mi-cuenta"
-            aria-label={`Mi cuenta, ${perfil.nombre}`}
+            aria-label={t("Mi cuenta, {nombre}", { nombre: t(perfil.nombre) })}
             className="grid size-10 place-items-center rounded-full outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--barra-foreground)]/60 md:hidden"
           >
             <Avatar nombre={perfil.nombre} fotoUrl={perfil.fotoUrl} tamano="sm" sobre="navy" />
           </Link>
         )}
+        <SelectorIdioma />
         <ThemeToggle />
       </div>
     </header>
@@ -433,16 +439,19 @@ function BarraMarca({
  * No lleva boton para cerrarla: no es una notificacion, es un estado.
  */
 function AvisoSinClave() {
+  const { t, tr } = useI18n();
   return (
     <div
       role="alert"
       className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-rose-700/40 bg-rose-600 px-4 py-2 text-center text-[0.8rem] font-medium text-white"
     >
-      <span className="font-bold uppercase tracking-wide">Tablero sin clave</span>
+      <span className="font-bold uppercase tracking-wide">{t("Tablero sin clave")}</span>
       <span className="opacity-95">
-        Cualquiera con la URL ve el stock, los precios y la inteligencia de
-        competencia. Definí <code className="font-mono">ADVISOR_CLAVE</code> en
-        el entorno del servidor para cerrarlo.
+        {tr(
+          "Cualquiera con la URL ve el stock, los precios y la inteligencia de competencia. Definí <code>ADVISOR_CLAVE</code> en el entorno del servidor para cerrarlo.",
+          undefined,
+          { code: (h) => <code className="font-mono">{h}</code> }
+        )}
       </span>
     </div>
   );

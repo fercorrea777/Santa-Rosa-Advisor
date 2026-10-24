@@ -1,3 +1,4 @@
+/* i18n-ignore-file — capa de datos: SQL y filas de Postgres, nada que lea una persona. */
 import { getPool } from "./db";
 
 /**

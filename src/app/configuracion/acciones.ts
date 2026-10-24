@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { getParametros, guardarParametros } from "@/lib/cadam/config";
 import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
+import { getI18n } from "@/lib/i18n/servidor";
 
 /** Una Server Action es un POST alcanzable desde afuera de su página: el
  *  rol se vuelve a chequear acá, no solo en el proxy. Sin clave general
@@ -11,10 +12,12 @@ import { leerSesion, NOMBRE_COOKIE } from "@/lib/auth/sesion";
 export async function exigirAdminSiHayClave(): Promise<string | null> {
   const clave = process.env.ADVISOR_CLAVE;
   if (!clave) return null;
+  // El motivo vuelve a la pantalla en el idioma de quien lo pide.
+  const { t } = await getI18n();
   const store = await cookies();
   const sesion = leerSesion(store.get(NOMBRE_COOKIE)?.value, clave);
-  if (!sesion) return "Sesión vencida. Volvé a entrar.";
-  if (sesion.rol !== "admin") return "Necesitás rol de administrador.";
+  if (!sesion) return t("Sesión vencida. Volvé a entrar.");
+  if (sesion.rol !== "admin") return t("Necesitás rol de administrador.");
   return null;
 }
 
@@ -47,6 +50,7 @@ export async function guardarConfiguracion(
   _prev: EstadoGuardado | null,
   form: FormData
 ): Promise<EstadoGuardado> {
+  const { t } = await getI18n();
   const sinPermiso = await exigirAdminSiHayClave();
   if (sinPermiso) return { ok: false, mensaje: sinPermiso };
   const participacion = numeroONull(form.get("participacion"));
@@ -54,16 +58,16 @@ export async function guardarConfiguracion(
   const unidades = numeroONull(form.get("unidades"));
 
   if (participacion === "error" || ranking === "error" || unidades === "error") {
-    return { ok: false, mensaje: "Hay un valor que no es un número. Revisá y volvé a guardar." };
+    return { ok: false, mensaje: t("Hay un valor que no es un número. Revisá y volvé a guardar.") };
   }
   if (participacion !== null && (participacion <= 0 || participacion > 100)) {
-    return { ok: false, mensaje: "La participación va en porcentaje: entre 0 y 100." };
+    return { ok: false, mensaje: t("La participación va en porcentaje: entre 0 y 100.") };
   }
   if (ranking !== null && (!Number.isInteger(ranking) || ranking < 1 || ranking > 60)) {
-    return { ok: false, mensaje: "El ranking objetivo es una posición entera (1 a 60)." };
+    return { ok: false, mensaje: t("El ranking objetivo es una posición entera (1 a 60).") };
   }
   if (unidades !== null && (!Number.isInteger(unidades) || unidades < 1 || unidades > 100_000)) {
-    return { ok: false, mensaje: "Las unidades mensuales van como entero positivo." };
+    return { ok: false, mensaje: t("Las unidades mensuales van como entero positivo.") };
   }
 
   // Competidores: llegan como un textarea de nombres separados por coma o
@@ -79,10 +83,10 @@ export async function guardarConfiguracion(
     ),
   ];
   if (competidores.some((c) => c.length > 30 || !/^[A-ZÁÉÍÓÚÑ0-9 .&-]+$/.test(c))) {
-    return { ok: false, mensaje: "Hay un nombre de competidor con caracteres raros o demasiado largo." };
+    return { ok: false, mensaje: t("Hay un nombre de competidor con caracteres raros o demasiado largo.") };
   }
   if (competidores.length > 20) {
-    return { ok: false, mensaje: "Máximo 20 competidores: es una watchlist, no el mercado entero." };
+    return { ok: false, mensaje: t("Máximo 20 competidores: es una watchlist, no el mercado entero.") };
   }
 
   try {
@@ -98,22 +102,25 @@ export async function guardarConfiguracion(
     console.error("guardarConfiguracion:", e);
     return {
       ok: false,
-      mensaje:
-        "No se pudo escribir parametros.json en el servidor. Si pasa siempre, es un tema de permisos del volumen /datos.",
+      mensaje: t(
+        "No se pudo escribir parametros.json en el servidor. Si pasa siempre, es un tema de permisos del volumen /datos."
+      ),
     };
   }
 
   revalidatePath("/", "layout");
   const resumen = [
-    participacion !== null ? `participación ${participacion}%` : null,
-    ranking !== null ? `ranking #${ranking}` : null,
-    unidades !== null ? `${unidades} u./mes` : null,
+    participacion !== null ? t("participación {p}%", { p: participacion }) : null,
+    ranking !== null ? t("ranking #{r}", { r: ranking }) : null,
+    unidades !== null ? t("{u} u./mes", { u: unidades }) : null,
   ].filter(Boolean);
+  // «1 competidores» es como siempre lo dijo el castellano; el inglés sí distingue el singular.
+  const cuantos = competidores.length === 1 ? t("1 competidores") : t("{n} competidores", { n: competidores.length });
   return {
     ok: true,
     mensaje: resumen.length
-      ? `Guardado: ${resumen.join(" · ")} · ${competidores.length} competidores.`
-      : `Guardado sin metas definidas · ${competidores.length} competidores.`,
+      ? t("Guardado: {resumen} · {cuantos}.", { resumen: resumen.join(" · "), cuantos })
+      : t("Guardado sin metas definidas · {cuantos}.", { cuantos }),
   };
 }
 

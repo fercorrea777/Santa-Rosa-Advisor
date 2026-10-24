@@ -1,3 +1,6 @@
+/* i18n-ignore-file: la dispara el cron (CRON_SECRET), sin persona ni idioma. Sus respuestas las lee el cron y
+   los prompts que arma son instrucciones al modelo (castellano); lo que el modelo escribe se guarda como
+   contenido del informe y no se traduce. */
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { getParametros } from "@/lib/cadam/config";

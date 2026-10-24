@@ -1,3 +1,4 @@
+/* i18n-ignore-file — ingesta máquina a máquina (Hermes, con Bearer): sin cookie de idioma ni persona delante; los mensajes los lee un script. */
 import { NextResponse } from "next/server";
 import {
   crearTablaPreciosCompetencia, getPreciosCompetencia, guardarPreciosCompetencia,

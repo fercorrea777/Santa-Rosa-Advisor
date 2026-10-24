@@ -13,6 +13,10 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
+  /* Inter lleva el cierre de espaciado de los titulos en el eje de tamano
+     optico (opsz): a -0.025em (el valor por defecto de Tailwind) las letras de
+     un titulo en negrita se tocan. */
+  --tracking-tight: -0.015em;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -679,6 +683,39 @@
 /* La sparkline toma el color de la familia de su tile. */
 .tile-verde { --sparkline-color: oklch(0.55 0.12 155); }
 .dark .tile-verde { --sparkline-color: oklch(0.75 0.11 155); }
+
+/* ---- Panorama (el bento del Resumen del mercado) ---------------------------
+   La tarjeta de acento: el cian de la marca como relleno. Es la de lo NUESTRO
+   (la participación de las marcas propias): se ve de lejos y no compite con los
+   azules y ámbares de los datos del mercado. En claro es el cian oscuro con
+   letra blanca (5,3:1) y en oscuro el cian vivo con letra oscura (10:1): las dos
+   cosas salen de --primary y --primary-foreground, no hay colores nuevos acá. */
+.tile-acento[data-slot="card"] {
+  background-color: var(--primary);
+  border-color: transparent;
+  color: var(--primary-foreground);
+}
+.tile-acento .metric { color: inherit; }
+.dark .tile-acento .metric { text-shadow: none; }
+
+/* Treemap del Panorama: un color por grupo importador, siempre el mismo (ver
+   bento/colores.ts). Cada clase fija el fondo y el color de la letra, y la
+   letra cambia con el tema porque los ocho tonos del gráfico se aclaran en el
+   modo oscuro: sin esto, el blanco sobre el ámbar claro daba 3:1. Contrastes
+   medidos: claro 4,4–8,6:1 y oscuro 4,9–10:1 sobre cada rectángulo. El azul se
+   oscurece un 14 % en claro para pasar 4,5:1 con letra blanca. */
+.bento-g { background-color: var(--g-fondo); color: var(--g-tinta); }
+.bento-g-sr { --g-fondo: var(--primary); --g-tinta: var(--primary-foreground); }
+.bento-g-1 { --g-fondo: color-mix(in oklab, var(--chart-1) 86%, black); --g-tinta: oklch(1 0 0); }
+.bento-g-2 { --g-fondo: var(--chart-2); --g-tinta: oklch(1 0 0); }
+.bento-g-3 { --g-fondo: var(--chart-3); --g-tinta: oklch(0.16 0.03 250); }
+.bento-g-4 { --g-fondo: var(--chart-4); --g-tinta: oklch(0.16 0.03 250); }
+.bento-g-5 { --g-fondo: var(--chart-5); --g-tinta: oklch(0.16 0.03 250); }
+.bento-g-6 { --g-fondo: var(--chart-6); --g-tinta: oklch(0.16 0.03 250); }
+.bento-g-otros { --g-fondo: oklch(0.52 0.02 250); --g-tinta: oklch(1 0 0); }
+.dark .bento-g-1 { --g-fondo: var(--chart-1); --g-tinta: oklch(0.16 0.03 250); }
+.dark .bento-g-2 { --g-tinta: oklch(0.16 0.03 250); }
+.dark .bento-g-otros { --g-fondo: oklch(0.42 0.03 250); }
 
 /* ---- Chip de ícono (rediseño 2026-07, referencia del usuario) ------------
    Cuadrado redondeado de color pastel detrás del ícono de un KPI, chico y

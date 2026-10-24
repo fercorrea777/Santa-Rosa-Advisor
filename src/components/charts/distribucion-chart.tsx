@@ -3,7 +3,7 @@
 import { EchartsAuto } from "@/components/charts/echarts-auto";
 import { useFiltroUrl } from "@/lib/filtro-url";
 import { TOOLTIP_BASE, useChartTheme } from "@/lib/chart-theme";
-import { decimal, formatUnidades, nombreDeSegmento } from "@/lib/format";
+import { useI18n } from "@/lib/i18n/cliente";
 
 export interface Parte {
   nombre: string;
@@ -49,6 +49,8 @@ export function DistribucionChart({
    *  grupos de tecnologia, que se repiten en el apilado por año). */
   paleta?: boolean;
 }) {
+  const { t, tr, fmt } = useI18n();
+  const { decimal, formatUnidades, nombreDeSegmento } = fmt;
   const theme = useChartTheme();
   const { leer, alternar } = useFiltroUrl();
   const activo = param ? leer(param) : null;
@@ -56,9 +58,11 @@ export function DistribucionChart({
   const ordenados = [...datos].sort((a, b) => b.valor - a.valor);
   const visibles = ordenados.slice(0, maximo);
   const resto = ordenados.slice(maximo);
-  if (resto.length) {
+  // La barra de las categorías chicas: no es un dato ni un filtro, y su nombre cambia con el idioma.
+  const nombreOtros = resto.length ? t("Otros ({n})", { n: resto.length }) : null;
+  if (nombreOtros) {
     visibles.push({
-      nombre: `Otros (${resto.length})`,
+      nombre: nombreOtros,
       valor: resto.reduce((s, d) => s + d.valor, 0),
     });
   }
@@ -69,7 +73,7 @@ export function DistribucionChart({
   const filas = [...visibles].reverse();
 
   const onClick = (p: { name?: string }) => {
-    if (!param || !p.name || p.name.startsWith("Otros (")) return;
+    if (!param || !p.name || p.name === nombreOtros) return;
     alternar(param, p.name);
   };
 
@@ -107,10 +111,10 @@ export function DistribucionChart({
       ...TOOLTIP_BASE,
       trigger: "item",
       formatter: (p: { name: string; value: number }) =>
-        `${etiqueta(p.name)}<br/><b>${formatUnidades(p.value)}</b> u. · <b>${pct(p.value)}</b>` +
-        (param && !p.name.startsWith("Otros (")
+        `${etiqueta(p.name)}<br/><b>${formatUnidades(p.value)}</b> ${t("u.")} · <b>${pct(p.value)}</b>` +
+        (param && p.name !== nombreOtros
           ? `<br/><span style="font-size:11px;opacity:.75">${
-              activo === p.name ? "Clic para quitar el filtro" : "Clic para filtrar"
+              activo === p.name ? t("Clic para quitar el filtro") : t("Clic para filtrar")
             }</span>`
           : ""),
     },
@@ -196,7 +200,7 @@ export function DistribucionChart({
   if (!datos.length) {
     return (
       <p className="py-16 text-center text-sm text-muted-foreground">
-        Sin datos para este filtro.
+        {t("Sin datos para este filtro.")}
       </p>
     );
   }
@@ -204,6 +208,10 @@ export function DistribucionChart({
   // La altura sale de cuantas barras hay: una fija dejaba las barras
   // aplastadas con 9 categorias y con aire de sobra con 3.
   const alto = altura ?? Math.max(140, filas.length * 34 + 12);
+  const varsTotal = { total: formatUnidades(total), n: visibles.length, resto: resto.length };
+  const etiquetasTotal = {
+    num: (h: React.ReactNode) => <span className="font-medium tabular-nums text-foreground">{h}</span>,
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -217,15 +225,11 @@ export function DistribucionChart({
       {/* El total: antes iba al centro del anillo. Como HTML y no como texto
           de canvas, para que herede la tipografia tabular del resto. */}
       <p className="border-t pt-2 text-xs text-muted-foreground">
-        Total{" "}
-        <span className="font-medium tabular-nums text-foreground">
-          {formatUnidades(total)}
-        </span>{" "}
-        u. en {visibles.length} {visibles.length === 1 ? "categoría" : "categorías"}
         {resto.length
-          ? ` (las ${resto.length} más chicas, agrupadas en «Otros»)`
-          : ""}
-        .
+          ? tr("Total <num>{total}</num> u. en {n} categorías (las {resto} más chicas, agrupadas en «Otros»).", varsTotal, etiquetasTotal)
+          : visibles.length === 1
+            ? tr("Total <num>{total}</num> u. en {n} categoría.", varsTotal, etiquetasTotal)
+            : tr("Total <num>{total}</num> u. en {n} categorías.", varsTotal, etiquetasTotal)}
       </p>
     </div>
   );

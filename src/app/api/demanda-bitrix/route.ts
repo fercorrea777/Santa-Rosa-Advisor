@@ -1,3 +1,4 @@
+/* i18n-ignore-file — ruta de ingesta de Hermes (máquina a máquina, con Bearer): los `error` los lee el script de Hermes en su log, nunca una persona en pantalla. */
 import { NextResponse } from "next/server";
 import {
   crearTablaDemandaBitrix, guardarDemandaBitrix, type DemandaBitrix, type EstadoDemanda, type OrigenDemanda,

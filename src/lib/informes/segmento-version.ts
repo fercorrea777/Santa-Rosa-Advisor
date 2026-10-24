@@ -25,6 +25,7 @@
  */
 
 export const SIN_CLASIFICAR = "Sin clasificar";
+// i18n-ignore (valor centinela que viaja como CLAVE de datos y de filtro; se traduce al mostrarlo, con t("Sin dato"))
 export const SIN_DATO_TECNOLOGIA = "Sin dato";
 
 /** Mismo orden que mercado.ts:TECNOLOGIAS. Si cambia allá, cambia acá. */
