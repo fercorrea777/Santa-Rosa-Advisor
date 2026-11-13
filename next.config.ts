@@ -62,22 +62,22 @@ const nextConfig: NextConfig = {
   // No decir con qué está hecho: una cabecera menos para quien busca
   // versiones vulnerables.
   poweredByHeader: false,
+  // Sin optimizador de imágenes (13/11/2026). `/_next/image` es la ruta de
+  // Next que tuvo las fallas más graves de 2026 (ejecución remota de código
+  // sin login con AVIF y SVG, SSRF, DoS) y el proxy la deja pasar sin sesión
+  // (ver el matcher de src/proxy.ts). Acá no hace falta: el único <Image> es
+  // el logo de /public (27 KB, se sirve tal cual); los logos de marca y la
+  // foto de perfil ya van con <img>. Con esto la ruta responde 404 sin leer
+  // nada. Si algún día hace falta optimizar fotos grandes, sacarlo a
+  // conciencia y no dejar la ruta abierta a cualquiera.
+  images: { unoptimized: true },
   async headers() {
     return [{ source: "/(.*)", headers: CABECERAS }];
   },
-  // "/" redirige a "/mercado" (2026-09). Las dos eran panoramas del mismo
-  // dato y "Resumen del mercado" es la más completa: trae el toggle
-  // matriculación/importación, las dos evoluciones y los cortes de segmento
-  // y tecnología. Al sacar "Inicio" del menú, "/" quedaba alcanzable solo
-  // por el logo y sin marcar ningún ítem como activo.
-  //
-  // permanent: false (307) a propósito: un 308 se cachea en el navegador y
-  // volver atrás obliga a limpiar caché en cada máquina. src/app/page.tsx
-  // queda en el repo — de ahí salen las 4 tarjetas que todavía no están en
-  // /mercado si se quieren portar.
-  async redirects() {
-    return [{ source: "/", destination: "/mercado", permanent: false }];
-  },
+  // "/" redirige a "/mercado" (2026-09): desde el 13/11/2026 lo hace
+  // src/proxy.ts, DESPUÉS de pasar http a https. Las `redirects()` de acá
+  // corren antes que el proxy, y con http "/" contestaba 307 a http://… sin
+  // subir a https (aviso W01 de la revisión de seguridad).
 };
 
 export default nextConfig;

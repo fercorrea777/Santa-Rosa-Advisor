@@ -114,7 +114,58 @@ function conEmbed(request: NextRequest): NextResponse {
   return NextResponse.next({ request: { headers: cabeceras } });
 }
 
+/**
+ * Cloudflare avisa en `cf-visitor` con qué esquema entró el visitante. Si
+ * entró por http, se lo pasa a https ANTES de mirar nada más: la clave del
+ * acceso no tiene que viajar en claro (la cookie de sesión es Secure, pero el
+ * formulario de /entrar se enviaría igual). Sin ese encabezado —desarrollo,
+ * la consulta de salud de Coolify por dentro, los crons que entran por el
+ * Traefik local— no hace nada, así que no puede armar una redirección en
+ * bucle. Mismo arreglo que SR360 y Renew Dash (aviso W01 de la revisión de
+ * seguridad de ~/Escritorio/SEGURIDAD SRPY, 13/11/2026).
+ */
+function entroPorHttp(request: NextRequest): boolean {
+  const visitante = request.headers.get("cf-visitor");
+  if (!visitante) return false;
+  try {
+    return (JSON.parse(visitante) as { scheme?: unknown }).scheme === "http";
+  } catch {
+    return false;
+  }
+}
+
+/** El host público: `request.url` dentro del contenedor es el interno. */
+function hostPublico(request: NextRequest): string {
+  try {
+    if (process.env.APP_URL) return new URL(process.env.APP_URL).host;
+  } catch {
+    // APP_URL mal escrita: se sigue con los encabezados.
+  }
+  return request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? new URL(request.url).host;
+}
+
 export function proxy(request: NextRequest) {
+  if (entroPorHttp(request)) {
+    const https = new URL(request.url);
+    https.host = hostPublico(request);
+    https.protocol = "https:";
+    https.port = "";
+    // 308: conserva el método y el cuerpo (los POST de Hermes, si alguno
+    // entrara por http, siguen andando).
+    return NextResponse.redirect(https, 308);
+  }
+
+  // "/" lleva a "/mercado" (2026-09). Vivía en `redirects()` de
+  // next.config.ts, pero esas redirecciones corren ANTES que el proxy: con
+  // http, "/" contestaba 307 a http://…/mercado sin pasar por el https de
+  // arriba. Acá va después. 307 a propósito (un 308 se cachea en el
+  // navegador y volver atrás obligaría a limpiar caché en cada máquina).
+  if (request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/mercado";
+    return NextResponse.redirect(url, 307);
+  }
+
   const clave = process.env.ADVISOR_CLAVE;
 
   // SIN CLAVE CONFIGURADA, LA PUERTA QUEDA ABIERTA. Es deliberado y no me
