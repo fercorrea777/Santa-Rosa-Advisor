@@ -74,19 +74,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/(.*)", headers: CABECERAS }];
   },
-  // "/" redirige a "/mercado" (2026-09). Las dos eran panoramas del mismo
-  // dato y "Resumen del mercado" es la más completa: trae el toggle
-  // matriculación/importación, las dos evoluciones y los cortes de segmento
-  // y tecnología. Al sacar "Inicio" del menú, "/" quedaba alcanzable solo
-  // por el logo y sin marcar ningún ítem como activo.
-  //
-  // permanent: false (307) a propósito: un 308 se cachea en el navegador y
-  // volver atrás obliga a limpiar caché en cada máquina. src/app/page.tsx
-  // queda en el repo — de ahí salen las 4 tarjetas que todavía no están en
-  // /mercado si se quieren portar.
-  async redirects() {
-    return [{ source: "/", destination: "/mercado", permanent: false }];
-  },
+  // "/" redirige a "/mercado" (2026-09): desde el 13/11/2026 lo hace
+  // src/proxy.ts, DESPUÉS de pasar http a https. Las `redirects()` de acá
+  // corren antes que el proxy, y con http "/" contestaba 307 a http://… sin
+  // subir a https (aviso W01 de la revisión de seguridad).
 };
 
 export default nextConfig;
